@@ -1,4 +1,4 @@
-import { Color4, Engine, HemisphericLight, KeyboardEventTypes, Scene as BabylonScene, Vector3 } from "@babylonjs/core";
+import { Color4, Engine, HemisphericLight, KeyboardEventTypes, Scene as BabylonScene, FreeCamera, Vector3 } from "@babylonjs/core";
 import type { LangManager } from "../../lang/LangManager";
 import type { Scene } from "../Scene";
 import type { MainMenuAction } from "./MainMenuAction";
@@ -67,7 +67,14 @@ export class MainMenuScene implements Scene {
 
     this.createEnvironment();
 
-    this.ui = new MainMenuUi(this.scene, this.actions, (command) => this.processInput(command));
+    this.ui = new MainMenuUi(
+        this.scene,
+        this.actions,
+        (command) => this.processInput(command),
+        (command) => this.handleHoveredAction(command)
+    );
+
+
     this.refreshUiText();
     this.applySelection();
     this.attachKeyboardInput();
@@ -77,7 +84,29 @@ export class MainMenuScene implements Scene {
       this.ui = null;
     });
 
+
+    const camera = new FreeCamera("main-menu-camera", new Vector3(0, 0, -10), this.scene);
+    camera.setTarget(Vector3.Zero());
+    camera.attachControl(this.canvas, true);
+    this.scene.activeCamera = camera;
+
     return this.scene;
+  }
+
+  /**
+   * Synchronizes keyboard selection state with the menu item currently hovered by mouse.
+   *
+   * @param command - Hovered menu action command.
+   * @returns No return value.
+   */
+  private handleHoveredAction(command: MainMenuCommand): void {
+    const hoveredIndex = this.actions.findIndex((action) => action.command === command);
+    if (hoveredIndex === -1) {
+      return;
+    }
+
+    this.selectedIndex = hoveredIndex;
+    this.applySelection();
   }
 
   /**
