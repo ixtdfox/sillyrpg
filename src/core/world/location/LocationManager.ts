@@ -1,13 +1,13 @@
-import { ArcRotateCamera, HemisphericLight, Scene as BabylonScene, SceneLoader, Vector3 } from "@babylonjs/core";
+import { ArcRotateCamera, HemisphericLight, MeshBuilder, Scene as BabylonScene, SceneLoader, Vector3 } from "@babylonjs/core";
+import type { LangManager } from "../../lang/LangManager";
 import { GameWorld } from "../GameWorld";
 import type { World } from "../World";
-import type { LangManager } from "../../lang/LangManager";
-import type { DistrictDefinition } from "./district/DistrictDefinition";
-import { GameDistrict } from "./district/GameDistrict";
-import type { District } from "./district/District";
+import { GameLocation } from "./GameLocation";
 import type { Location } from "./Location";
 import type { LocationDefinition } from "./LocationDefinition";
-import { GameLocation } from "./GameLocation";
+import type { District } from "./district/District";
+import type { DistrictDefinition } from "./district/DistrictDefinition";
+import { GameDistrict } from "./district/GameDistrict";
 
 /**
  * Loads and manages world locations and district scene initialization.
@@ -97,10 +97,7 @@ export class LocationManager {
    * @returns Promise that resolves when district visuals and camera are ready.
    */
   public async createDistrictScene(scene: BabylonScene, district: District): Promise<void> {
-    const modelPath = district.getSceneData().model;
-    const { rootUrl, fileName } = this.resolveModelPath(modelPath);
-
-    await SceneLoader.AppendAsync(rootUrl, fileName, scene);
+    await this.appendDistrictModel(scene, district.getSceneData().model);
 
     const target = this.resolveGroundCenter(scene);
     const camera = new ArcRotateCamera("in-game-camera", -Math.PI / 4, Math.PI / 3, 30, target, scene);
@@ -111,6 +108,63 @@ export class LocationManager {
 
     const light = new HemisphericLight("in-game-light", new Vector3(0, 1, 0), scene);
     light.intensity = 1;
+  }
+
+  /**
+   * Appends district model into the target scene.
+   * If GLTF/GLB loader is unavailable, it falls back to a simple generated scene.
+   *
+   * @param scene - Scene where district content is appended.
+   * @param modelPath - Relative path to district model file.
+   * @returns Promise resolved when load or fallback generation is done.
+   */
+  private async appendDistrictModel(scene: BabylonScene, modelPath: string): Promise<void> {
+    const extension = this.getFileExtension(modelPath);
+    const hasLoader = SceneLoader.IsPluginForExtensionAvailable(extension);
+
+    if (!hasLoader) {
+      console.warn(`No Babylon loader plugin found for '${extension}'. Creating fallback district geometry.`);
+      this.createFallbackDistrictGeometry(scene);
+      return;
+    }
+
+    const { rootUrl, fileName } = this.resolveModelPath(modelPath);
+
+    try {
+      await SceneLoader.AppendAsync(rootUrl, fileName, scene);
+    } catch (error) {
+      console.warn(`Unable to load district model '${modelPath}'. Creating fallback district geometry.`, error);
+      this.createFallbackDistrictGeometry(scene);
+    }
+  }
+
+  /**
+   * Creates a fallback district geometry to keep in-game scene functional.
+   *
+   * @param scene - Scene where placeholder meshes are created.
+   * @returns No return value.
+   */
+  private createFallbackDistrictGeometry(scene: BabylonScene): void {
+    const ground = MeshBuilder.CreateGround("ground", { width: 40, height: 40 }, scene);
+    ground.position = Vector3.Zero();
+
+    const marker = MeshBuilder.CreateBox("district-marker", { size: 2 }, scene);
+    marker.position = new Vector3(0, 1, 0);
+  }
+
+  /**
+   * Returns lowercase extension with leading dot from file path.
+   *
+   * @param filePath - Source file path.
+   * @returns Path extension including leading dot.
+   */
+  private getFileExtension(filePath: string): string {
+    const dotIndex = filePath.lastIndexOf(".");
+    if (dotIndex === -1) {
+      return "";
+    }
+
+    return filePath.slice(dotIndex).toLowerCase();
   }
 
   /**
