@@ -1,4 +1,4 @@
-import { CharacterRelations } from "./CharacterRelations";
+import { Relations } from "../entity/components/Relations";
 import { CharacterState } from "./CharacterState";
 import { ControlType } from "./ControlType";
 
@@ -32,7 +32,7 @@ export interface Character {
    *
    * @returns Relationship map.
    */
-  getRelationships(): Record<string, CharacterRelations>;
+  getRelationships(): Record<string, Relations>;
 
   /**
    * Returns the 3D model path.

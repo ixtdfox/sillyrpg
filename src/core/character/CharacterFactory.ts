@@ -4,7 +4,7 @@ import { CharacterManager } from "./CharacterManager";
 import { CharacterState } from "./CharacterState";
 import { ControlType } from "./ControlType";
 import { GameCharacter } from "./GameCharacter";
-import { VitalsState } from "./VitalsState";
+import { Vitals } from "../entity/components/Vitals";
 
 /**
  * Builds concrete character instances from templates.
@@ -44,7 +44,7 @@ export class CharacterFactory {
       ControlType.PLAYER,
       Archetype.HUMAN,
       {},
-      new CharacterState(new VitalsState(100, 100), new VitalsState(100, 100), 50)
+      new CharacterState(new Vitals(100, 100), new Vitals(100, 100), 50)
     );
   }
 
@@ -62,7 +62,7 @@ export class CharacterFactory {
       ControlType.NPC,
       Archetype.GOLEM,
       {},
-      new CharacterState(new VitalsState(140, 140), new VitalsState(60, 60), 120)
+      new CharacterState(new Vitals(140, 140), new Vitals(60, 60), 120)
     );
   }
 
