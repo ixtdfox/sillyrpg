@@ -1,6 +1,6 @@
 import { Archetype } from "./Archetype";
 import type { Character } from "./Character";
-import { CharacterRelations } from "./CharacterRelations";
+import { Relations } from "../entity/components/Relations";
 import { CharacterState } from "./CharacterState";
 import { ControlType } from "./ControlType";
 
@@ -24,7 +24,7 @@ export class GameCharacter implements Character {
   private readonly archetype: Archetype;
 
   /** Relations to other characters keyed by their id. */
-  private readonly relationships: Record<string, CharacterRelations>;
+  private readonly relationships: Record<string, Relations>;
 
   /** Mutable gameplay state for vitals and capacities. */
   private readonly state: CharacterState;
@@ -44,7 +44,7 @@ export class GameCharacter implements Character {
     model: string,
     controlType: ControlType,
     archetype: Archetype,
-    relationships: Record<string, CharacterRelations> = {},
+    relationships: Record<string, Relations> = {},
     state: CharacterState = new CharacterState()
   ) {
     this.id = GameCharacter.generateUuid();
@@ -88,7 +88,7 @@ export class GameCharacter implements Character {
    *
    * @returns Relationship object map.
    */
-  public getRelationships(): Record<string, CharacterRelations> {
+  public getRelationships(): Record<string, Relations> {
     return this.relationships;
   }
 

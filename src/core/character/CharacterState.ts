@@ -1,14 +1,14 @@
-import { VitalsState } from "./VitalsState";
+import { Vitals } from "../entity/components/Vitals";
 
 /**
  * Holds gameplay state values for a character instance.
  */
 export class CharacterState {
   /** Health state of the character. */
-  public hp: VitalsState;
+  public hp: Vitals;
 
   /** Energy or stamina state of the character. */
-  public energy: VitalsState;
+  public energy: Vitals;
 
   /** Maximum carry weight for inventory systems. */
   public carryCapacityWeight: number;
@@ -21,8 +21,8 @@ export class CharacterState {
    * @param carryCapacityWeight - Optional carry weight capacity.
    */
   public constructor(
-    hp: VitalsState = new VitalsState(),
-    energy: VitalsState = new VitalsState(),
+    hp: Vitals = new Vitals(),
+    energy: Vitals = new Vitals(),
     carryCapacityWeight: number = 0
   ) {
     this.hp = hp;
