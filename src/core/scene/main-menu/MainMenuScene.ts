@@ -67,7 +67,14 @@ export class MainMenuScene implements Scene {
 
     this.createEnvironment();
 
-    this.ui = new MainMenuUi(this.scene, this.actions, (command) => this.processInput(command));
+    this.ui = new MainMenuUi(
+        this.scene,
+        this.actions,
+        (command) => this.processInput(command),
+        (command) => this.handleHoveredAction(command)
+    );
+
+
     this.refreshUiText();
     this.applySelection();
     this.attachKeyboardInput();
@@ -84,6 +91,22 @@ export class MainMenuScene implements Scene {
     this.scene.activeCamera = camera;
 
     return this.scene;
+  }
+
+  /**
+   * Synchronizes keyboard selection state with the menu item currently hovered by mouse.
+   *
+   * @param command - Hovered menu action command.
+   * @returns No return value.
+   */
+  private handleHoveredAction(command: MainMenuCommand): void {
+    const hoveredIndex = this.actions.findIndex((action) => action.command === command);
+    if (hoveredIndex === -1) {
+      return;
+    }
+
+    this.selectedIndex = hoveredIndex;
+    this.applySelection();
   }
 
   /**

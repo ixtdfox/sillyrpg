@@ -34,11 +34,13 @@ export class MainMenuUi {
    * @param scene - Babylon scene that owns the GUI texture.
    * @param actions - Ordered menu actions to render.
    * @param onCommand - Callback invoked when any GUI control triggers a command.
+   * @param onActionHover - Callback invoked when a menu action is hovered by mouse.
    */
   public constructor(
-    scene: import("@babylonjs/core").Scene,
-    actions: MainMenuAction[],
-    onCommand: (command: MainMenuCommand) => void
+      scene: import("@babylonjs/core").Scene,
+      actions: MainMenuAction[],
+      onCommand: (command: MainMenuCommand) => void,
+      onActionHover: (command: MainMenuCommand) => void
   ) {
     this.texture = AdvancedDynamicTexture.CreateFullscreenUI("main-menu-ui", true, scene);
     this.actionButtons = new Map<MainMenuCommand, Button>();
@@ -71,7 +73,12 @@ export class MainMenuUi {
     root.addControl(menuPanel);
 
     for (const action of actions) {
-      const button = this.createMenuButton(action.command, () => onCommand(action.command));
+      const button = this.createMenuButton(
+          action.command,
+          () => onCommand(action.command),
+          () => onActionHover(action.command)
+      );
+
       this.actionButtons.set(action.command, button);
       menuPanel.addControl(button);
     }
@@ -165,9 +172,10 @@ export class MainMenuUi {
    *
    * @param name - Button name.
    * @param onClick - Click callback.
+   * @param onHover - Hover callback.
    * @returns Configured Babylon GUI button.
    */
-  private createMenuButton(name: string, onClick: () => void): Button {
+  private createMenuButton(name: string, onClick: () => void, onHover: () => void): Button {
     const button = Button.CreateSimpleButton(name, "");
     button.height = "52px";
     button.width = 0.9;
@@ -175,7 +183,9 @@ export class MainMenuUi {
     button.thickness = 1;
     button.background = "#121A2B";
     button.cornerRadius = 4;
+
     button.onPointerUpObservable.add(onClick);
+    button.onPointerEnterObservable.add(onHover);
 
     const text = button.children[0] as TextBlock;
     text.fontSize = 22;
