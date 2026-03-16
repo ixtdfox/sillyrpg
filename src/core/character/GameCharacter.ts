@@ -1,32 +1,26 @@
 import { Archetype } from "./Archetype";
 import type { Character } from "./Character";
+import { ControlComponent } from "../entity/components/ControlComponent";
+import { IdentityComponent } from "../entity/components/IdentityComponent";
 import { Relations } from "../entity/components/Relations";
+import { RelationsComponent } from "../entity/components/RelationsComponent";
+import { VitalsComponent } from "../entity/components/VitalsComponent";
+import { Entity } from "../entity/Entity";
 import { CharacterState } from "./CharacterState";
 import { ControlType } from "./ControlType";
 
 /**
  * Concrete implementation of the character domain entity.
  */
-export class GameCharacter implements Character {
-  /** Unique character identifier in UUID format. */
-  private readonly id: string;
-
-  /** Display name for UI and dialogs. */
-  private readonly name: string;
+export class GameCharacter extends Entity implements Character {
 
   /** Path to the model asset used for rendering. */
   private readonly model: string;
 
-  /** Indicates whether this character is player or NPC controlled. */
-  private readonly controlType: ControlType;
-
   /** Archetype used by gameplay and template systems. */
   private readonly archetype: Archetype;
 
-  /** Relations to other characters keyed by their id. */
-  private readonly relationships: Record<string, Relations>;
-
-  /** Mutable gameplay state for vitals and capacities. */
+  /** Mutable gameplay state view backed by vitals component. */
   private readonly state: CharacterState;
 
   /**
@@ -47,13 +41,47 @@ export class GameCharacter implements Character {
     relationships: Record<string, Relations> = {},
     state: CharacterState = new CharacterState()
   ) {
-    this.id = GameCharacter.generateUuid();
-    this.name = name;
+    const id = GameCharacter.generateUuid();
+
+    super(id);
+
     this.model = model;
-    this.controlType = controlType;
     this.archetype = archetype;
-    this.relationships = relationships;
-    this.state = state;
+
+    this.addComponent(IdentityComponent, new IdentityComponent(id, name));
+    this.addComponent(ControlComponent, new ControlComponent(controlType));
+    this.addComponent(RelationsComponent, new RelationsComponent(relationships));
+
+    const vitalsComponent = new VitalsComponent(state.hp, state.energy, state.carryCapacityWeight);
+    this.addComponent(VitalsComponent, vitalsComponent);
+
+    this.state = new CharacterState(vitalsComponent.hp, vitalsComponent.energy, vitalsComponent.carryCapacityWeight);
+    Object.defineProperties(this.state, {
+      hp: {
+        configurable: true,
+        enumerable: true,
+        get: () => vitalsComponent.hp,
+        set: (value) => {
+          vitalsComponent.hp = value;
+        }
+      },
+      energy: {
+        configurable: true,
+        enumerable: true,
+        get: () => vitalsComponent.energy,
+        set: (value) => {
+          vitalsComponent.energy = value;
+        }
+      },
+      carryCapacityWeight: {
+        configurable: true,
+        enumerable: true,
+        get: () => vitalsComponent.carryCapacityWeight,
+        set: (value) => {
+          vitalsComponent.carryCapacityWeight = value;
+        }
+      }
+    });
   }
 
   /**
@@ -62,7 +90,7 @@ export class GameCharacter implements Character {
    * @returns Character id.
    */
   public getId(): string {
-    return this.id;
+    return this.getIdentityComponent().id;
   }
 
   /**
@@ -71,7 +99,7 @@ export class GameCharacter implements Character {
    * @returns Character name.
    */
   public getName(): string {
-    return this.name;
+    return this.getIdentityComponent().name;
   }
 
   /**
@@ -80,7 +108,7 @@ export class GameCharacter implements Character {
    * @returns Control type.
    */
   public getType(): ControlType {
-    return this.controlType;
+    return this.getControlComponent().type;
   }
 
   /**
@@ -89,7 +117,7 @@ export class GameCharacter implements Character {
    * @returns Relationship object map.
    */
   public getRelationships(): Record<string, Relations> {
-    return this.relationships;
+    return this.getRelationsComponent().relationships;
   }
 
   /**
@@ -117,6 +145,18 @@ export class GameCharacter implements Character {
    */
   public getArchetype(): Archetype {
     return this.archetype;
+  }
+
+  private getIdentityComponent(): IdentityComponent {
+    return this.getComponent(IdentityComponent);
+  }
+
+  private getControlComponent(): ControlComponent {
+    return this.getComponent(ControlComponent);
+  }
+
+  private getRelationsComponent(): RelationsComponent {
+    return this.getComponent(RelationsComponent);
   }
 
   /**
