@@ -9,5 +9,8 @@ export const ui = {
   testCombat: "Test Combat",
   exit: "Exit",
   langEng: "ENG",
-  langRus: "RUS"
+  langRus: "RUS",
+  "location.port.title": "Port",
+  "district.port.main.title": "Port District",
+  "inGame.label": "In Game"
 } as const;
