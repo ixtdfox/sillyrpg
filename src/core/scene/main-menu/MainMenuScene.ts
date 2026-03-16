@@ -1,4 +1,4 @@
-import { Color4, Engine, HemisphericLight, KeyboardEventTypes, Scene as BabylonScene, Vector3 } from "@babylonjs/core";
+import { Color4, Engine, HemisphericLight, KeyboardEventTypes, Scene as BabylonScene, FreeCamera, Vector3 } from "@babylonjs/core";
 import type { LangManager } from "../../lang/LangManager";
 import type { Scene } from "../Scene";
 import type { MainMenuAction } from "./MainMenuAction";
@@ -76,6 +76,12 @@ export class MainMenuScene implements Scene {
       this.ui?.dispose();
       this.ui = null;
     });
+
+
+    const camera = new FreeCamera("main-menu-camera", new Vector3(0, 0, -10), this.scene);
+    camera.setTarget(Vector3.Zero());
+    camera.attachControl(this.canvas, true);
+    this.scene.activeCamera = camera;
 
     return this.scene;
   }
