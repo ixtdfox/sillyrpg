@@ -1,0 +1,10 @@
+[
+  {
+    "archetype": "human",
+    "model": "assets/character.glb"
+  },
+  {
+    "archetype": "golem",
+    "model": "assets/enemy.glb"
+  }
+]
