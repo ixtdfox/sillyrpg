@@ -1,0 +1,105 @@
+import { Engine, Scene as BabylonScene } from "@babylonjs/core";
+import { LangManager } from "../lang/LangManager";
+import { MainMenuScene } from "../scene/main-menu/MainMenuScene";
+import type { Scene } from "../scene/Scene";
+import { GameState } from "./GameState";
+
+/**
+ * Owns game flow state and active scene lifecycle.
+ * It creates scenes based on the current state and exposes the rendered scene
+ * to the application bootstrap for the render loop.
+ */
+export class GameManager {
+  /** Babylon engine used by scenes. */
+  private readonly engine: Engine;
+
+  /** Canvas element used by scenes and input systems. */
+  private readonly canvas: HTMLCanvasElement;
+
+  /** Shared localization service. */
+  private readonly langManager: LangManager;
+
+  /** Current finite game state. */
+  private currentState: GameState;
+
+  /** Active scene object implementing scene behavior contract. */
+  private currentSceneController: Scene | null;
+
+  /** Active Babylon scene rendered each frame. */
+  private currentBabylonScene: BabylonScene | null;
+
+  /**
+   * Creates a new game manager with explicit runtime dependencies.
+   *
+   * @param engine - Babylon rendering engine.
+   * @param canvas - HTML canvas attached to Babylon.
+   * @param langManager - Shared language service.
+   */
+  public constructor(engine: Engine, canvas: HTMLCanvasElement, langManager: LangManager) {
+    this.engine = engine;
+    this.canvas = canvas;
+    this.langManager = langManager;
+    this.currentState = GameState.MAIN_MENU;
+    this.currentSceneController = null;
+    this.currentBabylonScene = null;
+  }
+
+  /**
+   * Starts the game flow by loading the scene for the current state.
+   *
+   * @returns Promise that resolves when the first scene is created.
+   */
+  public async start(): Promise<void> {
+    await this.loadSceneForState(this.currentState);
+  }
+
+  /**
+   * Returns the currently active Babylon scene.
+   *
+   * @returns Current Babylon scene or null before initialization.
+   */
+  public getCurrentScene(): BabylonScene | null {
+    return this.currentBabylonScene;
+  }
+
+  /**
+   * Changes game state and loads the corresponding scene.
+   *
+   * @param state - Next game state to activate.
+   * @returns Promise that resolves after scene switch.
+   */
+  public async setState(state: GameState): Promise<void> {
+    this.currentState = state;
+    await this.loadSceneForState(state);
+  }
+
+  /**
+   * Creates and activates the scene that matches the given state.
+   *
+   * @param state - State used to determine scene type.
+   * @returns Promise that resolves when scene creation is complete.
+   */
+  private async loadSceneForState(state: GameState): Promise<void> {
+    this.currentBabylonScene?.dispose();
+
+    this.currentSceneController = this.buildSceneController(state);
+    this.currentBabylonScene = await this.currentSceneController.createScene();
+  }
+
+  /**
+   * Constructs a scene controller for the selected state.
+   *
+   * @param state - State that requires a scene controller.
+   * @returns Scene controller implementation.
+   */
+  private buildSceneController(state: GameState): Scene {
+    switch (state) {
+      case GameState.MAIN_MENU:
+      case GameState.IN_GAME:
+      case GameState.SETTINGS:
+        return new MainMenuScene(this.engine, this.canvas, this.langManager);
+      default:
+        return new MainMenuScene(this.engine, this.canvas, this.langManager);
+    }
+  }
+}
