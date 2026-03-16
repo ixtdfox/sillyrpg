@@ -97,7 +97,7 @@ export class LocationManager {
    * @returns Promise that resolves when district visuals and camera are ready.
    */
   public async createDistrictScene(scene: BabylonScene, district: District): Promise<void> {
-    await this.appendDistrictModel(scene, district.getSceneData().model);
+    await this.appendDistrictModel(scene, district.getModelData().model);
 
     const target = this.resolveGroundCenter(scene);
     const camera = new ArcRotateCamera("in-game-camera", -Math.PI / 4, Math.PI / 3, 30, target, scene);

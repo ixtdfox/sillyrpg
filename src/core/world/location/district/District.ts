@@ -1,4 +1,4 @@
-import type { DistrictSceneData } from "./DistrictSceneData";
+import type { DistrictModelData } from "./DistrictModelData";
 
 /**
  * Describes one playable district in a location.
@@ -23,7 +23,7 @@ export interface District {
    *
    * @returns District scene data.
    */
-  getSceneData(): DistrictSceneData;
+  getModelData(): DistrictModelData;
 
   /**
    * Returns runtime characters currently assigned to the district.

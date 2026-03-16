@@ -1,7 +1,7 @@
 import type { LangManager } from "../../../lang/LangManager";
 import type { District } from "./District";
 import type { DistrictDefinition } from "./DistrictDefinition";
-import type { DistrictSceneData } from "./DistrictSceneData";
+import type { DistrictModelData } from "./DistrictModelData";
 
 /**
  * Runtime district implementation loaded from JSON definitions.
@@ -14,7 +14,7 @@ export class GameDistrict implements District {
   private readonly titleKey: string;
 
   /** Babylon scene data. */
-  private readonly sceneData: DistrictSceneData;
+  private readonly modelData: DistrictModelData;
 
   /** Shared language manager used for title localization. */
   private readonly langManager: LangManager;
@@ -28,7 +28,7 @@ export class GameDistrict implements District {
   public constructor(definition: DistrictDefinition, langManager: LangManager) {
     this.id = definition.id;
     this.titleKey = definition.title;
-    this.sceneData = { model: definition.model };
+    this.modelData = { model: definition.model };
     this.langManager = langManager;
   }
 
@@ -64,8 +64,8 @@ export class GameDistrict implements District {
    *
    * @returns District scene configuration.
    */
-  public getSceneData(): DistrictSceneData {
-    return { ...this.sceneData };
+  public getModelData(): DistrictModelData {
+    return { ...this.modelData };
   }
 
   /**
