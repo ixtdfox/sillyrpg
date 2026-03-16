@@ -9,5 +9,8 @@ export const ui = {
   testCombat: "Тест боя",
   exit: "Выход",
   langEng: "АНГ",
-  langRus: "РУС"
+  langRus: "РУС",
+  "location.port.title": "Порт",
+  "district.port.main.title": "Портовый район",
+  "inGame.label": "В игре"
 } as const;

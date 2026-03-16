@@ -1,4 +1,5 @@
 import { Color4, Engine, HemisphericLight, KeyboardEventTypes, Scene as BabylonScene, FreeCamera, Vector3 } from "@babylonjs/core";
+import { GameState } from "../../game/GameState";
 import type { LangManager } from "../../lang/LangManager";
 import type { Scene } from "../Scene";
 import type { MainMenuAction } from "./MainMenuAction";
@@ -23,6 +24,9 @@ export class MainMenuScene implements Scene {
   /** Ordered menu actions used for rendering and selection. */
   private readonly actions: MainMenuAction[];
 
+  /** Callback used to request game-state changes from menu actions. */
+  private readonly onStateChangeRequested: (state: GameState) => void;
+
   /** Babylon scene instance after creation. */
   private scene: BabylonScene | null;
 
@@ -38,11 +42,18 @@ export class MainMenuScene implements Scene {
    * @param engine - Babylon engine for scene creation.
    * @param canvas - Canvas element used by Babylon.
    * @param langManager - Localization manager for UI translations.
+   * @param onStateChangeRequested - Callback that requests scene transitions.
    */
-  public constructor(engine: Engine, canvas: HTMLCanvasElement, langManager: LangManager) {
+  public constructor(
+    engine: Engine,
+    canvas: HTMLCanvasElement,
+    langManager: LangManager,
+    onStateChangeRequested: (state: GameState) => void
+  ) {
     this.engine = engine;
     this.canvas = canvas;
     this.langManager = langManager;
+    this.onStateChangeRequested = onStateChangeRequested;
     this.scene = null;
     this.ui = null;
     this.selectedIndex = 0;
@@ -132,6 +143,9 @@ export class MainMenuScene implements Scene {
         this.processInput(this.actions[this.selectedIndex].command);
         break;
       case MainMenuCommand.NEW_GAME:
+        console.log(this.resolveActionLabel(input as MainMenuCommand));
+        this.onStateChangeRequested(GameState.IN_GAME);
+        break;
       case MainMenuCommand.CONTINUE:
       case MainMenuCommand.LOAD_GAME:
       case MainMenuCommand.SETTINGS:

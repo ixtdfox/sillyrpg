@@ -1,5 +1,6 @@
 import { Engine, Scene as BabylonScene } from "@babylonjs/core";
 import { LangManager } from "../lang/LangManager";
+import { InGameScene } from "../scene/in-game/InGameScene";
 import { MainMenuScene } from "../scene/main-menu/MainMenuScene";
 import type { Scene } from "../scene/Scene";
 import { GameState } from "./GameState";
@@ -95,11 +96,19 @@ export class GameManager {
   private buildSceneController(state: GameState): Scene {
     switch (state) {
       case GameState.MAIN_MENU:
+        return new MainMenuScene(this.engine, this.canvas, this.langManager, (nextState) => {
+          void this.setState(nextState);
+        });
       case GameState.IN_GAME:
+        return new InGameScene(this.engine, this.langManager);
       case GameState.SETTINGS:
-        return new MainMenuScene(this.engine, this.canvas, this.langManager);
+        return new MainMenuScene(this.engine, this.canvas, this.langManager, (nextState) => {
+          void this.setState(nextState);
+        });
       default:
-        return new MainMenuScene(this.engine, this.canvas, this.langManager);
+        return new MainMenuScene(this.engine, this.canvas, this.langManager, (nextState) => {
+          void this.setState(nextState);
+        });
     }
   }
 }

@@ -1,0 +1,13 @@
+[
+  {
+    "id": "port",
+    "title": "location.port.title",
+    "districts": [
+      {
+        "id": "port-main",
+        "title": "district.port.main.title",
+        "model": "assets/scene_test.glb"
+      }
+    ]
+  }
+]
