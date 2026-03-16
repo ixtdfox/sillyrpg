@@ -27,7 +27,7 @@ export class GameCharacter implements Character {
   private readonly relationships: Record<string, CharacterRelations>;
 
   /** Mutable gameplay state for vitals and capacities. */
-  private readonly playerState: CharacterState;
+  private readonly state: CharacterState;
 
   /**
    * Creates a character with explicit dependencies and defaults.
@@ -45,7 +45,7 @@ export class GameCharacter implements Character {
     controlType: ControlType,
     archetype: Archetype,
     relationships: Record<string, CharacterRelations> = {},
-    playerState: CharacterState = new CharacterState()
+    state: CharacterState = new CharacterState()
   ) {
     this.id = GameCharacter.generateUuid();
     this.name = name;
@@ -53,7 +53,7 @@ export class GameCharacter implements Character {
     this.controlType = controlType;
     this.archetype = archetype;
     this.relationships = relationships;
-    this.playerState = playerState;
+    this.state = state;
   }
 
   /**
@@ -106,8 +106,8 @@ export class GameCharacter implements Character {
    *
    * @returns Player state data.
    */
-  public getPlayerState(): CharacterState {
-    return this.playerState;
+  public getState(): CharacterState {
+    return this.state;
   }
 
   /**

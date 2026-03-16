@@ -46,5 +46,5 @@ export interface Character {
    *
    * @returns Character gameplay state.
    */
-  getPlayerState(): CharacterState;
+  getState(): CharacterState;
 }
