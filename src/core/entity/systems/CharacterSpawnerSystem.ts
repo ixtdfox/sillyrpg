@@ -1,4 +1,4 @@
-import { MeshBuilder, Scene as BabylonScene } from "@babylonjs/core";
+import { MeshBuilder, Scene as BabylonScene, SceneLoader } from "@babylonjs/core";
 import type { Entity } from "../Entity";
 import type { EntityManager } from "../EntityManager";
 import type { System } from "../System";
@@ -51,6 +51,14 @@ export class CharacterSpawnerSystem implements System {
     transform.rotation.copyFrom(spawn.rotation);
 
     try {
+      if (!this.canInstantiateModel(model.definition.assetPath)) {
+        console.warn(
+          `Skipping model load for entity '${entity.getId()}': no loader available for '${model.definition.assetPath}'. Using fallback mesh.`
+        );
+        this.spawnFallback(entity, scene, transform);
+        return;
+      }
+
       const rootNode = await this.modelInstantiator.instantiate(
         scene,
         model.definition,
@@ -65,12 +73,30 @@ export class CharacterSpawnerSystem implements System {
         error
       );
 
-      const fallback = MeshBuilder.CreateBox(`entity-${entity.getId()}-fallback`, { size: 1.5 }, scene);
-      fallback.position.copyFrom(transform.value);
-      fallback.rotation.copyFrom(transform.rotation);
+      this.spawnFallback(entity, scene, transform);
     } finally {
       entity.removeComponent(SpawnComponent);
       this.pendingSpawns.delete(entity.getId());
     }
+  }
+
+  private spawnFallback(entity: Entity, scene: BabylonScene, transform: TransformComponent): void {
+    const fallback = MeshBuilder.CreateBox(`entity-${entity.getId()}-fallback`, { size: 1.5 }, scene);
+    fallback.position.copyFrom(transform.value);
+    fallback.rotation.copyFrom(transform.rotation);
+  }
+
+  private canInstantiateModel(assetPath: string): boolean {
+    const extension = this.getFileExtension(assetPath);
+    return SceneLoader.IsPluginForExtensionAvailable(extension);
+  }
+
+  private getFileExtension(assetPath: string): string {
+    const dotIndex = assetPath.lastIndexOf(".");
+    if (dotIndex === -1) {
+      return "";
+    }
+
+    return assetPath.slice(dotIndex).toLowerCase();
   }
 }
