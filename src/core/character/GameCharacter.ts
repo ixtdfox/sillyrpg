@@ -1,12 +1,11 @@
 import { Archetype } from "./Archetype";
 import type { Character } from "./Character";
-import { ControlComponent } from "../entity/components/ControlComponent";
+import { ControlComponent, ControlType } from "../entity/components/ControlComponent";
 import { IdentityComponent } from "../entity/components/IdentityComponent";
 import { Relations } from "../entity/components/Relations";
 import { RelationsComponent } from "../entity/components/RelationsComponent";
 import { VitalsComponent } from "../entity/components/VitalsComponent";
 import { Entity } from "../entity/Entity";
-import { ControlType } from "../entity/components/ControlType";
 
 /**
  * Concrete implementation of the character domain entity.

@@ -1,5 +1,5 @@
 import { Relations } from "../entity/components/Relations";
-import { ControlType } from "../entity/components/ControlType";
+import { ControlType } from "../entity/components/ControlComponent";
 import { VitalsComponent } from "../entity/components/VitalsComponent";
 
 /**
