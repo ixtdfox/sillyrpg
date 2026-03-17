@@ -6,7 +6,8 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc --noEmit && vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "test:entity-manager": "tsc --module commonjs --target ES2020 --moduleResolution node --outDir .tmp-test tests/entity/EntityManager.test.ts src/core/entity/EntityManager.ts src/core/entity/Entity.ts src/core/entity/ComponentStore.ts src/core/entity/Component.ts && node -e \"require('fs').writeFileSync('.tmp-test/package.json', JSON.stringify({type:'commonjs'}))\" && node .tmp-test/tests/entity/EntityManager.test.js"
   },
   "dependencies": {
     "@babylonjs/core": "^7.40.0",
