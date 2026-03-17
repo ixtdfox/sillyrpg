@@ -1,19 +1,21 @@
-import { MeshBuilder, Scene as BabylonScene, SceneLoader, TransformNode } from "@babylonjs/core";
-import "@babylonjs/loaders/glTF"; // или "@babylonjs/loaders/glTF/index.js"
+import { MeshBuilder, Scene as BabylonScene } from "@babylonjs/core";
 import type { Entity } from "../Entity";
 import type { EntityManager } from "../EntityManager";
 import type { System } from "../System";
 import { ModelComponent } from "../components/ModelComponent";
 import { SpawnComponent } from "../components/SpawnComponent";
 import { TransformComponent } from "../components/TransformComponent";
+import { ModelInstantiator } from "../../model/instantiation/ModelInstantiator";
 
 export class CharacterSpawnerSystem implements System {
   private readonly entityManager: EntityManager;
+  private readonly modelInstantiator: ModelInstantiator;
   private readonly pendingSpawns: Set<string>;
   private scene: BabylonScene | null;
 
-  public constructor(entityManager: EntityManager) {
+  public constructor(entityManager: EntityManager, modelInstantiator: ModelInstantiator = new ModelInstantiator()) {
     this.entityManager = entityManager;
+    this.modelInstantiator = modelInstantiator;
     this.pendingSpawns = new Set<string>();
     this.scene = null;
   }
@@ -49,45 +51,26 @@ export class CharacterSpawnerSystem implements System {
     transform.rotation.copyFrom(spawn.rotation);
 
     try {
-      const { rootUrl, fileName } = this.resolveModelPath(model.assetPath);
-
-      const loaded = await SceneLoader.ImportMeshAsync("", rootUrl, fileName, scene);
-      const rootNode = new TransformNode(`entity-${entity.getId()}-root`, scene);
-
-      for (const mesh of loaded.meshes) {
-        if (mesh.parent === null) {
-          mesh.setParent(rootNode);
-        }
-      }
+      const rootNode = await this.modelInstantiator.instantiate(
+        scene,
+        model.definition,
+        `entity-${entity.getId()}-root`
+      );
 
       rootNode.position.copyFrom(transform.value);
       rootNode.rotation.copyFrom(transform.rotation);
     } catch (error) {
       console.error(
-          `Failed to spawn entity '${entity.getId()}' from model '${model.assetPath}'.`,
-          error
+        `Failed to spawn entity '${entity.getId()}' from model '${model.definition.assetPath}'.`,
+        error
       );
 
-      const fallback = MeshBuilder.CreateBox(
-          `entity-${entity.getId()}-fallback`,
-          { size: 1.5 },
-          scene
-      );
+      const fallback = MeshBuilder.CreateBox(`entity-${entity.getId()}-fallback`, { size: 1.5 }, scene);
       fallback.position.copyFrom(transform.value);
       fallback.rotation.copyFrom(transform.rotation);
     } finally {
       entity.removeComponent(SpawnComponent);
       this.pendingSpawns.delete(entity.getId());
     }
-  }
-
-  private resolveModelPath(modelPath: string): { rootUrl: string; fileName: string } {
-    const normalizedPath = modelPath.startsWith("/") ? modelPath : `/${modelPath}`;
-    const lastSlashIndex = normalizedPath.lastIndexOf("/");
-
-    return {
-      rootUrl: normalizedPath.slice(0, lastSlashIndex + 1),
-      fileName: normalizedPath.slice(lastSlashIndex + 1),
-    };
   }
 }

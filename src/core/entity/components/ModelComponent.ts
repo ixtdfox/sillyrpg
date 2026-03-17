@@ -1,18 +1,19 @@
 import type { Component } from "../Component";
+import type { ModelDefinition } from "../../model/ModelDefinition";
 
 /**
- * Stores the model asset path used to spawn an entity in a Babylon scene.
+ * Stores the visual model definition used to spawn an entity.
  */
 export class ModelComponent implements Component {
-  /** Relative path to the model asset. */
-  public readonly assetPath: string;
+  /** Visual model specification for this entity. */
+  public readonly definition: ModelDefinition;
 
   /**
    * Creates a model component.
    *
-   * @param assetPath - Relative path to model file.
+   * @param definition - Full visual model definition.
    */
-  public constructor(assetPath: string) {
-    this.assetPath = assetPath;
+  public constructor(definition: ModelDefinition) {
+    this.definition = definition;
   }
 }

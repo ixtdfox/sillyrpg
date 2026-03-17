@@ -1,10 +1,20 @@
 [
   {
     "archetype": "human",
-    "model": "assets/character.glb"
+    "model": "assets/character.glb",
+    "normalization": {
+      "mode": "height",
+      "targetHeight": 1.8,
+      "grounded": true
+    }
   },
   {
     "archetype": "golem",
-    "model": "assets/enemy.glb"
+    "model": "assets/enemy.glb",
+    "normalization": {
+      "mode": "height",
+      "targetHeight": 2.4,
+      "grounded": true
+    }
   }
 ]

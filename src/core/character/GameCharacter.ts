@@ -9,32 +9,15 @@ import { Entity } from "../entity/Entity";
 import { TransformComponent } from "../entity/components/TransformComponent";
 import { ModelComponent } from "../entity/components/ModelComponent";
 import { SpawnComponent } from "../entity/components/SpawnComponent";
+import type { ModelDefinition } from "../model/ModelDefinition";
 
-/**
- * Concrete implementation of the character domain entity.
- */
 export class GameCharacter extends Entity implements Character {
-  /** Path to the model asset used for rendering. */
-  private readonly model: string;
-
-  /** Archetype used by gameplay and template systems. */
+  private readonly model: ModelDefinition;
   private readonly archetype: Archetype;
 
-  /**
-   * Creates a character with explicit dependencies and defaults.
-   *
-   * @param name - Character display name.
-   * @param model - Model path for rendering.
-   * @param controlType - Controller type for this character.
-   * @param archetype - Character archetype.
-   * @param vitals - Initial vitals component.
-   * @param transform - Initial world transform component.
-   * @param spawn - Initial scene spawn data.
-   * @param relationships - Optional initial relationship map.
-   */
   public constructor(
     name: string,
-    model: string,
+    model: ModelDefinition,
     controlType: ControlType,
     archetype: Archetype,
     vitals: VitalsComponent,
@@ -43,7 +26,6 @@ export class GameCharacter extends Entity implements Character {
     relationships: Record<string, Relations> = {}
   ) {
     const id = GameCharacter.generateUuid();
-
     super(id);
 
     this.model = model;
@@ -58,65 +40,30 @@ export class GameCharacter extends Entity implements Character {
     this.addComponent(SpawnComponent, spawn);
   }
 
-  /**
-   * Returns the UUID identifier.
-   *
-   * @returns Character id.
-   */
   public getId(): string {
     return this.getIdentityComponent().id;
   }
 
-  /**
-   * Returns the display name.
-   *
-   * @returns Character name.
-   */
   public getName(): string {
     return this.getIdentityComponent().name;
   }
 
-  /**
-   * Returns who controls this character.
-   *
-   * @returns Control type.
-   */
   public getType(): ControlType {
     return this.getControlComponent().type;
   }
 
-  /**
-   * Returns relationships map.
-   *
-   * @returns Relationship object map.
-   */
   public getRelationships(): Record<string, Relations> {
     return this.getRelationsComponent().relationships;
   }
 
-  /**
-   * Returns the model path.
-   *
-   * @returns Model asset path.
-   */
-  public getModel(): string {
+  public getModel(): ModelDefinition {
     return this.model;
   }
 
-  /**
-   * Returns gameplay state.
-   *
-   * @returns Player state data.
-   */
   public getState(): VitalsComponent {
     return this.getVitalsComponent();
   }
 
-  /**
-   * Returns the configured archetype.
-   *
-   * @returns Character archetype.
-   */
   public getArchetype(): Archetype {
     return this.archetype;
   }
@@ -137,11 +84,6 @@ export class GameCharacter extends Entity implements Character {
     return this.getComponent(VitalsComponent);
   }
 
-  /**
-   * Creates a UUID for each character instance.
-   *
-   * @returns RFC4122-like UUID string.
-   */
   private static generateUuid(): string {
     if (typeof globalThis.crypto !== "undefined" && typeof globalThis.crypto.randomUUID === "function") {
       return globalThis.crypto.randomUUID();
