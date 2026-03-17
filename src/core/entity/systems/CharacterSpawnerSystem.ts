@@ -1,4 +1,4 @@
-import { Scene as BabylonScene, SceneLoader, TransformNode } from "@babylonjs/core";
+import { MeshBuilder, Scene as BabylonScene, SceneLoader, TransformNode } from "@babylonjs/core";
 import type { Entity } from "../Entity";
 import type { EntityManager } from "../EntityManager";
 import type { System } from "../System";
@@ -52,15 +52,22 @@ export class CharacterSpawnerSystem implements System {
   }
 
   private async spawnEntity(entity: Entity, scene: BabylonScene): Promise<void> {
+    const transform = entity.getComponent(TransformComponent);
+    const model = entity.getComponent(ModelComponent);
+    const spawn = entity.getComponent(SpawnComponent);
+
+    transform.value.copyFrom(spawn.position);
+    transform.rotation.copyFrom(spawn.rotation);
+
     try {
-      const transform = entity.getComponent(TransformComponent);
-      const model = entity.getComponent(ModelComponent);
-      const spawn = entity.getComponent(SpawnComponent);
+      const extension = this.getFileExtension(model.assetPath);
+      const hasLoader = SceneLoader.IsPluginForExtensionAvailable(extension);
+
+      if (!hasLoader) {
+        throw new Error(`No Babylon loader plugin found for extension: ${extension}`);
+      }
+
       const { rootUrl, fileName } = this.resolveModelPath(model.assetPath);
-
-      transform.value.copyFrom(spawn.position);
-      transform.rotation.copyFrom(spawn.rotation);
-
       const loaded = await SceneLoader.ImportMeshAsync("", rootUrl, fileName, scene);
       const rootNode = new TransformNode(`entity-${entity.getId()}-root`, scene);
 
@@ -72,11 +79,25 @@ export class CharacterSpawnerSystem implements System {
 
       rootNode.position.copyFrom(transform.value);
       rootNode.rotation.copyFrom(transform.rotation);
+    } catch (error) {
+      console.error(`Failed to spawn entity '${entity.getId()}' from model '${model.assetPath}'.`, error);
 
-      entity.removeComponent(SpawnComponent);
+      const fallback = MeshBuilder.CreateBox(`entity-${entity.getId()}-fallback`, { size: 1.5 }, scene);
+      fallback.position.copyFrom(transform.value);
+      fallback.rotation.copyFrom(transform.rotation);
     } finally {
+      entity.removeComponent(SpawnComponent);
       this.pendingSpawns.delete(entity.getId());
     }
+  }
+
+  private getFileExtension(filePath: string): string {
+    const dotIndex = filePath.lastIndexOf(".");
+    if (dotIndex === -1) {
+      return "";
+    }
+
+    return filePath.slice(dotIndex).toLowerCase();
   }
 
   private resolveModelPath(modelPath: string): { rootUrl: string; fileName: string } {
