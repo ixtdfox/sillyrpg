@@ -31,7 +31,7 @@ export class GameCharacter extends Entity implements Character {
    * @param controlType - Controller type for this character.
    * @param archetype - Character archetype.
    * @param relationships - Optional initial relationship map.
-   * @param playerState - Optional initial gameplay state.
+   * @param stateOrVitals - Optional initial gameplay state or vitals component.
    */
   public constructor(
     name: string,
@@ -39,7 +39,7 @@ export class GameCharacter extends Entity implements Character {
     controlType: ControlType,
     archetype: Archetype,
     relationships: Record<string, Relations> = {},
-    state: CharacterState = new CharacterState()
+    stateOrVitals: CharacterState | VitalsComponent = new CharacterState()
   ) {
     const id = GameCharacter.generateUuid();
 
@@ -52,7 +52,14 @@ export class GameCharacter extends Entity implements Character {
     this.addComponent(ControlComponent, new ControlComponent(controlType));
     this.addComponent(RelationsComponent, new RelationsComponent(relationships));
 
-    const vitalsComponent = new VitalsComponent(state.hp, state.energy, state.carryCapacityWeight);
+    const vitalsComponent =
+      stateOrVitals instanceof VitalsComponent
+        ? stateOrVitals
+        : new VitalsComponent(
+          stateOrVitals.hp,
+          stateOrVitals.energy,
+          stateOrVitals.carryCapacityWeight
+        );
     this.addComponent(VitalsComponent, vitalsComponent);
 
     this.state = new CharacterState(vitalsComponent.hp, vitalsComponent.energy, vitalsComponent.carryCapacityWeight);
