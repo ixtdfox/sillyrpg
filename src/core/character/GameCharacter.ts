@@ -6,8 +6,7 @@ import { Relations } from "../entity/components/Relations";
 import { RelationsComponent } from "../entity/components/RelationsComponent";
 import { VitalsComponent } from "../entity/components/VitalsComponent";
 import { Entity } from "../entity/Entity";
-import { CharacterState } from "./CharacterState";
-import { ControlType } from "./ControlType";
+import { ControlType } from "../entity/components/ControlType";
 
 /**
  * Concrete implementation of the character domain entity.
@@ -20,9 +19,6 @@ export class GameCharacter extends Entity implements Character {
   /** Archetype used by gameplay and template systems. */
   private readonly archetype: Archetype;
 
-  /** Mutable gameplay state view backed by vitals component. */
-  private readonly state: CharacterState;
-
   /**
    * Creates a character with explicit dependencies and defaults.
    *
@@ -31,7 +27,7 @@ export class GameCharacter extends Entity implements Character {
    * @param controlType - Controller type for this character.
    * @param archetype - Character archetype.
    * @param relationships - Optional initial relationship map.
-   * @param playerState - Optional initial gameplay state.
+   * @param vitals - Optional initial vitals component.
    */
   public constructor(
     name: string,
@@ -39,7 +35,7 @@ export class GameCharacter extends Entity implements Character {
     controlType: ControlType,
     archetype: Archetype,
     relationships: Record<string, Relations> = {},
-    state: CharacterState = new CharacterState()
+    vitals: VitalsComponent
   ) {
     const id = GameCharacter.generateUuid();
 
@@ -52,36 +48,7 @@ export class GameCharacter extends Entity implements Character {
     this.addComponent(ControlComponent, new ControlComponent(controlType));
     this.addComponent(RelationsComponent, new RelationsComponent(relationships));
 
-    const vitalsComponent = new VitalsComponent(state.hp, state.energy, state.carryCapacityWeight);
-    this.addComponent(VitalsComponent, vitalsComponent);
-
-    this.state = new CharacterState(vitalsComponent.hp, vitalsComponent.energy, vitalsComponent.carryCapacityWeight);
-    Object.defineProperties(this.state, {
-      hp: {
-        configurable: true,
-        enumerable: true,
-        get: () => vitalsComponent.hp,
-        set: (value) => {
-          vitalsComponent.hp = value;
-        }
-      },
-      energy: {
-        configurable: true,
-        enumerable: true,
-        get: () => vitalsComponent.energy,
-        set: (value) => {
-          vitalsComponent.energy = value;
-        }
-      },
-      carryCapacityWeight: {
-        configurable: true,
-        enumerable: true,
-        get: () => vitalsComponent.carryCapacityWeight,
-        set: (value) => {
-          vitalsComponent.carryCapacityWeight = value;
-        }
-      }
-    });
+    this.addComponent(VitalsComponent, vitals);
   }
 
   /**
@@ -134,8 +101,8 @@ export class GameCharacter extends Entity implements Character {
    *
    * @returns Player state data.
    */
-  public getState(): CharacterState {
-    return this.state;
+  public getState(): VitalsComponent {
+    return this.getVitalsComponent();
   }
 
   /**
@@ -157,6 +124,10 @@ export class GameCharacter extends Entity implements Character {
 
   private getRelationsComponent(): RelationsComponent {
     return this.getComponent(RelationsComponent);
+  }
+
+  private getVitalsComponent(): VitalsComponent {
+    return this.getComponent(VitalsComponent);
   }
 
   /**

@@ -1,6 +1,6 @@
 import { Relations } from "../entity/components/Relations";
-import { CharacterState } from "./CharacterState";
-import { ControlType } from "./ControlType";
+import { ControlType } from "../entity/components/ControlType";
+import { VitalsComponent } from "../entity/components/VitalsComponent";
 
 /**
  * Defines the public contract for character objects.
@@ -46,5 +46,5 @@ export interface Character {
    *
    * @returns Character gameplay state.
    */
-  getState(): CharacterState;
+  getState(): VitalsComponent;
 }
