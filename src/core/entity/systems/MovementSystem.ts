@@ -1,10 +1,10 @@
 import type { EntityManager } from "../EntityManager";
 import type { System } from "../System";
 import { MovementComponent } from "../components/MovementComponent";
-import { PositionComponent } from "../components/PositionComponent";
+import { TransformComponent } from "../components/TransformComponent";
 
 /**
- * Applies movement velocity to position components.
+ * Applies movement velocity to transform components.
  */
 export class MovementSystem implements System {
   private readonly entityManager: EntityManager;
@@ -14,14 +14,14 @@ export class MovementSystem implements System {
   }
 
   public update(deltaSeconds: number): void {
-    const movingEntities = this.entityManager.query(PositionComponent, MovementComponent);
+    const movingEntities = this.entityManager.query(TransformComponent, MovementComponent);
 
     for (const entity of movingEntities) {
-      const position = entity.getComponent(PositionComponent);
+      const transform = entity.getComponent(TransformComponent);
       const movement = entity.getComponent(MovementComponent);
       const delta = movement.velocity.scale(deltaSeconds);
 
-      position.value.addInPlace(delta);
+      transform.value.addInPlace(delta);
     }
   }
 }
