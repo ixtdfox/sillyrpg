@@ -3,8 +3,10 @@ import { CharacterFactory } from "../../character/CharacterFactory";
 import { CharacterManager } from "../../character/CharacterManager";
 import type { EntityManager } from "../../entity/EntityManager";
 import { Entity } from "../../entity/Entity";
+import { HexGridRuntime } from "../../hex/HexGridRuntime";
 import type { LangManager } from "../../lang/LangManager";
 import { LocationManager } from "../../world/location/LocationManager";
+import { InGameTopPanelUi } from "./ui/InGameTopPanelUi";
 import type { Scene } from "../Scene";
 
 /**
@@ -70,6 +72,18 @@ export class InGameScene implements Scene {
     if (golemCharacter instanceof Entity) {
       this.entityManager.addEntity(golemCharacter);
     }
+
+    const hexGridRuntime = new HexGridRuntime(scene);
+    const inGameTopPanelUi = new InGameTopPanelUi(scene, () => {
+      const isEnabled = hexGridRuntime.toggleDebug();
+      inGameTopPanelUi.setHexGridDebugEnabled(isEnabled);
+    });
+    inGameTopPanelUi.setHexGridDebugEnabled(hexGridRuntime.getIsDebugEnabled());
+
+    scene.onDisposeObservable.addOnce(() => {
+      hexGridRuntime.dispose();
+      inGameTopPanelUi.dispose();
+    });
 
     return scene;
   }
