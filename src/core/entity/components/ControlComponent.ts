@@ -1,4 +1,4 @@
-import type { ControlType } from "../../character/ControlType";
+import type { ControlType } from "./ControlType";
 import type { Component } from "../Component";
 
 /**
