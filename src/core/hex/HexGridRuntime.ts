@@ -1,6 +1,5 @@
 import { Vector3, type AbstractMesh, type Scene } from "@babylonjs/core";
 import { HexGridDebugState } from "./debug/HexGridDebugState";
-import { HexGridDebugUi } from "./debug/HexGridDebugUi";
 import { DEFAULT_HEX_GRID_SETTINGS, type HexGridSettings } from "./HexGridSettings";
 import { HexGrid } from "./HexGrid";
 import { HexGridGroundMeshResolver } from "./HexGridGroundMeshResolver";
@@ -8,13 +7,12 @@ import { HexGridOverlay } from "./HexGridOverlay";
 import { HexGroundPickerController } from "./HexGroundPickerController";
 
 /**
- * Wires hex grid logic, renderer, picker controller, and debug UI state.
+ * Wires hex grid logic, renderer, and picking runtime for the active scene.
  */
 export class HexGridRuntime {
   private readonly debugState: HexGridDebugState;
   private readonly overlay: HexGridOverlay;
   private readonly pickerController: HexGroundPickerController;
-  private readonly debugUi: HexGridDebugUi;
 
   /**
    * Creates complete in-game hex runtime module.
@@ -30,19 +28,27 @@ export class HexGridRuntime {
     this.overlay.setDebugVisible(this.debugState.getIsDebugEnabled());
 
     this.pickerController = new HexGroundPickerController(scene, groundSelection.isGroundPick, grid, this.overlay);
+  }
 
-    this.debugUi = new HexGridDebugUi(scene, () => {
-      const isEnabled = this.debugState.toggle();
-      this.overlay.setDebugVisible(isEnabled);
-      this.debugUi.setDebugEnabled(isEnabled);
-    });
-    this.debugUi.setDebugEnabled(this.debugState.getIsDebugEnabled());
+  /**
+   * Returns current grid-debug visibility state.
+   */
+  public getIsDebugEnabled(): boolean {
+    return this.debugState.getIsDebugEnabled();
+  }
+
+  /**
+   * Toggles debug visibility and returns new state.
+   */
+  public toggleDebug(): boolean {
+    const isEnabled = this.debugState.toggle();
+    this.overlay.setDebugVisible(isEnabled);
+    return isEnabled;
   }
 
   public dispose(): void {
     this.pickerController.dispose();
     this.overlay.dispose();
-    this.debugUi.dispose();
   }
 
   /**
