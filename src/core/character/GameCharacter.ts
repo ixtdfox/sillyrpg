@@ -9,6 +9,7 @@ import { Entity } from "../entity/Entity";
 import { TransformComponent } from "../entity/components/TransformComponent";
 import { ModelComponent } from "../entity/components/ModelComponent";
 import { SpawnComponent } from "../entity/components/SpawnComponent";
+import type { NormalizationConfig } from "../model/normalization";
 
 /**
  * Concrete implementation of the character domain entity.
@@ -30,6 +31,7 @@ export class GameCharacter extends Entity implements Character {
    * @param vitals - Initial vitals component.
    * @param transform - Initial world transform component.
    * @param spawn - Initial scene spawn data.
+   * @param normalization - Optional model normalization config.
    * @param relationships - Optional initial relationship map.
    */
   public constructor(
@@ -40,6 +42,7 @@ export class GameCharacter extends Entity implements Character {
     vitals: VitalsComponent,
     transform: TransformComponent,
     spawn: SpawnComponent,
+    normalization?: NormalizationConfig,
     relationships: Record<string, Relations> = {}
   ) {
     const id = GameCharacter.generateUuid();
@@ -54,7 +57,7 @@ export class GameCharacter extends Entity implements Character {
     this.addComponent(RelationsComponent, new RelationsComponent(relationships));
     this.addComponent(VitalsComponent, vitals);
     this.addComponent(TransformComponent, transform);
-    this.addComponent(ModelComponent, new ModelComponent(model));
+    this.addComponent(ModelComponent, new ModelComponent(model, normalization));
     this.addComponent(SpawnComponent, spawn);
   }
 

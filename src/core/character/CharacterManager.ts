@@ -1,5 +1,12 @@
 import { Archetype } from "./Archetype";
 import type { CharacterTemplate } from "./CharacterTemplate";
+import type { NormalizationConfig } from "../model/normalization";
+
+interface CharacterTemplateRecord {
+  archetype: string;
+  model: string;
+  normalization?: NormalizationConfig;
+}
 
 /**
  * Provides managed access to character templates.
@@ -80,7 +87,7 @@ export class CharacterManager {
       throw new Error(`Failed to load character templates from ${CharacterManager.STORE_URL}`);
     }
 
-    const records = (await response.json()) as Array<{ archetype: string; model: string }>;
+    const records = (await response.json()) as CharacterTemplateRecord[];
     const mappedTemplates = {} as Record<Archetype, CharacterTemplate>;
 
     for (const record of records) {
@@ -88,7 +95,8 @@ export class CharacterManager {
 
       mappedTemplates[archetype] = {
         archetype,
-        model: record.model
+        model: record.model,
+        normalization: record.normalization
       };
     }
 

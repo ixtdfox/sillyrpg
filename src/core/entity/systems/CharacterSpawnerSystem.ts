@@ -6,6 +6,7 @@ import type { System } from "../System";
 import { ModelComponent } from "../components/ModelComponent";
 import { SpawnComponent } from "../components/SpawnComponent";
 import { TransformComponent } from "../components/TransformComponent";
+import { normalizeModel } from "../../model/normalization";
 
 export class CharacterSpawnerSystem implements System {
   private readonly entityManager: EntityManager;
@@ -58,6 +59,11 @@ export class CharacterSpawnerSystem implements System {
         if (mesh.parent === null) {
           mesh.setParent(rootNode);
         }
+      }
+
+      // Apply optional uniform model-size normalization before final placement.
+      if (model.normalization) {
+        normalizeModel(rootNode, model.normalization);
       }
 
       rootNode.position.copyFrom(transform.value);

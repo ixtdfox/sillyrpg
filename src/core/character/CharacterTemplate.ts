@@ -1,4 +1,5 @@
 import { Archetype } from "./Archetype";
+import type { NormalizationConfig } from "../model/normalization";
 
 /**
  * Represents a normalized character template used at runtime.
@@ -9,4 +10,7 @@ export interface CharacterTemplate {
 
   /** Default model path for spawned characters. */
   model: string;
+
+  /** Optional model size normalization settings. */
+  normalization?: NormalizationConfig;
 }
