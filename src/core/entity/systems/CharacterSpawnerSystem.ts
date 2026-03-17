@@ -14,6 +14,9 @@ export class CharacterSpawnerSystem implements System {
   private readonly pendingSpawns: Set<string>;
   private scene: BabylonScene | null;
 
+  private static readonly GLTF_LOADER_URL = "https://cdn.jsdelivr.net/npm/@babylonjs/loaders@7.40.0/glTF/index.js";
+  private static gltfLoaderPromise: Promise<void> | null = null;
+
   public constructor(entityManager: EntityManager) {
     this.entityManager = entityManager;
     this.pendingSpawns = new Set<string>();
@@ -61,8 +64,9 @@ export class CharacterSpawnerSystem implements System {
 
     try {
       const extension = this.getFileExtension(model.assetPath);
-      const hasLoader = SceneLoader.IsPluginForExtensionAvailable(extension);
+      await this.ensureLoaderForExtension(extension);
 
+      const hasLoader = SceneLoader.IsPluginForExtensionAvailable(extension);
       if (!hasLoader) {
         throw new Error(`No Babylon loader plugin found for extension: ${extension}`);
       }
@@ -89,6 +93,24 @@ export class CharacterSpawnerSystem implements System {
       entity.removeComponent(SpawnComponent);
       this.pendingSpawns.delete(entity.getId());
     }
+  }
+
+  private async ensureLoaderForExtension(extension: string): Promise<void> {
+    if (extension !== ".glb" && extension !== ".gltf") {
+      return;
+    }
+
+    if (SceneLoader.IsPluginForExtensionAvailable(extension)) {
+      return;
+    }
+
+    if (!CharacterSpawnerSystem.gltfLoaderPromise) {
+      CharacterSpawnerSystem.gltfLoaderPromise = (async () => {
+        await import(/* @vite-ignore */ CharacterSpawnerSystem.GLTF_LOADER_URL);
+      })();
+    }
+
+    await CharacterSpawnerSystem.gltfLoaderPromise;
   }
 
   private getFileExtension(filePath: string): string {
