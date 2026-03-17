@@ -1,4 +1,4 @@
-import { MeshBuilder, Scene as BabylonScene, SceneLoader } from "@babylonjs/core";
+import { MeshBuilder, Scene as BabylonScene } from "@babylonjs/core";
 import type { Entity } from "../Entity";
 import type { EntityManager } from "../EntityManager";
 import type { System } from "../System";
@@ -6,6 +6,7 @@ import { ModelComponent } from "../components/ModelComponent";
 import { SpawnComponent } from "../components/SpawnComponent";
 import { TransformComponent } from "../components/TransformComponent";
 import { ModelInstantiator } from "../../model/instantiation/ModelInstantiator";
+import { LoaderBootstrap } from "../../model/instantiation/LoaderBootstrap";
 
 export class CharacterSpawnerSystem implements System {
   private readonly entityManager: EntityManager;
@@ -51,7 +52,7 @@ export class CharacterSpawnerSystem implements System {
     transform.rotation.copyFrom(spawn.rotation);
 
     try {
-      if (!this.canInstantiateModel(model.definition.assetPath)) {
+      if (!(await this.canInstantiateModel(model.definition.assetPath))) {
         console.warn(
           `Skipping model load for entity '${entity.getId()}': no loader available for '${model.definition.assetPath}'. Using fallback mesh.`
         );
@@ -86,9 +87,9 @@ export class CharacterSpawnerSystem implements System {
     fallback.rotation.copyFrom(transform.rotation);
   }
 
-  private canInstantiateModel(assetPath: string): boolean {
+  private async canInstantiateModel(assetPath: string): Promise<boolean> {
     const extension = this.getFileExtension(assetPath);
-    return SceneLoader.IsPluginForExtensionAvailable(extension);
+    return LoaderBootstrap.ensureLoaderForExtension(extension);
   }
 
   private getFileExtension(assetPath: string): string {

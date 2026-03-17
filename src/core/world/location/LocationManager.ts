@@ -8,6 +8,7 @@ import type { LocationDefinition } from "./LocationDefinition";
 import type { District } from "./district/District";
 import type { DistrictDefinition } from "./district/DistrictDefinition";
 import { GameDistrict } from "./district/GameDistrict";
+import { LoaderBootstrap } from "../../model/instantiation/LoaderBootstrap";
 
 /**
  * Loads and manages world locations and district scene initialization.
@@ -120,7 +121,7 @@ export class LocationManager {
    */
   private async appendDistrictModel(scene: BabylonScene, modelPath: string): Promise<void> {
     const extension = this.getFileExtension(modelPath);
-    const hasLoader = SceneLoader.IsPluginForExtensionAvailable(extension);
+    const hasLoader = await LoaderBootstrap.ensureLoaderForExtension(extension);
 
     if (!hasLoader) {
       console.warn(`No Babylon loader plugin found for '${extension}'. Creating fallback district geometry.`);
