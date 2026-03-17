@@ -3,10 +3,9 @@ import { CharacterFactory } from "../../character/CharacterFactory";
 import { CharacterManager } from "../../character/CharacterManager";
 import type { EntityManager } from "../../entity/EntityManager";
 import { Entity } from "../../entity/Entity";
+import { HexGridRuntime } from "../../hex/HexGridRuntime";
 import type { LangManager } from "../../lang/LangManager";
 import { LocationManager } from "../../world/location/LocationManager";
-import { InGameGroundMeshResolver } from "./InGameGroundMeshResolver";
-import { InGameHexGridRuntime } from "./InGameHexGridRuntime";
 import type { Scene } from "../Scene";
 
 /**
@@ -28,9 +27,6 @@ export class InGameScene implements Scene {
   /** Character factory used to create runtime characters. */
   private readonly characterFactory: CharacterFactory;
 
-  /** Resolves which mesh should be used as logical ground. */
-  private readonly groundMeshResolver: InGameGroundMeshResolver;
-
   /**
    * Creates a new in-game scene controller.
    *
@@ -44,7 +40,6 @@ export class InGameScene implements Scene {
     this.entityManager = entityManager;
     this.locationManager = new LocationManager(this.langManager);
     this.characterFactory = new CharacterFactory(new CharacterManager());
-    this.groundMeshResolver = new InGameGroundMeshResolver();
   }
 
   /**
@@ -77,10 +72,7 @@ export class InGameScene implements Scene {
       this.entityManager.addEntity(golemCharacter);
     }
 
-    const groundMesh = this.groundMeshResolver.resolve(scene);
-    groundMesh.isPickable = true;
-
-    const hexGridRuntime = new InGameHexGridRuntime(scene, groundMesh);
+    const hexGridRuntime = new HexGridRuntime(scene);
     scene.onDisposeObservable.addOnce(() => {
       hexGridRuntime.dispose();
     });

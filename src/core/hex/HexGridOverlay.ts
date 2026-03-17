@@ -14,12 +14,8 @@ export class HexGridOverlay {
 
   /**
    * Creates visual overlay meshes for grid debug and hover cell.
-   *
-   * @param scene - Babylon scene.
-   * @param grid - Logical hex grid.
-   * @param verticalOffset - Offset above ground to avoid z-fighting.
    */
-  public constructor(scene: Scene, grid: HexGrid, verticalOffset = 0.06) {
+  public constructor(scene: Scene, grid: HexGrid, verticalOffset: number) {
     this.scene = scene;
     this.grid = grid;
     this.verticalOffset = verticalOffset;
@@ -34,20 +30,10 @@ export class HexGridOverlay {
     this.hoverMesh.isVisible = false;
   }
 
-  /**
-   * Shows or hides debug grid overlay lines.
-   *
-   * @param isVisible - Visibility state.
-   */
   public setDebugVisible(isVisible: boolean): void {
     this.gridMesh.isVisible = isVisible;
   }
 
-  /**
-   * Updates hovered-cell highlight position.
-   *
-   * @param cell - Hovered cell.
-   */
   public setHoveredCell(cell: HexCell): void {
     const center = this.grid.cellToWorld(cell);
     this.hoverMesh.position.copyFrom(center);
@@ -55,50 +41,38 @@ export class HexGridOverlay {
     this.hoverMesh.isVisible = true;
   }
 
-  /**
-   * Hides hovered-cell highlight when no valid ground hit exists.
-   */
   public hideHoveredCell(): void {
     this.hoverMesh.isVisible = false;
   }
 
-  /**
-   * Releases all overlay rendering resources.
-   */
   public dispose(): void {
     this.gridMesh.dispose();
     this.hoverMesh.dispose();
   }
 
   /**
-   * Builds static debug line mesh for every in-bounds hex cell.
+   * Builds static debug line mesh for all logical cells within the bounded grid area.
+   *
+   * Limitation: this first pass still renders a bounded rectangular axial footprint
+   * derived from ground extents rather than terrain-aware walkable cells.
    */
   private buildGridMesh(): LinesMesh {
     const lines: Vector3[][] = [];
-    const bounds = this.grid.getBounds();
 
-    for (let q = bounds.minQ; q <= bounds.maxQ; q += 1) {
-      for (let r = bounds.minR; r <= bounds.maxR; r += 1) {
-        const center = this.grid.cellToWorld(new HexCell(q, r));
-        const points = this.buildHexPoints(center, this.verticalOffset);
-        lines.push(points);
-      }
+    for (const cell of this.grid.getCellsWithinBounds()) {
+      const center = this.grid.cellToWorld(cell);
+      const points = this.buildHexPoints(center, this.verticalOffset);
+      lines.push(points);
     }
 
     return MeshBuilder.CreateLineSystem("hex-grid-overlay", { lines, updatable: false }, this.scene);
   }
 
-  /**
-   * Builds reusable hovered-cell hex outline mesh centered on local origin.
-   */
   private buildHoverMesh(): LinesMesh {
     const points = this.buildHexPoints(Vector3.Zero(), 0);
     return MeshBuilder.CreateLines("hex-hover-overlay", { points, updatable: false }, this.scene);
   }
 
-  /**
-   * Creates 6-corner line loop points for a single hex cell.
-   */
   private buildHexPoints(center: Vector3, yOffset: number): Vector3[] {
     const points: Vector3[] = [];
     const radius = this.grid.getHexSize();

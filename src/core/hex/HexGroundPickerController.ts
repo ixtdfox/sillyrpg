@@ -8,22 +8,22 @@ import { HexGridOverlay } from "./HexGridOverlay";
  */
 export class HexGroundPickerController {
   private readonly scene: Scene;
-  private readonly groundMesh: AbstractMesh;
+  private readonly isGroundPick: (mesh: AbstractMesh) => boolean;
   private readonly grid: HexGrid;
   private readonly overlay: HexGridOverlay;
   private hoveredCell: HexCell | null;
 
   /**
    * Creates mouse-driven ground picking controller.
-   *
-   * @param scene - Scene to read pointer and perform ray picks.
-   * @param groundMesh - Ground mesh used for picking.
-   * @param grid - Logical hex grid.
-   * @param overlay - Grid overlay visuals.
    */
-  public constructor(scene: Scene, groundMesh: AbstractMesh, grid: HexGrid, overlay: HexGridOverlay) {
+  public constructor(
+    scene: Scene,
+    isGroundPick: (mesh: AbstractMesh) => boolean,
+    grid: HexGrid,
+    overlay: HexGridOverlay
+  ) {
     this.scene = scene;
-    this.groundMesh = groundMesh;
+    this.isGroundPick = isGroundPick;
     this.grid = grid;
     this.overlay = overlay;
     this.hoveredCell = null;
@@ -31,21 +31,15 @@ export class HexGroundPickerController {
     this.scene.onBeforeRenderObservable.add(this.updateHoverFromPointer);
   }
 
-  /**
-   * Releases scene callbacks.
-   */
   public dispose(): void {
     this.scene.onBeforeRenderObservable.removeCallback(this.updateHoverFromPointer);
   }
 
-  /**
-   * Updates hovered hex every frame based on current mouse-ground intersection.
-   */
   private readonly updateHoverFromPointer = (): void => {
     const pickResult = this.scene.pick(
       this.scene.pointerX,
       this.scene.pointerY,
-      (mesh) => mesh === this.groundMesh,
+      this.isGroundPick,
       false,
       this.scene.activeCamera ?? undefined
     );
@@ -57,6 +51,11 @@ export class HexGroundPickerController {
     }
 
     const nextCell = this.grid.worldToCell(pickResult.pickedPoint);
+    if (!this.grid.contains(nextCell)) {
+      this.hoveredCell = null;
+      this.overlay.hideHoveredCell();
+      return;
+    }
 
     if (this.hoveredCell?.equals(nextCell)) {
       return;

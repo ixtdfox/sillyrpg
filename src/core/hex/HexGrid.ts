@@ -48,14 +48,6 @@ export class HexGrid {
 
   /**
    * Creates grid bounds from world rectangle corners projected to axial coordinates.
-   *
-   * @param origin - World origin for {0,0}.
-   * @param hexSize - Hex outer radius.
-   * @param minX - World minimum X.
-   * @param maxX - World maximum X.
-   * @param minZ - World minimum Z.
-   * @param maxZ - World maximum Z.
-   * @returns Derived grid bounds.
    */
   public static deriveBoundsFromWorldRect(
     origin: Vector3,
@@ -114,9 +106,6 @@ export class HexGrid {
 
   /**
    * Converts world position to nearest axial hex cell.
-   *
-   * @param worldPosition - World-space position.
-   * @returns Rounded axial cell.
    */
   public worldToCell(worldPosition: Vector3): HexCell {
     const localX = worldPosition.x - this.origin.x;
@@ -130,10 +119,6 @@ export class HexGrid {
 
   /**
    * Converts axial hex coordinate to world center position.
-   *
-   * @param cell - Axial cell.
-   * @param y - Optional target Y coordinate.
-   * @returns World center for the requested cell.
    */
   public cellToWorld(cell: HexCell, y = this.origin.y): Vector3 {
     const x = this.hexSize * HexGrid.SQRT3 * (cell.q + cell.r / 2);
@@ -142,10 +127,39 @@ export class HexGrid {
   }
 
   /**
+   * Returns true when given cell is within configured logical bounds.
+   */
+  public isWithinBounds(cell: HexCell): boolean {
+    return cell.q >= this.bounds.minQ
+      && cell.q <= this.bounds.maxQ
+      && cell.r >= this.bounds.minR
+      && cell.r <= this.bounds.maxR;
+  }
+
+  /**
+   * Alias for domain readability in callers.
+   */
+  public contains(cell: HexCell): boolean {
+    return this.isWithinBounds(cell);
+  }
+
+  /**
+   * Iterates all logical cells in the current bounded area.
+   */
+  public getCellsWithinBounds(): HexCell[] {
+    const result: HexCell[] = [];
+
+    for (let q = this.bounds.minQ; q <= this.bounds.maxQ; q += 1) {
+      for (let r = this.bounds.minR; r <= this.bounds.maxR; r += 1) {
+        result.push(new HexCell(q, r));
+      }
+    }
+
+    return result;
+  }
+
+  /**
    * Returns axial neighbors in clockwise order.
-   *
-   * @param cell - Source cell.
-   * @returns Six adjacent cells.
    */
   public getNeighbors(cell: HexCell): HexCell[] {
     return [

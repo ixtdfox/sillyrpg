@@ -4,16 +4,10 @@ import type { Scene } from "@babylonjs/core";
 /**
  * Creates top HUD panel with grid debug toggle button.
  */
-export class InGameHexGridDebugUi {
+export class HexGridDebugUi {
   private readonly texture: AdvancedDynamicTexture;
   private readonly toggleButton: Button;
 
-  /**
-   * Creates in-game top-panel HUD for hex debug controls.
-   *
-   * @param scene - Babylon scene.
-   * @param onToggleRequested - Callback for button click.
-   */
   public constructor(scene: Scene, onToggleRequested: () => void) {
     this.texture = AdvancedDynamicTexture.CreateFullscreenUI("in-game-hex-grid-ui", true, scene);
 
@@ -48,17 +42,11 @@ export class InGameHexGridDebugUi {
     content.addControl(this.toggleButton);
   }
 
-  /**
-   * Updates button style to reflect current debug visibility state.
-   */
   public setDebugEnabled(isEnabled: boolean): void {
     this.toggleButton.background = isEnabled ? "#304D2C" : "#1F2937";
     this.toggleButton.color = isEnabled ? "#A8E6A3" : "#91A3C8";
   }
 
-  /**
-   * Disposes HUD GUI resources.
-   */
   public dispose(): void {
     this.texture.dispose();
   }
