@@ -1,5 +1,6 @@
 import { Engine, Scene as BabylonScene } from "@babylonjs/core";
 import { LangManager } from "../lang/LangManager";
+import { EntityManager } from "../entity/EntityManager";
 import { InGameScene } from "../scene/in-game/InGameScene";
 import { MainMenuScene } from "../scene/main-menu/MainMenuScene";
 import type { Scene } from "../scene/Scene";
@@ -19,6 +20,9 @@ export class GameManager {
 
   /** Shared localization service. */
   private readonly langManager: LangManager;
+
+  /** Shared ECS entity registry for runtime-created entities. */
+  private readonly entityManager: EntityManager;
 
   /** Current finite game state. */
   private currentState: GameState;
@@ -40,6 +44,7 @@ export class GameManager {
     this.engine = engine;
     this.canvas = canvas;
     this.langManager = langManager;
+    this.entityManager = new EntityManager();
     this.currentState = GameState.MAIN_MENU;
     this.currentSceneController = null;
     this.currentBabylonScene = null;
@@ -100,7 +105,7 @@ export class GameManager {
           void this.setState(nextState);
         });
       case GameState.IN_GAME:
-        return new InGameScene(this.engine, this.langManager);
+        return new InGameScene(this.engine, this.langManager, this.entityManager);
       case GameState.SETTINGS:
         return new MainMenuScene(this.engine, this.canvas, this.langManager, (nextState) => {
           void this.setState(nextState);

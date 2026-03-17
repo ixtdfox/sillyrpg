@@ -1,7 +1,11 @@
 import { Color4, Engine, Scene as BabylonScene } from "@babylonjs/core";
+import { CharacterFactory } from "../../character/CharacterFactory";
+import { CharacterManager } from "../../character/CharacterManager";
+import type { EntityManager } from "../../entity/EntityManager";
+import { Entity } from "../../entity/Entity";
 import type { LangManager } from "../../lang/LangManager";
-import type { Scene } from "../Scene";
 import { LocationManager } from "../../world/location/LocationManager";
+import type { Scene } from "../Scene";
 
 /**
  * Implements the in-game scene that loads a default world location district.
@@ -13,19 +17,28 @@ export class InGameScene implements Scene {
   /** Shared language manager used by location runtime entities. */
   private readonly langManager: LangManager;
 
+  /** Shared entity manager for runtime-created entities. */
+  private readonly entityManager: EntityManager;
+
   /** Location manager responsible for world data and district setup. */
   private readonly locationManager: LocationManager;
+
+  /** Character factory used to create runtime characters. */
+  private readonly characterFactory: CharacterFactory;
 
   /**
    * Creates a new in-game scene controller.
    *
    * @param engine - Babylon engine instance.
    * @param langManager - Shared localization manager.
+   * @param entityManager - Shared ECS entity registry.
    */
-  public constructor(engine: Engine, langManager: LangManager) {
+  public constructor(engine: Engine, langManager: LangManager, entityManager: EntityManager) {
     this.engine = engine;
     this.langManager = langManager;
+    this.entityManager = entityManager;
     this.locationManager = new LocationManager(this.langManager);
+    this.characterFactory = new CharacterFactory(new CharacterManager());
   }
 
   /**
@@ -46,6 +59,18 @@ export class InGameScene implements Scene {
     }
 
     await this.locationManager.createDistrictScene(scene, defaultDistrict);
+
+    const playerCharacter = await this.characterFactory.createPlayer();
+    const golemCharacter = await this.characterFactory.createGolem();
+
+    if (playerCharacter instanceof Entity) {
+      this.entityManager.addEntity(playerCharacter);
+    }
+
+    if (golemCharacter instanceof Entity) {
+      this.entityManager.addEntity(golemCharacter);
+    }
+
     return scene;
   }
 
