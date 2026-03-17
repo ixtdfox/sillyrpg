@@ -2,6 +2,9 @@ import { Engine, Scene as BabylonScene } from "@babylonjs/core";
 import { LangManager } from "../lang/LangManager";
 import { EntityManager } from "../entity/EntityManager";
 import { InGameScene } from "../scene/in-game/InGameScene";
+import { MovementSystem } from "../entity/systems/MovementSystem";
+import { RenderSyncSystem } from "../entity/systems/RenderSyncSystem";
+import type { System } from "../entity/System";
 import { MainMenuScene } from "../scene/main-menu/MainMenuScene";
 import type { Scene } from "../scene/Scene";
 import { GameState } from "./GameState";
@@ -24,6 +27,9 @@ export class GameManager {
   /** Shared ECS entity registry for runtime-created entities. */
   private readonly entityManager: EntityManager;
 
+  /** Ordered ECS systems executed each runtime tick. */
+  private readonly systems: readonly System[];
+
   /** Current finite game state. */
   private currentState: GameState;
 
@@ -45,6 +51,10 @@ export class GameManager {
     this.canvas = canvas;
     this.langManager = langManager;
     this.entityManager = new EntityManager();
+    this.systems = [
+      new MovementSystem(this.entityManager),
+      new RenderSyncSystem(this.entityManager),
+    ];
     this.currentState = GameState.MAIN_MENU;
     this.currentSceneController = null;
     this.currentBabylonScene = null;
@@ -57,6 +67,17 @@ export class GameManager {
    */
   public async start(): Promise<void> {
     await this.loadSceneForState(this.currentState);
+  }
+
+  /**
+   * Updates runtime ECS systems for the current frame.
+   *
+   * @param deltaSeconds - Frame delta time in seconds.
+   */
+  public update(deltaSeconds: number): void {
+    for (const system of this.systems) {
+      system.update(deltaSeconds);
+    }
   }
 
   /**

@@ -46,6 +46,8 @@ export class App {
     await this.gameManager.start();
 
     this.engine.runRenderLoop(() => {
+      const deltaSeconds = this.engine.getDeltaTime() / 1000;
+      this.gameManager.update(deltaSeconds);
       this.gameManager.getCurrentScene()?.render();
     });
 
