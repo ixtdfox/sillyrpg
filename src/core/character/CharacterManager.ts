@@ -1,6 +1,7 @@
 import { Archetype } from "./Archetype";
 import type { CharacterTemplate } from "./CharacterTemplate";
 import type { NormalizationConfig } from "../model/normalization";
+import type { ModelDefinition } from "../model/ModelDefinition";
 
 interface CharacterTemplateRecord {
   archetype: string;
@@ -29,13 +30,6 @@ export class CharacterManager {
     this.loadingPromise = null;
   }
 
-  /**
-   * Returns a template for the requested archetype.
-   *
-   * @param archetype - Archetype key to retrieve.
-   * @returns Template matching the archetype.
-   * @throws Error when no template exists for archetype.
-   */
   public async getTemplate(archetype: Archetype): Promise<CharacterTemplate> {
     const templates = await this.getTemplatesMap();
     const template = templates[archetype];
@@ -47,21 +41,11 @@ export class CharacterManager {
     return template;
   }
 
-  /**
-   * Lists all available templates.
-   *
-   * @returns Array of template values.
-   */
   public async listTemplates(): Promise<CharacterTemplate[]> {
     const templates = await this.getTemplatesMap();
     return Object.values(templates);
   }
 
-  /**
-   * Returns cached templates or loads them from JSON once.
-   *
-   * @returns Archetype-indexed template map.
-   */
   private async getTemplatesMap(): Promise<Record<Archetype, CharacterTemplate>> {
     if (this.templates) {
       return this.templates;
@@ -75,11 +59,6 @@ export class CharacterManager {
     return this.templates;
   }
 
-  /**
-   * Loads template records from the JSON store and normalizes them.
-   *
-   * @returns Archetype-indexed template map.
-   */
   private async loadTemplates(): Promise<Record<Archetype, CharacterTemplate>> {
     const response = await fetch(CharacterManager.STORE_URL);
 
@@ -95,21 +74,20 @@ export class CharacterManager {
 
       mappedTemplates[archetype] = {
         archetype,
-        model: record.model,
-        normalization: record.normalization
+        model: this.mapModelDefinition(record)
       };
     }
 
     return mappedTemplates;
   }
 
-  /**
-   * Parses and validates archetype values from raw data.
-   *
-   * @param value - Raw archetype text from the data store.
-   * @returns Validated runtime archetype.
-   * @throws Error when value is unsupported.
-   */
+  private mapModelDefinition(record: CharacterTemplateRecord): ModelDefinition {
+    return {
+      assetPath: record.model,
+      normalization: record.normalization
+    };
+  }
+
   private parseArchetype(value: string): Archetype {
     if (value === Archetype.HUMAN || value === Archetype.GOLEM) {
       return value;

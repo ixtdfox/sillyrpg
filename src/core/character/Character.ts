@@ -1,50 +1,19 @@
 import { Relations } from "../entity/components/Relations";
 import { ControlType } from "../entity/components/ControlComponent";
 import { VitalsComponent } from "../entity/components/VitalsComponent";
+import type { ModelDefinition } from "../model/ModelDefinition";
 
 /**
  * Defines the public contract for character objects.
  */
 export interface Character {
-  /**
-   * Returns the character identifier.
-   *
-   * @returns Unique character identifier.
-   */
   getId(): string;
-
-  /**
-   * Returns the character display name.
-   *
-   * @returns Character name.
-   */
   getName(): string;
-
-  /**
-   * Returns the control ownership type.
-   *
-   * @returns Control type value.
-   */
   getType(): ControlType;
-
-  /**
-   * Returns relationships keyed by target character id.
-   *
-   * @returns Relationship map.
-   */
   getRelationships(): Record<string, Relations>;
 
-  /**
-   * Returns the 3D model path.
-   *
-   * @returns Asset path for character model.
-   */
-  getModel(): string;
+  /** Returns the visual model definition. */
+  getModel(): ModelDefinition;
 
-  /**
-   * Returns gameplay state for this character.
-   *
-   * @returns Character gameplay state.
-   */
   getState(): VitalsComponent;
 }

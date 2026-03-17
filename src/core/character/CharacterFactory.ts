@@ -48,8 +48,7 @@ export class CharacterFactory {
       Archetype.HUMAN,
       new VitalsComponent(new Vitals(100, 100), new Vitals(100, 100), 50),
       new TransformComponent(Vector3.Zero()),
-      new SpawnComponent(new Vector3(-8, 0, -8)),
-      template.normalization
+      new SpawnComponent(new Vector3(-8, 0, -8))
     );
   }
 
@@ -68,8 +67,7 @@ export class CharacterFactory {
       Archetype.GOLEM,
       new VitalsComponent(new Vitals(140, 140), new Vitals(60, 60), 120),
       new TransformComponent(Vector3.Zero()),
-      new SpawnComponent(new Vector3(8, 0, 8)),
-      template.normalization
+      new SpawnComponent(new Vector3(8, 0, 8))
     );
   }
 
