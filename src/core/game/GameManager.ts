@@ -5,6 +5,7 @@ import { InGameScene } from "../scene/in-game/InGameScene";
 import { MovementSystem } from "../entity/systems/MovementSystem";
 import { RenderSyncSystem } from "../entity/systems/RenderSyncSystem";
 import { CharacterSpawnerSystem } from "../entity/systems/CharacterSpawnerSystem";
+import { LocalPlayerSystem } from "../entity/systems/LocalPlayerSystem";
 import type { System } from "../entity/System";
 import { MainMenuScene } from "../scene/main-menu/MainMenuScene";
 import type { Scene } from "../scene/Scene";
@@ -29,7 +30,7 @@ export class GameManager {
   private readonly entityManager: EntityManager;
 
   /** Ordered ECS systems executed each runtime tick. */
-  private readonly systems: readonly System[];
+  private systems: System[];
 
   /** ECS system that spawns character models in the active scene. */
   private readonly characterSpawnerSystem: CharacterSpawnerSystem;
@@ -56,11 +57,7 @@ export class GameManager {
     this.langManager = langManager;
     this.entityManager = new EntityManager();
     this.characterSpawnerSystem = new CharacterSpawnerSystem(this.entityManager);
-    this.systems = [
-      this.characterSpawnerSystem,
-      new MovementSystem(this.entityManager),
-      new RenderSyncSystem(this.entityManager),
-    ];
+    this.systems = [];
     this.currentState = GameState.MAIN_MENU;
     this.currentSceneController = null;
     this.currentBabylonScene = null;
@@ -114,10 +111,32 @@ export class GameManager {
    */
   private async loadSceneForState(state: GameState): Promise<void> {
     this.currentBabylonScene?.dispose();
+    this.entityManager.clearEntities();
 
     this.currentSceneController = this.buildSceneController(state);
     this.currentBabylonScene = await this.currentSceneController.createScene();
     this.characterSpawnerSystem.setScene(this.currentBabylonScene);
+    this.systems = this.buildSystemsForState(state);
+  }
+
+
+  /**
+   * Builds ordered ECS systems for the active game state.
+   *
+   * @param state - Active state.
+   * @returns Runtime systems list for the state.
+   */
+  private buildSystemsForState(state: GameState): System[] {
+    if (state !== GameState.IN_GAME) {
+      return [];
+    }
+
+    return [
+      this.characterSpawnerSystem,
+      new MovementSystem(this.entityManager),
+      new LocalPlayerSystem(this.entityManager, () => this.currentBabylonScene),
+      new RenderSyncSystem(this.entityManager),
+    ];
   }
 
   /**

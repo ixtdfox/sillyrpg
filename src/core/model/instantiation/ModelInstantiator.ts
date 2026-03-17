@@ -1,5 +1,4 @@
 import { Scene as BabylonScene, SceneLoader, TransformNode } from "@babylonjs/core";
-import "@babylonjs/loaders/glTF";
 import type { ModelDefinition } from "../ModelDefinition";
 import { normalizeModel } from "../normalization";
 

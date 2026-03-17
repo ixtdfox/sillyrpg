@@ -27,6 +27,10 @@ export class EntityManager {
     return Array.from(this.entitiesById.values());
   }
 
+  public clearEntities(): void {
+    this.entitiesById.clear();
+  }
+
   public query(...ctors: Array<ComponentCtor<Component>>): Entity[] {
     if (ctors.length === 0) {
       return this.getEntities();
