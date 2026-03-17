@@ -1,5 +1,14 @@
-import type { ControlType } from "./ControlType";
 import type { Component } from "../Component";
+
+
+/**
+ * Declares who controls a character instance.
+ */
+export enum ControlType {
+  PLAYER = "player",
+  NPC = "npc"
+}
+
 
 /**
  * Stores character control ownership.

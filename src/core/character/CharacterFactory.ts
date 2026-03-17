@@ -1,7 +1,7 @@
 import { Archetype } from "./Archetype";
 import type { Character } from "./Character";
 import { CharacterManager } from "./CharacterManager";
-import { ControlType } from "../entity/components/ControlType";
+import { ControlType } from "../entity/components/ControlComponent";
 import { GameCharacter } from "./GameCharacter";
 import { Vitals } from "../entity/components/Vitals";
 import { VitalsComponent } from "../entity/components/VitalsComponent";
