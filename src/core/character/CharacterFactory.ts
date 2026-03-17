@@ -5,6 +5,9 @@ import { ControlType } from "../entity/components/ControlComponent";
 import { GameCharacter } from "./GameCharacter";
 import { Vitals } from "../entity/components/Vitals";
 import { VitalsComponent } from "../entity/components/VitalsComponent";
+import { TransformComponent } from "../entity/components/TransformComponent";
+import { SpawnComponent } from "../entity/components/SpawnComponent";
+import { Vector3 } from "@babylonjs/core";
 
 /**
  * Builds concrete character instances from templates.
@@ -43,8 +46,9 @@ export class CharacterFactory {
       template.model,
       ControlType.PLAYER,
       Archetype.HUMAN,
-      {},
-      new VitalsComponent(new Vitals(100, 100), new Vitals(100, 100), 50)
+      new VitalsComponent(new Vitals(100, 100), new Vitals(100, 100), 50),
+      new TransformComponent(Vector3.Zero()),
+      new SpawnComponent(new Vector3(-8, 0, -8))
     );
   }
 
@@ -61,8 +65,9 @@ export class CharacterFactory {
       template.model,
       ControlType.NPC,
       Archetype.GOLEM,
-      {},
-      new VitalsComponent(new Vitals(140, 140), new Vitals(60, 60), 120)
+      new VitalsComponent(new Vitals(140, 140), new Vitals(60, 60), 120),
+      new TransformComponent(Vector3.Zero()),
+      new SpawnComponent(new Vector3(8, 0, 8))
     );
   }
 

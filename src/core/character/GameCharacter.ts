@@ -6,12 +6,14 @@ import { Relations } from "../entity/components/Relations";
 import { RelationsComponent } from "../entity/components/RelationsComponent";
 import { VitalsComponent } from "../entity/components/VitalsComponent";
 import { Entity } from "../entity/Entity";
+import { TransformComponent } from "../entity/components/TransformComponent";
+import { ModelComponent } from "../entity/components/ModelComponent";
+import { SpawnComponent } from "../entity/components/SpawnComponent";
 
 /**
  * Concrete implementation of the character domain entity.
  */
 export class GameCharacter extends Entity implements Character {
-
   /** Path to the model asset used for rendering. */
   private readonly model: string;
 
@@ -25,16 +27,20 @@ export class GameCharacter extends Entity implements Character {
    * @param model - Model path for rendering.
    * @param controlType - Controller type for this character.
    * @param archetype - Character archetype.
+   * @param vitals - Initial vitals component.
+   * @param transform - Initial world transform component.
+   * @param spawn - Initial scene spawn data.
    * @param relationships - Optional initial relationship map.
-   * @param vitals - Optional initial vitals component.
    */
   public constructor(
     name: string,
     model: string,
     controlType: ControlType,
     archetype: Archetype,
-    relationships: Record<string, Relations> = {},
-    vitals: VitalsComponent
+    vitals: VitalsComponent,
+    transform: TransformComponent,
+    spawn: SpawnComponent,
+    relationships: Record<string, Relations> = {}
   ) {
     const id = GameCharacter.generateUuid();
 
@@ -46,8 +52,10 @@ export class GameCharacter extends Entity implements Character {
     this.addComponent(IdentityComponent, new IdentityComponent(id, name));
     this.addComponent(ControlComponent, new ControlComponent(controlType));
     this.addComponent(RelationsComponent, new RelationsComponent(relationships));
-
     this.addComponent(VitalsComponent, vitals);
+    this.addComponent(TransformComponent, transform);
+    this.addComponent(ModelComponent, new ModelComponent(model));
+    this.addComponent(SpawnComponent, spawn);
   }
 
   /**

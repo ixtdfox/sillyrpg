@@ -4,6 +4,7 @@ import { EntityManager } from "../entity/EntityManager";
 import { InGameScene } from "../scene/in-game/InGameScene";
 import { MovementSystem } from "../entity/systems/MovementSystem";
 import { RenderSyncSystem } from "../entity/systems/RenderSyncSystem";
+import { CharacterSpawnerSystem } from "../entity/systems/CharacterSpawnerSystem";
 import type { System } from "../entity/System";
 import { MainMenuScene } from "../scene/main-menu/MainMenuScene";
 import type { Scene } from "../scene/Scene";
@@ -30,6 +31,9 @@ export class GameManager {
   /** Ordered ECS systems executed each runtime tick. */
   private readonly systems: readonly System[];
 
+  /** ECS system that spawns character models in the active scene. */
+  private readonly characterSpawnerSystem: CharacterSpawnerSystem;
+
   /** Current finite game state. */
   private currentState: GameState;
 
@@ -51,7 +55,9 @@ export class GameManager {
     this.canvas = canvas;
     this.langManager = langManager;
     this.entityManager = new EntityManager();
+    this.characterSpawnerSystem = new CharacterSpawnerSystem(this.entityManager);
     this.systems = [
+      this.characterSpawnerSystem,
       new MovementSystem(this.entityManager),
       new RenderSyncSystem(this.entityManager),
     ];
@@ -111,6 +117,7 @@ export class GameManager {
 
     this.currentSceneController = this.buildSceneController(state);
     this.currentBabylonScene = await this.currentSceneController.createScene();
+    this.characterSpawnerSystem.setScene(this.currentBabylonScene);
   }
 
   /**
