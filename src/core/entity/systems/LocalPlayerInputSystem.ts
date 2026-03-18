@@ -38,16 +38,15 @@ export class LocalPlayerInputSystem implements System {
 
     this.runtimeContext = getInGameSceneRuntimeContext(scene);
     this.localPlayerEntity = this.resolveLocalPlayerEntity();
-
-    if (this.runtimeContext && this.localPlayerEntity) {
-      this.pointerObserver = scene.onPointerObservable.add(this.onPointerEvent);
-    }
+    this.tryAttachPointerObserver();
   }
 
   public update(_deltaSeconds: number): void {
     if (!this.scene || !this.localPlayerEntity || !this.localPlayerEntity.hasComponent(HexPositionComponent)) {
       this.localPlayerEntity = this.resolveLocalPlayerEntity();
     }
+
+    this.tryAttachPointerObserver();
   }
 
   private readonly onPointerEvent = (pointerInfo: PointerInfo): void => {
@@ -77,7 +76,7 @@ export class LocalPlayerInputSystem implements System {
   };
 
   private resolveLocalPlayerEntity(): Entity | null {
-    const localPlayerEntities = this.entityManager.query(LocalPlayerComponent, HexPositionComponent);
+    const localPlayerEntities = this.entityManager.query(LocalPlayerComponent);
 
     if (localPlayerEntities.length === 0) {
       return null;
@@ -99,5 +98,13 @@ export class LocalPlayerInputSystem implements System {
 
     this.scene.onPointerObservable.remove(this.pointerObserver);
     this.pointerObserver = null;
+  }
+
+  private tryAttachPointerObserver(): void {
+    if (!this.scene || !this.runtimeContext || !this.localPlayerEntity || this.pointerObserver) {
+      return;
+    }
+
+    this.pointerObserver = this.scene.onPointerObservable.add(this.onPointerEvent);
   }
 }
