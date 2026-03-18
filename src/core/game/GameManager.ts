@@ -7,7 +7,6 @@ import { RenderSyncSystem } from "../entity/systems/RenderSyncSystem";
 import { CharacterSpawnerSystem } from "../entity/systems/CharacterSpawnerSystem";
 import { LocalPlayerSystem } from "../entity/systems/LocalPlayerSystem";
 import { LocalPlayerInputSystem } from "../entity/systems/LocalPlayerInputSystem";
-import { AnimationStateSystem } from "../entity/systems/AnimationStateSystem";
 import { AnimationSystem } from "../entity/systems/AnimationSystem";
 import type { System } from "../entity/System";
 import { MainMenuScene } from "../scene/main-menu/MainMenuScene";
@@ -74,7 +73,6 @@ export class GameManager {
       this.characterSpawnerSystem,
       this.localPlayerInputSystem,
       this.movementSystem,
-      new AnimationStateSystem(this.entityManager),
       new AnimationSystem(this.entityManager),
       this.localPlayerSystem,
       new RenderSyncSystem(this.entityManager),

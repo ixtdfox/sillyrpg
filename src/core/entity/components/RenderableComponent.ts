@@ -1,4 +1,4 @@
-import { AnimationGroup, Vector3 } from "@babylonjs/core";
+import { Vector3 } from "@babylonjs/core";
 import type { Component } from "../Component";
 
 /**
@@ -17,10 +17,8 @@ export interface RenderTransformBinding {
  */
 export class RenderableComponent implements Component {
   public readonly binding: RenderTransformBinding;
-  public readonly animationGroupsByName: ReadonlyMap<string, AnimationGroup>;
 
-  public constructor(binding: RenderTransformBinding, animationGroupsByName: ReadonlyMap<string, AnimationGroup> = new Map()) {
+  public constructor(binding: RenderTransformBinding) {
     this.binding = binding;
-    this.animationGroupsByName = animationGroupsByName;
   }
 }

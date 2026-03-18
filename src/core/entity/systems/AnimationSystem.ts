@@ -1,8 +1,7 @@
 import type { EntityManager } from "../EntityManager";
 import type { System } from "../System";
 import { AnimationComponent } from "../components/AnimationComponent";
-import { AnimationStateComponent } from "../components/AnimationStateComponent";
-import { RenderableComponent } from "../components/RenderableComponent";
+import { HexPathMovementComponent } from "../components/HexPathMovementComponent";
 
 /**
  * Applies logical animation state changes to Babylon animation groups.
@@ -15,12 +14,12 @@ export class AnimationSystem implements System {
   }
 
   public update(_deltaSeconds: number): void {
-    const entities = this.entityManager.query(AnimationComponent, AnimationStateComponent, RenderableComponent);
+    const entities = this.entityManager.query(AnimationComponent, HexPathMovementComponent);
 
     for (const entity of entities) {
       const animation = entity.getComponent(AnimationComponent);
-      const animationState = entity.getComponent(AnimationStateComponent);
-      const desiredState = animationState.state;
+      const movement = entity.getComponent(HexPathMovementComponent);
+      const desiredState = movement.isMoving ? "walk" : "idle";
 
       if (animation.activeState === desiredState) {
         continue;

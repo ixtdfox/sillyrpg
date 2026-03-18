@@ -2,8 +2,7 @@ import { AnimationGroup, MeshBuilder, Scene as BabylonScene } from "@babylonjs/c
 import type { Entity } from "../Entity";
 import type { EntityManager } from "../EntityManager";
 import type { System } from "../System";
-import { AnimationComponent } from "../components/AnimationComponent";
-import { AnimationStateComponent, type AnimationState } from "../components/AnimationStateComponent";
+import { AnimationComponent, type AnimationState } from "../components/AnimationComponent";
 import { ModelComponent } from "../components/ModelComponent";
 import { HexPositionComponent } from "../components/HexPositionComponent";
 import { RenderableComponent } from "../components/RenderableComponent";
@@ -66,7 +65,7 @@ export class CharacterSpawnerSystem implements System {
       const { rootNode, animationGroupsByName } = instantiatedModel;
       rootNode.position.copyFrom(transform.value);
       rootNode.rotation.copyFrom(transform.rotation);
-      entity.addComponent(RenderableComponent, new RenderableComponent(rootNode, animationGroupsByName));
+      entity.addComponent(RenderableComponent, new RenderableComponent(rootNode));
       this.initializeAnimationComponents(entity, animationGroupsByName);
     } catch (error) {
       console.error(
@@ -124,7 +123,6 @@ export class CharacterSpawnerSystem implements System {
       walk: this.findFirstAnimationGroupName(animationGroupsByName, "walk")
     };
 
-    entity.addComponent(AnimationStateComponent, new AnimationStateComponent("idle"));
     entity.addComponent(AnimationComponent, new AnimationComponent(mapping, animationGroupsByName));
   }
 

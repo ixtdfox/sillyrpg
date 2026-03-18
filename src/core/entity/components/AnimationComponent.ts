@@ -1,6 +1,7 @@
 import type { AnimationGroup } from "@babylonjs/core";
 import type { Component } from "../Component";
-import type { AnimationState } from "./AnimationStateComponent";
+
+export type AnimationState = "idle" | "walk";
 
 /**
  * Binds logical animation states to Babylon animation groups.
