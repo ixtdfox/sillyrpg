@@ -46,7 +46,15 @@ export class MovementSystem implements System {
   }
 
   private tryInitializePath(hexPosition: HexPositionComponent, pathMovement: HexPathMovementComponent): void {
-    if (pathMovement.isMoving || !hexPosition.targetCell) {
+    if (!hexPosition.targetCell) {
+      return;
+    }
+
+    if (pathMovement.isMoving && !this.isActivePathForTarget(pathMovement, hexPosition.targetCell)) {
+      pathMovement.resetPathState();
+    }
+
+    if (pathMovement.isMoving) {
       return;
     }
 
@@ -66,6 +74,15 @@ export class MovementSystem implements System {
     pathMovement.pathCells = path;
     pathMovement.nextStepIndex = 1;
     pathMovement.isMoving = true;
+  }
+
+  private isActivePathForTarget(pathMovement: HexPathMovementComponent, targetCell: HexPositionComponent["targetCell"]): boolean {
+    if (!targetCell || pathMovement.pathCells.length === 0) {
+      return false;
+    }
+
+    const activeDestination = pathMovement.pathCells[pathMovement.pathCells.length - 1];
+    return activeDestination.equals(targetCell);
   }
 
   private advanceMovementStep(

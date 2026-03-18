@@ -3,6 +3,7 @@ import type { Nullable, Observer, PointerInfo } from "@babylonjs/core";
 import type { Entity } from "../Entity";
 import type { EntityManager } from "../EntityManager";
 import type { System } from "../System";
+import { HexPathMovementComponent } from "../components/HexPathMovementComponent";
 import { HexPositionComponent } from "../components/HexPositionComponent";
 import { LocalPlayerComponent } from "../components/LocalPlayerComponent";
 import { getInGameSceneRuntimeContext, type InGameSceneRuntimeContext } from "../../scene/in-game/InGameSceneRuntimeContext";
@@ -68,11 +69,20 @@ export class LocalPlayerInputSystem implements System {
       return;
     }
 
+    if (hexPosition.targetCell && hexPosition.targetCell.equals(clickedCell)) {
+      return;
+    }
+
     if (!this.runtimeContext.hexGridRuntime.getGrid().contains(clickedCell)) {
       return;
     }
 
+    const pathMovement = this.localPlayerEntity.hasComponent(HexPathMovementComponent)
+      ? this.localPlayerEntity.getComponent(HexPathMovementComponent)
+      : null;
+
     hexPosition.targetCell = clickedCell;
+    pathMovement?.resetPathState();
   };
 
   private resolveLocalPlayerEntity(): Entity | null {
