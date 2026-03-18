@@ -9,6 +9,7 @@ import { SpawnComponent } from "../entity/components/SpawnComponent";
 import { Vector3 } from "@babylonjs/core";
 import { AIComponent } from "../entity/components/AIComponent";
 import { LocalPlayerComponent } from "../entity/components/LocalPlayerComponent";
+import { HexPathMovementComponent } from "../entity/components/HexPathMovementComponent";
 
 /**
  * Builds concrete character instances from templates.
@@ -52,6 +53,7 @@ export class CharacterFactory {
     );
 
     player.addComponent(LocalPlayerComponent, new LocalPlayerComponent());
+    player.addComponent(HexPathMovementComponent, new HexPathMovementComponent(3.5));
 
     return player;
   }
@@ -74,6 +76,7 @@ export class CharacterFactory {
     );
 
     golem.addComponent(AIComponent, new AIComponent());
+    golem.addComponent(HexPathMovementComponent, new HexPathMovementComponent(2.5));
 
     return golem;
   }

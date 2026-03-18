@@ -3,9 +3,12 @@ import type { Entity } from "../Entity";
 import type { EntityManager } from "../EntityManager";
 import type { System } from "../System";
 import { ModelComponent } from "../components/ModelComponent";
+import { HexPositionComponent } from "../components/HexPositionComponent";
+import { RenderableComponent } from "../components/RenderableComponent";
 import { SpawnComponent } from "../components/SpawnComponent";
 import { TransformComponent } from "../components/TransformComponent";
 import { ModelInstantiator } from "../../model/instantiation/ModelInstantiator";
+import { getInGameSceneRuntimeContext } from "../../scene/in-game/InGameSceneRuntimeContext";
 
 export class CharacterSpawnerSystem implements System {
   private readonly entityManager: EntityManager;
@@ -49,6 +52,7 @@ export class CharacterSpawnerSystem implements System {
 
     transform.value.copyFrom(spawn.position);
     transform.rotation.copyFrom(spawn.rotation);
+    this.initializeHexPosition(entity);
 
     try {
       const rootNode = await this.modelInstantiator.instantiate(
@@ -59,6 +63,7 @@ export class CharacterSpawnerSystem implements System {
 
       rootNode.position.copyFrom(transform.value);
       rootNode.rotation.copyFrom(transform.rotation);
+      entity.addComponent(RenderableComponent, new RenderableComponent(rootNode));
     } catch (error) {
       console.error(
         `Failed to spawn entity '${entity.getId()}' from model '${model.definition.assetPath}'.`,
@@ -68,9 +73,33 @@ export class CharacterSpawnerSystem implements System {
       const fallback = MeshBuilder.CreateBox(`entity-${entity.getId()}-fallback`, { size: 1.5 }, scene);
       fallback.position.copyFrom(transform.value);
       fallback.rotation.copyFrom(transform.rotation);
+      entity.addComponent(RenderableComponent, new RenderableComponent(fallback));
     } finally {
       entity.removeComponent(SpawnComponent);
       this.pendingSpawns.delete(entity.getId());
     }
+  }
+
+  private initializeHexPosition(entity: Entity): void {
+    if (!this.scene || entity.hasComponent(HexPositionComponent)) {
+      return;
+    }
+
+    const runtimeContext = getInGameSceneRuntimeContext(this.scene);
+    if (!runtimeContext) {
+      return;
+    }
+
+    const transform = entity.getComponent(TransformComponent);
+    const grid = runtimeContext.hexGridRuntime.getGrid();
+    const startCell = grid.worldToCell(transform.value);
+
+    if (!grid.contains(startCell)) {
+      return;
+    }
+
+    entity.addComponent(HexPositionComponent, new HexPositionComponent(startCell));
+    const alignedPosition = grid.cellToWorld(startCell, transform.value.y);
+    transform.value.copyFrom(alignedPosition);
   }
 }
