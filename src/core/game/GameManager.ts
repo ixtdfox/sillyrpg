@@ -5,6 +5,7 @@ import { InGameScene } from "../scene/in-game/InGameScene";
 import { MovementSystem } from "../entity/systems/MovementSystem";
 import { RenderSyncSystem } from "../entity/systems/RenderSyncSystem";
 import { CharacterSpawnerSystem } from "../entity/systems/CharacterSpawnerSystem";
+import { LocalPlayerSystem } from "../entity/systems/LocalPlayerSystem";
 import type { System } from "../entity/System";
 import { MainMenuScene } from "../scene/main-menu/MainMenuScene";
 import type { Scene } from "../scene/Scene";
@@ -34,6 +35,9 @@ export class GameManager {
   /** ECS system that spawns character models in the active scene. */
   private readonly characterSpawnerSystem: CharacterSpawnerSystem;
 
+  /** ECS system that keeps camera focused on local player. */
+  private readonly localPlayerSystem: LocalPlayerSystem;
+
   /** Current finite game state. */
   private currentState: GameState;
 
@@ -56,9 +60,11 @@ export class GameManager {
     this.langManager = langManager;
     this.entityManager = new EntityManager();
     this.characterSpawnerSystem = new CharacterSpawnerSystem(this.entityManager);
+    this.localPlayerSystem = new LocalPlayerSystem(this.entityManager);
     this.systems = [
       this.characterSpawnerSystem,
       new MovementSystem(this.entityManager),
+      this.localPlayerSystem,
       new RenderSyncSystem(this.entityManager),
     ];
     this.currentState = GameState.MAIN_MENU;
@@ -118,6 +124,7 @@ export class GameManager {
     this.currentSceneController = this.buildSceneController(state);
     this.currentBabylonScene = await this.currentSceneController.createScene();
     this.characterSpawnerSystem.setScene(this.currentBabylonScene);
+    this.localPlayerSystem.setScene(this.currentBabylonScene);
   }
 
   /**

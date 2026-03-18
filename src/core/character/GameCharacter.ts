@@ -1,6 +1,5 @@
 import { Archetype } from "./Archetype";
 import type { Character } from "./Character";
-import { ControlComponent, ControlType } from "../entity/components/ControlComponent";
 import { IdentityComponent } from "../entity/components/IdentityComponent";
 import { Relations } from "../entity/components/Relations";
 import { RelationsComponent } from "../entity/components/RelationsComponent";
@@ -18,7 +17,6 @@ export class GameCharacter extends Entity implements Character {
   public constructor(
     name: string,
     model: ModelDefinition,
-    controlType: ControlType,
     archetype: Archetype,
     vitals: VitalsComponent,
     transform: TransformComponent,
@@ -32,7 +30,6 @@ export class GameCharacter extends Entity implements Character {
     this.archetype = archetype;
 
     this.addComponent(IdentityComponent, new IdentityComponent(id, name));
-    this.addComponent(ControlComponent, new ControlComponent(controlType));
     this.addComponent(RelationsComponent, new RelationsComponent(relationships));
     this.addComponent(VitalsComponent, vitals);
     this.addComponent(TransformComponent, transform);
@@ -46,10 +43,6 @@ export class GameCharacter extends Entity implements Character {
 
   public getName(): string {
     return this.getIdentityComponent().name;
-  }
-
-  public getType(): ControlType {
-    return this.getControlComponent().type;
   }
 
   public getRelationships(): Record<string, Relations> {
@@ -70,10 +63,6 @@ export class GameCharacter extends Entity implements Character {
 
   private getIdentityComponent(): IdentityComponent {
     return this.getComponent(IdentityComponent);
-  }
-
-  private getControlComponent(): ControlComponent {
-    return this.getComponent(ControlComponent);
   }
 
   private getRelationsComponent(): RelationsComponent {
