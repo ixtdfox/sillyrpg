@@ -1,7 +1,8 @@
-import { MeshBuilder, Scene as BabylonScene } from "@babylonjs/core";
+import { AnimationGroup, MeshBuilder, Scene as BabylonScene } from "@babylonjs/core";
 import type { Entity } from "../Entity";
 import type { EntityManager } from "../EntityManager";
 import type { System } from "../System";
+import { AnimationComponent, type AnimationState } from "../components/AnimationComponent";
 import { ModelComponent } from "../components/ModelComponent";
 import { HexPositionComponent } from "../components/HexPositionComponent";
 import { RenderableComponent } from "../components/RenderableComponent";
@@ -55,15 +56,17 @@ export class CharacterSpawnerSystem implements System {
     this.initializeHexPosition(entity);
 
     try {
-      const rootNode = await this.modelInstantiator.instantiate(
+      const instantiatedModel = await this.modelInstantiator.instantiate(
         scene,
         model.definition,
         `entity-${entity.getId()}-root`
       );
 
+      const { rootNode, animationGroupsByName } = instantiatedModel;
       rootNode.position.copyFrom(transform.value);
       rootNode.rotation.copyFrom(transform.rotation);
       entity.addComponent(RenderableComponent, new RenderableComponent(rootNode));
+      this.initializeAnimationComponents(entity, animationGroupsByName);
     } catch (error) {
       console.error(
         `Failed to spawn entity '${entity.getId()}' from model '${model.definition.assetPath}'.`,
@@ -101,5 +104,40 @@ export class CharacterSpawnerSystem implements System {
     entity.addComponent(HexPositionComponent, new HexPositionComponent(startCell));
     const alignedPosition = grid.cellToWorld(startCell, transform.value.y);
     transform.value.copyFrom(alignedPosition);
+  }
+
+  private initializeAnimationComponents(
+    entity: Entity,
+    animationGroupsByName: ReadonlyMap<string, AnimationGroup>
+  ): void {
+    if (animationGroupsByName.size === 0) {
+      return;
+    }
+
+    for (const animationGroup of animationGroupsByName.values()) {
+      animationGroup.stop();
+    }
+
+    const mapping: Partial<Record<AnimationState, string>> = {
+      idle: this.findFirstAnimationGroupName(animationGroupsByName, "idle"),
+      walk: this.findFirstAnimationGroupName(animationGroupsByName, "walk")
+    };
+
+    entity.addComponent(AnimationComponent, new AnimationComponent(mapping, animationGroupsByName));
+  }
+
+  private findFirstAnimationGroupName(
+    animationGroupsByName: ReadonlyMap<string, AnimationGroup>,
+    token: string
+  ): string | undefined {
+    const normalizedToken = token.toLowerCase();
+
+    for (const animationGroupName of animationGroupsByName.keys()) {
+      if (animationGroupName.toLowerCase().includes(normalizedToken)) {
+        return animationGroupName;
+      }
+    }
+
+    return undefined;
   }
 }
