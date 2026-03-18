@@ -11,6 +11,15 @@ import { getInGameSceneRuntimeContext, type InGameSceneRuntimeContext } from "..
  * Executes path-based hex movement and synchronizes transform positions.
  */
 export class MovementSystem implements System {
+  /**
+   * Fixed yaw offset to align movement-facing yaw with the imported model forward axis.
+   * Keep in one place so model forward corrections are easy to tune.
+   */
+  private static readonly MODEL_FORWARD_YAW_OFFSET = 0;
+
+  /** Minimum horizontal movement magnitude required before updating facing. */
+  private static readonly FACING_DIRECTION_EPSILON = 1e-4;
+
   private readonly entityManager: EntityManager;
   private scene: BabylonScene | null;
   private runtimeContext: InGameSceneRuntimeContext | null;
@@ -115,6 +124,7 @@ export class MovementSystem implements System {
 
     pathMovement.direction.copyFrom(direction);
     pathMovement.velocity.copyFrom(direction.scale(pathMovement.speed));
+    this.updateFacingRotation(transform, toNext);
 
     if (remainingDistance <= maxStepDistance) {
       this.completeCurrentStep(transform, hexPosition, pathMovement, nextCell, nextCellCenter);
@@ -123,6 +133,17 @@ export class MovementSystem implements System {
 
     const frameDelta = direction.scale(maxStepDistance);
     transform.value.addInPlace(frameDelta);
+  }
+
+  private updateFacingRotation(transform: TransformComponent, movementVector: Vector3): void {
+    const horizontalMagnitudeSquared = movementVector.x * movementVector.x + movementVector.z * movementVector.z;
+    const epsilonSquared = MovementSystem.FACING_DIRECTION_EPSILON * MovementSystem.FACING_DIRECTION_EPSILON;
+    if (horizontalMagnitudeSquared <= epsilonSquared) {
+      return;
+    }
+
+    const yaw = Math.atan2(movementVector.x, movementVector.z) + MovementSystem.MODEL_FORWARD_YAW_OFFSET;
+    transform.rotation.y = yaw;
   }
 
   private completeCurrentStep(
