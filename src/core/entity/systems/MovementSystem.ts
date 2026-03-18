@@ -11,6 +11,17 @@ import { getInGameSceneRuntimeContext, type InGameSceneRuntimeContext } from "..
  * Executes path-based hex movement and synchronizes transform positions.
  */
 export class MovementSystem implements System {
+  /**
+   * Fixed yaw offset to align movement-facing yaw with the imported model forward axis.
+   * Keep in one place so model forward corrections are easy to tune.
+   */
+  private static readonly MODEL_FORWARD_YAW_OFFSET = 0;
+
+  /** Minimum horizontal movement magnitude required before updating facing. */
+  private static readonly FACING_DIRECTION_EPSILON = 1e-4;
+  /** Max yaw rotation speed (radians per second) while turning toward movement direction. */
+  private static readonly FACING_TURN_SPEED = Math.PI * 6;
+
   private readonly entityManager: EntityManager;
   private scene: BabylonScene | null;
   private runtimeContext: InGameSceneRuntimeContext | null;
@@ -115,6 +126,7 @@ export class MovementSystem implements System {
 
     pathMovement.direction.copyFrom(direction);
     pathMovement.velocity.copyFrom(direction.scale(pathMovement.speed));
+    this.updateFacingRotation(transform, toNext, deltaSeconds);
 
     if (remainingDistance <= maxStepDistance) {
       this.completeCurrentStep(transform, hexPosition, pathMovement, nextCell, nextCellCenter);
@@ -123,6 +135,24 @@ export class MovementSystem implements System {
 
     const frameDelta = direction.scale(maxStepDistance);
     transform.value.addInPlace(frameDelta);
+  }
+
+  private updateFacingRotation(transform: TransformComponent, movementVector: Vector3, deltaSeconds: number): void {
+    const horizontalMagnitudeSquared = movementVector.x * movementVector.x + movementVector.z * movementVector.z;
+    const epsilonSquared = MovementSystem.FACING_DIRECTION_EPSILON * MovementSystem.FACING_DIRECTION_EPSILON;
+    if (horizontalMagnitudeSquared <= epsilonSquared) {
+      return;
+    }
+
+    const targetYaw = Math.atan2(movementVector.x, movementVector.z) + MovementSystem.MODEL_FORWARD_YAW_OFFSET;
+    const yawDelta = this.wrapToPi(targetYaw - transform.rotation.y);
+    const maxYawStep = MovementSystem.FACING_TURN_SPEED * deltaSeconds;
+    const clampedYawDelta = Math.max(-maxYawStep, Math.min(maxYawStep, yawDelta));
+    transform.rotation.y = this.wrapToPi(transform.rotation.y + clampedYawDelta);
+  }
+
+  private wrapToPi(angle: number): number {
+    return Math.atan2(Math.sin(angle), Math.cos(angle));
   }
 
   private completeCurrentStep(
