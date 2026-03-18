@@ -7,6 +7,7 @@ import { VitalsComponent } from "../entity/components/VitalsComponent";
 import { TransformComponent } from "../entity/components/TransformComponent";
 import { SpawnComponent } from "../entity/components/SpawnComponent";
 import { Vector3 } from "@babylonjs/core";
+import { AIComponent } from "../entity/components/AIComponent";
 import { LocalPlayerComponent } from "../entity/components/LocalPlayerComponent";
 
 /**
@@ -56,14 +57,14 @@ export class CharacterFactory {
   }
 
   /**
-   * Creates an NPC-controlled golem character.
+   * Creates an AI-controlled golem character.
    *
    * @returns Promise with a new golem character instance.
    */
   public async createGolem(): Promise<Character> {
     const template = await this.characterManager.getTemplate(Archetype.GOLEM);
 
-    return new GameCharacter(
+    const golem = new GameCharacter(
       this.getRandomName(this.golemNames),
       template.model,
       Archetype.GOLEM,
@@ -71,6 +72,10 @@ export class CharacterFactory {
       new TransformComponent(Vector3.Zero()),
       new SpawnComponent(new Vector3(8, 0, 8))
     );
+
+    golem.addComponent(AIComponent, new AIComponent());
+
+    return golem;
   }
 
   /**
