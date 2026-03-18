@@ -1,6 +1,7 @@
 import { Vector3, type AbstractMesh, type Scene } from "@babylonjs/core";
 import { HexGridDebugState } from "./debug/HexGridDebugState";
 import { DEFAULT_HEX_GRID_SETTINGS, type HexGridSettings } from "./HexGridSettings";
+import { HexCell } from "./HexCell";
 import { HexGrid } from "./HexGrid";
 import { HexGridGroundMeshResolver } from "./HexGridGroundMeshResolver";
 import { HexGridOverlay } from "./HexGridOverlay";
@@ -10,6 +11,7 @@ import { HexGroundPickerController } from "./HexGroundPickerController";
  * Wires hex grid logic, renderer, and picking runtime for the active scene.
  */
 export class HexGridRuntime {
+  private readonly grid: HexGrid;
   private readonly debugState: HexGridDebugState;
   private readonly overlay: HexGridOverlay;
   private readonly pickerController: HexGroundPickerController;
@@ -21,13 +23,13 @@ export class HexGridRuntime {
     const groundSelection = new HexGridGroundMeshResolver().resolve(scene);
     groundSelection.groundMesh.isPickable = true;
 
-    const grid = this.createGridFromGround(groundSelection.groundMesh, settings);
+    this.grid = this.createGridFromGround(groundSelection.groundMesh, settings);
 
-    this.overlay = new HexGridOverlay(scene, grid, settings.overlayVerticalOffset);
+    this.overlay = new HexGridOverlay(scene, this.grid, settings.overlayVerticalOffset);
     this.debugState = new HexGridDebugState(settings.debugEnabledByDefault);
     this.overlay.setDebugVisible(this.debugState.getIsDebugEnabled());
 
-    this.pickerController = new HexGroundPickerController(scene, groundSelection.isGroundPick, grid, this.overlay);
+    this.pickerController = new HexGroundPickerController(scene, groundSelection.isGroundPick, this.grid, this.overlay);
   }
 
   /**
@@ -49,6 +51,20 @@ export class HexGridRuntime {
   public dispose(): void {
     this.pickerController.dispose();
     this.overlay.dispose();
+  }
+
+  /**
+   * Returns logical hex grid backing this runtime.
+   */
+  public getGrid(): HexGrid {
+    return this.grid;
+  }
+
+  /**
+   * Returns currently hovered ground hex under pointer, if any.
+   */
+  public getHoveredCell(): HexCell | null {
+    return this.pickerController.getHoveredCell();
   }
 
   /**

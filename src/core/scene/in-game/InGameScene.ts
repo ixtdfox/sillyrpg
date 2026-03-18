@@ -7,6 +7,7 @@ import { HexGridRuntime } from "../../hex/HexGridRuntime";
 import type { LangManager } from "../../lang/LangManager";
 import { LocationManager } from "../../world/location/LocationManager";
 import { InGameTopPanelUi } from "./ui/InGameTopPanelUi";
+import { attachInGameSceneRuntimeContext } from "./InGameSceneRuntimeContext";
 import type { Scene } from "../Scene";
 
 /**
@@ -74,6 +75,8 @@ export class InGameScene implements Scene {
     }
 
     const hexGridRuntime = new HexGridRuntime(scene);
+    attachInGameSceneRuntimeContext(scene, { hexGridRuntime });
+
     const inGameTopPanelUi = new InGameTopPanelUi(scene, () => {
       const isEnabled = hexGridRuntime.toggleDebug();
       inGameTopPanelUi.setHexGridDebugEnabled(isEnabled);

@@ -35,6 +35,13 @@ export class HexGroundPickerController {
     this.scene.onBeforeRenderObservable.removeCallback(this.updateHoverFromPointer);
   }
 
+  /**
+   * Returns currently hovered cell derived from pointer pick, if any.
+   */
+  public getHoveredCell(): HexCell | null {
+    return this.hoveredCell;
+  }
+
   private readonly updateHoverFromPointer = (): void => {
     const pickResult = this.scene.pick(
       this.scene.pointerX,
