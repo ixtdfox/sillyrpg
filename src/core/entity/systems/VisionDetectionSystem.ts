@@ -10,11 +10,13 @@ import { IdentityComponent } from "../components/IdentityComponent";
 import { RelationsComponent } from "../components/RelationsComponent";
 import { TransformComponent } from "../components/TransformComponent";
 import { VisionComponent } from "../components/VisionComponent";
+import { VisionDebugComponent, type VisionDebugDetectedCell } from "../components/VisionDebugComponent";
 import { HexCell } from "../../hex/HexCell";
 import { getInGameSceneRuntimeContext, type InGameSceneRuntimeContext } from "../../scene/in-game/InGameSceneRuntimeContext";
 import { getHexCellsInVisionSector } from "../services/HexVisionSector";
 import { HexSpatialIndex } from "../services/HexSpatialIndex";
 import { HostilityResolver } from "../services/HostilityResolver";
+import { RelationDebugClassifier } from "../services/RelationDebugClassifier";
 
 /**
  * Detects hostile visible entities using a hex broad-phase and world-space cone narrow-phase.
@@ -64,6 +66,7 @@ export class VisionDetectionSystem implements System {
     const transform = observer.getComponent(TransformComponent);
     const detectionState = observer.getComponent(DetectionStateComponent);
     const observerIdentity = observer.getComponent(IdentityComponent);
+    const visionDebug = observer.tryGetComponent(VisionDebugComponent);
 
     const forward = this.resolveForwardVector(vision, transform);
     const grid = this.runtimeContext.hexGridRuntime.getGrid();
@@ -77,13 +80,10 @@ export class VisionDetectionSystem implements System {
 
     const candidateEntityIds = this.spatialIndex.getEntitiesInCells(candidateCells);
     let detectedTarget: Entity | null = null;
+    const debugDetectedCells: VisionDebugDetectedCell[] = [];
 
     for (const candidateEntityId of candidateEntityIds) {
       if (candidateEntityId === observer.getId()) {
-        continue;
-      }
-
-      if (!HostilityResolver.isHostileTowards(relations, candidateEntityId)) {
         continue;
       }
 
@@ -97,10 +97,24 @@ export class VisionDetectionSystem implements System {
         continue;
       }
 
-      if (this.isInsideVisionCone(observer, candidateEntity, vision, forward)) {
-        detectedTarget = candidateEntity;
-        break;
+      if (!this.isInsideVisionCone(observer, candidateEntity, vision, forward)) {
+        continue;
       }
+
+      const relation = RelationDebugClassifier.classify(relations, candidateEntityId);
+      debugDetectedCells.push({
+        cell: this.resolveEntityCell(candidateEntity),
+        relation,
+      });
+
+      if (!detectedTarget && relation === "hostile") {
+        detectedTarget = candidateEntity;
+      }
+    }
+
+    if (visionDebug) {
+      visionDebug.visibleSectorCells = candidateCells;
+      visionDebug.detectedCells = dedupeDebugDetectedCells(debugDetectedCells);
     }
 
     const detectedEntityId = detectedTarget?.getId() ?? null;
@@ -182,4 +196,34 @@ export class VisionDetectionSystem implements System {
 
     return oneCellWorldDistance * vision.rangeCells + 0.001;
   }
+
+  private resolveEntityCell(entity: Entity): HexCell {
+    const hexPosition = entity.tryGetComponent(HexPositionComponent);
+    if (hexPosition) {
+      return hexPosition.currentCell;
+    }
+
+    const transform = entity.getComponent(TransformComponent);
+    return this.runtimeContext?.hexGridRuntime.getGrid().worldToCell(transform.value) ?? new HexCell(0, 0);
+  }
+}
+
+function dedupeDebugDetectedCells(cells: readonly VisionDebugDetectedCell[]): VisionDebugDetectedCell[] {
+  const relationPriority: Record<VisionDebugDetectedCell["relation"], number> = {
+    hostile: 3,
+    friendly: 2,
+    neutral: 1,
+  };
+
+  const byCellKey = new Map<string, VisionDebugDetectedCell>();
+
+  for (const detectedCell of cells) {
+    const key = `${detectedCell.cell.q}:${detectedCell.cell.r}`;
+    const existing = byCellKey.get(key);
+    if (!existing || relationPriority[detectedCell.relation] >= relationPriority[existing.relation]) {
+      byCellKey.set(key, detectedCell);
+    }
+  }
+
+  return Array.from(byCellKey.values());
 }
