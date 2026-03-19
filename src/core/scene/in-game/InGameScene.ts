@@ -3,6 +3,8 @@ import { CharacterFactory } from "../../character/CharacterFactory";
 import { CharacterManager } from "../../character/CharacterManager";
 import type { EntityManager } from "../../entity/EntityManager";
 import { Entity } from "../../entity/Entity";
+import { Relations } from "../../entity/components/Relations";
+import { RelationsComponent } from "../../entity/components/RelationsComponent";
 import { HexGridRuntime } from "../../hex/HexGridRuntime";
 import type { LangManager } from "../../lang/LangManager";
 import { LocationManager } from "../../world/location/LocationManager";
@@ -72,6 +74,13 @@ export class InGameScene implements Scene {
 
     if (golemCharacter instanceof Entity) {
       this.entityManager.addEntity(golemCharacter);
+    }
+
+    if (playerCharacter instanceof Entity && golemCharacter instanceof Entity) {
+      const golemRelations = golemCharacter.getComponent(RelationsComponent);
+      const hostileToPlayer = new Relations();
+      hostileToPlayer.hate = 100;
+      golemRelations.relationships[playerCharacter.getId()] = hostileToPlayer;
     }
 
     const hexGridRuntime = new HexGridRuntime(scene);
