@@ -3,6 +3,7 @@ import type { Entity } from "../Entity";
 import type { EntityManager } from "../EntityManager";
 import type { System } from "../System";
 import { DetectableComponent } from "../components/DetectableComponent";
+import { DetectableKinds } from "../components/DetectableKinds";
 import { DetectionStateComponent } from "../components/DetectionStateComponent";
 import { HexPositionComponent } from "../components/HexPositionComponent";
 import { IdentityComponent } from "../components/IdentityComponent";
@@ -13,6 +14,7 @@ import { HexCell } from "../../hex/HexCell";
 import { getInGameSceneRuntimeContext, type InGameSceneRuntimeContext } from "../../scene/in-game/InGameSceneRuntimeContext";
 import { getHexCellsInVisionSector } from "../services/HexVisionSector";
 import { HexSpatialIndex } from "../services/HexSpatialIndex";
+import { HostilityResolver } from "../services/HostilityResolver";
 
 /**
  * Detects hostile visible entities using a hex broad-phase and world-space cone narrow-phase.
@@ -20,18 +22,15 @@ import { HexSpatialIndex } from "../services/HexSpatialIndex";
 export class VisionDetectionSystem implements System {
   private readonly entityManager: EntityManager;
   private readonly spatialIndex: HexSpatialIndex;
-  private scene: BabylonScene | null;
   private runtimeContext: InGameSceneRuntimeContext | null;
 
   public constructor(entityManager: EntityManager, spatialIndex: HexSpatialIndex) {
     this.entityManager = entityManager;
     this.spatialIndex = spatialIndex;
-    this.scene = null;
     this.runtimeContext = null;
   }
 
   public setScene(scene: BabylonScene | null): void {
-    this.scene = scene;
     this.runtimeContext = scene ? getInGameSceneRuntimeContext(scene) : null;
   }
 
@@ -84,9 +83,7 @@ export class VisionDetectionSystem implements System {
         continue;
       }
 
-      const relationship = relations.relationships[candidateEntityId];
-      const isHostile = Boolean(relationship && relationship.hate > 0);
-      if (!isHostile) {
+      if (!HostilityResolver.isHostileTowards(relations, candidateEntityId)) {
         continue;
       }
 
@@ -121,7 +118,7 @@ export class VisionDetectionSystem implements System {
     const targetDetectable = detectedTarget.getComponent(DetectableComponent);
     const observerDetectable = observer.tryGetComponent(DetectableComponent);
 
-    if (targetDetectable.kind === "player") {
+    if (targetDetectable.kind === DetectableKinds.PLAYER) {
       const observerLabel = observerDetectable?.kind ?? observerIdentity.name.toLowerCase();
       console.log(`Player detected by ${observerLabel}`);
       return;

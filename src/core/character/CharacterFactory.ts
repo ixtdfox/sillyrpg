@@ -13,6 +13,7 @@ import { HexPathMovementComponent } from "../entity/components/HexPathMovementCo
 import { DetectableComponent } from "../entity/components/DetectableComponent";
 import { VisionComponent } from "../entity/components/VisionComponent";
 import { DetectionStateComponent } from "../entity/components/DetectionStateComponent";
+import { DetectableKinds } from "../entity/components/DetectableKinds";
 
 /**
  * Builds concrete character instances from templates.
@@ -57,7 +58,7 @@ export class CharacterFactory {
 
     player.addComponent(LocalPlayerComponent, new LocalPlayerComponent());
     player.addComponent(HexPathMovementComponent, new HexPathMovementComponent(3.5));
-    player.addComponent(DetectableComponent, new DetectableComponent("player"));
+    player.addComponent(DetectableComponent, new DetectableComponent(DetectableKinds.PLAYER));
 
     return player;
   }
@@ -76,14 +77,14 @@ export class CharacterFactory {
       Archetype.GOLEM,
       new VitalsComponent(new Vitals(140, 140), new Vitals(60, 60), 120),
       new TransformComponent(Vector3.Zero()),
-      new SpawnComponent(new Vector3(8, 0, 8))
+      new SpawnComponent(new Vector3(8, 0, 8), new Vector3(0, -Math.PI * 0.75, 0))
     );
 
     golem.addComponent(AIComponent, new AIComponent());
     golem.addComponent(HexPathMovementComponent, new HexPathMovementComponent(2.5));
     golem.addComponent(VisionComponent, new VisionComponent(6, 75));
     golem.addComponent(DetectionStateComponent, new DetectionStateComponent());
-    golem.addComponent(DetectableComponent, new DetectableComponent("golem"));
+    golem.addComponent(DetectableComponent, new DetectableComponent(DetectableKinds.GOLEM));
 
     return golem;
   }

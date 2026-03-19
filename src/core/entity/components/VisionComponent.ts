@@ -14,16 +14,12 @@ export class VisionComponent implements Component {
   /** Optional local forward override used when transform rotation should be ignored. */
   public forward: Vector3 | null;
 
-  /** Optional cadence for future throttled perception updates. */
-  public updateIntervalMs: number | null;
-
   /**
    * Creates a vision component.
    */
-  public constructor(rangeCells: number, fovDegrees: number, forward: Vector3 | null = null, updateIntervalMs: number | null = null) {
+  public constructor(rangeCells: number, fovDegrees: number, forward: Vector3 | null = null) {
     this.rangeCells = rangeCells;
     this.fovDegrees = fovDegrees;
     this.forward = forward;
-    this.updateIntervalMs = updateIntervalMs;
   }
 }
