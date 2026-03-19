@@ -57,8 +57,8 @@ export class HexGridRuntime {
     this.overlay.setVisionCells(cells);
   }
 
-  public setPatrolTargetCell(cell: HexCell | null): void {
-    this.overlay.setPatrolTargetCell(cell);
+  public setPatrolTargetCells(cells: readonly HexCell[]): void {
+    this.overlay.setPatrolTargetCells(cells);
   }
 
   public setDetectedCells(cells: readonly HexDebugDetectedCell[]): void {

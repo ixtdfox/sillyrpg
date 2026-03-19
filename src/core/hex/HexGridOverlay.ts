@@ -36,7 +36,7 @@ export class HexGridOverlay {
 
   private isDebugVisible: boolean;
   private visionCells: HexCell[];
-  private patrolTargetCell: HexCell | null;
+  private patrolTargetCells: HexCell[];
   private detectedCells: HexCellHighlightSpec[];
 
   /**
@@ -62,7 +62,7 @@ export class HexGridOverlay {
 
     this.isDebugVisible = false;
     this.visionCells = [];
-    this.patrolTargetCell = null;
+    this.patrolTargetCells = [];
     this.detectedCells = [];
   }
 
@@ -77,8 +77,8 @@ export class HexGridOverlay {
     this.refreshHighlights();
   }
 
-  public setPatrolTargetCell(cell: HexCell | null): void {
-    this.patrolTargetCell = cell;
+  public setPatrolTargetCells(cells: readonly HexCell[]): void {
+    this.patrolTargetCells = [...cells];
     this.refreshHighlights();
   }
 
@@ -89,7 +89,7 @@ export class HexGridOverlay {
 
   public clearDebugHighlights(): void {
     this.visionCells = [];
-    this.patrolTargetCell = null;
+    this.patrolTargetCells = [];
     this.detectedCells = [];
     this.refreshHighlights();
   }
@@ -172,9 +172,10 @@ export class HexGridOverlay {
       color: new Color4(0.22, 0.63, 0.94, 0.22),
     }));
 
-    const patrolHighlights = this.patrolTargetCell
-      ? [{ cell: this.patrolTargetCell, color: new Color4(1.0, 0.55, 0.14, 0.45) }]
-      : [];
+    const patrolHighlights = this.patrolTargetCells.map((cell) => ({
+      cell,
+      color: new Color4(1.0, 0.55, 0.14, 0.45),
+    }));
 
     this.updatePool(this.visionPool, visionHighlights, this.verticalOffset * 0.3);
     this.updatePool(this.patrolPool, patrolHighlights, this.verticalOffset * 0.6);

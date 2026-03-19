@@ -37,6 +37,7 @@ export class PerceptionDebugOverlaySystem implements System {
     }
 
     const visionCells = new Map<string, HexCell>();
+    const patrolTargetCells = new Map<string, HexCell>();
     const detectedCells = new Map<string, { cell: HexCell; color: Color4; priority: number }>();
 
     const visionEntities = this.entityManager.query(VisionDebugComponent);
@@ -64,12 +65,16 @@ export class PerceptionDebugOverlaySystem implements System {
     }
 
     const patrolEntities = this.entityManager.query(PatrolComponent);
-    const patrolTarget = patrolEntities
-      .map((entity) => entity.getComponent(PatrolComponent).currentPatrolTargetCell)
-      .find((cell): cell is HexCell => Boolean(cell)) ?? null;
+    for (const entity of patrolEntities) {
+      const patrolTarget = entity.getComponent(PatrolComponent).currentPatrolTargetCell;
+      if (!patrolTarget) {
+        continue;
+      }
+      patrolTargetCells.set(cellKey(patrolTarget), patrolTarget);
+    }
 
     hexGridRuntime.setVisionCells(Array.from(visionCells.values()));
-    hexGridRuntime.setPatrolTargetCell(patrolTarget);
+    hexGridRuntime.setPatrolTargetCells(Array.from(patrolTargetCells.values()));
     hexGridRuntime.setDetectedCells(Array.from(detectedCells.values()).map(({ cell, color }) => ({ cell, color })));
   }
 }
