@@ -14,6 +14,8 @@ import { DetectableComponent } from "../entity/components/DetectableComponent";
 import { VisionComponent } from "../entity/components/VisionComponent";
 import { DetectionStateComponent } from "../entity/components/DetectionStateComponent";
 import { DetectableKinds } from "../entity/components/DetectableKinds";
+import { PatrolComponent } from "../entity/components/PatrolComponent";
+import { VisionDebugComponent } from "../entity/components/VisionDebugComponent";
 
 /**
  * Builds concrete character instances from templates.
@@ -84,6 +86,8 @@ export class CharacterFactory {
     golem.addComponent(HexPathMovementComponent, new HexPathMovementComponent(2.5));
     golem.addComponent(VisionComponent, new VisionComponent(6, 75));
     golem.addComponent(DetectionStateComponent, new DetectionStateComponent());
+    golem.addComponent(PatrolComponent, new PatrolComponent(5));
+    golem.addComponent(VisionDebugComponent, new VisionDebugComponent());
     golem.addComponent(DetectableComponent, new DetectableComponent(DetectableKinds.GOLEM));
 
     return golem;

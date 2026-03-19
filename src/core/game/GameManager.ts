@@ -10,6 +10,8 @@ import { LocalPlayerInputSystem } from "../entity/systems/LocalPlayerInputSystem
 import { AnimationSystem } from "../entity/systems/AnimationSystem";
 import { HexSpatialIndexSystem } from "../entity/systems/HexSpatialIndexSystem";
 import { VisionDetectionSystem } from "../entity/systems/VisionDetectionSystem";
+import { PatrolSystem } from "../entity/systems/PatrolSystem";
+import { PerceptionDebugOverlaySystem } from "../entity/systems/PerceptionDebugOverlaySystem";
 import { HexSpatialIndex } from "../entity/services/HexSpatialIndex";
 import type { System } from "../entity/System";
 import { MainMenuScene } from "../scene/main-menu/MainMenuScene";
@@ -50,8 +52,14 @@ export class GameManager {
   /** ECS system that keeps the hex-cell broad-phase spatial index in sync. */
   private readonly hexSpatialIndexSystem: HexSpatialIndexSystem;
 
+  /** ECS system that assigns local patrol destinations to idle AI entities. */
+  private readonly patrolSystem: PatrolSystem;
+
   /** ECS system that performs hostile vision detection. */
   private readonly visionDetectionSystem: VisionDetectionSystem;
+
+  /** ECS system that pushes perception debug data into the hex overlay. */
+  private readonly perceptionDebugOverlaySystem: PerceptionDebugOverlaySystem;
 
   /** Current finite game state. */
   private currentState: GameState;
@@ -78,15 +86,19 @@ export class GameManager {
     this.localPlayerSystem = new LocalPlayerSystem(this.entityManager);
     this.localPlayerInputSystem = new LocalPlayerInputSystem(this.entityManager);
     this.movementSystem = new MovementSystem(this.entityManager);
+    this.patrolSystem = new PatrolSystem(this.entityManager);
     const hexSpatialIndex = new HexSpatialIndex();
     this.hexSpatialIndexSystem = new HexSpatialIndexSystem(this.entityManager, hexSpatialIndex);
     this.visionDetectionSystem = new VisionDetectionSystem(this.entityManager, hexSpatialIndex);
+    this.perceptionDebugOverlaySystem = new PerceptionDebugOverlaySystem(this.entityManager);
     this.systems = [
       this.characterSpawnerSystem,
       this.localPlayerInputSystem,
+      this.patrolSystem,
       this.movementSystem,
       this.hexSpatialIndexSystem,
       this.visionDetectionSystem,
+      this.perceptionDebugOverlaySystem,
       new AnimationSystem(this.entityManager),
       this.localPlayerSystem,
       new RenderSyncSystem(this.entityManager),
@@ -150,7 +162,9 @@ export class GameManager {
     this.characterSpawnerSystem.setScene(this.currentBabylonScene);
     this.localPlayerInputSystem.setScene(this.currentBabylonScene);
     this.movementSystem.setScene(this.currentBabylonScene);
+    this.patrolSystem.setScene(this.currentBabylonScene);
     this.visionDetectionSystem.setScene(this.currentBabylonScene);
+    this.perceptionDebugOverlaySystem.setScene(this.currentBabylonScene);
     this.localPlayerSystem.setScene(this.currentBabylonScene);
   }
 

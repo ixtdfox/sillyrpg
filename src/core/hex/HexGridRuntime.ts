@@ -1,4 +1,4 @@
-import { Vector3, type AbstractMesh, type Scene } from "@babylonjs/core";
+import { Color4, Vector3, type AbstractMesh, type Scene } from "@babylonjs/core";
 import { HexGridDebugState } from "./debug/HexGridDebugState";
 import { DEFAULT_HEX_GRID_SETTINGS, type HexGridSettings } from "./HexGridSettings";
 import { HexCell } from "./HexCell";
@@ -6,6 +6,11 @@ import { HexGrid } from "./HexGrid";
 import { HexGridGroundMeshResolver } from "./HexGridGroundMeshResolver";
 import { HexGridOverlay } from "./HexGridOverlay";
 import { HexGroundPickerController } from "./HexGroundPickerController";
+
+export interface HexDebugDetectedCell {
+  readonly cell: HexCell;
+  readonly color: Color4;
+}
 
 /**
  * Wires hex grid logic, renderer, and picking runtime for the active scene.
@@ -46,6 +51,22 @@ export class HexGridRuntime {
     const isEnabled = this.debugState.toggle();
     this.overlay.setDebugVisible(isEnabled);
     return isEnabled;
+  }
+
+  public setVisionCells(cells: readonly HexCell[]): void {
+    this.overlay.setVisionCells(cells);
+  }
+
+  public setPatrolTargetCell(cell: HexCell | null): void {
+    this.overlay.setPatrolTargetCell(cell);
+  }
+
+  public setDetectedCells(cells: readonly HexDebugDetectedCell[]): void {
+    this.overlay.setDetectedCells(cells);
+  }
+
+  public clearDebugHighlights(): void {
+    this.overlay.clearDebugHighlights();
   }
 
   public dispose(): void {
