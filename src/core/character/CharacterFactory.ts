@@ -10,6 +10,9 @@ import { Vector3 } from "@babylonjs/core";
 import { AIComponent } from "../entity/components/AIComponent";
 import { LocalPlayerComponent } from "../entity/components/LocalPlayerComponent";
 import { HexPathMovementComponent } from "../entity/components/HexPathMovementComponent";
+import { DetectableComponent } from "../entity/components/DetectableComponent";
+import { VisionComponent } from "../entity/components/VisionComponent";
+import { DetectionStateComponent } from "../entity/components/DetectionStateComponent";
 
 /**
  * Builds concrete character instances from templates.
@@ -54,6 +57,7 @@ export class CharacterFactory {
 
     player.addComponent(LocalPlayerComponent, new LocalPlayerComponent());
     player.addComponent(HexPathMovementComponent, new HexPathMovementComponent(3.5));
+    player.addComponent(DetectableComponent, new DetectableComponent("player"));
 
     return player;
   }
@@ -77,6 +81,9 @@ export class CharacterFactory {
 
     golem.addComponent(AIComponent, new AIComponent());
     golem.addComponent(HexPathMovementComponent, new HexPathMovementComponent(2.5));
+    golem.addComponent(VisionComponent, new VisionComponent(6, 75));
+    golem.addComponent(DetectionStateComponent, new DetectionStateComponent());
+    golem.addComponent(DetectableComponent, new DetectableComponent("golem"));
 
     return golem;
   }

@@ -8,6 +8,9 @@ import { CharacterSpawnerSystem } from "../entity/systems/CharacterSpawnerSystem
 import { LocalPlayerSystem } from "../entity/systems/LocalPlayerSystem";
 import { LocalPlayerInputSystem } from "../entity/systems/LocalPlayerInputSystem";
 import { AnimationSystem } from "../entity/systems/AnimationSystem";
+import { HexSpatialIndexSystem } from "../entity/systems/HexSpatialIndexSystem";
+import { VisionDetectionSystem } from "../entity/systems/VisionDetectionSystem";
+import { HexSpatialIndex } from "../entity/services/HexSpatialIndex";
 import type { System } from "../entity/System";
 import { MainMenuScene } from "../scene/main-menu/MainMenuScene";
 import type { Scene } from "../scene/Scene";
@@ -44,6 +47,12 @@ export class GameManager {
   /** ECS system that advances path-based movement. */
   private readonly movementSystem: MovementSystem;
 
+  /** ECS system that keeps the hex-cell broad-phase spatial index in sync. */
+  private readonly hexSpatialIndexSystem: HexSpatialIndexSystem;
+
+  /** ECS system that performs hostile vision detection. */
+  private readonly visionDetectionSystem: VisionDetectionSystem;
+
   /** Current finite game state. */
   private currentState: GameState;
 
@@ -69,10 +78,15 @@ export class GameManager {
     this.localPlayerSystem = new LocalPlayerSystem(this.entityManager);
     this.localPlayerInputSystem = new LocalPlayerInputSystem(this.entityManager);
     this.movementSystem = new MovementSystem(this.entityManager);
+    const hexSpatialIndex = new HexSpatialIndex();
+    this.hexSpatialIndexSystem = new HexSpatialIndexSystem(this.entityManager, hexSpatialIndex);
+    this.visionDetectionSystem = new VisionDetectionSystem(this.entityManager, hexSpatialIndex);
     this.systems = [
       this.characterSpawnerSystem,
       this.localPlayerInputSystem,
       this.movementSystem,
+      this.hexSpatialIndexSystem,
+      this.visionDetectionSystem,
       new AnimationSystem(this.entityManager),
       this.localPlayerSystem,
       new RenderSyncSystem(this.entityManager),
@@ -136,6 +150,7 @@ export class GameManager {
     this.characterSpawnerSystem.setScene(this.currentBabylonScene);
     this.localPlayerInputSystem.setScene(this.currentBabylonScene);
     this.movementSystem.setScene(this.currentBabylonScene);
+    this.visionDetectionSystem.setScene(this.currentBabylonScene);
     this.localPlayerSystem.setScene(this.currentBabylonScene);
   }
 
