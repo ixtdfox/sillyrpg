@@ -9,8 +9,8 @@ import { RelationsComponent } from "../components/RelationsComponent";
 import { VitalsComponent } from "../components/VitalsComponent";
 import { AIComponent } from "../components/AIComponent";
 import { LocalPlayerComponent } from "../components/LocalPlayerComponent";
-import { HostilityResolver } from "../services/HostilityResolver";
-import { BasicCombatAiService } from "../services/combat/BasicCombatAiService";
+import { HostilityResolver } from "./hex/HostilityResolver";
+import { BasicCombatAiService } from "./combat/BasicCombatAiService";
 
 /**
  * Drives turn progression and encounter lifetime in turn-based mode.

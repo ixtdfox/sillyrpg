@@ -1,5 +1,5 @@
-import type { Relations } from "../components/Relations";
-import { RelationsComponent } from "../components/RelationsComponent";
+import type { Relations } from "../../components/Relations";
+import { RelationsComponent } from "../../components/RelationsComponent";
 
 /**
  * Centralized hostility rules for perception and AI systems.

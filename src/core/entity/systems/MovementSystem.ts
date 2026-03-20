@@ -10,8 +10,8 @@ import { HexCell } from "../../hex/HexCell";
 import { getInGameSceneRuntimeContext, type InGameSceneRuntimeContext } from "../../scene/in-game/InGameSceneRuntimeContext";
 import { WorldModeController } from "../../game/WorldModeController";
 import { TurnBasedCombatState } from "../../game/TurnBasedCombatState";
-import { HexMovementCostResolver } from "../services/HexMovementCostResolver";
-import { HexSpatialIndex } from "../services/HexSpatialIndex";
+import { HexMovementCostResolver } from "./hex/HexMovementCostResolver";
+import { HexSpatialIndex } from "./hex/HexSpatialIndex";
 
 /**
  * Executes path-based hex movement and synchronizes transform positions.

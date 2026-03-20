@@ -88,7 +88,7 @@ export class PatrolSystem implements System {
         continue;
       }
 
-      if (hexDistance(patrol.anchorCell, candidate) > patrol.radiusCells) {
+      if (patrol.anchorCell.distance(candidate) > patrol.radiusCells) {
         continue;
       }
 
@@ -107,11 +107,4 @@ export class PatrolSystem implements System {
     const range = maxInclusive - minInclusive + 1;
     return Math.floor(Math.random() * range) + minInclusive;
   }
-}
-
-function hexDistance(a: HexCell, b: HexCell): number {
-  const dq = a.q - b.q;
-  const dr = a.r - b.r;
-  const ds = -a.q - a.r - (-b.q - b.r);
-  return (Math.abs(dq) + Math.abs(dr) + Math.abs(ds)) / 2;
 }

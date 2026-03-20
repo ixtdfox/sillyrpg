@@ -6,9 +6,9 @@ import { HexPositionComponent } from "../../components/HexPositionComponent";
 import { RelationsComponent } from "../../components/RelationsComponent";
 import { VitalsComponent } from "../../components/VitalsComponent";
 import { HexCell } from "../../../hex/HexCell";
-import { HostilityResolver } from "../HostilityResolver";
+import { HostilityResolver } from "../hex/HostilityResolver";
 import { CombatAttackTargetingService } from "./CombatAttackTargetingService";
-import { HexSpatialIndex } from "../HexSpatialIndex";
+import { HexSpatialIndex } from "../hex/HexSpatialIndex";
 
 export type AiTurnStepResult = "in_progress" | "completed";
 
@@ -50,7 +50,6 @@ export class BasicCombatAiService {
 
     const target = this.findNearestHostileTarget(activeAi, participantIds);
     if (!target) {
-      console.log("[CombatAI] No hostile target found. Ending turn.");
       return "completed";
     }
 
@@ -68,20 +67,17 @@ export class BasicCombatAiService {
     }
 
     if (activeStats.currentMp <= 0 || !movement) {
-      console.log(`[CombatAI] ${attackResult.reason} No MP to reposition. Ending turn.`);
       return "completed";
     }
 
     const approachCell = this.resolveApproachCell(activeAi.getId(), activeHexPosition.currentCell, targetHexPosition.currentCell);
     if (!approachCell) {
-      console.log("[CombatAI] Could not find a free approach cell. Ending turn.");
       return "completed";
     }
 
     activeHexPosition.targetCell = approachCell;
     movement.resetPathState();
     this.movingAiEntities.add(activeAiEntityId);
-    console.log("[CombatAI] Moving closer to hostile target.");
     return "in_progress";
   }
 
@@ -128,21 +124,13 @@ export class BasicCombatAiService {
     aliveHostiles.sort((first, second) => {
       const firstCell = first.getComponent(HexPositionComponent).currentCell;
       const secondCell = second.getComponent(HexPositionComponent).currentCell;
-      const firstDistance = this.hexDistance(activeHexPosition.currentCell.q, activeHexPosition.currentCell.r, firstCell.q, firstCell.r);
-      const secondDistance = this.hexDistance(activeHexPosition.currentCell.q, activeHexPosition.currentCell.r, secondCell.q, secondCell.r);
+      const firstDistance = activeHexPosition.currentCell.distance(firstCell);
+      const secondDistance = activeHexPosition.currentCell.distance(secondCell);
       return firstDistance - secondDistance;
     });
 
     return aliveHostiles[0] ?? null;
   }
-
-  private hexDistance(aq: number, ar: number, bq: number, br: number): number {
-    const dq = aq - bq;
-    const dr = ar - br;
-    const ds = -aq - ar - (-bq - br);
-    return (Math.abs(dq) + Math.abs(dr) + Math.abs(ds)) / 2;
-  }
-
   private resolveApproachCell(activeAiEntityId: string, activeCell: HexCell, targetCell: HexCell): HexCell | null {
     const candidateCells = [
       new HexCell(targetCell.q + 1, targetCell.r),
@@ -163,8 +151,8 @@ export class BasicCombatAiService {
     }
 
     unoccupiedCandidates.sort((first, second) => {
-      const firstDistance = this.hexDistance(activeCell.q, activeCell.r, first.q, first.r);
-      const secondDistance = this.hexDistance(activeCell.q, activeCell.r, second.q, second.r);
+      const firstDistance = activeCell.distance(first);
+      const secondDistance = activeCell.distance(second);
       return firstDistance - secondDistance;
     });
 

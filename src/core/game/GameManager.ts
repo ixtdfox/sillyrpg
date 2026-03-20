@@ -8,28 +8,28 @@ import { CharacterSpawnerSystem } from "../entity/systems/CharacterSpawnerSystem
 import { LocalPlayerSystem } from "../entity/systems/LocalPlayerSystem";
 import { LocalPlayerInputSystem } from "../entity/systems/LocalPlayerInputSystem";
 import { AnimationSystem } from "../entity/systems/AnimationSystem";
-import { HexSpatialIndexSystem } from "../entity/systems/HexSpatialIndexSystem";
+import { HexSpatialIndexSystem } from "../entity/systems/hex/HexSpatialIndexSystem";
 import { VisionDetectionSystem } from "../entity/systems/VisionDetectionSystem";
 import { PatrolSystem } from "../entity/systems/PatrolSystem";
 import { PerceptionDebugOverlaySystem } from "../entity/systems/PerceptionDebugOverlaySystem";
-import { HexSpatialIndex } from "../entity/services/HexSpatialIndex";
+import { HexSpatialIndex } from "../entity/systems/hex/HexSpatialIndex";
 import { WorldModeController } from "./WorldModeController";
 import { TurnBasedCombatState } from "./TurnBasedCombatState";
-import { HexMovementCostResolver } from "../entity/services/HexMovementCostResolver";
-import { CombatParticipantResolver } from "../entity/services/combat/CombatParticipantResolver";
-import { CombatEncounterCoordinator } from "../entity/services/combat/CombatEncounterCoordinator";
+import { HexMovementCostResolver } from "../entity/systems/hex/HexMovementCostResolver";
+import { CombatParticipantResolver } from "../entity/systems/combat/CombatParticipantResolver";
+import { CombatEncounterCoordinator } from "../entity/systems/combat/CombatEncounterCoordinator";
 import { TurnBasedCombatSystem } from "../entity/systems/TurnBasedCombatSystem";
-import { HoveredCombatTargetSystem } from "../entity/systems/HoveredCombatTargetSystem";
-import { CombatHudSystem } from "../entity/systems/CombatHudSystem";
-import { CombatBannerSystem } from "../entity/systems/CombatBannerSystem";
+import { HoveredCombatTargetSystem } from "../entity/systems/combat/HoveredCombatTargetSystem";
+import { CombatHudSystem } from "../entity/systems/combat/CombatHudSystem";
+import { CombatBannerSystem } from "../entity/systems/combat/CombatBannerSystem";
 import type { System } from "../entity/System";
 import { MainMenuScene } from "../scene/main-menu/MainMenuScene";
 import type { Scene } from "../scene/Scene";
 import { GameState } from "./GameState";
 import { WorldMode } from "./WorldMode";
 import { CombatInputController } from "./CombatInputController";
-import { CombatAttackTargetingService } from "../entity/services/combat/CombatAttackTargetingService";
-import { BasicCombatAiService } from "../entity/services/combat/BasicCombatAiService";
+import { CombatAttackTargetingService } from "../entity/systems/combat/CombatAttackTargetingService";
+import { BasicCombatAiService } from "../entity/systems/combat/BasicCombatAiService";
 
 /**
  * Owns game flow state and active scene lifecycle.

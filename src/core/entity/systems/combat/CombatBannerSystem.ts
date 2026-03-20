@@ -1,7 +1,7 @@
 import { Scene as BabylonScene } from "@babylonjs/core";
-import type { System } from "../System";
-import { WorldModeController } from "../../game/WorldModeController";
-import { getInGameSceneRuntimeContext, type InGameSceneRuntimeContext } from "../../scene/in-game/InGameSceneRuntimeContext";
+import type { System } from "../../System";
+import { WorldModeController } from "../../../game/WorldModeController";
+import { getInGameSceneRuntimeContext, type InGameSceneRuntimeContext } from "../../../scene/in-game/InGameSceneRuntimeContext";
 
 /**
  * Updates top-panel combat banner visibility from world mode.

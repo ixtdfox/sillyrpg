@@ -1,4 +1,4 @@
-import { HexCell } from "../../hex/HexCell";
+import { HexCell } from "../../../hex/HexCell";
 
 /**
  * Resolves MP movement costs per hex step.

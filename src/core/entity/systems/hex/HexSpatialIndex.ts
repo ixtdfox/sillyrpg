@@ -1,4 +1,4 @@
-import { HexCell } from "../../hex/HexCell";
+import { HexCell } from "../../../hex/HexCell";
 
 /**
  * Broad-phase spatial index keyed by axial hex cells.

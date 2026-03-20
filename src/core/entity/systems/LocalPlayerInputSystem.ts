@@ -13,9 +13,9 @@ import { WorldModeController } from "../../game/WorldModeController";
 import { TurnBasedCombatState } from "../../game/TurnBasedCombatState";
 import { CombatInputController } from "../../game/CombatInputController";
 import { CombatInputMode } from "../../game/CombatInputMode";
-import { HexSpatialIndex } from "../services/HexSpatialIndex";
-import { HostilityResolver } from "../services/HostilityResolver";
-import { CombatAttackTargetingService } from "../services/combat/CombatAttackTargetingService";
+import { HexSpatialIndex } from "./hex/HexSpatialIndex";
+import { HostilityResolver } from "./hex/HostilityResolver";
+import { CombatAttackTargetingService } from "./combat/CombatAttackTargetingService";
 
 /**
  * Handles local-player click-to-move intent on the ground hex grid.

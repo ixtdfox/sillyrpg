@@ -13,10 +13,9 @@ import { VisionComponent } from "../components/VisionComponent";
 import { VisionDebugComponent, type VisionDebugDetectedCell } from "../components/VisionDebugComponent";
 import { HexCell } from "../../hex/HexCell";
 import { getInGameSceneRuntimeContext, type InGameSceneRuntimeContext } from "../../scene/in-game/InGameSceneRuntimeContext";
-import { getHexCellsInVisionSector } from "../services/HexVisionSector";
-import { HexSpatialIndex } from "../services/HexSpatialIndex";
-import { RelationDebugClassifier } from "../services/RelationDebugClassifier";
-import { CombatEncounterCoordinator } from "../services/combat/CombatEncounterCoordinator";
+import { HexSpatialIndex } from "./hex/HexSpatialIndex";
+import { RelationDebugClassifier } from "./hex/RelationDebugClassifier";
+import { CombatEncounterCoordinator } from "./combat/CombatEncounterCoordinator";
 
 /**
  * Detects hostile visible entities using a hex broad-phase and world-space cone narrow-phase.
@@ -76,8 +75,7 @@ export class VisionDetectionSystem implements System {
 
     const forward = this.resolveForwardVector(vision, transform);
     const grid = this.runtimeContext.hexGridRuntime.getGrid();
-    const candidateCells = getHexCellsInVisionSector(
-      grid,
+    const candidateCells = grid.getHexCellsInVisionSector(
       hexPosition.currentCell,
       forward,
       vision.rangeCells,

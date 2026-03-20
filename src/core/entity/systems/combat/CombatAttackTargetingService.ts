@@ -5,7 +5,7 @@ import { HexPositionComponent } from "../../components/HexPositionComponent";
 import { IdentityComponent } from "../../components/IdentityComponent";
 import { RelationsComponent } from "../../components/RelationsComponent";
 import { VitalsComponent } from "../../components/VitalsComponent";
-import { HostilityResolver } from "../HostilityResolver";
+import { HostilityResolver } from "../hex/HostilityResolver";
 
 export interface CombatAttackResult {
   readonly success: boolean;
@@ -48,7 +48,7 @@ export class CombatAttackTargetingService {
       return { success: false, reason: "Attacker or target has no hex position." };
     }
 
-    if (this.hexDistance(attackerCell.q, attackerCell.r, targetCell.q, targetCell.r) > 1) {
+    if (attackerCell.distance(targetCell) > 1) {
       return { success: false, reason: "Target is out of melee range." };
     }
 
@@ -60,13 +60,6 @@ export class CombatAttackTargetingService {
     attackerStats.currentAp -= CombatAttackTargetingService.AP_COST;
     targetVitals.hp.current = Math.max(0, targetVitals.hp.current - CombatAttackTargetingService.BASE_DAMAGE);
 
-    const attackerName = attacker.tryGetComponent(IdentityComponent)?.name ?? attackerEntityId;
-    const targetName = target.tryGetComponent(IdentityComponent)?.name ?? targetEntityId;
-    console.log(
-      `[Combat] ${attackerName} hits ${targetName} for ${CombatAttackTargetingService.BASE_DAMAGE}. `
-      + `HP: ${targetVitals.hp.current}/${targetVitals.hp.max}`
-    );
-
     return { success: true, reason: "Melee attack resolved." };
   }
 
@@ -77,12 +70,5 @@ export class CombatAttackTargetingService {
     }
 
     return HostilityResolver.isHostileTowards(attackerRelations, target.getId());
-  }
-
-  private hexDistance(aq: number, ar: number, bq: number, br: number): number {
-    const dq = aq - bq;
-    const dr = ar - br;
-    const ds = -aq - ar - (-bq - br);
-    return (Math.abs(dq) + Math.abs(dr) + Math.abs(ds)) / 2;
   }
 }

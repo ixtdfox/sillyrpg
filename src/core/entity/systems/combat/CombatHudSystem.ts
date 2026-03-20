@@ -1,18 +1,18 @@
 import { Scene as BabylonScene } from "@babylonjs/core";
-import type { Entity } from "../Entity";
-import type { EntityManager } from "../EntityManager";
-import type { System } from "../System";
-import { TurnBasedCombatState } from "../../game/TurnBasedCombatState";
-import { WorldModeController } from "../../game/WorldModeController";
-import { CombatInputController } from "../../game/CombatInputController";
-import { CombatInputMode } from "../../game/CombatInputMode";
-import { CombatStatsComponent } from "../components/CombatStatsComponent";
-import { IdentityComponent } from "../components/IdentityComponent";
-import { LocalPlayerComponent } from "../components/LocalPlayerComponent";
-import { VitalsComponent } from "../components/VitalsComponent";
-import { InGameCombatHudUi, type CombatHudCardData } from "../../scene/in-game/ui/InGameCombatHudUi";
-import { getInGameSceneRuntimeContext } from "../../scene/in-game/InGameSceneRuntimeContext";
-import { TurnBasedCombatSystem } from "./TurnBasedCombatSystem";
+import type { Entity } from "../../Entity";
+import type { EntityManager } from "../../EntityManager";
+import type { System } from "../../System";
+import { TurnBasedCombatState } from "../../../game/TurnBasedCombatState";
+import { WorldModeController } from "../../../game/WorldModeController";
+import { CombatInputController } from "../../../game/CombatInputController";
+import { CombatInputMode } from "../../../game/CombatInputMode";
+import { CombatStatsComponent } from "../../components/CombatStatsComponent";
+import { IdentityComponent } from "../../components/IdentityComponent";
+import { LocalPlayerComponent } from "../../components/LocalPlayerComponent";
+import { VitalsComponent } from "../../components/VitalsComponent";
+import { InGameCombatHudUi, type CombatHudCardData } from "../../../scene/in-game/ui/InGameCombatHudUi";
+import { getInGameSceneRuntimeContext } from "../../../scene/in-game/InGameSceneRuntimeContext";
+import { TurnBasedCombatSystem } from "../TurnBasedCombatSystem";
 
 /**
  * Bridges ECS combat/player state into in-game combat HUD controls.

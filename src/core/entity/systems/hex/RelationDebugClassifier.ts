@@ -1,7 +1,7 @@
-import type { Relations } from "../components/Relations";
-import { RelationsComponent } from "../components/RelationsComponent";
+import type { Relations } from "../../components/Relations";
+import { RelationsComponent } from "../../components/RelationsComponent";
 import { HostilityResolver } from "./HostilityResolver";
-import type { VisionDebugRelation } from "../components/VisionDebugComponent";
+import type { VisionDebugRelation } from "../../components/VisionDebugComponent";
 
 /**
  * Classifies relation sentiment buckets for debug coloring.

@@ -1,14 +1,14 @@
 import { Scene as BabylonScene } from "@babylonjs/core";
-import type { Entity } from "../Entity";
-import type { EntityManager } from "../EntityManager";
-import type { System } from "../System";
-import { LocalPlayerComponent } from "../components/LocalPlayerComponent";
-import { RelationsComponent } from "../components/RelationsComponent";
-import { getInGameSceneRuntimeContext, type InGameSceneRuntimeContext } from "../../scene/in-game/InGameSceneRuntimeContext";
-import { TurnBasedCombatState } from "../../game/TurnBasedCombatState";
-import { WorldModeController } from "../../game/WorldModeController";
-import { HexSpatialIndex } from "../services/HexSpatialIndex";
-import { HostilityResolver } from "../services/HostilityResolver";
+import type { Entity } from "../../Entity";
+import type { EntityManager } from "../../EntityManager";
+import type { System } from "../../System";
+import { LocalPlayerComponent } from "../../components/LocalPlayerComponent";
+import { RelationsComponent } from "../../components/RelationsComponent";
+import { getInGameSceneRuntimeContext, type InGameSceneRuntimeContext } from "../../../scene/in-game/InGameSceneRuntimeContext";
+import { TurnBasedCombatState } from "../../../game/TurnBasedCombatState";
+import { WorldModeController } from "../../../game/WorldModeController";
+import { HexSpatialIndex } from "../hex/HexSpatialIndex";
+import { HostilityResolver } from "../hex/HostilityResolver";
 
 /**
  * Resolves currently hovered hostile entity id for combat HUD.

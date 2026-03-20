@@ -1,5 +1,6 @@
 import { Vector3 } from "@babylonjs/core";
 import { HexCell } from "./HexCell";
+import {getHexCellsInVisionSector} from "../entity/systems/hex/HexVisionSector";
 
 /**
  * Defines rectangular axial bounds for generated ground grid cells.
@@ -197,5 +198,53 @@ export class HexGrid {
     }
 
     return new HexCell(rx, rz);
+  }
+
+  public getHexCellsInVisionSector(
+      originCell: HexCell,
+      forward: Vector3,
+      rangeCells: number,
+      fovDegrees: number
+  ): HexCell[] {
+    const normalizedForward = new Vector3(forward.x, 0, forward.z).normalize();
+    const minDot = Math.cos((fovDegrees * Math.PI) / 360);
+    const originWorld = this.cellToWorld(originCell, 0);
+    const result: HexCell[] = [];
+
+    for (let dq = -rangeCells; dq <= rangeCells; dq += 1) {
+      for (let dr = -rangeCells; dr <= rangeCells; dr += 1) {
+        const candidate = new HexCell(originCell.q + dq, originCell.r + dr);
+        if (!this.contains(candidate)) {
+          continue;
+        }
+
+        if (originCell.distance(candidate) > rangeCells) {
+          continue;
+        }
+
+        if (candidate.equals(originCell)) {
+          result.push(candidate);
+          continue;
+        }
+
+        const candidateWorld = this.cellToWorld(candidate, 0);
+        const direction = candidateWorld.subtract(originWorld);
+        direction.y = 0;
+
+        const lengthSquared = direction.lengthSquared();
+        if (lengthSquared <= Number.EPSILON) {
+          result.push(candidate);
+          continue;
+        }
+
+        direction.scaleInPlace(1 / Math.sqrt(lengthSquared));
+        const dot = Vector3.Dot(normalizedForward, direction);
+        if (dot >= minDot) {
+          result.push(candidate);
+        }
+      }
+    }
+
+    return result;
   }
 }
