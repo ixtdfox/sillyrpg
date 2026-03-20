@@ -30,6 +30,8 @@ import { WorldMode } from "./WorldMode";
 import { CombatInputController } from "./CombatInputController";
 import { CombatAttackTargetingService } from "../entity/systems/combat/CombatAttackTargetingService";
 import { BasicCombatAiService } from "../entity/systems/combat/BasicCombatAiService";
+import { CombatMovementPreviewSystem } from "../entity/systems/combat/CombatMovementPreviewSystem";
+import { CombatHoverHighlightSystem } from "../entity/systems/combat/CombatHoverHighlightSystem";
 
 /**
  * Owns game flow state and active scene lifecycle.
@@ -81,8 +83,12 @@ export class GameManager {
   private readonly perceptionDebugOverlaySystem: PerceptionDebugOverlaySystem;
   /** ECS system that drives turn sequencing and encounter ending. */
   private readonly turnBasedCombatSystem: TurnBasedCombatSystem;
+  /** ECS system that renders reachable move area and hovered move path in combat. */
+  private readonly combatMovementPreviewSystem: CombatMovementPreviewSystem;
   /** ECS system that resolves hovered hostile target for HUD. */
   private readonly hoveredCombatTargetSystem: HoveredCombatTargetSystem;
+  /** ECS system that highlights currently hovered hostile combat target. */
+  private readonly combatHoverHighlightSystem: CombatHoverHighlightSystem;
   /** ECS system that renders combat HUD cards and actions. */
   private readonly combatHudSystem: CombatHudSystem;
   /** ECS system that reflects combat mode state in top panel banner. */
@@ -112,6 +118,7 @@ export class GameManager {
     this.worldModeController = new WorldModeController(WorldMode.RUNTIME);
     this.turnBasedCombatState = new TurnBasedCombatState(this.worldModeController);
     this.combatInputController = new CombatInputController();
+    const movementCostResolver = new HexMovementCostResolver();
     this.characterSpawnerSystem = new CharacterSpawnerSystem(this.entityManager);
     this.localPlayerSystem = new LocalPlayerSystem(this.entityManager);
     const hexSpatialIndex = new HexSpatialIndex();
@@ -129,7 +136,7 @@ export class GameManager {
       this.entityManager,
       this.worldModeController,
       this.turnBasedCombatState,
-      new HexMovementCostResolver(),
+      movementCostResolver,
       hexSpatialIndex
     );
     this.patrolSystem = new PatrolSystem(this.entityManager, this.worldModeController);
@@ -150,9 +157,22 @@ export class GameManager {
       this.combatInputController,
       basicCombatAiService
     );
+    this.combatMovementPreviewSystem = new CombatMovementPreviewSystem(
+      this.entityManager,
+      this.worldModeController,
+      this.turnBasedCombatState,
+      this.combatInputController,
+      hexSpatialIndex,
+      movementCostResolver
+    );
     this.hoveredCombatTargetSystem = new HoveredCombatTargetSystem(
       this.entityManager,
       hexSpatialIndex,
+      this.worldModeController,
+      this.turnBasedCombatState
+    );
+    this.combatHoverHighlightSystem = new CombatHoverHighlightSystem(
+      this.entityManager,
       this.worldModeController,
       this.turnBasedCombatState
     );
@@ -171,7 +191,9 @@ export class GameManager {
       this.patrolSystem,
       this.movementSystem,
       this.hexSpatialIndexSystem,
+      this.combatMovementPreviewSystem,
       this.hoveredCombatTargetSystem,
+      this.combatHoverHighlightSystem,
       this.visionDetectionSystem,
       this.perceptionDebugOverlaySystem,
       this.combatHudSystem,
@@ -249,6 +271,8 @@ export class GameManager {
     this.visionDetectionSystem.setScene(this.currentBabylonScene);
     this.perceptionDebugOverlaySystem.setScene(this.currentBabylonScene);
     this.hoveredCombatTargetSystem.setScene(this.currentBabylonScene);
+    this.combatMovementPreviewSystem.setScene(this.currentBabylonScene);
+    this.combatHoverHighlightSystem.setScene(this.currentBabylonScene);
     this.combatHudSystem.setScene(this.currentBabylonScene);
     this.combatBannerSystem.setScene(this.currentBabylonScene);
     this.localPlayerSystem.setScene(this.currentBabylonScene);
