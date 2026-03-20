@@ -1,6 +1,5 @@
 import type { Relations } from "../../components/Relations";
 import { RelationsComponent } from "../../components/RelationsComponent";
-import { HostilityResolver } from "./HostilityResolver";
 import type { VisionDebugRelation } from "../../components/VisionDebugComponent";
 
 /**
@@ -8,7 +7,7 @@ import type { VisionDebugRelation } from "../../components/VisionDebugComponent"
  */
 export class RelationDebugClassifier {
   public static classify(observerRelations: RelationsComponent, targetEntityId: string): VisionDebugRelation {
-    if (HostilityResolver.isHostileTowards(observerRelations, targetEntityId)) {
+    if (observerRelations.isHostileTowards(targetEntityId)) {
       return "hostile";
     }
 

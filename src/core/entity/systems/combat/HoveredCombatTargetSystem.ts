@@ -8,7 +8,6 @@ import { getInGameSceneRuntimeContext, type InGameSceneRuntimeContext } from "..
 import { TurnBasedCombatState } from "../../../game/TurnBasedCombatState";
 import { WorldModeController } from "../../../game/WorldModeController";
 import { HexSpatialIndex } from "../hex/HexSpatialIndex";
-import { HostilityResolver } from "../hex/HostilityResolver";
 
 /**
  * Resolves currently hovered hostile entity id for combat HUD.
@@ -64,7 +63,7 @@ export class HoveredCombatTargetSystem implements System {
         continue;
       }
 
-      if (HostilityResolver.isHostileTowards(playerRelations, hoveredEntityId)) {
+      if (playerRelations.isHostileTowards(hoveredEntityId)) {
         this.combatState.setHoveredHostileEntityId(hoveredEntityId);
         return;
       }

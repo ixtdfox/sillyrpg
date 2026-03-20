@@ -3,7 +3,6 @@ import { CombatStatsComponent } from "../../components/CombatStatsComponent";
 import { HexPositionComponent } from "../../components/HexPositionComponent";
 import { RelationsComponent } from "../../components/RelationsComponent";
 import { VitalsComponent } from "../../components/VitalsComponent";
-import { HostilityResolver } from "../hex/HostilityResolver";
 
 /**
  * Selects alive combat-ready entities for a newly started encounter.
@@ -50,6 +49,6 @@ export class CombatParticipantResolver {
       return false;
     }
 
-    return HostilityResolver.isHostileTowards(observerEntity.getComponent(RelationsComponent), targetEntityId);
+    return observerEntity.getComponent(RelationsComponent).isHostileTowards(targetEntityId);
   }
 }

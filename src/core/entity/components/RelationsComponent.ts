@@ -16,4 +16,8 @@ export class RelationsComponent implements Component {
   public constructor(relationships: Record<string, Relations> = {}) {
     this.relationships = relationships;
   }
+
+  public isHostileTowards(targetEntityId: string): boolean {
+    return Boolean(this.relationships[targetEntityId].hate > 0)
+  }
 }

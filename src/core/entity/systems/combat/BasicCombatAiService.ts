@@ -6,7 +6,6 @@ import { HexPositionComponent } from "../../components/HexPositionComponent";
 import { RelationsComponent } from "../../components/RelationsComponent";
 import { VitalsComponent } from "../../components/VitalsComponent";
 import { HexCell } from "../../../hex/HexCell";
-import { HostilityResolver } from "../hex/HostilityResolver";
 import { CombatAttackTargetingService } from "./CombatAttackTargetingService";
 import { HexSpatialIndex } from "../hex/HexSpatialIndex";
 
@@ -101,7 +100,7 @@ export class BasicCombatAiService {
         continue;
       }
 
-      if (!HostilityResolver.isHostileTowards(activeRelations, participantId)) {
+      if (!activeRelations.isHostileTowards(participantId)) {
         continue;
       }
 

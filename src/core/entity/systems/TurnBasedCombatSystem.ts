@@ -9,7 +9,6 @@ import { RelationsComponent } from "../components/RelationsComponent";
 import { VitalsComponent } from "../components/VitalsComponent";
 import { AIComponent } from "../components/AIComponent";
 import { LocalPlayerComponent } from "../components/LocalPlayerComponent";
-import { HostilityResolver } from "./hex/HostilityResolver";
 import { BasicCombatAiService } from "./combat/BasicCombatAiService";
 
 /**
@@ -130,8 +129,8 @@ export class TurnBasedCombatSystem implements System {
 
         const firstRelations = first.getComponent(RelationsComponent);
         const secondRelations = second.getComponent(RelationsComponent);
-        const firstToSecond = HostilityResolver.isHostileTowards(firstRelations, second.getId());
-        const secondToFirst = HostilityResolver.isHostileTowards(secondRelations, first.getId());
+        const firstToSecond = firstRelations.isHostileTowards(second.getId());
+        const secondToFirst = secondRelations.isHostileTowards(first.getId());
 
         if (firstToSecond || secondToFirst) {
           return true;

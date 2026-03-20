@@ -2,10 +2,8 @@ import type { Entity } from "../../Entity";
 import type { EntityManager } from "../../EntityManager";
 import { CombatStatsComponent } from "../../components/CombatStatsComponent";
 import { HexPositionComponent } from "../../components/HexPositionComponent";
-import { IdentityComponent } from "../../components/IdentityComponent";
 import { RelationsComponent } from "../../components/RelationsComponent";
 import { VitalsComponent } from "../../components/VitalsComponent";
-import { HostilityResolver } from "../hex/HostilityResolver";
 
 export interface CombatAttackResult {
   readonly success: boolean;
@@ -69,6 +67,6 @@ export class CombatAttackTargetingService {
       return false;
     }
 
-    return HostilityResolver.isHostileTowards(attackerRelations, target.getId());
+    return attackerRelations.isHostileTowards(target.getId());
   }
 }

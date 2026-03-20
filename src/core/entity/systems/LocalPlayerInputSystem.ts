@@ -14,7 +14,6 @@ import { TurnBasedCombatState } from "../../game/TurnBasedCombatState";
 import { CombatInputController } from "../../game/CombatInputController";
 import { CombatInputMode } from "../../game/CombatInputMode";
 import { HexSpatialIndex } from "./hex/HexSpatialIndex";
-import { HostilityResolver } from "./hex/HostilityResolver";
 import { CombatAttackTargetingService } from "./combat/CombatAttackTargetingService";
 
 /**
@@ -169,7 +168,7 @@ export class LocalPlayerInputSystem implements System {
         continue;
       }
 
-      if (!HostilityResolver.isHostileTowards(localPlayerRelations, targetEntityId)) {
+      if (!localPlayerRelations.isHostileTowards(targetEntityId)) {
         continue;
       }
 
