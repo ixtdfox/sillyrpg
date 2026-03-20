@@ -81,6 +81,11 @@ export class InGameScene implements Scene {
       const hostileToPlayer = new Relations();
       hostileToPlayer.hate = 100;
       golemRelations.relationships[playerCharacter.getId()] = hostileToPlayer;
+
+      const playerRelations = playerCharacter.getComponent(RelationsComponent);
+      const hostileToGolem = new Relations();
+      hostileToGolem.hate = 100;
+      playerRelations.relationships[golemCharacter.getId()] = hostileToGolem;
     }
 
     const hexGridRuntime = new HexGridRuntime(scene);

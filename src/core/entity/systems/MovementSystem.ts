@@ -4,8 +4,12 @@ import type { System } from "../System";
 import { TransformComponent } from "../components/TransformComponent";
 import { HexPathMovementComponent } from "../components/HexPathMovementComponent";
 import { HexPositionComponent } from "../components/HexPositionComponent";
+import { CombatStatsComponent } from "../components/CombatStatsComponent";
 import { HexPathfinder } from "../../hex/HexPathfinder";
 import { getInGameSceneRuntimeContext, type InGameSceneRuntimeContext } from "../../scene/in-game/InGameSceneRuntimeContext";
+import { WorldModeController } from "../../game/WorldModeController";
+import { TurnBasedCombatState } from "../../game/TurnBasedCombatState";
+import { HexMovementCostResolver } from "../services/HexMovementCostResolver";
 
 /**
  * Executes path-based hex movement and synchronizes transform positions.
@@ -23,12 +27,23 @@ export class MovementSystem implements System {
   private static readonly FACING_TURN_SPEED = Math.PI * 6;
 
   private readonly entityManager: EntityManager;
+  private readonly worldModeController: WorldModeController;
+  private readonly combatState: TurnBasedCombatState;
+  private readonly movementCostResolver: HexMovementCostResolver;
   private scene: BabylonScene | null;
   private runtimeContext: InGameSceneRuntimeContext | null;
   private pathfinder: HexPathfinder | null;
 
-  public constructor(entityManager: EntityManager) {
+  public constructor(
+    entityManager: EntityManager,
+    worldModeController: WorldModeController,
+    combatState: TurnBasedCombatState,
+    movementCostResolver: HexMovementCostResolver
+  ) {
     this.entityManager = entityManager;
+    this.worldModeController = worldModeController;
+    this.combatState = combatState;
+    this.movementCostResolver = movementCostResolver;
     this.scene = null;
     this.runtimeContext = null;
     this.pathfinder = null;
@@ -51,8 +66,12 @@ export class MovementSystem implements System {
       const transform = entity.getComponent(TransformComponent);
       const hexPosition = entity.getComponent(HexPositionComponent);
       const pathMovement = entity.getComponent(HexPathMovementComponent);
+      if (!this.canEntityMove(entity.getId(), hexPosition, pathMovement)) {
+        continue;
+      }
+
       this.tryInitializePath(hexPosition, pathMovement);
-      this.advanceMovementStep(transform, hexPosition, pathMovement, deltaSeconds);
+      this.advanceMovementStep(entity.getId(), transform, hexPosition, pathMovement, deltaSeconds);
     }
   }
 
@@ -82,7 +101,14 @@ export class MovementSystem implements System {
       return;
     }
 
-    pathMovement.pathCells = path;
+    const limitedPath = this.limitPathByMovementBudget(path);
+    if (limitedPath.length < 2) {
+      hexPosition.targetCell = null;
+      pathMovement.resetPathState();
+      return;
+    }
+
+    pathMovement.pathCells = limitedPath;
     pathMovement.nextStepIndex = 1;
     pathMovement.isMoving = true;
   }
@@ -97,6 +123,7 @@ export class MovementSystem implements System {
   }
 
   private advanceMovementStep(
+    entityId: string,
     transform: TransformComponent,
     hexPosition: HexPositionComponent,
     pathMovement: HexPathMovementComponent,
@@ -117,7 +144,7 @@ export class MovementSystem implements System {
     const remainingDistance = toNext.length();
 
     if (remainingDistance <= Number.EPSILON) {
-      this.completeCurrentStep(transform, hexPosition, pathMovement, nextCell, nextCellCenter);
+      this.completeCurrentStep(entityId, transform, hexPosition, pathMovement, nextCell, nextCellCenter);
       return;
     }
 
@@ -129,7 +156,7 @@ export class MovementSystem implements System {
     this.updateFacingRotation(transform, toNext, deltaSeconds);
 
     if (remainingDistance <= maxStepDistance) {
-      this.completeCurrentStep(transform, hexPosition, pathMovement, nextCell, nextCellCenter);
+      this.completeCurrentStep(entityId, transform, hexPosition, pathMovement, nextCell, nextCellCenter);
       return;
     }
 
@@ -156,15 +183,18 @@ export class MovementSystem implements System {
   }
 
   private completeCurrentStep(
+    entityId: string,
     transform: TransformComponent,
     hexPosition: HexPositionComponent,
     pathMovement: HexPathMovementComponent,
     reachedCell: HexPositionComponent["currentCell"],
     reachedCellCenter: Vector3
   ): void {
+    const previousCell = hexPosition.currentCell;
     transform.value.copyFrom(reachedCellCenter);
     hexPosition.currentCell = reachedCell;
     pathMovement.nextStepIndex += 1;
+    this.consumeMovementPointsForStep(entityId, previousCell, reachedCell);
 
     if (pathMovement.nextStepIndex >= pathMovement.pathCells.length) {
       this.finishMovement(hexPosition, pathMovement);
@@ -174,5 +204,74 @@ export class MovementSystem implements System {
   private finishMovement(hexPosition: HexPositionComponent, pathMovement: HexPathMovementComponent): void {
     hexPosition.targetCell = null;
     pathMovement.resetPathState();
+  }
+
+  private canEntityMove(
+    entityId: string,
+    hexPosition: HexPositionComponent,
+    pathMovement: HexPathMovementComponent
+  ): boolean {
+    if (!this.worldModeController.isTurnBased()) {
+      return true;
+    }
+
+    if (!this.combatState.isActiveEntity(entityId)) {
+      pathMovement.resetPathState();
+      hexPosition.targetCell = null;
+      return false;
+    }
+
+    const combatEntity = this.entityManager.getEntity(entityId);
+    const combatStats = combatEntity?.tryGetComponent(CombatStatsComponent);
+    if (!combatStats || combatStats.currentMp <= 0) {
+      pathMovement.resetPathState();
+      hexPosition.targetCell = null;
+      return false;
+    }
+
+    return true;
+  }
+
+  private limitPathByMovementBudget(path: readonly HexPositionComponent["currentCell"][]): HexPositionComponent["currentCell"][] {
+    if (!this.worldModeController.isTurnBased()) {
+      return [...path];
+    }
+
+    const activeEntityId = this.combatState.getActiveEntityId();
+    const activeEntity = activeEntityId ? this.entityManager.getEntity(activeEntityId) : null;
+    const combatStats = activeEntity?.tryGetComponent(CombatStatsComponent);
+    if (!combatStats) {
+      return [...path];
+    }
+
+    let remainingMp = combatStats.currentMp;
+    const result = [path[0]];
+
+    for (let index = 1; index < path.length; index += 1) {
+      const stepCost = this.movementCostResolver.getStepCost(path[index - 1], path[index]);
+      if (remainingMp < stepCost) {
+        break;
+      }
+
+      remainingMp -= stepCost;
+      result.push(path[index]);
+    }
+
+    return result;
+  }
+
+  private consumeMovementPointsForStep(entityId: string, fromCell: HexPositionComponent["currentCell"], toCell: HexPositionComponent["currentCell"]): void {
+    if (!this.worldModeController.isTurnBased()) {
+      return;
+    }
+
+    const entity = this.entityManager.getEntity(entityId);
+    const combatStats = entity?.tryGetComponent(CombatStatsComponent);
+    if (!combatStats) {
+      return;
+    }
+
+    const stepCost = this.movementCostResolver.getStepCost(fromCell, toCell);
+    combatStats.currentMp = Math.max(0, combatStats.currentMp - stepCost);
   }
 }

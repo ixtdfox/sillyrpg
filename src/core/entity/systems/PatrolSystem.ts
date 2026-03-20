@@ -8,17 +8,20 @@ import { PatrolComponent } from "../components/PatrolComponent";
 import { HexCell } from "../../hex/HexCell";
 import { HexPathfinder } from "../../hex/HexPathfinder";
 import { getInGameSceneRuntimeContext, type InGameSceneRuntimeContext } from "../../scene/in-game/InGameSceneRuntimeContext";
+import { WorldModeController } from "../../game/WorldModeController";
 
 /**
  * Assigns local random patrol targets for idle AI entities.
  */
 export class PatrolSystem implements System {
   private readonly entityManager: EntityManager;
+  private readonly worldModeController: WorldModeController;
   private runtimeContext: InGameSceneRuntimeContext | null;
   private pathfinder: HexPathfinder | null;
 
-  public constructor(entityManager: EntityManager) {
+  public constructor(entityManager: EntityManager, worldModeController: WorldModeController) {
     this.entityManager = entityManager;
+    this.worldModeController = worldModeController;
     this.runtimeContext = null;
     this.pathfinder = null;
   }
@@ -30,6 +33,9 @@ export class PatrolSystem implements System {
 
   public update(_deltaSeconds: number): void {
     if (!this.runtimeContext || !this.pathfinder) {
+      return;
+    }
+    if (this.worldModeController.isTurnBased()) {
       return;
     }
 

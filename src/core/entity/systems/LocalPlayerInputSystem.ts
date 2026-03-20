@@ -6,20 +6,27 @@ import type { System } from "../System";
 import { HexPathMovementComponent } from "../components/HexPathMovementComponent";
 import { HexPositionComponent } from "../components/HexPositionComponent";
 import { LocalPlayerComponent } from "../components/LocalPlayerComponent";
+import { CombatStatsComponent } from "../components/CombatStatsComponent";
 import { getInGameSceneRuntimeContext, type InGameSceneRuntimeContext } from "../../scene/in-game/InGameSceneRuntimeContext";
+import { WorldModeController } from "../../game/WorldModeController";
+import { TurnBasedCombatState } from "../../game/TurnBasedCombatState";
 
 /**
  * Handles local-player click-to-move intent on the ground hex grid.
  */
 export class LocalPlayerInputSystem implements System {
   private readonly entityManager: EntityManager;
+  private readonly worldModeController: WorldModeController;
+  private readonly combatState: TurnBasedCombatState;
   private scene: BabylonScene | null;
   private runtimeContext: InGameSceneRuntimeContext | null;
   private localPlayerEntity: Entity | null;
   private pointerObserver: Nullable<Observer<PointerInfo>>;
 
-  public constructor(entityManager: EntityManager) {
+  public constructor(entityManager: EntityManager, worldModeController: WorldModeController, combatState: TurnBasedCombatState) {
     this.entityManager = entityManager;
+    this.worldModeController = worldModeController;
+    this.combatState = combatState;
     this.scene = null;
     this.runtimeContext = null;
     this.localPlayerEntity = null;
@@ -58,6 +65,9 @@ export class LocalPlayerInputSystem implements System {
     if (!this.runtimeContext || !this.localPlayerEntity || !this.localPlayerEntity.hasComponent(HexPositionComponent)) {
       return;
     }
+    if (!this.isMovementInputAllowed()) {
+      return;
+    }
 
     const clickedCell = this.runtimeContext.hexGridRuntime.getHoveredCell();
     if (!clickedCell) {
@@ -84,6 +94,23 @@ export class LocalPlayerInputSystem implements System {
     hexPosition.targetCell = clickedCell;
     pathMovement?.resetPathState();
   };
+
+  private isMovementInputAllowed(): boolean {
+    if (!this.localPlayerEntity) {
+      return false;
+    }
+
+    if (!this.worldModeController.isTurnBased()) {
+      return true;
+    }
+
+    if (!this.combatState.isActiveEntity(this.localPlayerEntity.getId())) {
+      return false;
+    }
+
+    const combatStats = this.localPlayerEntity.tryGetComponent(CombatStatsComponent);
+    return Boolean(combatStats && combatStats.currentMp > 0);
+  }
 
   private resolveLocalPlayerEntity(): Entity | null {
     const localPlayerEntities = this.entityManager.query(LocalPlayerComponent);

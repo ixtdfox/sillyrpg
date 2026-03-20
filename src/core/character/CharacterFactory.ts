@@ -16,6 +16,7 @@ import { DetectionStateComponent } from "../entity/components/DetectionStateComp
 import { DetectableKinds } from "../entity/components/DetectableKinds";
 import { PatrolComponent } from "../entity/components/PatrolComponent";
 import { VisionDebugComponent } from "../entity/components/VisionDebugComponent";
+import { CombatStatsComponent } from "../entity/components/CombatStatsComponent";
 
 /**
  * Builds concrete character instances from templates.
@@ -61,6 +62,7 @@ export class CharacterFactory {
     player.addComponent(LocalPlayerComponent, new LocalPlayerComponent());
     player.addComponent(HexPathMovementComponent, new HexPathMovementComponent(3.5));
     player.addComponent(DetectableComponent, new DetectableComponent(DetectableKinds.PLAYER));
+    player.addComponent(CombatStatsComponent, new CombatStatsComponent(10, 2, 6, 1));
 
     return player;
   }
@@ -89,6 +91,7 @@ export class CharacterFactory {
     golem.addComponent(PatrolComponent, new PatrolComponent(5));
     golem.addComponent(VisionDebugComponent, new VisionDebugComponent());
     golem.addComponent(DetectableComponent, new DetectableComponent(DetectableKinds.GOLEM));
+    golem.addComponent(CombatStatsComponent, new CombatStatsComponent(11, 2, 5, 2));
 
     return golem;
   }

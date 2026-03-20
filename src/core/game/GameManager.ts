@@ -13,10 +13,19 @@ import { VisionDetectionSystem } from "../entity/systems/VisionDetectionSystem";
 import { PatrolSystem } from "../entity/systems/PatrolSystem";
 import { PerceptionDebugOverlaySystem } from "../entity/systems/PerceptionDebugOverlaySystem";
 import { HexSpatialIndex } from "../entity/services/HexSpatialIndex";
+import { WorldModeController } from "./WorldModeController";
+import { TurnBasedCombatState } from "./TurnBasedCombatState";
+import { HexMovementCostResolver } from "../entity/services/HexMovementCostResolver";
+import { CombatParticipantResolver } from "../entity/services/combat/CombatParticipantResolver";
+import { CombatEncounterCoordinator } from "../entity/services/combat/CombatEncounterCoordinator";
+import { TurnBasedCombatSystem } from "../entity/services/combat/TurnBasedCombatSystem";
+import { HoveredCombatTargetSystem } from "../entity/services/combat/HoveredCombatTargetSystem";
+import { CombatHudSystem } from "../entity/services/combat/CombatHudSystem";
 import type { System } from "../entity/System";
 import { MainMenuScene } from "../scene/main-menu/MainMenuScene";
 import type { Scene } from "../scene/Scene";
 import { GameState } from "./GameState";
+import { WorldMode } from "./WorldMode";
 
 /**
  * Owns game flow state and active scene lifecycle.
@@ -35,6 +44,10 @@ export class GameManager {
 
   /** Shared ECS entity registry for runtime-created entities. */
   private readonly entityManager: EntityManager;
+  /** Shared world mode state for runtime and turn-based combat. */
+  private readonly worldModeController: WorldModeController;
+  /** Shared active turn-based encounter state. */
+  private readonly turnBasedCombatState: TurnBasedCombatState;
 
   /** Ordered ECS systems executed each runtime tick. */
   private readonly systems: readonly System[];
@@ -60,6 +73,12 @@ export class GameManager {
 
   /** ECS system that pushes perception debug data into the hex overlay. */
   private readonly perceptionDebugOverlaySystem: PerceptionDebugOverlaySystem;
+  /** ECS system that drives turn sequencing and encounter ending. */
+  private readonly turnBasedCombatSystem: TurnBasedCombatSystem;
+  /** ECS system that resolves hovered hostile target for HUD. */
+  private readonly hoveredCombatTargetSystem: HoveredCombatTargetSystem;
+  /** ECS system that renders combat HUD cards and actions. */
+  private readonly combatHudSystem: CombatHudSystem;
 
   /** Current finite game state. */
   private currentState: GameState;
@@ -82,23 +101,59 @@ export class GameManager {
     this.canvas = canvas;
     this.langManager = langManager;
     this.entityManager = new EntityManager();
+    this.worldModeController = new WorldModeController(WorldMode.RUNTIME);
+    this.turnBasedCombatState = new TurnBasedCombatState(this.worldModeController);
     this.characterSpawnerSystem = new CharacterSpawnerSystem(this.entityManager);
     this.localPlayerSystem = new LocalPlayerSystem(this.entityManager);
-    this.localPlayerInputSystem = new LocalPlayerInputSystem(this.entityManager);
-    this.movementSystem = new MovementSystem(this.entityManager);
-    this.patrolSystem = new PatrolSystem(this.entityManager);
+    this.localPlayerInputSystem = new LocalPlayerInputSystem(
+      this.entityManager,
+      this.worldModeController,
+      this.turnBasedCombatState
+    );
+    this.movementSystem = new MovementSystem(
+      this.entityManager,
+      this.worldModeController,
+      this.turnBasedCombatState,
+      new HexMovementCostResolver()
+    );
+    this.patrolSystem = new PatrolSystem(this.entityManager, this.worldModeController);
     const hexSpatialIndex = new HexSpatialIndex();
     this.hexSpatialIndexSystem = new HexSpatialIndexSystem(this.entityManager, hexSpatialIndex);
-    this.visionDetectionSystem = new VisionDetectionSystem(this.entityManager, hexSpatialIndex);
+    const combatParticipantResolver = new CombatParticipantResolver(this.entityManager);
+    const combatEncounterCoordinator = new CombatEncounterCoordinator(
+      this.worldModeController,
+      this.turnBasedCombatState,
+      combatParticipantResolver
+    );
+    this.visionDetectionSystem = new VisionDetectionSystem(this.entityManager, hexSpatialIndex, combatEncounterCoordinator);
     this.perceptionDebugOverlaySystem = new PerceptionDebugOverlaySystem(this.entityManager);
+    this.turnBasedCombatSystem = new TurnBasedCombatSystem(
+      this.entityManager,
+      this.worldModeController,
+      this.turnBasedCombatState
+    );
+    this.hoveredCombatTargetSystem = new HoveredCombatTargetSystem(
+      this.entityManager,
+      hexSpatialIndex,
+      this.turnBasedCombatState
+    );
+    this.combatHudSystem = new CombatHudSystem(
+      this.entityManager,
+      this.worldModeController,
+      this.turnBasedCombatState,
+      this.turnBasedCombatSystem
+    );
     this.systems = [
       this.characterSpawnerSystem,
       this.localPlayerInputSystem,
+      this.turnBasedCombatSystem,
       this.patrolSystem,
       this.movementSystem,
       this.hexSpatialIndexSystem,
+      this.hoveredCombatTargetSystem,
       this.visionDetectionSystem,
       this.perceptionDebugOverlaySystem,
+      this.combatHudSystem,
       new AnimationSystem(this.entityManager),
       this.localPlayerSystem,
       new RenderSyncSystem(this.entityManager),
@@ -137,6 +192,10 @@ export class GameManager {
     return this.currentBabylonScene;
   }
 
+  public getWorldMode(): WorldMode {
+    return this.worldModeController.getMode();
+  }
+
   /**
    * Changes game state and loads the corresponding scene.
    *
@@ -159,12 +218,15 @@ export class GameManager {
 
     this.currentSceneController = this.buildSceneController(state);
     this.currentBabylonScene = await this.currentSceneController.createScene();
+    this.turnBasedCombatState.endCombat();
     this.characterSpawnerSystem.setScene(this.currentBabylonScene);
     this.localPlayerInputSystem.setScene(this.currentBabylonScene);
     this.movementSystem.setScene(this.currentBabylonScene);
     this.patrolSystem.setScene(this.currentBabylonScene);
     this.visionDetectionSystem.setScene(this.currentBabylonScene);
     this.perceptionDebugOverlaySystem.setScene(this.currentBabylonScene);
+    this.hoveredCombatTargetSystem.setScene(this.currentBabylonScene);
+    this.combatHudSystem.setScene(this.currentBabylonScene);
     this.localPlayerSystem.setScene(this.currentBabylonScene);
   }
 
