@@ -5,8 +5,10 @@ import { HexPathMovementComponent } from "../../components/HexPathMovementCompon
 import { HexPositionComponent } from "../../components/HexPositionComponent";
 import { RelationsComponent } from "../../components/RelationsComponent";
 import { VitalsComponent } from "../../components/VitalsComponent";
+import { HexCell } from "../../../hex/HexCell";
 import { HostilityResolver } from "../HostilityResolver";
 import { CombatAttackTargetingService } from "./CombatAttackTargetingService";
+import { HexSpatialIndex } from "../HexSpatialIndex";
 
 export type AiTurnStepResult = "in_progress" | "completed";
 
@@ -16,11 +18,17 @@ export type AiTurnStepResult = "in_progress" | "completed";
 export class BasicCombatAiService {
   private readonly entityManager: EntityManager;
   private readonly attackTargetingService: CombatAttackTargetingService;
+  private readonly spatialIndex: HexSpatialIndex;
   private readonly movingAiEntities: Set<string>;
 
-  public constructor(entityManager: EntityManager, attackTargetingService: CombatAttackTargetingService) {
+  public constructor(
+    entityManager: EntityManager,
+    attackTargetingService: CombatAttackTargetingService,
+    spatialIndex: HexSpatialIndex
+  ) {
     this.entityManager = entityManager;
     this.attackTargetingService = attackTargetingService;
+    this.spatialIndex = spatialIndex;
     this.movingAiEntities = new Set<string>();
   }
 
@@ -64,7 +72,13 @@ export class BasicCombatAiService {
       return "completed";
     }
 
-    activeHexPosition.targetCell = targetHexPosition.currentCell;
+    const approachCell = this.resolveApproachCell(activeAi.getId(), activeHexPosition.currentCell, targetHexPosition.currentCell);
+    if (!approachCell) {
+      console.log("[CombatAI] Could not find a free approach cell. Ending turn.");
+      return "completed";
+    }
+
+    activeHexPosition.targetCell = approachCell;
     movement.resetPathState();
     this.movingAiEntities.add(activeAiEntityId);
     console.log("[CombatAI] Moving closer to hostile target.");
@@ -127,5 +141,33 @@ export class BasicCombatAiService {
     const dr = ar - br;
     const ds = -aq - ar - (-bq - br);
     return (Math.abs(dq) + Math.abs(dr) + Math.abs(ds)) / 2;
+  }
+
+  private resolveApproachCell(activeAiEntityId: string, activeCell: HexCell, targetCell: HexCell): HexCell | null {
+    const candidateCells = [
+      new HexCell(targetCell.q + 1, targetCell.r),
+      new HexCell(targetCell.q - 1, targetCell.r),
+      new HexCell(targetCell.q, targetCell.r + 1),
+      new HexCell(targetCell.q, targetCell.r - 1),
+      new HexCell(targetCell.q + 1, targetCell.r - 1),
+      new HexCell(targetCell.q - 1, targetCell.r + 1),
+    ];
+
+    const unoccupiedCandidates = candidateCells.filter((cell) => {
+      const occupants = this.spatialIndex.getEntitiesAt(cell);
+      return occupants.length === 0 || occupants.every((occupantId) => occupantId === activeAiEntityId);
+    });
+
+    if (unoccupiedCandidates.length === 0) {
+      return null;
+    }
+
+    unoccupiedCandidates.sort((first, second) => {
+      const firstDistance = this.hexDistance(activeCell.q, activeCell.r, first.q, first.r);
+      const secondDistance = this.hexDistance(activeCell.q, activeCell.r, second.q, second.r);
+      return firstDistance - secondDistance;
+    });
+
+    return unoccupiedCandidates[0] ?? null;
   }
 }

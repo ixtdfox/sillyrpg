@@ -116,7 +116,7 @@ export class GameManager {
     this.localPlayerSystem = new LocalPlayerSystem(this.entityManager);
     const hexSpatialIndex = new HexSpatialIndex();
     const attackTargetingService = new CombatAttackTargetingService(this.entityManager);
-    const basicCombatAiService = new BasicCombatAiService(this.entityManager, attackTargetingService);
+    const basicCombatAiService = new BasicCombatAiService(this.entityManager, attackTargetingService, hexSpatialIndex);
     this.localPlayerInputSystem = new LocalPlayerInputSystem(
       this.entityManager,
       this.worldModeController,
