@@ -18,14 +18,16 @@ import { TurnBasedCombatState } from "./TurnBasedCombatState";
 import { HexMovementCostResolver } from "../entity/services/HexMovementCostResolver";
 import { CombatParticipantResolver } from "../entity/services/combat/CombatParticipantResolver";
 import { CombatEncounterCoordinator } from "../entity/services/combat/CombatEncounterCoordinator";
-import { TurnBasedCombatSystem } from "../entity/services/combat/TurnBasedCombatSystem";
-import { HoveredCombatTargetSystem } from "../entity/services/combat/HoveredCombatTargetSystem";
-import { CombatHudSystem } from "../entity/services/combat/CombatHudSystem";
+import { TurnBasedCombatSystem } from "../entity/systems/TurnBasedCombatSystem";
+import { HoveredCombatTargetSystem } from "../entity/systems/HoveredCombatTargetSystem";
+import { CombatHudSystem } from "../entity/systems/CombatHudSystem";
 import type { System } from "../entity/System";
 import { MainMenuScene } from "../scene/main-menu/MainMenuScene";
 import type { Scene } from "../scene/Scene";
 import { GameState } from "./GameState";
 import { WorldMode } from "./WorldMode";
+import { CombatInputController } from "./CombatInputController";
+import { CombatAttackTargetingService } from "../entity/services/combat/CombatAttackTargetingService";
 
 /**
  * Owns game flow state and active scene lifecycle.
@@ -48,6 +50,8 @@ export class GameManager {
   private readonly worldModeController: WorldModeController;
   /** Shared active turn-based encounter state. */
   private readonly turnBasedCombatState: TurnBasedCombatState;
+  /** Shared player input mode state for turn-based combat. */
+  private readonly combatInputController: CombatInputController;
 
   /** Ordered ECS systems executed each runtime tick. */
   private readonly systems: readonly System[];
@@ -103,12 +107,18 @@ export class GameManager {
     this.entityManager = new EntityManager();
     this.worldModeController = new WorldModeController(WorldMode.RUNTIME);
     this.turnBasedCombatState = new TurnBasedCombatState(this.worldModeController);
+    this.combatInputController = new CombatInputController();
     this.characterSpawnerSystem = new CharacterSpawnerSystem(this.entityManager);
     this.localPlayerSystem = new LocalPlayerSystem(this.entityManager);
+    const hexSpatialIndex = new HexSpatialIndex();
+    const attackTargetingService = new CombatAttackTargetingService(this.entityManager);
     this.localPlayerInputSystem = new LocalPlayerInputSystem(
       this.entityManager,
       this.worldModeController,
-      this.turnBasedCombatState
+      this.turnBasedCombatState,
+      this.combatInputController,
+      hexSpatialIndex,
+      attackTargetingService
     );
     this.movementSystem = new MovementSystem(
       this.entityManager,
@@ -117,7 +127,6 @@ export class GameManager {
       new HexMovementCostResolver()
     );
     this.patrolSystem = new PatrolSystem(this.entityManager, this.worldModeController);
-    const hexSpatialIndex = new HexSpatialIndex();
     this.hexSpatialIndexSystem = new HexSpatialIndexSystem(this.entityManager, hexSpatialIndex);
     const combatParticipantResolver = new CombatParticipantResolver(this.entityManager);
     const combatEncounterCoordinator = new CombatEncounterCoordinator(
@@ -130,17 +139,20 @@ export class GameManager {
     this.turnBasedCombatSystem = new TurnBasedCombatSystem(
       this.entityManager,
       this.worldModeController,
-      this.turnBasedCombatState
+      this.turnBasedCombatState,
+      this.combatInputController
     );
     this.hoveredCombatTargetSystem = new HoveredCombatTargetSystem(
       this.entityManager,
       hexSpatialIndex,
+      this.worldModeController,
       this.turnBasedCombatState
     );
     this.combatHudSystem = new CombatHudSystem(
       this.entityManager,
       this.worldModeController,
       this.turnBasedCombatState,
+      this.combatInputController,
       this.turnBasedCombatSystem
     );
     this.systems = [
@@ -219,6 +231,7 @@ export class GameManager {
     this.currentSceneController = this.buildSceneController(state);
     this.currentBabylonScene = await this.currentSceneController.createScene();
     this.turnBasedCombatState.endCombat();
+    this.combatInputController.reset();
     this.characterSpawnerSystem.setScene(this.currentBabylonScene);
     this.localPlayerInputSystem.setScene(this.currentBabylonScene);
     this.movementSystem.setScene(this.currentBabylonScene);

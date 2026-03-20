@@ -6,10 +6,16 @@ import type { System } from "../System";
 import { HexPathMovementComponent } from "../components/HexPathMovementComponent";
 import { HexPositionComponent } from "../components/HexPositionComponent";
 import { LocalPlayerComponent } from "../components/LocalPlayerComponent";
+import { RelationsComponent } from "../components/RelationsComponent";
 import { CombatStatsComponent } from "../components/CombatStatsComponent";
 import { getInGameSceneRuntimeContext, type InGameSceneRuntimeContext } from "../../scene/in-game/InGameSceneRuntimeContext";
 import { WorldModeController } from "../../game/WorldModeController";
 import { TurnBasedCombatState } from "../../game/TurnBasedCombatState";
+import { CombatInputController } from "../../game/CombatInputController";
+import { CombatInputMode } from "../../game/CombatInputMode";
+import { HexSpatialIndex } from "../services/HexSpatialIndex";
+import { HostilityResolver } from "../services/HostilityResolver";
+import { CombatAttackTargetingService } from "../services/combat/CombatAttackTargetingService";
 
 /**
  * Handles local-player click-to-move intent on the ground hex grid.
@@ -18,15 +24,28 @@ export class LocalPlayerInputSystem implements System {
   private readonly entityManager: EntityManager;
   private readonly worldModeController: WorldModeController;
   private readonly combatState: TurnBasedCombatState;
+  private readonly combatInputController: CombatInputController;
+  private readonly spatialIndex: HexSpatialIndex;
+  private readonly attackTargetingService: CombatAttackTargetingService;
   private scene: BabylonScene | null;
   private runtimeContext: InGameSceneRuntimeContext | null;
   private localPlayerEntity: Entity | null;
   private pointerObserver: Nullable<Observer<PointerInfo>>;
 
-  public constructor(entityManager: EntityManager, worldModeController: WorldModeController, combatState: TurnBasedCombatState) {
+  public constructor(
+    entityManager: EntityManager,
+    worldModeController: WorldModeController,
+    combatState: TurnBasedCombatState,
+    combatInputController: CombatInputController,
+    spatialIndex: HexSpatialIndex,
+    attackTargetingService: CombatAttackTargetingService
+  ) {
     this.entityManager = entityManager;
     this.worldModeController = worldModeController;
     this.combatState = combatState;
+    this.combatInputController = combatInputController;
+    this.spatialIndex = spatialIndex;
+    this.attackTargetingService = attackTargetingService;
     this.scene = null;
     this.runtimeContext = null;
     this.localPlayerEntity = null;
@@ -65,12 +84,22 @@ export class LocalPlayerInputSystem implements System {
     if (!this.runtimeContext || !this.localPlayerEntity || !this.localPlayerEntity.hasComponent(HexPositionComponent)) {
       return;
     }
-    if (!this.isMovementInputAllowed()) {
+    const inputMode = this.resolveCurrentInputMode();
+    if (this.worldModeController.isTurnBased() && inputMode === CombatInputMode.NONE) {
       return;
     }
 
     const clickedCell = this.runtimeContext.hexGridRuntime.getHoveredCell();
     if (!clickedCell) {
+      return;
+    }
+
+    if (this.worldModeController.isTurnBased() && inputMode === CombatInputMode.ATTACK) {
+      this.tryHandleAttackClick(clickedCell);
+      return;
+    }
+
+    if (!this.isMovementInputAllowed(inputMode)) {
       return;
     }
 
@@ -95,13 +124,24 @@ export class LocalPlayerInputSystem implements System {
     pathMovement?.resetPathState();
   };
 
-  private isMovementInputAllowed(): boolean {
+  private resolveCurrentInputMode(): CombatInputMode {
+    if (!this.worldModeController.isTurnBased()) {
+      return CombatInputMode.MOVE;
+    }
+
+    return this.combatInputController.getMode();
+  }
+
+  private isMovementInputAllowed(inputMode: CombatInputMode): boolean {
     if (!this.localPlayerEntity) {
       return false;
     }
 
     if (!this.worldModeController.isTurnBased()) {
       return true;
+    }
+    if (inputMode !== CombatInputMode.MOVE) {
+      return false;
     }
 
     if (!this.combatState.isActiveEntity(this.localPlayerEntity.getId())) {
@@ -110,6 +150,29 @@ export class LocalPlayerInputSystem implements System {
 
     const combatStats = this.localPlayerEntity.tryGetComponent(CombatStatsComponent);
     return Boolean(combatStats && combatStats.currentMp > 0);
+  }
+
+  private tryHandleAttackClick(clickedCell: HexPositionComponent["currentCell"]): void {
+    if (!this.localPlayerEntity || !this.localPlayerEntity.hasComponent(RelationsComponent)) {
+      return;
+    }
+
+    const localPlayerId = this.localPlayerEntity.getId();
+    const localPlayerRelations = this.localPlayerEntity.getComponent(RelationsComponent);
+    const entitiesAtCell = this.spatialIndex.getEntitiesAt(clickedCell);
+
+    for (const targetEntityId of entitiesAtCell) {
+      if (targetEntityId === localPlayerId) {
+        continue;
+      }
+
+      if (!HostilityResolver.isHostileTowards(localPlayerRelations, targetEntityId)) {
+        continue;
+      }
+
+      this.attackTargetingService.tryHandleAttackSelection(localPlayerId, targetEntityId);
+      return;
+    }
   }
 
   private resolveLocalPlayerEntity(): Entity | null {

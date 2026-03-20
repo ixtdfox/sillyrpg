@@ -1,5 +1,6 @@
 import type { Scene } from "@babylonjs/core";
 import { AdvancedDynamicTexture, Button, Control, Rectangle, StackPanel, TextBlock } from "@babylonjs/gui";
+import { CombatInputMode } from "../../../game/CombatInputMode";
 
 export interface CombatHudCardData {
   readonly name: string;
@@ -9,19 +10,26 @@ export interface CombatHudCardData {
 }
 
 /**
- * Renders combat HUD cards and turn action button.
+ * Renders combat HUD cards and action bar.
  */
 export class InGameCombatHudUi {
   private readonly texture: AdvancedDynamicTexture;
   private readonly playerCardText: TextBlock;
   private readonly enemyCardText: TextBlock;
   private readonly enemyCardContainer: Rectangle;
+  private readonly moveButton: Button;
+  private readonly attackButton: Button;
   private readonly endTurnButton: Button;
 
-  public constructor(scene: Scene, onEndTurnRequested: () => void) {
+  public constructor(
+    scene: Scene,
+    onMoveRequested: () => void,
+    onAttackRequested: () => void,
+    onEndTurnRequested: () => void
+  ) {
     this.texture = AdvancedDynamicTexture.CreateFullscreenUI("in-game-combat-ui", true, scene);
 
-    const playerCard = this.createCard("in-game-player-card");
+    const playerCard = this.createCard("in-game-player-card", "350px", "190px");
     playerCard.horizontalAlignment = Control.HORIZONTAL_ALIGNMENT_LEFT;
     playerCard.verticalAlignment = Control.VERTICAL_ALIGNMENT_BOTTOM;
     playerCard.left = "16px";
@@ -32,25 +40,26 @@ export class InGameCombatHudUi {
     playerCard.addControl(this.playerCardText);
 
     const actionsPanel = new StackPanel("in-game-player-actions");
-    actionsPanel.isVertical = true;
-    actionsPanel.width = "100%";
-    actionsPanel.height = "56px";
+    actionsPanel.isVertical = false;
+    actionsPanel.width = "324px";
+    actionsPanel.height = "48px";
     actionsPanel.verticalAlignment = Control.VERTICAL_ALIGNMENT_BOTTOM;
-    actionsPanel.paddingTop = "84px";
+    actionsPanel.horizontalAlignment = Control.HORIZONTAL_ALIGNMENT_LEFT;
+    actionsPanel.paddingLeft = "12px";
+    actionsPanel.paddingBottom = "10px";
+    actionsPanel.spacing = 8;
     playerCard.addControl(actionsPanel);
 
-    this.endTurnButton = Button.CreateSimpleButton("in-game-end-turn", "End Turn");
-    this.endTurnButton.width = "140px";
-    this.endTurnButton.height = "40px";
-    this.endTurnButton.thickness = 1;
-    this.endTurnButton.color = "#E5E7EB";
-    this.endTurnButton.background = "#1F2937";
-    this.endTurnButton.cornerRadius = 4;
-    this.endTurnButton.horizontalAlignment = Control.HORIZONTAL_ALIGNMENT_LEFT;
-    this.endTurnButton.onPointerUpObservable.add(onEndTurnRequested);
+    this.moveButton = this.createActionButton("in-game-action-move", "Move", onMoveRequested);
+    actionsPanel.addControl(this.moveButton);
+
+    this.attackButton = this.createActionButton("in-game-action-attack", "Attack", onAttackRequested);
+    actionsPanel.addControl(this.attackButton);
+
+    this.endTurnButton = this.createActionButton("in-game-end-turn", "End Turn", onEndTurnRequested);
     actionsPanel.addControl(this.endTurnButton);
 
-    this.enemyCardContainer = this.createCard("in-game-enemy-card");
+    this.enemyCardContainer = this.createCard("in-game-enemy-card", "280px", "150px");
     this.enemyCardContainer.horizontalAlignment = Control.HORIZONTAL_ALIGNMENT_RIGHT;
     this.enemyCardContainer.verticalAlignment = Control.VERTICAL_ALIGNMENT_BOTTOM;
     this.enemyCardContainer.left = "-16px";
@@ -75,19 +84,27 @@ export class InGameCombatHudUi {
     this.enemyCardText.text = this.formatCardText(data);
   }
 
-  public setEndTurnVisible(isVisible: boolean): void {
-    this.endTurnButton.isVisible = isVisible;
-    this.endTurnButton.isEnabled = isVisible;
+  public setActionState(isPlayersTurn: boolean, inputMode: CombatInputMode): void {
+    this.moveButton.isVisible = isPlayersTurn;
+    this.attackButton.isVisible = isPlayersTurn;
+    this.endTurnButton.isVisible = isPlayersTurn;
+
+    this.moveButton.isEnabled = isPlayersTurn;
+    this.attackButton.isEnabled = isPlayersTurn;
+    this.endTurnButton.isEnabled = isPlayersTurn;
+
+    this.updateModeButtonStyle(this.moveButton, inputMode === CombatInputMode.MOVE);
+    this.updateModeButtonStyle(this.attackButton, inputMode === CombatInputMode.ATTACK);
   }
 
   public dispose(): void {
     this.texture.dispose();
   }
 
-  private createCard(name: string): Rectangle {
+  private createCard(name: string, width: string, height: string): Rectangle {
     const card = new Rectangle(name);
-    card.width = "280px";
-    card.height = "150px";
+    card.width = width;
+    card.height = height;
     card.thickness = 1;
     card.cornerRadius = 6;
     card.color = "#9CA3AF";
@@ -105,6 +122,24 @@ export class InGameCombatHudUi {
     text.paddingTop = "10px";
     text.lineSpacing = "4px";
     return text;
+  }
+
+  private createActionButton(name: string, label: string, onClick: () => void): Button {
+    const button = Button.CreateSimpleButton(name, label);
+    button.width = "100px";
+    button.height = "40px";
+    button.thickness = 1;
+    button.cornerRadius = 4;
+    button.color = "#E5E7EB";
+    button.background = "#1F2937";
+    button.onPointerUpObservable.add(onClick);
+    return button;
+  }
+
+  private updateModeButtonStyle(button: Button, isActive: boolean): void {
+    button.background = isActive ? "#2563EB" : "#1F2937";
+    button.color = isActive ? "#FFFFFF" : "#E5E7EB";
+    button.thickness = isActive ? 2 : 1;
   }
 
   private formatCardText(data: CombatHudCardData): string {

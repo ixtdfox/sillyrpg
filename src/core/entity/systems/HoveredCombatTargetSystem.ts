@@ -1,13 +1,14 @@
 import { Scene as BabylonScene } from "@babylonjs/core";
-import type { Entity } from "../../Entity";
-import type { EntityManager } from "../../EntityManager";
-import type { System } from "../../System";
-import { LocalPlayerComponent } from "../../components/LocalPlayerComponent";
-import { RelationsComponent } from "../../components/RelationsComponent";
-import { getInGameSceneRuntimeContext, type InGameSceneRuntimeContext } from "../../../scene/in-game/InGameSceneRuntimeContext";
-import { TurnBasedCombatState } from "../../../game/TurnBasedCombatState";
-import { HexSpatialIndex } from "../HexSpatialIndex";
-import { HostilityResolver } from "../HostilityResolver";
+import type { Entity } from "../Entity";
+import type { EntityManager } from "../EntityManager";
+import type { System } from "../System";
+import { LocalPlayerComponent } from "../components/LocalPlayerComponent";
+import { RelationsComponent } from "../components/RelationsComponent";
+import { getInGameSceneRuntimeContext, type InGameSceneRuntimeContext } from "../../scene/in-game/InGameSceneRuntimeContext";
+import { TurnBasedCombatState } from "../../game/TurnBasedCombatState";
+import { WorldModeController } from "../../game/WorldModeController";
+import { HexSpatialIndex } from "../services/HexSpatialIndex";
+import { HostilityResolver } from "../services/HostilityResolver";
 
 /**
  * Resolves currently hovered hostile entity id for combat HUD.
@@ -15,12 +16,19 @@ import { HostilityResolver } from "../HostilityResolver";
 export class HoveredCombatTargetSystem implements System {
   private readonly entityManager: EntityManager;
   private readonly spatialIndex: HexSpatialIndex;
+  private readonly worldModeController: WorldModeController;
   private readonly combatState: TurnBasedCombatState;
   private runtimeContext: InGameSceneRuntimeContext | null;
 
-  public constructor(entityManager: EntityManager, spatialIndex: HexSpatialIndex, combatState: TurnBasedCombatState) {
+  public constructor(
+    entityManager: EntityManager,
+    spatialIndex: HexSpatialIndex,
+    worldModeController: WorldModeController,
+    combatState: TurnBasedCombatState
+  ) {
     this.entityManager = entityManager;
     this.spatialIndex = spatialIndex;
+    this.worldModeController = worldModeController;
     this.combatState = combatState;
     this.runtimeContext = null;
   }
@@ -31,7 +39,8 @@ export class HoveredCombatTargetSystem implements System {
   }
 
   public update(_deltaSeconds: number): void {
-    if (!this.runtimeContext) {
+    if (!this.runtimeContext || !this.worldModeController.isTurnBased()) {
+      this.combatState.setHoveredHostileEntityId(null);
       return;
     }
 

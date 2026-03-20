@@ -1,12 +1,15 @@
-import type { EntityManager } from "../../EntityManager";
-import type { System } from "../../System";
-import { TurnBasedCombatState } from "../../../game/TurnBasedCombatState";
-import { WorldModeController } from "../../../game/WorldModeController";
-import { CombatStatsComponent } from "../../components/CombatStatsComponent";
-import { RelationsComponent } from "../../components/RelationsComponent";
-import { VitalsComponent } from "../../components/VitalsComponent";
-import { AIComponent } from "../../components/AIComponent";
-import { HostilityResolver } from "../HostilityResolver";
+import type { EntityManager } from "../EntityManager";
+import type { System } from "../System";
+import { TurnBasedCombatState } from "../../game/TurnBasedCombatState";
+import { WorldModeController } from "../../game/WorldModeController";
+import { CombatInputController } from "../../game/CombatInputController";
+import { CombatInputMode } from "../../game/CombatInputMode";
+import { CombatStatsComponent } from "../components/CombatStatsComponent";
+import { RelationsComponent } from "../components/RelationsComponent";
+import { VitalsComponent } from "../components/VitalsComponent";
+import { AIComponent } from "../components/AIComponent";
+import { LocalPlayerComponent } from "../components/LocalPlayerComponent";
+import { HostilityResolver } from "../services/HostilityResolver";
 
 /**
  * Drives turn progression and encounter lifetime in turn-based mode.
@@ -15,22 +18,26 @@ export class TurnBasedCombatSystem implements System {
   private readonly entityManager: EntityManager;
   private readonly worldModeController: WorldModeController;
   private readonly combatState: TurnBasedCombatState;
+  private readonly combatInputController: CombatInputController;
   private turnInitializedForEntityId: string | null;
 
   public constructor(
     entityManager: EntityManager,
     worldModeController: WorldModeController,
-    combatState: TurnBasedCombatState
+    combatState: TurnBasedCombatState,
+    combatInputController: CombatInputController
   ) {
     this.entityManager = entityManager;
     this.worldModeController = worldModeController;
     this.combatState = combatState;
+    this.combatInputController = combatInputController;
     this.turnInitializedForEntityId = null;
   }
 
   public update(_deltaSeconds: number): void {
     if (!this.worldModeController.isTurnBased() || !this.combatState.isActive()) {
       this.turnInitializedForEntityId = null;
+      this.combatInputController.reset();
       return;
     }
 
@@ -39,6 +46,7 @@ export class TurnBasedCombatSystem implements System {
     if (this.combatState.getOrderedParticipantEntityIds().length < 2 || !this.hasHostileOpposition()) {
       this.combatState.endCombat();
       this.turnInitializedForEntityId = null;
+      this.combatInputController.reset();
       return;
     }
 
@@ -46,6 +54,7 @@ export class TurnBasedCombatSystem implements System {
     if (!activeEntityId) {
       this.combatState.endCombat();
       this.turnInitializedForEntityId = null;
+      this.combatInputController.reset();
       return;
     }
 
@@ -53,17 +62,20 @@ export class TurnBasedCombatSystem implements System {
     if (!activeEntity || !activeEntity.hasComponent(CombatStatsComponent)) {
       this.combatState.removeParticipant(activeEntityId);
       this.turnInitializedForEntityId = null;
+      this.combatInputController.reset();
       return;
     }
 
     if (this.turnInitializedForEntityId !== activeEntityId) {
       activeEntity.getComponent(CombatStatsComponent).resetTurnResources();
       this.turnInitializedForEntityId = activeEntityId;
+      this.setDefaultInputModeForActiveTurn(activeEntityId);
     }
 
     if (activeEntity.hasComponent(AIComponent)) {
       this.combatState.advanceTurn();
       this.turnInitializedForEntityId = null;
+      this.combatInputController.reset();
     }
   }
 
@@ -74,6 +86,7 @@ export class TurnBasedCombatSystem implements System {
 
     this.combatState.advanceTurn();
     this.turnInitializedForEntityId = null;
+    this.combatInputController.reset();
   }
 
   private removeDeadParticipants(): void {
@@ -117,5 +130,15 @@ export class TurnBasedCombatSystem implements System {
     }
 
     return false;
+  }
+
+  private setDefaultInputModeForActiveTurn(activeEntityId: string): void {
+    const localPlayer = this.entityManager.query(LocalPlayerComponent)[0] ?? null;
+    if (localPlayer && localPlayer.getId() === activeEntityId) {
+      this.combatInputController.setMode(CombatInputMode.MOVE);
+      return;
+    }
+
+    this.combatInputController.reset();
   }
 }

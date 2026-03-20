@@ -1,14 +1,16 @@
 import { Scene as BabylonScene } from "@babylonjs/core";
-import type { Entity } from "../../Entity";
-import type { EntityManager } from "../../EntityManager";
-import type { System } from "../../System";
-import { TurnBasedCombatState } from "../../../game/TurnBasedCombatState";
-import { WorldModeController } from "../../../game/WorldModeController";
-import { CombatStatsComponent } from "../../components/CombatStatsComponent";
-import { IdentityComponent } from "../../components/IdentityComponent";
-import { LocalPlayerComponent } from "../../components/LocalPlayerComponent";
-import { VitalsComponent } from "../../components/VitalsComponent";
-import { InGameCombatHudUi, type CombatHudCardData } from "../../../scene/in-game/ui/InGameCombatHudUi";
+import type { Entity } from "../Entity";
+import type { EntityManager } from "../EntityManager";
+import type { System } from "../System";
+import { TurnBasedCombatState } from "../../game/TurnBasedCombatState";
+import { WorldModeController } from "../../game/WorldModeController";
+import { CombatInputController } from "../../game/CombatInputController";
+import { CombatInputMode } from "../../game/CombatInputMode";
+import { CombatStatsComponent } from "../components/CombatStatsComponent";
+import { IdentityComponent } from "../components/IdentityComponent";
+import { LocalPlayerComponent } from "../components/LocalPlayerComponent";
+import { VitalsComponent } from "../components/VitalsComponent";
+import { InGameCombatHudUi, type CombatHudCardData } from "../../scene/in-game/ui/InGameCombatHudUi";
 import { TurnBasedCombatSystem } from "./TurnBasedCombatSystem";
 
 /**
@@ -18,6 +20,7 @@ export class CombatHudSystem implements System {
   private readonly entityManager: EntityManager;
   private readonly worldModeController: WorldModeController;
   private readonly combatState: TurnBasedCombatState;
+  private readonly combatInputController: CombatInputController;
   private readonly turnBasedCombatSystem: TurnBasedCombatSystem;
   private ui: InGameCombatHudUi | null;
 
@@ -25,11 +28,13 @@ export class CombatHudSystem implements System {
     entityManager: EntityManager,
     worldModeController: WorldModeController,
     combatState: TurnBasedCombatState,
+    combatInputController: CombatInputController,
     turnBasedCombatSystem: TurnBasedCombatSystem
   ) {
     this.entityManager = entityManager;
     this.worldModeController = worldModeController;
     this.combatState = combatState;
+    this.combatInputController = combatInputController;
     this.turnBasedCombatSystem = turnBasedCombatSystem;
     this.ui = null;
   }
@@ -42,7 +47,12 @@ export class CombatHudSystem implements System {
       return;
     }
 
-    this.ui = new InGameCombatHudUi(scene, () => this.requestEndTurn());
+    this.ui = new InGameCombatHudUi(
+      scene,
+      () => this.combatInputController.setMode(CombatInputMode.MOVE),
+      () => this.combatInputController.setMode(CombatInputMode.ATTACK),
+      () => this.requestEndTurn()
+    );
   }
 
   public update(_deltaSeconds: number): void {
@@ -57,12 +67,12 @@ export class CombatHudSystem implements System {
 
     this.ui.setPlayerCard(this.buildCardData(player));
 
-    const hoveredHostileId = this.combatState.getHoveredHostileEntityId();
+    const hoveredHostileId = this.worldModeController.isTurnBased() ? this.combatState.getHoveredHostileEntityId() : null;
     const hoveredHostile = hoveredHostileId ? this.entityManager.getEntity(hoveredHostileId) : null;
     this.ui.setHoveredEnemyCard(hoveredHostile ? this.buildCardData(hoveredHostile) : null);
 
-    const showEndTurn = this.worldModeController.isTurnBased() && this.combatState.isActiveEntity(player.getId());
-    this.ui.setEndTurnVisible(showEndTurn);
+    const isPlayersTurn = this.worldModeController.isTurnBased() && this.combatState.isActiveEntity(player.getId());
+    this.ui.setActionState(isPlayersTurn, this.combatInputController.getMode());
   }
 
   private requestEndTurn(): void {
