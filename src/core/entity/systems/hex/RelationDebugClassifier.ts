@@ -1,14 +1,13 @@
-import type { Relations } from "../components/Relations";
-import { RelationsComponent } from "../components/RelationsComponent";
-import { HostilityResolver } from "./HostilityResolver";
-import type { VisionDebugRelation } from "../components/VisionDebugComponent";
+import type { Relations } from "../../components/Relations";
+import { RelationsComponent } from "../../components/RelationsComponent";
+import type { VisionDebugRelation } from "../../components/VisionDebugComponent";
 
 /**
  * Classifies relation sentiment buckets for debug coloring.
  */
 export class RelationDebugClassifier {
   public static classify(observerRelations: RelationsComponent, targetEntityId: string): VisionDebugRelation {
-    if (HostilityResolver.isHostileTowards(observerRelations, targetEntityId)) {
+    if (observerRelations.isHostileTowards(targetEntityId)) {
       return "hostile";
     }
 

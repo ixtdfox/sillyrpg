@@ -8,17 +8,20 @@ import { PatrolComponent } from "../components/PatrolComponent";
 import { HexCell } from "../../hex/HexCell";
 import { HexPathfinder } from "../../hex/HexPathfinder";
 import { getInGameSceneRuntimeContext, type InGameSceneRuntimeContext } from "../../scene/in-game/InGameSceneRuntimeContext";
+import { WorldModeController } from "../../game/WorldModeController";
 
 /**
  * Assigns local random patrol targets for idle AI entities.
  */
 export class PatrolSystem implements System {
   private readonly entityManager: EntityManager;
+  private readonly worldModeController: WorldModeController;
   private runtimeContext: InGameSceneRuntimeContext | null;
   private pathfinder: HexPathfinder | null;
 
-  public constructor(entityManager: EntityManager) {
+  public constructor(entityManager: EntityManager, worldModeController: WorldModeController) {
     this.entityManager = entityManager;
+    this.worldModeController = worldModeController;
     this.runtimeContext = null;
     this.pathfinder = null;
   }
@@ -30,6 +33,9 @@ export class PatrolSystem implements System {
 
   public update(_deltaSeconds: number): void {
     if (!this.runtimeContext || !this.pathfinder) {
+      return;
+    }
+    if (this.worldModeController.isTurnBased()) {
       return;
     }
 
@@ -82,7 +88,7 @@ export class PatrolSystem implements System {
         continue;
       }
 
-      if (hexDistance(patrol.anchorCell, candidate) > patrol.radiusCells) {
+      if (patrol.anchorCell.distance(candidate) > patrol.radiusCells) {
         continue;
       }
 
@@ -101,11 +107,4 @@ export class PatrolSystem implements System {
     const range = maxInclusive - minInclusive + 1;
     return Math.floor(Math.random() * range) + minInclusive;
   }
-}
-
-function hexDistance(a: HexCell, b: HexCell): number {
-  const dq = a.q - b.q;
-  const dr = a.r - b.r;
-  const ds = -a.q - a.r - (-b.q - b.r);
-  return (Math.abs(dq) + Math.abs(dr) + Math.abs(ds)) / 2;
 }

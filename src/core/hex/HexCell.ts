@@ -28,4 +28,11 @@ export class HexCell {
   public equals(other: HexCell): boolean {
     return this.q === other.q && this.r === other.r;
   }
+
+  public distance(a: HexCell): number {
+    const dq = this.q - a.q;
+    const dr = this.r - a.r;
+    const ds = -this.q - this.r - (-a.q - a.r);
+    return (Math.abs(dq) + Math.abs(dr) + Math.abs(ds)) / 2;
+  }
 }

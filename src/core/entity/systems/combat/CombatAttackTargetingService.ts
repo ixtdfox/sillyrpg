@@ -1,0 +1,72 @@
+import type { Entity } from "../../Entity";
+import type { EntityManager } from "../../EntityManager";
+import { CombatStatsComponent } from "../../components/CombatStatsComponent";
+import { HexPositionComponent } from "../../components/HexPositionComponent";
+import { RelationsComponent } from "../../components/RelationsComponent";
+import { VitalsComponent } from "../../components/VitalsComponent";
+
+export interface CombatAttackResult {
+  readonly success: boolean;
+  readonly reason: string;
+}
+
+/**
+ * Performs simple MVP melee attacks between hostile combatants.
+ */
+export class CombatAttackTargetingService {
+  private static readonly AP_COST = 1;
+  private static readonly BASE_DAMAGE = 5;
+
+  private readonly entityManager: EntityManager;
+
+  public constructor(entityManager: EntityManager) {
+    this.entityManager = entityManager;
+  }
+
+  public tryPerformMeleeAttack(attackerEntityId: string, targetEntityId: string): CombatAttackResult {
+    const attacker = this.entityManager.getEntity(attackerEntityId);
+    const target = this.entityManager.getEntity(targetEntityId);
+
+    if (!attacker || !target) {
+      return { success: false, reason: "Attacker or target entity not found." };
+    }
+
+    if (!this.isValidHostileTarget(attacker, target)) {
+      return { success: false, reason: "Selected target is not hostile." };
+    }
+
+    const attackerStats = attacker.tryGetComponent(CombatStatsComponent);
+    if (!attackerStats || attackerStats.currentAp < CombatAttackTargetingService.AP_COST) {
+      return { success: false, reason: "Not enough AP for melee attack." };
+    }
+
+    const attackerCell = attacker.tryGetComponent(HexPositionComponent)?.currentCell;
+    const targetCell = target.tryGetComponent(HexPositionComponent)?.currentCell;
+    if (!attackerCell || !targetCell) {
+      return { success: false, reason: "Attacker or target has no hex position." };
+    }
+
+    if (attackerCell.distance(targetCell) > 1) {
+      return { success: false, reason: "Target is out of melee range." };
+    }
+
+    const targetVitals = target.tryGetComponent(VitalsComponent);
+    if (!targetVitals || targetVitals.hp.current <= 0) {
+      return { success: false, reason: "Target is already down." };
+    }
+
+    attackerStats.currentAp -= CombatAttackTargetingService.AP_COST;
+    targetVitals.hp.current = Math.max(0, targetVitals.hp.current - CombatAttackTargetingService.BASE_DAMAGE);
+
+    return { success: true, reason: "Melee attack resolved." };
+  }
+
+  private isValidHostileTarget(attacker: Entity, target: Entity): boolean {
+    const attackerRelations = attacker.tryGetComponent(RelationsComponent);
+    if (!attackerRelations) {
+      return false;
+    }
+
+    return attackerRelations.isHostileTowards(target.getId());
+  }
+}

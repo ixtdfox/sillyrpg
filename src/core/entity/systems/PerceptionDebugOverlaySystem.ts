@@ -8,16 +8,19 @@ import {
   getInGameSceneRuntimeContext,
   type InGameSceneRuntimeContext,
 } from "../../scene/in-game/InGameSceneRuntimeContext";
+import { WorldModeController } from "../../game/WorldModeController";
 
 /**
  * Feeds gameplay debug state into the hex overlay runtime.
  */
 export class PerceptionDebugOverlaySystem implements System {
   private readonly entityManager: EntityManager;
+  private readonly worldModeController: WorldModeController;
   private runtimeContext: InGameSceneRuntimeContext | null;
 
-  public constructor(entityManager: EntityManager) {
+  public constructor(entityManager: EntityManager, worldModeController: WorldModeController) {
     this.entityManager = entityManager;
+    this.worldModeController = worldModeController;
     this.runtimeContext = null;
   }
 
@@ -31,6 +34,11 @@ export class PerceptionDebugOverlaySystem implements System {
     }
 
     const hexGridRuntime = this.runtimeContext.hexGridRuntime;
+    if (this.worldModeController.isTurnBased()) {
+      hexGridRuntime.clearDebugHighlights();
+      return;
+    }
+
     if (!hexGridRuntime.getIsDebugEnabled()) {
       hexGridRuntime.clearDebugHighlights();
       return;

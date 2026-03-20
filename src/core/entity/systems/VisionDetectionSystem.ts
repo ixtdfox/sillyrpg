@@ -13,10 +13,9 @@ import { VisionComponent } from "../components/VisionComponent";
 import { VisionDebugComponent, type VisionDebugDetectedCell } from "../components/VisionDebugComponent";
 import { HexCell } from "../../hex/HexCell";
 import { getInGameSceneRuntimeContext, type InGameSceneRuntimeContext } from "../../scene/in-game/InGameSceneRuntimeContext";
-import { getHexCellsInVisionSector } from "../services/HexVisionSector";
-import { HexSpatialIndex } from "../services/HexSpatialIndex";
-import { HostilityResolver } from "../services/HostilityResolver";
-import { RelationDebugClassifier } from "../services/RelationDebugClassifier";
+import { HexSpatialIndex } from "./hex/HexSpatialIndex";
+import { RelationDebugClassifier } from "./hex/RelationDebugClassifier";
+import { CombatEncounterCoordinator } from "./combat/CombatEncounterCoordinator";
 
 /**
  * Detects hostile visible entities using a hex broad-phase and world-space cone narrow-phase.
@@ -24,11 +23,17 @@ import { RelationDebugClassifier } from "../services/RelationDebugClassifier";
 export class VisionDetectionSystem implements System {
   private readonly entityManager: EntityManager;
   private readonly spatialIndex: HexSpatialIndex;
+  private readonly combatEncounterCoordinator: CombatEncounterCoordinator;
   private runtimeContext: InGameSceneRuntimeContext | null;
 
-  public constructor(entityManager: EntityManager, spatialIndex: HexSpatialIndex) {
+  public constructor(
+    entityManager: EntityManager,
+    spatialIndex: HexSpatialIndex,
+    combatEncounterCoordinator: CombatEncounterCoordinator
+  ) {
     this.entityManager = entityManager;
     this.spatialIndex = spatialIndex;
+    this.combatEncounterCoordinator = combatEncounterCoordinator;
     this.runtimeContext = null;
   }
 
@@ -70,8 +75,7 @@ export class VisionDetectionSystem implements System {
 
     const forward = this.resolveForwardVector(vision, transform);
     const grid = this.runtimeContext.hexGridRuntime.getGrid();
-    const candidateCells = getHexCellsInVisionSector(
-      grid,
+    const candidateCells = grid.getHexCellsInVisionSector(
       hexPosition.currentCell,
       forward,
       vision.rangeCells,
@@ -135,6 +139,7 @@ export class VisionDetectionSystem implements System {
     if (targetDetectable.kind === DetectableKinds.PLAYER) {
       const observerLabel = observerDetectable?.kind ?? observerIdentity.name.toLowerCase();
       console.log(`Player detected by ${observerLabel}`);
+      this.combatEncounterCoordinator.tryStartCombatFromDetection(observer.getId(), detectedTarget.getId());
       return;
     }
 

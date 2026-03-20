@@ -1,8 +1,8 @@
-import type { EntityManager } from "../EntityManager";
-import type { System } from "../System";
-import { HexPositionComponent } from "../components/HexPositionComponent";
-import { HexCell } from "../../hex/HexCell";
-import { HexSpatialIndex } from "../services/HexSpatialIndex";
+import type { EntityManager } from "../../EntityManager";
+import type { System } from "../../System";
+import { HexPositionComponent } from "../../components/HexPositionComponent";
+import { HexCell } from "../../../hex/HexCell";
+import { HexSpatialIndex } from "./HexSpatialIndex";
 
 /**
  * Keeps HexSpatialIndex synchronized with ECS HexPositionComponent values.
