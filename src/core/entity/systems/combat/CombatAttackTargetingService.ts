@@ -4,6 +4,7 @@ import { CombatStatsComponent } from "../../components/CombatStatsComponent";
 import { HexPositionComponent } from "../../components/HexPositionComponent";
 import { RelationsComponent } from "../../components/RelationsComponent";
 import { VitalsComponent } from "../../components/VitalsComponent";
+import { AnimationComponent } from "../../components/AnimationComponent";
 
 export interface CombatAttackResult {
   readonly success: boolean;
@@ -57,8 +58,18 @@ export class CombatAttackTargetingService {
 
     attackerStats.currentAp -= CombatAttackTargetingService.AP_COST;
     targetVitals.hp.current = Math.max(0, targetVitals.hp.current - CombatAttackTargetingService.BASE_DAMAGE);
+    this.requestAttackAnimation(attacker);
 
     return { success: true, reason: "Melee attack resolved." };
+  }
+
+  private requestAttackAnimation(attacker: Entity): void {
+    const animation = attacker.tryGetComponent(AnimationComponent);
+    if (!animation) {
+      return;
+    }
+
+    animation.requestedOneShotState = "attack";
   }
 
   private isValidHostileTarget(attacker: Entity, target: Entity): boolean {
