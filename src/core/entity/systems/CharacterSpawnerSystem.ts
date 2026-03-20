@@ -120,7 +120,8 @@ export class CharacterSpawnerSystem implements System {
 
     const mapping: Partial<Record<AnimationState, string>> = {
       idle: this.findFirstAnimationGroupName(animationGroupsByName, "idle"),
-      walk: this.findFirstAnimationGroupName(animationGroupsByName, "walk")
+      walk: this.findFirstAnimationGroupName(animationGroupsByName, "walk"),
+      attack: this.findFirstAnimationGroupName(animationGroupsByName, "attack")
     };
 
     entity.addComponent(AnimationComponent, new AnimationComponent(mapping, animationGroupsByName));

@@ -40,6 +40,7 @@ export class TurnBasedCombatSystem implements System {
   public update(_deltaSeconds: number): void {
     if (!this.worldModeController.isTurnBased() || !this.combatState.isActive()) {
       this.turnInitializedForEntityId = null;
+      this.basicCombatAiService.clearAllTurnStates();
       this.combatInputController.reset();
       return;
     }
@@ -49,6 +50,7 @@ export class TurnBasedCombatSystem implements System {
     if (this.combatState.getOrderedParticipantEntityIds().length < 2 || !this.hasHostileOpposition()) {
       this.combatState.endCombat();
       this.turnInitializedForEntityId = null;
+      this.basicCombatAiService.clearAllTurnStates();
       this.combatInputController.reset();
       return;
     }
@@ -57,6 +59,7 @@ export class TurnBasedCombatSystem implements System {
     if (!activeEntityId) {
       this.combatState.endCombat();
       this.turnInitializedForEntityId = null;
+      this.basicCombatAiService.clearAllTurnStates();
       this.combatInputController.reset();
       return;
     }
@@ -65,6 +68,7 @@ export class TurnBasedCombatSystem implements System {
     if (!activeEntity || !activeEntity.hasComponent(CombatStatsComponent)) {
       this.combatState.removeParticipant(activeEntityId);
       this.turnInitializedForEntityId = null;
+      this.basicCombatAiService.clearTurnState(activeEntityId);
       this.combatInputController.reset();
       return;
     }
@@ -81,6 +85,7 @@ export class TurnBasedCombatSystem implements System {
         this.combatState.getOrderedParticipantEntityIds()
       );
       if (aiStepResult === "completed") {
+        this.basicCombatAiService.clearTurnState(activeEntityId);
         this.combatState.advanceTurn();
         this.turnInitializedForEntityId = null;
         this.combatInputController.reset();
@@ -93,6 +98,7 @@ export class TurnBasedCombatSystem implements System {
       return;
     }
 
+    this.basicCombatAiService.clearTurnState(entityId);
     this.combatState.advanceTurn();
     this.turnInitializedForEntityId = null;
     this.combatInputController.reset();
@@ -105,12 +111,14 @@ export class TurnBasedCombatSystem implements System {
       const participantEntity = this.entityManager.getEntity(participantId);
       if (!participantEntity || !participantEntity.hasComponent(VitalsComponent)) {
         this.combatState.removeParticipant(participantId);
+        this.basicCombatAiService.clearTurnState(participantId);
         continue;
       }
 
       const vitals = participantEntity.getComponent(VitalsComponent);
       if (vitals.hp.current <= 0) {
         this.combatState.removeParticipant(participantId);
+        this.basicCombatAiService.clearTurnState(participantId);
       }
     }
   }

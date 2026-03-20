@@ -83,6 +83,8 @@ export class GameManager {
   private readonly perceptionDebugOverlaySystem: PerceptionDebugOverlaySystem;
   /** ECS system that drives turn sequencing and encounter ending. */
   private readonly turnBasedCombatSystem: TurnBasedCombatSystem;
+  /** Shared AI turn service used by turn-based combat system. */
+  private readonly basicCombatAiService: BasicCombatAiService;
   /** ECS system that renders reachable move area and hovered move path in combat. */
   private readonly combatMovementPreviewSystem: CombatMovementPreviewSystem;
   /** ECS system that resolves hovered hostile target for HUD. */
@@ -123,7 +125,12 @@ export class GameManager {
     this.localPlayerSystem = new LocalPlayerSystem(this.entityManager);
     const hexSpatialIndex = new HexSpatialIndex();
     const attackTargetingService = new CombatAttackTargetingService(this.entityManager);
-    const basicCombatAiService = new BasicCombatAiService(this.entityManager, attackTargetingService, hexSpatialIndex);
+    this.basicCombatAiService = new BasicCombatAiService(
+      this.entityManager,
+      attackTargetingService,
+      hexSpatialIndex,
+      movementCostResolver
+    );
     this.localPlayerInputSystem = new LocalPlayerInputSystem(
       this.entityManager,
       this.worldModeController,
@@ -155,7 +162,7 @@ export class GameManager {
       this.worldModeController,
       this.turnBasedCombatState,
       this.combatInputController,
-      basicCombatAiService
+      this.basicCombatAiService
     );
     this.combatMovementPreviewSystem = new CombatMovementPreviewSystem(
       this.entityManager,
@@ -265,6 +272,7 @@ export class GameManager {
     this.turnBasedCombatState.endCombat();
     this.combatInputController.reset();
     this.characterSpawnerSystem.setScene(this.currentBabylonScene);
+    this.basicCombatAiService.setScene(this.currentBabylonScene);
     this.localPlayerInputSystem.setScene(this.currentBabylonScene);
     this.movementSystem.setScene(this.currentBabylonScene);
     this.patrolSystem.setScene(this.currentBabylonScene);
