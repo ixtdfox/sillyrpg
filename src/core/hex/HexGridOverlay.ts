@@ -25,6 +25,8 @@ interface HexHighlightPool {
  * Handles rendering for debug hex grid and hovered-cell highlight visuals.
  */
 export class HexGridOverlay {
+  private static readonly HEX_FILL_ROTATION_Y = -Math.PI / 6;
+
   private readonly scene: Scene;
   private readonly grid: HexGrid;
   private readonly verticalOffset: number;
@@ -33,11 +35,15 @@ export class HexGridOverlay {
   private readonly visionPool: HexHighlightPool;
   private readonly patrolPool: HexHighlightPool;
   private readonly detectedPool: HexHighlightPool;
+  private readonly moveRangePool: HexHighlightPool;
+  private readonly movePathPool: HexHighlightPool;
 
   private isDebugVisible: boolean;
   private visionCells: HexCell[];
   private patrolTargetCells: HexCell[];
   private detectedCells: HexCellHighlightSpec[];
+  private moveRangeCells: HexCell[];
+  private movePathCells: HexCell[];
 
   /**
    * Creates visual overlay meshes for grid debug and hover cell.
@@ -59,11 +65,15 @@ export class HexGridOverlay {
     this.visionPool = this.createHighlightPool("hex-vision-highlight");
     this.patrolPool = this.createHighlightPool("hex-patrol-highlight");
     this.detectedPool = this.createHighlightPool("hex-detected-highlight");
+    this.moveRangePool = this.createHighlightPool("hex-combat-move-range");
+    this.movePathPool = this.createHighlightPool("hex-combat-move-path");
 
     this.isDebugVisible = false;
     this.visionCells = [];
     this.patrolTargetCells = [];
     this.detectedCells = [];
+    this.moveRangeCells = [];
+    this.movePathCells = [];
   }
 
   public setDebugVisible(isVisible: boolean): void {
@@ -94,6 +104,22 @@ export class HexGridOverlay {
     this.refreshHighlights();
   }
 
+  public setMoveRangeCells(cells: readonly HexCell[]): void {
+    this.moveRangeCells = [...cells];
+    this.refreshHighlights();
+  }
+
+  public setMovePathCells(cells: readonly HexCell[]): void {
+    this.movePathCells = [...cells];
+    this.refreshHighlights();
+  }
+
+  public clearCombatMovementPreview(): void {
+    this.moveRangeCells = [];
+    this.movePathCells = [];
+    this.refreshHighlights();
+  }
+
   public setHoveredCell(cell: HexCell): void {
     const center = this.grid.cellToWorld(cell);
     this.hoverMesh.position.copyFrom(center);
@@ -111,6 +137,8 @@ export class HexGridOverlay {
     this.disposePool(this.visionPool);
     this.disposePool(this.patrolPool);
     this.disposePool(this.detectedPool);
+    this.disposePool(this.moveRangePool);
+    this.disposePool(this.movePathPool);
   }
 
   /**
@@ -164,22 +192,34 @@ export class HexGridOverlay {
       this.setPoolVisibility(this.visionPool, 0);
       this.setPoolVisibility(this.patrolPool, 0);
       this.setPoolVisibility(this.detectedPool, 0);
-      return;
+    } else {
+      const visionHighlights = this.visionCells.map((cell) => ({
+        cell,
+        color: new Color4(0.22, 0.63, 0.94, 0.22),
+      }));
+
+      const patrolHighlights = this.patrolTargetCells.map((cell) => ({
+        cell,
+        color: new Color4(1.0, 0.55, 0.14, 0.45),
+      }));
+
+      this.updatePool(this.visionPool, visionHighlights, this.verticalOffset * 0.3);
+      this.updatePool(this.patrolPool, patrolHighlights, this.verticalOffset * 0.6);
+      this.updatePool(this.detectedPool, this.detectedCells, this.verticalOffset * 0.9);
     }
 
-    const visionHighlights = this.visionCells.map((cell) => ({
+    const moveRangeHighlights = this.moveRangeCells.map((cell) => ({
       cell,
-      color: new Color4(0.22, 0.63, 0.94, 0.22),
+      color: new Color4(0.45, 0.92, 0.62, 0.26),
     }));
 
-    const patrolHighlights = this.patrolTargetCells.map((cell) => ({
+    const movePathHighlights = this.movePathCells.map((cell) => ({
       cell,
-      color: new Color4(1.0, 0.55, 0.14, 0.45),
+      color: new Color4(0.96, 1, 0.68, 0.72),
     }));
 
-    this.updatePool(this.visionPool, visionHighlights, this.verticalOffset * 0.3);
-    this.updatePool(this.patrolPool, patrolHighlights, this.verticalOffset * 0.6);
-    this.updatePool(this.detectedPool, this.detectedCells, this.verticalOffset * 0.9);
+    this.updatePool(this.moveRangePool, moveRangeHighlights, this.verticalOffset * 1.05);
+    this.updatePool(this.movePathPool, movePathHighlights, this.verticalOffset * 1.2);
   }
 
   private updatePool(pool: HexHighlightPool, highlights: readonly HexCellHighlightSpec[], yOffset: number): void {
@@ -213,6 +253,7 @@ export class HexGridOverlay {
         this.scene
       );
       mesh.rotation.x = Math.PI / 2;
+      mesh.rotation.y = HexGridOverlay.HEX_FILL_ROTATION_Y;
       mesh.isPickable = false;
       mesh.isVisible = false;
       pool.meshes.push(mesh);

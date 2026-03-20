@@ -69,6 +69,18 @@ export class HexGridRuntime {
     this.overlay.clearDebugHighlights();
   }
 
+  public setMoveRangeCells(cells: readonly HexCell[]): void {
+    this.overlay.setMoveRangeCells(cells);
+  }
+
+  public setMovePathCells(cells: readonly HexCell[]): void {
+    this.overlay.setMovePathCells(cells);
+  }
+
+  public clearCombatMovementPreview(): void {
+    this.overlay.clearCombatMovementPreview();
+  }
+
   public dispose(): void {
     this.pickerController.dispose();
     this.overlay.dispose();

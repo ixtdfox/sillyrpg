@@ -38,7 +38,7 @@ export class HoveredCombatTargetSystem implements System {
   }
 
   public update(_deltaSeconds: number): void {
-    if (!this.runtimeContext || !this.worldModeController.isTurnBased()) {
+    if (!this.runtimeContext || !this.worldModeController.isTurnBased() || !this.combatState.isActive()) {
       this.combatState.setHoveredHostileEntityId(null);
       return;
     }
