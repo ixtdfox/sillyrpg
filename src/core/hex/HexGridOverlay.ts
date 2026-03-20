@@ -25,6 +25,8 @@ interface HexHighlightPool {
  * Handles rendering for debug hex grid and hovered-cell highlight visuals.
  */
 export class HexGridOverlay {
+  private static readonly HEX_FILL_ROTATION_Y = -Math.PI / 6;
+
   private readonly scene: Scene;
   private readonly grid: HexGrid;
   private readonly verticalOffset: number;
@@ -251,6 +253,7 @@ export class HexGridOverlay {
         this.scene
       );
       mesh.rotation.x = Math.PI / 2;
+      mesh.rotation.y = HexGridOverlay.HEX_FILL_ROTATION_Y;
       mesh.isPickable = false;
       mesh.isVisible = false;
       pool.meshes.push(mesh);

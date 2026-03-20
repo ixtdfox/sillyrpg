@@ -1,6 +1,5 @@
 import { Vector3 } from "@babylonjs/core";
 import { HexCell } from "./HexCell";
-import {getHexCellsInVisionSector} from "../entity/systems/hex/HexVisionSector";
 
 /**
  * Defines rectangular axial bounds for generated ground grid cells.

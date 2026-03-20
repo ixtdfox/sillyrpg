@@ -53,7 +53,7 @@ export class CombatHoverHighlightSystem implements System {
       return;
     }
 
-    if (this.highlightedEntityId === hoveredEntityId) {
+    if (this.highlightedEntityId === hoveredEntityId && this.isCurrentHighlightValid()) {
       return;
     }
 
@@ -109,10 +109,42 @@ export class CombatHoverHighlightSystem implements System {
     }
 
     for (const mesh of this.highlightedMeshes) {
-      this.highlightLayer.removeMesh(mesh);
+      if (!mesh.isDisposed()) {
+        this.highlightLayer.removeMesh(mesh);
+      }
     }
 
     this.highlightedEntityId = null;
     this.highlightedMeshes = [];
+  }
+
+  private isCurrentHighlightValid(): boolean {
+    if (!this.highlightedEntityId || this.highlightedMeshes.length === 0) {
+      return false;
+    }
+
+    const entity = this.entityManager.getEntity(this.highlightedEntityId);
+    const renderable = entity?.tryGetComponent(RenderableComponent);
+    if (!renderable) {
+      return false;
+    }
+
+    const currentMeshes = this.resolveEntityMeshes(renderable);
+    if (currentMeshes.length === 0) {
+      return false;
+    }
+
+    if (currentMeshes.length !== this.highlightedMeshes.length) {
+      return false;
+    }
+
+    const currentSet = new Set(currentMeshes);
+    for (const mesh of this.highlightedMeshes) {
+      if (mesh.isDisposed() || !currentSet.has(mesh)) {
+        return false;
+      }
+    }
+
+    return true;
   }
 }

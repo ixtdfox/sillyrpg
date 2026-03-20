@@ -73,9 +73,6 @@ export class CombatMoveRangeResolver {
 
     const reachableCells: HexCell[] = [];
     for (const [key, totalCost] of costByCellKey.entries()) {
-      if (totalCost <= 0) {
-        continue;
-      }
       reachableCells.push(parseCellKey(key));
     }
 
