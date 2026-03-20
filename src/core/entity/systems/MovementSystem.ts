@@ -6,10 +6,12 @@ import { HexPathMovementComponent } from "../components/HexPathMovementComponent
 import { HexPositionComponent } from "../components/HexPositionComponent";
 import { CombatStatsComponent } from "../components/CombatStatsComponent";
 import { HexPathfinder } from "../../hex/HexPathfinder";
+import { HexCell } from "../../hex/HexCell";
 import { getInGameSceneRuntimeContext, type InGameSceneRuntimeContext } from "../../scene/in-game/InGameSceneRuntimeContext";
 import { WorldModeController } from "../../game/WorldModeController";
 import { TurnBasedCombatState } from "../../game/TurnBasedCombatState";
 import { HexMovementCostResolver } from "../services/HexMovementCostResolver";
+import { HexSpatialIndex } from "../services/HexSpatialIndex";
 
 /**
  * Executes path-based hex movement and synchronizes transform positions.
@@ -30,6 +32,7 @@ export class MovementSystem implements System {
   private readonly worldModeController: WorldModeController;
   private readonly combatState: TurnBasedCombatState;
   private readonly movementCostResolver: HexMovementCostResolver;
+  private readonly spatialIndex: HexSpatialIndex;
   private scene: BabylonScene | null;
   private runtimeContext: InGameSceneRuntimeContext | null;
   private pathfinder: HexPathfinder | null;
@@ -38,12 +41,14 @@ export class MovementSystem implements System {
     entityManager: EntityManager,
     worldModeController: WorldModeController,
     combatState: TurnBasedCombatState,
-    movementCostResolver: HexMovementCostResolver
+    movementCostResolver: HexMovementCostResolver,
+    spatialIndex: HexSpatialIndex
   ) {
     this.entityManager = entityManager;
     this.worldModeController = worldModeController;
     this.combatState = combatState;
     this.movementCostResolver = movementCostResolver;
+    this.spatialIndex = spatialIndex;
     this.scene = null;
     this.runtimeContext = null;
     this.pathfinder = null;
@@ -70,12 +75,12 @@ export class MovementSystem implements System {
         continue;
       }
 
-      this.tryInitializePath(hexPosition, pathMovement);
+      this.tryInitializePath(entity.getId(), hexPosition, pathMovement);
       this.advanceMovementStep(entity.getId(), transform, hexPosition, pathMovement, deltaSeconds);
     }
   }
 
-  private tryInitializePath(hexPosition: HexPositionComponent, pathMovement: HexPathMovementComponent): void {
+  private tryInitializePath(entityId: string, hexPosition: HexPositionComponent, pathMovement: HexPathMovementComponent): void {
     if (!hexPosition.targetCell) {
       return;
     }
@@ -94,7 +99,8 @@ export class MovementSystem implements System {
       return;
     }
 
-    const path = this.pathfinder?.findPath(hexPosition.currentCell, hexPosition.targetCell) ?? null;
+    const pathfinder = this.createPathfinder(entityId, hexPosition.currentCell);
+    const path = pathfinder.findPath(hexPosition.currentCell, hexPosition.targetCell);
     if (!path || path.length < 2) {
       hexPosition.targetCell = null;
       pathMovement.resetPathState();
@@ -273,5 +279,23 @@ export class MovementSystem implements System {
 
     const stepCost = this.movementCostResolver.getStepCost(fromCell, toCell);
     combatStats.currentMp = Math.max(0, combatStats.currentMp - stepCost);
+  }
+
+  private createPathfinder(entityId: string, startCell: HexCell): HexPathfinder {
+    if (!this.runtimeContext || !this.pathfinder || !this.worldModeController.isTurnBased()) {
+      return this.pathfinder ?? new HexPathfinder(this.runtimeContext!.hexGridRuntime.getGrid());
+    }
+
+    const grid = this.runtimeContext.hexGridRuntime.getGrid();
+    return new HexPathfinder(grid, (cell) => this.isBlockedInTurnBased(entityId, startCell, cell));
+  }
+
+  private isBlockedInTurnBased(entityId: string, startCell: HexCell, cell: HexCell): boolean {
+    if (cell.equals(startCell)) {
+      return false;
+    }
+
+    const entitiesAtCell = this.spatialIndex.getEntitiesAt(cell);
+    return entitiesAtCell.some((occupantId) => occupantId !== entityId);
   }
 }

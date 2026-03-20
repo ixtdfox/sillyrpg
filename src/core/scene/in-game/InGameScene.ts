@@ -89,12 +89,11 @@ export class InGameScene implements Scene {
     }
 
     const hexGridRuntime = new HexGridRuntime(scene);
-    attachInGameSceneRuntimeContext(scene, { hexGridRuntime });
-
     const inGameTopPanelUi = new InGameTopPanelUi(scene, () => {
       const isEnabled = hexGridRuntime.toggleDebug();
       inGameTopPanelUi.setHexGridDebugEnabled(isEnabled);
     });
+    attachInGameSceneRuntimeContext(scene, { hexGridRuntime, topPanelUi: inGameTopPanelUi });
     inGameTopPanelUi.setHexGridDebugEnabled(hexGridRuntime.getIsDebugEnabled());
 
     scene.onDisposeObservable.addOnce(() => {

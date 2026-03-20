@@ -1,5 +1,5 @@
 import type { Scene } from "@babylonjs/core";
-import { AdvancedDynamicTexture, Control, Rectangle, StackPanel } from "@babylonjs/gui";
+import { AdvancedDynamicTexture, Control, Rectangle, StackPanel, TextBlock } from "@babylonjs/gui";
 import { HexGridDebugToggleControl } from "../../../hex/debug/HexGridDebugToggleControl";
 
 /**
@@ -8,6 +8,7 @@ import { HexGridDebugToggleControl } from "../../../hex/debug/HexGridDebugToggle
 export class InGameTopPanelUi {
   private readonly texture: AdvancedDynamicTexture;
   private readonly hexGridDebugControl: HexGridDebugToggleControl;
+  private readonly combatBanner: Rectangle;
 
   /**
    * Creates root top-panel HUD and mounts hex debug widget into it.
@@ -35,6 +36,23 @@ export class InGameTopPanelUi {
 
     this.hexGridDebugControl = new HexGridDebugToggleControl(onHexGridToggleRequested);
     content.addControl(this.hexGridDebugControl.getControl());
+
+    this.combatBanner = new Rectangle("in-game-combat-banner");
+    this.combatBanner.thickness = 1;
+    this.combatBanner.height = "36px";
+    this.combatBanner.width = "120px";
+    this.combatBanner.cornerRadius = 4;
+    this.combatBanner.color = "#FCA5A5";
+    this.combatBanner.background = "#B91C1C";
+    this.combatBanner.horizontalAlignment = Control.HORIZONTAL_ALIGNMENT_CENTER;
+    this.combatBanner.verticalAlignment = Control.VERTICAL_ALIGNMENT_CENTER;
+    this.combatBanner.isVisible = false;
+    topPanel.addControl(this.combatBanner);
+
+    const combatBannerText = new TextBlock("in-game-combat-banner-text", "Бой!");
+    combatBannerText.color = "#FFFFFF";
+    combatBannerText.fontSize = 20;
+    this.combatBanner.addControl(combatBannerText);
   }
 
   /**
@@ -42,6 +60,10 @@ export class InGameTopPanelUi {
    */
   public setHexGridDebugEnabled(isEnabled: boolean): void {
     this.hexGridDebugControl.setDebugEnabled(isEnabled);
+  }
+
+  public setCombatBannerVisible(isVisible: boolean): void {
+    this.combatBanner.isVisible = isVisible;
   }
 
   /**
