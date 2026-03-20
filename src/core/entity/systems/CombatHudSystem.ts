@@ -11,6 +11,7 @@ import { IdentityComponent } from "../components/IdentityComponent";
 import { LocalPlayerComponent } from "../components/LocalPlayerComponent";
 import { VitalsComponent } from "../components/VitalsComponent";
 import { InGameCombatHudUi, type CombatHudCardData } from "../../scene/in-game/ui/InGameCombatHudUi";
+import { getInGameSceneRuntimeContext } from "../../scene/in-game/InGameSceneRuntimeContext";
 import { TurnBasedCombatSystem } from "./TurnBasedCombatSystem";
 
 /**
@@ -44,6 +45,9 @@ export class CombatHudSystem implements System {
     this.ui = null;
 
     if (!scene) {
+      return;
+    }
+    if (!getInGameSceneRuntimeContext(scene)) {
       return;
     }
 

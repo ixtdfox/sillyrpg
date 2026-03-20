@@ -28,6 +28,7 @@ import { GameState } from "./GameState";
 import { WorldMode } from "./WorldMode";
 import { CombatInputController } from "./CombatInputController";
 import { CombatAttackTargetingService } from "../entity/services/combat/CombatAttackTargetingService";
+import { BasicCombatAiService } from "../entity/services/combat/BasicCombatAiService";
 
 /**
  * Owns game flow state and active scene lifecycle.
@@ -112,6 +113,7 @@ export class GameManager {
     this.localPlayerSystem = new LocalPlayerSystem(this.entityManager);
     const hexSpatialIndex = new HexSpatialIndex();
     const attackTargetingService = new CombatAttackTargetingService(this.entityManager);
+    const basicCombatAiService = new BasicCombatAiService(this.entityManager, attackTargetingService);
     this.localPlayerInputSystem = new LocalPlayerInputSystem(
       this.entityManager,
       this.worldModeController,
@@ -140,7 +142,8 @@ export class GameManager {
       this.entityManager,
       this.worldModeController,
       this.turnBasedCombatState,
-      this.combatInputController
+      this.combatInputController,
+      basicCombatAiService
     );
     this.hoveredCombatTargetSystem = new HoveredCombatTargetSystem(
       this.entityManager,

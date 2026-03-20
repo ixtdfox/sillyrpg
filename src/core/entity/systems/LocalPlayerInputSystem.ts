@@ -156,6 +156,9 @@ export class LocalPlayerInputSystem implements System {
     if (!this.localPlayerEntity || !this.localPlayerEntity.hasComponent(RelationsComponent)) {
       return;
     }
+    if (!this.combatState.isActiveEntity(this.localPlayerEntity.getId())) {
+      return;
+    }
 
     const localPlayerId = this.localPlayerEntity.getId();
     const localPlayerRelations = this.localPlayerEntity.getComponent(RelationsComponent);
@@ -170,7 +173,10 @@ export class LocalPlayerInputSystem implements System {
         continue;
       }
 
-      this.attackTargetingService.tryHandleAttackSelection(localPlayerId, targetEntityId);
+      const attackResult = this.attackTargetingService.tryPerformMeleeAttack(localPlayerId, targetEntityId);
+      if (!attackResult.success) {
+        console.log(`[Combat] Attack failed: ${attackResult.reason}`);
+      }
       return;
     }
   }

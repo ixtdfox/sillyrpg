@@ -10,6 +10,7 @@ import { VitalsComponent } from "../components/VitalsComponent";
 import { AIComponent } from "../components/AIComponent";
 import { LocalPlayerComponent } from "../components/LocalPlayerComponent";
 import { HostilityResolver } from "../services/HostilityResolver";
+import { BasicCombatAiService } from "../services/combat/BasicCombatAiService";
 
 /**
  * Drives turn progression and encounter lifetime in turn-based mode.
@@ -19,18 +20,21 @@ export class TurnBasedCombatSystem implements System {
   private readonly worldModeController: WorldModeController;
   private readonly combatState: TurnBasedCombatState;
   private readonly combatInputController: CombatInputController;
+  private readonly basicCombatAiService: BasicCombatAiService;
   private turnInitializedForEntityId: string | null;
 
   public constructor(
     entityManager: EntityManager,
     worldModeController: WorldModeController,
     combatState: TurnBasedCombatState,
-    combatInputController: CombatInputController
+    combatInputController: CombatInputController,
+    basicCombatAiService: BasicCombatAiService
   ) {
     this.entityManager = entityManager;
     this.worldModeController = worldModeController;
     this.combatState = combatState;
     this.combatInputController = combatInputController;
+    this.basicCombatAiService = basicCombatAiService;
     this.turnInitializedForEntityId = null;
   }
 
@@ -73,9 +77,15 @@ export class TurnBasedCombatSystem implements System {
     }
 
     if (activeEntity.hasComponent(AIComponent)) {
-      this.combatState.advanceTurn();
-      this.turnInitializedForEntityId = null;
-      this.combatInputController.reset();
+      const aiStepResult = this.basicCombatAiService.resolveTurnStep(
+        activeEntityId,
+        this.combatState.getOrderedParticipantEntityIds()
+      );
+      if (aiStepResult === "completed") {
+        this.combatState.advanceTurn();
+        this.turnInitializedForEntityId = null;
+        this.combatInputController.reset();
+      }
     }
   }
 
