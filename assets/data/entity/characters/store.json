@@ -1,6 +1,6 @@
 [
   {
-    "id": "human-player",
+    "id": "human",
     "components": [
       {
         "type": "identity",
@@ -44,13 +44,9 @@
       {
         "type": "spawn",
         "data": {
-          "position": { "x": -8, "y": 0, "z": -8 },
+          "position": { "x": 0, "y": 0, "z": 0 },
           "rotation": { "x": 0, "y": 0, "z": 0 }
         }
-      },
-      {
-        "type": "localPlayer",
-        "data": {}
       },
       {
         "type": "hexPathMovement",
@@ -72,7 +68,14 @@
     ]
   },
   {
-    "id": "golem-enemy",
+    "id": "playerHuman",
+    "extends": "human",
+    "components": [
+      { "type": "localPlayer", "data": {} }
+    ]
+  },
+  {
+    "id": "golem",
     "components": [
       {
         "type": "identity",
@@ -116,13 +119,9 @@
       {
         "type": "spawn",
         "data": {
-          "position": { "x": 8, "y": 0, "z": 8 },
-          "rotation": { "x": 0, "y": -2.356194490192345, "z": 0 }
+          "position": { "x": 0, "y": 0, "z": 0 },
+          "rotation": { "x": 0, "y": 0, "z": 0 }
         }
-      },
-      {
-        "type": "ai",
-        "data": {}
       },
       {
         "type": "hexPathMovement",
@@ -163,6 +162,13 @@
           "armor": 2
         }
       }
+    ]
+  },
+  {
+    "id": "golemEnemy",
+    "extends": "golem",
+    "components": [
+      { "type": "ai", "data": {} }
     ]
   }
 ]
