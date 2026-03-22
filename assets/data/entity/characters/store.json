@@ -1,0 +1,168 @@
+[
+  {
+    "id": "human-player",
+    "components": [
+      {
+        "type": "identity",
+        "data": {
+          "namePool": ["Ari", "Nora", "Milo", "Kira", "Tobin", "Lina"],
+          "archetype": "human"
+        }
+      },
+      {
+        "type": "model",
+        "data": {
+          "assetPath": "assets/character.glb",
+          "normalization": {
+            "mode": "height",
+            "targetHeight": 1.8,
+            "grounded": true
+          }
+        }
+      },
+      {
+        "type": "vitals",
+        "data": {
+          "hp": { "current": 100, "max": 100 },
+          "energy": { "current": 100, "max": 100 },
+          "carryCapacityWeight": 50
+        }
+      },
+      {
+        "type": "relations",
+        "data": {
+          "relationships": {}
+        }
+      },
+      {
+        "type": "transform",
+        "data": {
+          "position": { "x": 0, "y": 0, "z": 0 },
+          "rotation": { "x": 0, "y": 0, "z": 0 }
+        }
+      },
+      {
+        "type": "spawn",
+        "data": {
+          "position": { "x": -8, "y": 0, "z": -8 },
+          "rotation": { "x": 0, "y": 0, "z": 0 }
+        }
+      },
+      {
+        "type": "localPlayer",
+        "data": {}
+      },
+      {
+        "type": "hexPathMovement",
+        "data": { "speed": 3.5 }
+      },
+      {
+        "type": "detectable",
+        "data": { "kind": "player" }
+      },
+      {
+        "type": "combatStats",
+        "data": {
+          "initiative": 10,
+          "apPerTurn": 2,
+          "mpPerTurn": 6,
+          "armor": 1
+        }
+      }
+    ]
+  },
+  {
+    "id": "golem-enemy",
+    "components": [
+      {
+        "type": "identity",
+        "data": {
+          "namePool": ["Basalt-9", "Granite-3", "Obsidian-7", "Slate-1", "Ironcore-5"],
+          "archetype": "golem"
+        }
+      },
+      {
+        "type": "model",
+        "data": {
+          "assetPath": "assets/enemy.glb",
+          "normalization": {
+            "mode": "height",
+            "targetHeight": 2.4,
+            "grounded": true
+          }
+        }
+      },
+      {
+        "type": "vitals",
+        "data": {
+          "hp": { "current": 140, "max": 140 },
+          "energy": { "current": 60, "max": 60 },
+          "carryCapacityWeight": 120
+        }
+      },
+      {
+        "type": "relations",
+        "data": {
+          "relationships": {}
+        }
+      },
+      {
+        "type": "transform",
+        "data": {
+          "position": { "x": 0, "y": 0, "z": 0 },
+          "rotation": { "x": 0, "y": 0, "z": 0 }
+        }
+      },
+      {
+        "type": "spawn",
+        "data": {
+          "position": { "x": 8, "y": 0, "z": 8 },
+          "rotation": { "x": 0, "y": -2.356194490192345, "z": 0 }
+        }
+      },
+      {
+        "type": "ai",
+        "data": {}
+      },
+      {
+        "type": "hexPathMovement",
+        "data": { "speed": 2.5 }
+      },
+      {
+        "type": "vision",
+        "data": {
+          "rangeCells": 6,
+          "fovDegrees": 75
+        }
+      },
+      {
+        "type": "detectionState",
+        "data": {}
+      },
+      {
+        "type": "patrol",
+        "data": {
+          "radiusCells": 5,
+          "maxCandidateAttempts": 8
+        }
+      },
+      {
+        "type": "visionDebug",
+        "data": {}
+      },
+      {
+        "type": "detectable",
+        "data": { "kind": "golem" }
+      },
+      {
+        "type": "combatStats",
+        "data": {
+          "initiative": 11,
+          "apPerTurn": 2,
+          "mpPerTurn": 5,
+          "armor": 2
+        }
+      }
+    ]
+  }
+]
