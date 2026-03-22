@@ -1,8 +1,7 @@
-import { Color4, Engine, Scene as BabylonScene } from "@babylonjs/core";
+import { Color4, Engine, Scene as BabylonScene, Vector3 } from "@babylonjs/core";
 import { CharacterFactory } from "../../character/CharacterFactory";
-import { CharacterManager } from "../../character/CharacterManager";
 import type { EntityManager } from "../../entity/EntityManager";
-import { Entity } from "../../entity/Entity";
+import { EntityPrefabFactory } from "../../entity/EntityPrefabFactory";
 import { Relations } from "../../entity/components/Relations";
 import { RelationsComponent } from "../../entity/components/RelationsComponent";
 import { HexGridRuntime } from "../../hex/HexGridRuntime";
@@ -43,7 +42,7 @@ export class InGameScene implements Scene {
     this.langManager = langManager;
     this.entityManager = entityManager;
     this.locationManager = new LocationManager(this.langManager);
-    this.characterFactory = new CharacterFactory(new CharacterManager());
+    this.characterFactory = new CharacterFactory(new EntityPrefabFactory());
   }
 
   /**
@@ -65,28 +64,21 @@ export class InGameScene implements Scene {
 
     await this.locationManager.createDistrictScene(scene, defaultDistrict);
 
-    const playerCharacter = await this.characterFactory.createPlayer();
-    const golemCharacter = await this.characterFactory.createGolem();
+    const playerCharacter = await this.characterFactory.createPlayer(new Vector3(-8, 0, -8));
+    const golemCharacter = await this.characterFactory.createGolem(new Vector3(8, 0, 8), new Vector3(0, -Math.PI * 0.75, 0));
 
-    if (playerCharacter instanceof Entity) {
-      this.entityManager.addEntity(playerCharacter);
-    }
+    this.entityManager.addEntity(playerCharacter);
+    this.entityManager.addEntity(golemCharacter);
 
-    if (golemCharacter instanceof Entity) {
-      this.entityManager.addEntity(golemCharacter);
-    }
+    const golemRelations = golemCharacter.getComponent(RelationsComponent);
+    const hostileToPlayer = new Relations();
+    hostileToPlayer.hate = 100;
+    golemRelations.relationships[playerCharacter.getId()] = hostileToPlayer;
 
-    if (playerCharacter instanceof Entity && golemCharacter instanceof Entity) {
-      const golemRelations = golemCharacter.getComponent(RelationsComponent);
-      const hostileToPlayer = new Relations();
-      hostileToPlayer.hate = 100;
-      golemRelations.relationships[playerCharacter.getId()] = hostileToPlayer;
-
-      const playerRelations = playerCharacter.getComponent(RelationsComponent);
-      const hostileToGolem = new Relations();
-      hostileToGolem.hate = 100;
-      playerRelations.relationships[golemCharacter.getId()] = hostileToGolem;
-    }
+    const playerRelations = playerCharacter.getComponent(RelationsComponent);
+    const hostileToGolem = new Relations();
+    hostileToGolem.hate = 100;
+    playerRelations.relationships[golemCharacter.getId()] = hostileToGolem;
 
     const hexGridRuntime = new HexGridRuntime(scene);
     const inGameTopPanelUi = new InGameTopPanelUi(scene, () => {
