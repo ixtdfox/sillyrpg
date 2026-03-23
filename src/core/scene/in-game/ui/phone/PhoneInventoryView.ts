@@ -16,24 +16,30 @@ const CELL_WIDTH = 133;
 const CELL_HEIGHT = 135;
 const GRID_X = 5;
 const GRID_Y = 0;
-const VIEWPORT_WIDTH = 399;
+const GRID_VIEWPORT_WIDTH = 399;
 const VIEWPORT_HEIGHT = 494;
 const GRID_CONTENT_HEIGHT = GRID_ROWS * CELL_HEIGHT;
-const SCROLLBAR_WIDTH = 6;
+const SCROLLBAR_HIT_WIDTH = 14;
 const SCROLLBAR_HEIGHT = 482;
+const SCROLLBAR_MARGIN_RIGHT = 2;
+const CONTEXT_MENU_WIDTH = 112;
+const CONTEXT_MENU_HEIGHT = 52;
 
 export class PhoneInventoryView {
   private readonly root: Rectangle;
   private readonly viewport: Rectangle;
+  private readonly gridViewport: Rectangle;
   private readonly gridContent: Rectangle;
   private readonly contextMenu: Rectangle;
   private readonly selectionFrame: Rectangle;
   private readonly scrollBar: Slider;
-  private pointerStartedInsideCell = false;
+  private readonly viewportWidth: number;
   private scrollOffset = 0;
   private selectedCellIndex: number | null = null;
 
   public constructor(viewportWidth: number, viewportHeight: number) {
+    this.viewportWidth = viewportWidth;
+
     this.root = new Rectangle("phone-inventory-root");
     this.root.width = "100%";
     this.root.height = "100%";
@@ -41,7 +47,7 @@ export class PhoneInventoryView {
     this.root.isPointerBlocker = true;
 
     this.viewport = new Rectangle("phone-inventory-viewport");
-    this.viewport.width = `${Math.min(viewportWidth, VIEWPORT_WIDTH)}px`;
+    this.viewport.width = `${viewportWidth}px`;
     this.viewport.height = `${Math.min(viewportHeight, VIEWPORT_HEIGHT)}px`;
     this.viewport.thickness = 0;
     this.viewport.background = "transparent";
@@ -51,24 +57,40 @@ export class PhoneInventoryView {
     this.viewport.isPointerBlocker = true;
     this.root.addControl(this.viewport);
 
-    this.viewport.onPointerDownObservable.add(() => {
-      if (!this.pointerStartedInsideCell) {
-        this.clearSelection();
-      }
-      this.pointerStartedInsideCell = false;
+    const clearSelectionButton = new Button("phone-inventory-clear-selection");
+    clearSelectionButton.width = "100%";
+    clearSelectionButton.height = "100%";
+    clearSelectionButton.thickness = 0;
+    clearSelectionButton.background = "transparent";
+    clearSelectionButton.onPointerDownObservable.add(() => {
+      this.clearSelection();
     });
+    this.viewport.addControl(clearSelectionButton);
+
+    this.gridViewport = new Rectangle("phone-inventory-grid-viewport");
+    this.gridViewport.width = `${GRID_VIEWPORT_WIDTH}px`;
+    this.gridViewport.height = `${VIEWPORT_HEIGHT}px`;
+    this.gridViewport.left = `${GRID_X}px`;
+    this.gridViewport.top = `${GRID_Y}px`;
+    this.gridViewport.thickness = 0;
+    this.gridViewport.background = "transparent";
+    this.gridViewport.clipChildren = true;
+    this.gridViewport.horizontalAlignment = Control.HORIZONTAL_ALIGNMENT_LEFT;
+    this.gridViewport.verticalAlignment = Control.VERTICAL_ALIGNMENT_TOP;
+    this.gridViewport.isPointerBlocker = false;
+    this.viewport.addControl(this.gridViewport);
 
     this.gridContent = new Rectangle("phone-inventory-grid-content");
-    this.gridContent.width = `${VIEWPORT_WIDTH}px`;
+    this.gridContent.width = `${GRID_VIEWPORT_WIDTH}px`;
     this.gridContent.height = `${GRID_CONTENT_HEIGHT}px`;
     this.gridContent.thickness = 0;
     this.gridContent.background = "transparent";
     this.gridContent.horizontalAlignment = Control.HORIZONTAL_ALIGNMENT_LEFT;
     this.gridContent.verticalAlignment = Control.VERTICAL_ALIGNMENT_TOP;
-    this.gridContent.left = `${GRID_X}px`;
+    this.gridContent.left = "0px";
     this.gridContent.top = `${GRID_Y}px`;
     this.gridContent.isPointerBlocker = false;
-    this.viewport.addControl(this.gridContent);
+    this.gridViewport.addControl(this.gridContent);
 
     this.selectionFrame = new Rectangle("phone-inventory-selection-frame");
     this.selectionFrame.width = `${CELL_WIDTH}px`;
@@ -95,7 +117,7 @@ export class PhoneInventoryView {
         cellButton.thickness = 0;
         cellButton.background = "transparent";
         cellButton.onPointerDownObservable.add(() => {
-          this.pointerStartedInsideCell = true;
+          this.selectCell(cellIndex, row, col);
         });
 
         const cellImage = new Image(`phone-inventory-cell-image-${cellIndex}`, SPRITES_URL);
@@ -109,10 +131,6 @@ export class PhoneInventoryView {
         cellImage.isPointerBlocker = false;
         cellButton.addControl(cellImage);
 
-        cellButton.onPointerUpObservable.add(() => {
-          this.selectCell(cellIndex, row, col);
-        });
-
         this.gridContent.addControl(cellButton);
       }
     }
@@ -123,8 +141,8 @@ export class PhoneInventoryView {
     this.scrollBar.value = 0;
     this.scrollBar.isVertical = true;
     this.scrollBar.height = `${SCROLLBAR_HEIGHT}px`;
-    this.scrollBar.width = `${SCROLLBAR_WIDTH}px`;
-    this.scrollBar.left = "398px";
+    this.scrollBar.width = `${SCROLLBAR_HIT_WIDTH}px`;
+    this.scrollBar.left = `${this.viewportWidth - SCROLLBAR_HIT_WIDTH - SCROLLBAR_MARGIN_RIGHT}px`;
     this.scrollBar.top = "6px";
     this.scrollBar.horizontalAlignment = Control.HORIZONTAL_ALIGNMENT_LEFT;
     this.scrollBar.verticalAlignment = Control.VERTICAL_ALIGNMENT_TOP;
@@ -151,7 +169,6 @@ export class PhoneInventoryView {
 
   public setVisible(isVisible: boolean): void {
     this.root.isVisible = isVisible;
-    this.pointerStartedInsideCell = false;
     if (!isVisible) {
       this.clearSelection();
     }
@@ -188,8 +205,8 @@ export class PhoneInventoryView {
 
   private createContextMenu(): Rectangle {
     const menu = new Rectangle("phone-inventory-context-menu");
-    menu.width = "112px";
-    menu.height = "52px";
+    menu.width = `${CONTEXT_MENU_WIDTH}px`;
+    menu.height = `${CONTEXT_MENU_HEIGHT}px`;
     menu.thickness = 1;
     menu.color = "#6B5C2C";
     menu.background = "#18140DEB";
@@ -223,14 +240,12 @@ export class PhoneInventoryView {
     const col = cellIndex % GRID_COLUMNS;
     const cellLeft = GRID_X + col * CELL_WIDTH;
     const cellTop = GRID_Y + row * CELL_HEIGHT - this.scrollOffset;
-    const menuWidth = 112;
-    const menuHeight = 52;
 
-    let menuLeft = cellLeft + CELL_WIDTH - menuWidth;
+    let menuLeft = cellLeft + CELL_WIDTH - CONTEXT_MENU_WIDTH;
     let menuTop = cellTop + 8;
 
-    menuLeft = Math.max(0, Math.min(menuLeft, VIEWPORT_WIDTH - menuWidth));
-    menuTop = Math.max(0, Math.min(menuTop, VIEWPORT_HEIGHT - menuHeight));
+    menuLeft = Math.max(0, Math.min(menuLeft, this.viewportWidth - CONTEXT_MENU_WIDTH));
+    menuTop = Math.max(0, Math.min(menuTop, VIEWPORT_HEIGHT - CONTEXT_MENU_HEIGHT));
 
     this.contextMenu.left = `${menuLeft}px`;
     this.contextMenu.top = `${menuTop}px`;
