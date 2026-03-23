@@ -28,6 +28,7 @@ export class InGameTopPanelUi {
     topPanel.width = "100%";
     topPanel.background = "#111827AA";
     topPanel.verticalAlignment = Control.VERTICAL_ALIGNMENT_TOP;
+    topPanel.zIndex = 20;
     this.texture.addControl(topPanel);
 
     const content = new StackPanel("in-game-top-panel-content");
@@ -71,7 +72,9 @@ export class InGameTopPanelUi {
     this.combatBanner.addControl(combatBannerText);
 
     this.phoneDialogUi = new PhoneDialogUi(scene);
-    this.texture.addControl(this.phoneDialogUi.getRootControl());
+    const phoneDialogControl = this.phoneDialogUi.getRootControl();
+    phoneDialogControl.zIndex = 10;
+    this.texture.addControl(phoneDialogControl);
   }
 
   /**
