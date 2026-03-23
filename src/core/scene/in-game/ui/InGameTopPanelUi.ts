@@ -1,7 +1,7 @@
 import type { Scene } from "@babylonjs/core";
 import { AdvancedDynamicTexture, Button, Control, Rectangle, StackPanel, TextBlock } from "@babylonjs/gui";
 import { HexGridDebugToggleControl } from "../../../hex/debug/HexGridDebugToggleControl";
-import { PhoneDialogUi } from "./PhoneDialogUi";
+import { PhoneDialogUi } from "./phone/PhoneDialogUi";
 
 /**
  * Owns the in-game root HUD top panel and assembles top-level controls.
