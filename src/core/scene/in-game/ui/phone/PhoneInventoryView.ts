@@ -29,6 +29,7 @@ export class PhoneInventoryView {
   private readonly contextMenu: Rectangle;
   private readonly selectionFrame: Rectangle;
   private readonly scrollBar: Slider;
+  private pointerStartedInsideCell = false;
   private scrollOffset = 0;
   private selectedCellIndex: number | null = null;
 
@@ -50,15 +51,12 @@ export class PhoneInventoryView {
     this.viewport.isPointerBlocker = true;
     this.root.addControl(this.viewport);
 
-    const clearSelectionButton = new Button("phone-inventory-clear-selection");
-    clearSelectionButton.width = "100%";
-    clearSelectionButton.height = "100%";
-    clearSelectionButton.thickness = 0;
-    clearSelectionButton.background = "transparent";
-    clearSelectionButton.onPointerUpObservable.add(() => {
-      this.clearSelection();
+    this.viewport.onPointerDownObservable.add(() => {
+      if (!this.pointerStartedInsideCell) {
+        this.clearSelection();
+      }
+      this.pointerStartedInsideCell = false;
     });
-    this.viewport.addControl(clearSelectionButton);
 
     this.gridContent = new Rectangle("phone-inventory-grid-content");
     this.gridContent.width = `${VIEWPORT_WIDTH}px`;
@@ -96,6 +94,9 @@ export class PhoneInventoryView {
         cellButton.verticalAlignment = Control.VERTICAL_ALIGNMENT_TOP;
         cellButton.thickness = 0;
         cellButton.background = "transparent";
+        cellButton.onPointerDownObservable.add(() => {
+          this.pointerStartedInsideCell = true;
+        });
 
         const cellImage = new Image(`phone-inventory-cell-image-${cellIndex}`, SPRITES_URL);
         cellImage.width = `${CELL_WIDTH}px`;
@@ -150,6 +151,7 @@ export class PhoneInventoryView {
 
   public setVisible(isVisible: boolean): void {
     this.root.isVisible = isVisible;
+    this.pointerStartedInsideCell = false;
     if (!isVisible) {
       this.clearSelection();
     }
