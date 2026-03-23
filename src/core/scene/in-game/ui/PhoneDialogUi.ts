@@ -1,4 +1,4 @@
-import type { Nullable, Observer, Scene } from "@babylonjs/core";
+import type { Scene } from "@babylonjs/core";
 import { Button, Control, Image, Rectangle, TextBlock } from "@babylonjs/gui";
 
 interface SpriteRegion {
@@ -9,7 +9,6 @@ interface SpriteRegion {
 }
 
 interface PhoneRuntimeDataSource {
-  readonly getTimeLabel: () => string;
   readonly getMoneyLabel: () => string;
 }
 
@@ -69,23 +68,15 @@ export class PhoneDialogUi {
   private readonly phoneContainer: Rectangle;
   private readonly tabButtons: Map<PhoneTab, TabButtonState>;
   private readonly tabContentLabel: TextBlock;
-  private readonly timeText: TextBlock;
   private readonly moneyText: TextBlock;
   private readonly dataSource: PhoneRuntimeDataSource;
-  private readonly scene: Scene;
-  private updateObserver: Nullable<Observer<Scene>>;
   private activeTab: PhoneTab;
-  private secondsAccumulator: number;
 
-  public constructor(scene: Scene, dataSource?: Partial<PhoneRuntimeDataSource>) {
-    this.scene = scene;
+  public constructor(_scene: Scene, dataSource?: Partial<PhoneRuntimeDataSource>) {
     this.dataSource = {
-      getTimeLabel: dataSource?.getTimeLabel ?? (() => this.createFallbackTimeLabel()),
       getMoneyLabel: dataSource?.getMoneyLabel ?? (() => "$1,250")
     };
     this.activeTab = PhoneTab.Inv;
-    this.secondsAccumulator = 0;
-    this.updateObserver = null;
     this.tabButtons = new Map<PhoneTab, TabButtonState>();
 
     this.dialogRoot = new Rectangle("phone-dialog-root");
@@ -134,30 +125,17 @@ export class PhoneDialogUi {
     infoPanel.verticalAlignment = Control.VERTICAL_ALIGNMENT_TOP;
     this.phoneContainer.addControl(infoPanel);
 
-    this.timeText = new TextBlock("phone-time-text", "");
-    this.timeText.left = "86px";
-    this.timeText.top = "706px";
-    this.timeText.width = "390px";
-    this.timeText.height = "42px";
-    this.timeText.textHorizontalAlignment = Control.HORIZONTAL_ALIGNMENT_LEFT;
-    this.timeText.textVerticalAlignment = Control.VERTICAL_ALIGNMENT_CENTER;
-    this.timeText.horizontalAlignment = Control.HORIZONTAL_ALIGNMENT_LEFT;
-    this.timeText.verticalAlignment = Control.VERTICAL_ALIGNMENT_TOP;
-    this.timeText.color = "#D1DBF0";
-    this.timeText.fontSize = 28;
-    this.phoneContainer.addControl(this.timeText);
-
     this.moneyText = new TextBlock("phone-money-text", "");
-    this.moneyText.left = "86px";
-    this.moneyText.top = "744px";
-    this.moneyText.width = "390px";
-    this.moneyText.height = "42px";
+    this.moneyText.left = "84px";
+    this.moneyText.top = "701px";
+    this.moneyText.width = "220px";
+    this.moneyText.height = "72px";
     this.moneyText.textHorizontalAlignment = Control.HORIZONTAL_ALIGNMENT_LEFT;
     this.moneyText.textVerticalAlignment = Control.VERTICAL_ALIGNMENT_CENTER;
     this.moneyText.horizontalAlignment = Control.HORIZONTAL_ALIGNMENT_LEFT;
     this.moneyText.verticalAlignment = Control.VERTICAL_ALIGNMENT_TOP;
-    this.moneyText.color = "#D1DBF0";
-    this.moneyText.fontSize = 26;
+    this.moneyText.color = "#D8C88E";
+    this.moneyText.fontSize = 52;
     this.phoneContainer.addControl(this.moneyText);
 
     const tabContentBackground = new Rectangle("phone-tab-content-background");
@@ -222,16 +200,11 @@ export class PhoneDialogUi {
     this.dialogRoot.isVisible = isVisible;
 
     if (isVisible) {
-      this.startUpdates();
       this.refreshRuntimeData();
-      return;
     }
-
-    this.stopUpdates();
   }
 
   public dispose(): void {
-    this.stopUpdates();
     this.dialogRoot.dispose();
   }
 
@@ -305,40 +278,9 @@ export class PhoneDialogUi {
     image.sourceHeight = region.h;
   }
 
-  private startUpdates(): void {
-    if (this.updateObserver) {
-      return;
-    }
-
-    this.updateObserver = this.scene.onBeforeRenderObservable.add(() => {
-      this.secondsAccumulator += this.scene.getEngine().getDeltaTime() / 1000;
-      if (this.secondsAccumulator < 1) {
-        return;
-      }
-
-      this.secondsAccumulator = 0;
-      this.refreshRuntimeData();
-    });
-  }
-
-  private stopUpdates(): void {
-    if (!this.updateObserver) {
-      return;
-    }
-
-    this.scene.onBeforeRenderObservable.remove(this.updateObserver);
-    this.updateObserver = null;
-  }
-
   private refreshRuntimeData(): void {
-    this.timeText.text = this.dataSource.getTimeLabel();
     this.moneyText.text = this.dataSource.getMoneyLabel();
   }
 
-  private createFallbackTimeLabel(): string {
-    const now = new Date();
-    const hours = now.getHours().toString().padStart(2, "0");
-    const minutes = now.getMinutes().toString().padStart(2, "0");
-    return `${hours}:${minutes}`;
-  }
+
 }
