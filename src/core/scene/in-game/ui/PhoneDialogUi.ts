@@ -30,10 +30,10 @@ const FRAME_REGION: SpriteRegion = { x: 978, y: 0, w: 556, h: 916 };
 const INFO_PANEL_REGION: SpriteRegion = { x: 0, y: 369, w: 478, h: 80 };
 
 const TAB_LAYOUT: ReadonlyArray<{ readonly tab: PhoneTab; readonly x: number; readonly y: number; readonly w: number; readonly h: number }> = [
-  { tab: PhoneTab.Map, x: 10, y: 181, w: 50, h: 36 },
-  { tab: PhoneTab.Inv, x: 10, y: 226, w: 50, h: 36 },
-  { tab: PhoneTab.Log, x: 10, y: 267, w: 50, h: 36 },
-  { tab: PhoneTab.Msg, x: 10, y: 310, w: 50, h: 36 }
+  { tab: PhoneTab.Map, x: 8, y: 181, w: 52, h: 38 },
+  { tab: PhoneTab.Inv, x: 8, y: 226, w: 52, h: 38 },
+  { tab: PhoneTab.Log, x: 8, y: 267, w: 52, h: 38 },
+  { tab: PhoneTab.Msg, x: 8, y: 310, w: 52, h: 38 }
 ];
 
 const TAB_SPRITES: Readonly<Record<PhoneTab, { readonly defaultRegion: SpriteRegion; readonly pushedRegion: SpriteRegion }>> = {
@@ -118,9 +118,9 @@ export class PhoneDialogUi {
       });
     }
 
-    const infoPanel = this.createSpriteImage("phone-info-panel", INFO_PANEL_REGION, 438, 140);
-    infoPanel.left = "60px";
-    infoPanel.top = "689px";
+    const infoPanel = this.createSpriteImage("phone-info-panel", INFO_PANEL_REGION, 465, 56);
+    infoPanel.left = "48px";
+    infoPanel.top = "682px";
     infoPanel.horizontalAlignment = Control.HORIZONTAL_ALIGNMENT_LEFT;
     infoPanel.verticalAlignment = Control.VERTICAL_ALIGNMENT_TOP;
     this.phoneContainer.addControl(infoPanel);
@@ -136,13 +136,13 @@ export class PhoneDialogUi {
     this.moneyText.verticalAlignment = Control.VERTICAL_ALIGNMENT_TOP;
     this.moneyText.color = "#D8C88E";
     this.moneyText.fontSize = 52;
-    this.phoneContainer.addControl(this.moneyText);
+    //this.phoneContainer.addControl(this.moneyText);
 
     const tabContentBackground = new Rectangle("phone-tab-content-background");
     tabContentBackground.left = "76px";
-    tabContentBackground.top = "181px";
-    tabContentBackground.width = "444px";
-    tabContentBackground.height = "480px";
+    tabContentBackground.top = "160px";
+    tabContentBackground.width = "405px";
+    tabContentBackground.height = "494px";
     tabContentBackground.horizontalAlignment = Control.HORIZONTAL_ALIGNMENT_LEFT;
     tabContentBackground.verticalAlignment = Control.VERTICAL_ALIGNMENT_TOP;
     tabContentBackground.color = "#263146";
