@@ -1,6 +1,7 @@
 import type { Scene } from "@babylonjs/core";
 import { Button, Control, Image, Rectangle, TextBlock } from "@babylonjs/gui";
 import { PhoneMapView } from "./PhoneMapView";
+import { PhoneInventoryView } from "./PhoneInventoryView";
 
 interface SpriteRegion {
   readonly x: number;
@@ -72,6 +73,7 @@ export class PhoneDialogUi {
   private readonly tabButtons: Map<PhoneTab, TabButtonState>;
   private readonly tabContentLabel: TextBlock;
   private readonly mapView: PhoneMapView;
+  private readonly inventoryView: PhoneInventoryView;
   private readonly moneyText: TextBlock;
   private readonly dataSource: PhoneRuntimeDataSource;
   private activeTab: PhoneTab;
@@ -166,6 +168,9 @@ export class PhoneDialogUi {
     this.mapView = new PhoneMapView(scene, PHONE_SCREEN_WIDTH, PHONE_SCREEN_HEIGHT);
     tabContentBackground.addControl(this.mapView.getRootControl());
 
+    this.inventoryView = new PhoneInventoryView(PHONE_SCREEN_WIDTH, PHONE_SCREEN_HEIGHT);
+    tabContentBackground.addControl(this.inventoryView.getRootControl());
+
     const { button: callButton } = this.createSpriteButton(
       "phone-call-button",
       { x: 43, y: 749, w: 130, h: 60 },
@@ -212,6 +217,7 @@ export class PhoneDialogUi {
 
   public dispose(): void {
     this.mapView.dispose();
+    this.inventoryView.dispose();
     this.dialogRoot.dispose();
   }
 
@@ -224,10 +230,12 @@ export class PhoneDialogUi {
     }
 
     const isMapTab = tab === PhoneTab.Map;
-    this.tabContentLabel.isVisible = !isMapTab;
+    const isInventoryTab = tab === PhoneTab.Inv;
     this.mapView.setVisible(isMapTab);
+    this.inventoryView.setVisible(isInventoryTab);
 
-    if (!isMapTab) {
+    this.tabContentLabel.isVisible = !isMapTab && !isInventoryTab;
+    if (this.tabContentLabel.isVisible) {
       this.tabContentLabel.text = `${tab} tab placeholder`;
     }
   }
