@@ -1,5 +1,6 @@
 import type { Scene } from "@babylonjs/core";
 import { Button, Control, Image, Rectangle, TextBlock } from "@babylonjs/gui";
+import { PhoneMapView } from "./PhoneMapView";
 
 interface SpriteRegion {
   readonly x: number;
@@ -59,6 +60,8 @@ const CALL_BUTTON_DEFAULT_REGION: SpriteRegion = { x: 0, y: 701, w: 313, h: 158 
 const CALL_BUTTON_PUSHED_REGION: SpriteRegion = { x: 314, y: 701, w: 313, h: 158 };
 const HANGUP_BUTTON_DEFAULT_REGION: SpriteRegion = { x: 0, y: 862, w: 313, h: 158 };
 const HANGUP_BUTTON_PUSHED_REGION: SpriteRegion = { x: 314, y: 862, w: 313, h: 158 };
+const PHONE_SCREEN_WIDTH = 405;
+const PHONE_SCREEN_HEIGHT = 494;
 
 /**
  * Stateful smartphone dialog widget for in-game UI.
@@ -68,11 +71,12 @@ export class PhoneDialogUi {
   private readonly phoneContainer: Rectangle;
   private readonly tabButtons: Map<PhoneTab, TabButtonState>;
   private readonly tabContentLabel: TextBlock;
+  private readonly mapView: PhoneMapView;
   private readonly moneyText: TextBlock;
   private readonly dataSource: PhoneRuntimeDataSource;
   private activeTab: PhoneTab;
 
-  public constructor(_scene: Scene, dataSource?: Partial<PhoneRuntimeDataSource>) {
+  public constructor(scene: Scene, dataSource?: Partial<PhoneRuntimeDataSource>) {
     this.dataSource = {
       getMoneyLabel: dataSource?.getMoneyLabel ?? (() => "$1,250")
     };
@@ -136,13 +140,12 @@ export class PhoneDialogUi {
     this.moneyText.verticalAlignment = Control.VERTICAL_ALIGNMENT_TOP;
     this.moneyText.color = "#D8C88E";
     this.moneyText.fontSize = 52;
-    //this.phoneContainer.addControl(this.moneyText);
 
     const tabContentBackground = new Rectangle("phone-tab-content-background");
     tabContentBackground.left = "76px";
     tabContentBackground.top = "160px";
-    tabContentBackground.width = "405px";
-    tabContentBackground.height = "494px";
+    tabContentBackground.width = `${PHONE_SCREEN_WIDTH}px`;
+    tabContentBackground.height = `${PHONE_SCREEN_HEIGHT}px`;
     tabContentBackground.horizontalAlignment = Control.HORIZONTAL_ALIGNMENT_LEFT;
     tabContentBackground.verticalAlignment = Control.VERTICAL_ALIGNMENT_TOP;
     tabContentBackground.color = "#263146";
@@ -159,6 +162,9 @@ export class PhoneDialogUi {
     this.tabContentLabel.color = "#C5D0E8";
     this.tabContentLabel.fontSize = 28;
     tabContentBackground.addControl(this.tabContentLabel);
+
+    this.mapView = new PhoneMapView(scene, PHONE_SCREEN_WIDTH, PHONE_SCREEN_HEIGHT);
+    tabContentBackground.addControl(this.mapView.getRootControl());
 
     const { button: callButton } = this.createSpriteButton(
       "phone-call-button",
@@ -205,6 +211,7 @@ export class PhoneDialogUi {
   }
 
   public dispose(): void {
+    this.mapView.dispose();
     this.dialogRoot.dispose();
   }
 
@@ -216,7 +223,13 @@ export class PhoneDialogUi {
       this.applySpriteRegion(tabState.image, region);
     }
 
-    this.tabContentLabel.text = `${tab} tab placeholder`;
+    const isMapTab = tab === PhoneTab.Map;
+    this.tabContentLabel.isVisible = !isMapTab;
+    this.mapView.setVisible(isMapTab);
+
+    if (!isMapTab) {
+      this.tabContentLabel.text = `${tab} tab placeholder`;
+    }
   }
 
   private createSpriteImage(name: string, region: SpriteRegion, width: number, height: number): Image {
@@ -281,6 +294,4 @@ export class PhoneDialogUi {
   private refreshRuntimeData(): void {
     this.moneyText.text = this.dataSource.getMoneyLabel();
   }
-
-
 }
