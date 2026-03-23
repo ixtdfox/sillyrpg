@@ -1,6 +1,7 @@
 import type { Scene } from "@babylonjs/core";
-import { AdvancedDynamicTexture, Control, Rectangle, StackPanel, TextBlock } from "@babylonjs/gui";
+import { AdvancedDynamicTexture, Button, Control, Rectangle, StackPanel, TextBlock } from "@babylonjs/gui";
 import { HexGridDebugToggleControl } from "../../../hex/debug/HexGridDebugToggleControl";
+import { PhoneDialogUi } from "./PhoneDialogUi";
 
 /**
  * Owns the in-game root HUD top panel and assembles top-level controls.
@@ -9,6 +10,8 @@ export class InGameTopPanelUi {
   private readonly texture: AdvancedDynamicTexture;
   private readonly hexGridDebugControl: HexGridDebugToggleControl;
   private readonly combatBanner: Rectangle;
+  private readonly phoneDialogUi: PhoneDialogUi;
+  private readonly phoneToggleButton: Button;
 
   /**
    * Creates root top-panel HUD and mounts hex debug widget into it.
@@ -25,6 +28,7 @@ export class InGameTopPanelUi {
     topPanel.width = "100%";
     topPanel.background = "#111827AA";
     topPanel.verticalAlignment = Control.VERTICAL_ALIGNMENT_TOP;
+    topPanel.zIndex = 20;
     this.texture.addControl(topPanel);
 
     const content = new StackPanel("in-game-top-panel-content");
@@ -36,6 +40,19 @@ export class InGameTopPanelUi {
 
     this.hexGridDebugControl = new HexGridDebugToggleControl(onHexGridToggleRequested);
     content.addControl(this.hexGridDebugControl.getControl());
+
+    this.phoneToggleButton = Button.CreateSimpleButton("in-game-phone-toggle", "📱");
+    this.phoneToggleButton.width = "52px";
+    this.phoneToggleButton.height = "38px";
+    this.phoneToggleButton.cornerRadius = 4;
+    this.phoneToggleButton.color = "#E7EDF9";
+    this.phoneToggleButton.background = "#1F2937";
+    this.phoneToggleButton.thickness = 1;
+    this.phoneToggleButton.paddingLeft = "8px";
+    this.phoneToggleButton.onPointerUpObservable.add(() => {
+      this.phoneDialogUi.toggleVisibility();
+    });
+    content.addControl(this.phoneToggleButton);
 
     this.combatBanner = new Rectangle("in-game-combat-banner");
     this.combatBanner.thickness = 1;
@@ -53,6 +70,11 @@ export class InGameTopPanelUi {
     combatBannerText.color = "#FFFFFF";
     combatBannerText.fontSize = 20;
     this.combatBanner.addControl(combatBannerText);
+
+    this.phoneDialogUi = new PhoneDialogUi(scene);
+    const phoneDialogControl = this.phoneDialogUi.getRootControl();
+    phoneDialogControl.zIndex = 10;
+    this.texture.addControl(phoneDialogControl);
   }
 
   /**
@@ -70,6 +92,7 @@ export class InGameTopPanelUi {
    * Disposes top-level in-game HUD resources.
    */
   public dispose(): void {
+    this.phoneDialogUi.dispose();
     this.texture.dispose();
   }
 }
