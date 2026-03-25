@@ -10,6 +10,7 @@ import { LocationManager } from "../../world/location/LocationManager";
 import { InGameTopPanelUi } from "./ui/InGameTopPanelUi";
 import { attachInGameSceneRuntimeContext } from "./InGameSceneRuntimeContext";
 import type { Scene } from "../Scene";
+import { SceneTriggerSystem } from "./trigger/SceneTriggerSystem";
 
 /**
  * Implements the in-game scene that loads a default world location district.
@@ -81,16 +82,24 @@ export class InGameScene implements Scene {
     playerRelations.relationships[golemCharacter.getId()] = hostileToGolem;
 
     const hexGridRuntime = new HexGridRuntime(scene);
+    const sceneTriggerSystem = new SceneTriggerSystem(scene, this.entityManager, this.locationManager);
+    sceneTriggerSystem.initialize();
     const inGameTopPanelUi = new InGameTopPanelUi(scene, () => {
       const isEnabled = hexGridRuntime.toggleDebug();
       inGameTopPanelUi.setHexGridDebugEnabled(isEnabled);
     });
     attachInGameSceneRuntimeContext(scene, { hexGridRuntime, topPanelUi: inGameTopPanelUi });
     inGameTopPanelUi.setHexGridDebugEnabled(hexGridRuntime.getIsDebugEnabled());
+    const triggerObserver = scene.onBeforeRenderObservable.add(() => {
+      sceneTriggerSystem.update();
+    });
 
     scene.onDisposeObservable.addOnce(() => {
       hexGridRuntime.dispose();
       inGameTopPanelUi.dispose();
+      if (triggerObserver) {
+        scene.onBeforeRenderObservable.remove(triggerObserver);
+      }
     });
 
     return scene;

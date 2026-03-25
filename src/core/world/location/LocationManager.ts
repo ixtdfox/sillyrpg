@@ -1,4 +1,16 @@
-import { ArcRotateCamera, HemisphericLight, MeshBuilder, Scene as BabylonScene, SceneLoader, Vector3 } from "@babylonjs/core";
+import {
+  AnimationGroup,
+  ArcRotateCamera,
+  HemisphericLight,
+  MeshBuilder,
+  Scene as BabylonScene,
+  SceneLoader,
+  Skeleton,
+  TransformNode,
+  Vector3,
+  type AbstractMesh,
+  type IParticleSystem
+} from "@babylonjs/core";
 import type { LangManager } from "../../lang/LangManager";
 import { GameWorld } from "../GameWorld";
 import type { World } from "../World";
@@ -22,6 +34,15 @@ export class LocationManager {
   /** Runtime location list built from JSON definitions. */
   private locations: GameLocation[];
 
+  /** Currently loaded district model resources. */
+  private activeDistrictContent: {
+    meshes: AbstractMesh[];
+    transformNodes: TransformNode[];
+    skeletons: Skeleton[];
+    animationGroups: AnimationGroup[];
+    particleSystems: IParticleSystem[];
+  } | null;
+
   /**
    * Creates a location manager.
    *
@@ -30,6 +51,7 @@ export class LocationManager {
   public constructor(langManager: LangManager) {
     this.langManager = langManager;
     this.locations = [];
+    this.activeDistrictContent = null;
   }
 
   /**
@@ -97,7 +119,7 @@ export class LocationManager {
    * @returns Promise that resolves when district visuals and camera are ready.
    */
   public async createDistrictScene(scene: BabylonScene, district: District): Promise<void> {
-    await this.appendDistrictModel(scene, district.getModelData().model);
+    await this.loadDistrictModel(scene, district.getModelData().model);
 
     const target = this.resolveGroundCenter(scene);
     const camera = new ArcRotateCamera("in-game-camera", -Math.PI / 4, Math.PI / 3, 30, target, scene);
@@ -111,6 +133,27 @@ export class LocationManager {
   }
 
   /**
+   * Replaces currently loaded district content with model from the target path.
+   *
+   * @param scene - Active Babylon scene.
+   * @param modelPath - Relative path to district model file.
+   * @returns Center point of the loaded district used as spawn fallback.
+   */
+  public async transitionToDistrictModel(scene: BabylonScene, modelPath: string): Promise<Vector3> {
+    await this.loadDistrictModel(scene, modelPath);
+    return this.resolveActiveDistrictCenter();
+  }
+
+  /**
+   * Returns meshes belonging to currently loaded district model.
+   *
+   * @returns Active district meshes.
+   */
+  public getActiveDistrictMeshes(): readonly AbstractMesh[] {
+    return this.activeDistrictContent?.meshes ?? [];
+  }
+
+  /**
    * Appends district model into the target scene.
    * If GLTF/GLB loader is unavailable, it falls back to a simple generated scene.
    *
@@ -118,7 +161,9 @@ export class LocationManager {
    * @param modelPath - Relative path to district model file.
    * @returns Promise resolved when load or fallback generation is done.
    */
-  private async appendDistrictModel(scene: BabylonScene, modelPath: string): Promise<void> {
+  private async loadDistrictModel(scene: BabylonScene, modelPath: string): Promise<void> {
+    this.disposeActiveDistrictContent();
+
     const extension = this.getFileExtension(modelPath);
     const hasLoader = SceneLoader.IsPluginForExtensionAvailable(extension);
 
@@ -131,7 +176,14 @@ export class LocationManager {
     const { rootUrl, fileName } = this.resolveModelPath(modelPath);
 
     try {
-      await SceneLoader.AppendAsync(rootUrl, fileName, scene);
+      const importResult = await SceneLoader.ImportMeshAsync(undefined, rootUrl, fileName, scene);
+      this.activeDistrictContent = {
+        meshes: importResult.meshes,
+        transformNodes: importResult.transformNodes,
+        skeletons: importResult.skeletons,
+        animationGroups: importResult.animationGroups,
+        particleSystems: importResult.particleSystems
+      };
     } catch (error) {
       console.warn(`Unable to load district model '${modelPath}'. Creating fallback district geometry.`, error);
       this.createFallbackDistrictGeometry(scene);
@@ -150,6 +202,89 @@ export class LocationManager {
 
     const marker = MeshBuilder.CreateBox("district-marker", { size: 2 }, scene);
     marker.position = new Vector3(0, 1, 0);
+
+    this.activeDistrictContent = {
+      meshes: [ground, marker],
+      transformNodes: [],
+      skeletons: [],
+      animationGroups: [],
+      particleSystems: []
+    };
+  }
+
+  /**
+   * Computes an approximate center point of loaded district geometry.
+   *
+   * @returns Center world position.
+   */
+  private resolveActiveDistrictCenter(): Vector3 {
+    const districtMeshes = this.activeDistrictContent?.meshes ?? [];
+    const visibleMeshes = districtMeshes.filter((mesh) => mesh.isVisible && mesh.isEnabled());
+    const sourceMeshes = visibleMeshes.length > 0 ? visibleMeshes : districtMeshes;
+
+    if (sourceMeshes.length === 0) {
+      return Vector3.Zero();
+    }
+
+    let minX = Number.POSITIVE_INFINITY;
+    let minY = Number.POSITIVE_INFINITY;
+    let minZ = Number.POSITIVE_INFINITY;
+    let maxX = Number.NEGATIVE_INFINITY;
+    let maxY = Number.NEGATIVE_INFINITY;
+    let maxZ = Number.NEGATIVE_INFINITY;
+
+    for (const mesh of sourceMeshes) {
+      const bounds = mesh.getBoundingInfo().boundingBox;
+      const min = bounds.minimumWorld;
+      const max = bounds.maximumWorld;
+      minX = Math.min(minX, min.x);
+      minY = Math.min(minY, min.y);
+      minZ = Math.min(minZ, min.z);
+      maxX = Math.max(maxX, max.x);
+      maxY = Math.max(maxY, max.y);
+      maxZ = Math.max(maxZ, max.z);
+    }
+
+    if (![minX, minY, minZ, maxX, maxY, maxZ].every((value) => Number.isFinite(value))) {
+      return Vector3.Zero();
+    }
+
+    return new Vector3((minX + maxX) * 0.5, minY, (minZ + maxZ) * 0.5);
+  }
+
+  /**
+   * Disposes previously loaded district resources.
+   */
+  private disposeActiveDistrictContent(): void {
+    if (!this.activeDistrictContent) {
+      return;
+    }
+
+    for (const animationGroup of this.activeDistrictContent.animationGroups) {
+      animationGroup.dispose();
+    }
+
+    for (const particleSystem of this.activeDistrictContent.particleSystems) {
+      particleSystem.dispose();
+    }
+
+    for (const skeleton of this.activeDistrictContent.skeletons) {
+      skeleton.dispose();
+    }
+
+    for (const transformNode of this.activeDistrictContent.transformNodes) {
+      if (!transformNode.isDisposed()) {
+        transformNode.dispose();
+      }
+    }
+
+    for (const mesh of this.activeDistrictContent.meshes) {
+      if (!mesh.isDisposed()) {
+        mesh.dispose(false, true);
+      }
+    }
+
+    this.activeDistrictContent = null;
   }
 
   /**
