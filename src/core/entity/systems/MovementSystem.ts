@@ -12,6 +12,7 @@ import { WorldModeController } from "../../game/WorldModeController";
 import { TurnBasedCombatState } from "../../game/TurnBasedCombatState";
 import { HexMovementCostResolver } from "./hex/HexMovementCostResolver";
 import { HexSpatialIndex } from "./hex/HexSpatialIndex";
+import type { HexGrid } from "../../hex/HexGrid";
 
 /**
  * Executes path-based hex movement and synchronizes transform positions.
@@ -36,6 +37,7 @@ export class MovementSystem implements System {
   private scene: BabylonScene | null;
   private runtimeContext: InGameSceneRuntimeContext | null;
   private pathfinder: HexPathfinder | null;
+  private activeGrid: HexGrid | null;
 
   public constructor(
     entityManager: EntityManager,
@@ -52,17 +54,25 @@ export class MovementSystem implements System {
     this.scene = null;
     this.runtimeContext = null;
     this.pathfinder = null;
+    this.activeGrid = null;
   }
 
   public setScene(scene: BabylonScene | null): void {
     this.scene = scene;
     this.runtimeContext = scene ? getInGameSceneRuntimeContext(scene) : null;
-    this.pathfinder = this.runtimeContext ? new HexPathfinder(this.runtimeContext.hexGridRuntime.getGrid()) : null;
+    this.activeGrid = this.runtimeContext ? this.runtimeContext.hexGridRuntime.getGrid() : null;
+    this.pathfinder = this.activeGrid ? new HexPathfinder(this.activeGrid) : null;
   }
 
   public update(deltaSeconds: number): void {
     if (!this.runtimeContext || !this.pathfinder) {
       return;
+    }
+
+    const currentGrid = this.runtimeContext.hexGridRuntime.getGrid();
+    if (this.activeGrid !== currentGrid) {
+      this.activeGrid = currentGrid;
+      this.pathfinder = new HexPathfinder(currentGrid);
     }
 
     const movingEntities = this.entityManager.query(TransformComponent, HexPositionComponent, HexPathMovementComponent);

@@ -2,6 +2,12 @@ import { Color4, Engine, Scene as BabylonScene, Vector3 } from "@babylonjs/core"
 import { CharacterFactory } from "../../character/CharacterFactory";
 import type { EntityManager } from "../../entity/EntityManager";
 import { EntityPrefabFactory } from "../../entity/EntityPrefabFactory";
+import type { Entity } from "../../entity/Entity";
+import { HexPathMovementComponent } from "../../entity/components/HexPathMovementComponent";
+import { HexPositionComponent } from "../../entity/components/HexPositionComponent";
+import { LocalPlayerComponent } from "../../entity/components/LocalPlayerComponent";
+import { RenderableComponent } from "../../entity/components/RenderableComponent";
+import { TransformComponent } from "../../entity/components/TransformComponent";
 import { Relations } from "../../entity/components/Relations";
 import { RelationsComponent } from "../../entity/components/RelationsComponent";
 import { HexGridRuntime } from "../../hex/HexGridRuntime";
@@ -10,6 +16,7 @@ import { LocationManager } from "../../world/location/LocationManager";
 import { InGameTopPanelUi } from "./ui/InGameTopPanelUi";
 import { attachInGameSceneRuntimeContext } from "./InGameSceneRuntimeContext";
 import type { Scene } from "../Scene";
+import { LocationTriggerSystem } from "../../game/trigger/LocationTriggerSystem";
 
 /**
  * Implements the in-game scene that loads a default world location district.
@@ -80,17 +87,36 @@ export class InGameScene implements Scene {
     hostileToGolem.hate = 100;
     playerRelations.relationships[golemCharacter.getId()] = hostileToGolem;
 
-    const hexGridRuntime = new HexGridRuntime(scene);
+    const hexGridRuntime = new HexGridRuntime(scene, undefined, this.locationManager.getActiveDistrictMeshes());
+    const locationTriggerSystem = new LocationTriggerSystem(
+      scene,
+      this.entityManager,
+      this.locationManager,
+      async (spawnPosition, localPlayer) => {
+        this.cleanupLocationEntities(localPlayer);
+        this.resetPlayerAfterLocationTransition(localPlayer, spawnPosition);
+        this.tryRebuildHexGridRuntime(hexGridRuntime, scene);
+        this.refreshPlayerHexPosition(localPlayer, hexGridRuntime);
+      }
+    );
+    locationTriggerSystem.initialize();
     const inGameTopPanelUi = new InGameTopPanelUi(scene, () => {
       const isEnabled = hexGridRuntime.toggleDebug();
       inGameTopPanelUi.setHexGridDebugEnabled(isEnabled);
     });
     attachInGameSceneRuntimeContext(scene, { hexGridRuntime, topPanelUi: inGameTopPanelUi });
     inGameTopPanelUi.setHexGridDebugEnabled(hexGridRuntime.getIsDebugEnabled());
+    const triggerObserver = scene.onBeforeRenderObservable.add(() => {
+      locationTriggerSystem.update();
+    });
 
     scene.onDisposeObservable.addOnce(() => {
       hexGridRuntime.dispose();
       inGameTopPanelUi.dispose();
+      locationTriggerSystem.dispose();
+      if (triggerObserver) {
+        scene.onBeforeRenderObservable.remove(triggerObserver);
+      }
     });
 
     return scene;
@@ -103,5 +129,78 @@ export class InGameScene implements Scene {
    */
   public processInput(input: string): void {
     console.log(`In-game input received: ${input}`);
+  }
+
+  private cleanupLocationEntities(localPlayer: Entity): void {
+    for (const entity of this.entityManager.getEntities()) {
+      if (entity.getId() === localPlayer.getId() || entity.hasComponent(LocalPlayerComponent)) {
+        continue;
+      }
+
+      const renderable = entity.tryGetComponent(RenderableComponent);
+      if (renderable) {
+        const disposableBinding = renderable.binding as unknown as { dispose?: () => void };
+        disposableBinding.dispose?.();
+      }
+
+      this.entityManager.removeEntity(entity.getId());
+    }
+  }
+
+  private resetPlayerAfterLocationTransition(localPlayer: Entity, spawnPosition: Vector3): void {
+    const transform = localPlayer.getComponent(TransformComponent);
+    transform.value.copyFrom(spawnPosition);
+
+    const renderable = localPlayer.tryGetComponent(RenderableComponent);
+    if (renderable) {
+      renderable.binding.position.copyFrom(spawnPosition);
+    }
+
+    const pathMovement = localPlayer.tryGetComponent(HexPathMovementComponent);
+    pathMovement?.resetPathState();
+
+    const hexPosition = localPlayer.tryGetComponent(HexPositionComponent);
+    if (hexPosition) {
+      hexPosition.targetCell = null;
+    }
+  }
+
+  private refreshPlayerHexPosition(localPlayer: Entity, hexGridRuntime: HexGridRuntime): void {
+    const hexPosition = localPlayer.tryGetComponent(HexPositionComponent);
+    const transform = localPlayer.getComponent(TransformComponent);
+
+    if (!hexPosition) {
+      return;
+    }
+
+    const grid = hexGridRuntime.getGrid();
+    const cell = grid.worldToCell(transform.value);
+    if (!grid.contains(cell)) {
+      hexPosition.targetCell = null;
+      return;
+    }
+
+    hexPosition.currentCell = cell;
+    hexPosition.targetCell = null;
+    transform.value.copyFrom(grid.cellToWorld(cell, transform.value.y));
+
+    const renderable = localPlayer.tryGetComponent(RenderableComponent);
+    if (renderable) {
+      renderable.binding.position.copyFrom(transform.value);
+    }
+  }
+
+  private tryRebuildHexGridRuntime(hexGridRuntime: HexGridRuntime, scene: BabylonScene): void {
+    const activeDistrictMeshes = this.locationManager.getActiveDistrictMeshes();
+
+    try {
+      hexGridRuntime.rebuild(scene, activeDistrictMeshes);
+    } catch (error) {
+      const candidateNames = activeDistrictMeshes.map((mesh) => `${mesh.name}(${mesh.id})`).join(", ");
+      console.error(
+        `[InGameScene] Failed to rebuild HexGridRuntime after transition. activeDistrictMeshCount=${activeDistrictMeshes.length} candidates=[${candidateNames}]`,
+        error
+      );
+    }
   }
 }

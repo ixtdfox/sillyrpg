@@ -16,25 +16,27 @@ export interface HexDebugDetectedCell {
  * Wires hex grid logic, renderer, and picking runtime for the active scene.
  */
 export class HexGridRuntime {
-  private readonly grid: HexGrid;
+  private grid: HexGrid;
   private readonly debugState: HexGridDebugState;
-  private readonly overlay: HexGridOverlay;
-  private readonly pickerController: HexGroundPickerController;
+  private overlay: HexGridOverlay;
+  private pickerController: HexGroundPickerController;
+  private readonly settings: HexGridSettings;
 
   /**
    * Creates complete in-game hex runtime module.
    */
-  public constructor(scene: Scene, settings: HexGridSettings = DEFAULT_HEX_GRID_SETTINGS) {
-    const groundSelection = new HexGridGroundMeshResolver().resolve(scene);
-    groundSelection.groundMesh.isPickable = true;
-
-    this.grid = this.createGridFromGround(groundSelection.groundMesh, settings);
-
-    this.overlay = new HexGridOverlay(scene, this.grid, settings.overlayVerticalOffset);
+  public constructor(
+    scene: Scene,
+    settings: HexGridSettings = DEFAULT_HEX_GRID_SETTINGS,
+    preferredGroundMeshes: readonly AbstractMesh[] = []
+  ) {
+    this.settings = settings;
+    const { grid, overlay, pickerController } = this.createRuntime(scene, settings, preferredGroundMeshes);
+    this.grid = grid;
+    this.overlay = overlay;
+    this.pickerController = pickerController;
     this.debugState = new HexGridDebugState(settings.debugEnabledByDefault);
     this.overlay.setDebugVisible(this.debugState.getIsDebugEnabled());
-
-    this.pickerController = new HexGroundPickerController(scene, groundSelection.isGroundPick, this.grid, this.overlay);
   }
 
   /**
@@ -87,6 +89,22 @@ export class HexGridRuntime {
   }
 
   /**
+   * Rebuilds grid, overlay, and picking bindings against current scene ground meshes.
+   *
+   * @param scene - Scene containing currently active district geometry.
+   */
+  public rebuild(scene: Scene, preferredGroundMeshes: readonly AbstractMesh[] = []): void {
+    const runtime = this.createRuntime(scene, this.settings, preferredGroundMeshes);
+
+    this.pickerController.dispose();
+    this.overlay.dispose();
+    this.grid = runtime.grid;
+    this.overlay = runtime.overlay;
+    this.overlay.setDebugVisible(this.debugState.getIsDebugEnabled());
+    this.pickerController = runtime.pickerController;
+  }
+
+  /**
    * Returns logical hex grid backing this runtime.
    */
   public getGrid(): HexGrid {
@@ -124,5 +142,18 @@ export class HexGridRuntime {
     );
 
     return new HexGrid(origin, settings.hexSize, bounds);
+  }
+
+  private createRuntime(
+    scene: Scene,
+    settings: HexGridSettings,
+    preferredGroundMeshes: readonly AbstractMesh[]
+  ): { grid: HexGrid; overlay: HexGridOverlay; pickerController: HexGroundPickerController } {
+    const groundSelection = new HexGridGroundMeshResolver().resolve(scene, preferredGroundMeshes);
+    groundSelection.groundMesh.isPickable = true;
+    const grid = this.createGridFromGround(groundSelection.groundMesh, settings);
+    const overlay = new HexGridOverlay(scene, grid, settings.overlayVerticalOffset);
+    const pickerController = new HexGroundPickerController(scene, groundSelection.isGroundPick, grid, overlay);
+    return { grid, overlay, pickerController };
   }
 }
