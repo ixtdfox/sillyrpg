@@ -12,6 +12,7 @@ import {
   type AbstractMesh,
   type IParticleSystem
 } from "@babylonjs/core";
+import "@babylonjs/loaders/glTF";
 import type { LangManager } from "../../lang/LangManager";
 import { GameWorld } from "../GameWorld";
 import type { World } from "../World";

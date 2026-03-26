@@ -44,21 +44,17 @@ export class LocationTriggerSystem {
 
     const playerPosition = localPlayer.getComponent(TransformComponent).value;
     const playerMeshes = this.resolvePlayerMeshes(localPlayer);
-    const positionText = `(${playerPosition.x.toFixed(2)}, ${playerPosition.y.toFixed(2)}, ${playerPosition.z.toFixed(2)})`;
-    console.debug(
-      `[LocationTriggerSystem] Trigger check playerPosition=${positionText} playerMeshes=${playerMeshes.length}.`
-    );
-
     for (const trigger of this.triggerRegistry.getTriggers()) {
       const overlap = this.testTriggerOverlap(trigger.mesh, playerPosition, playerMeshes);
-      console.debug(
-        `[LocationTriggerSystem] Overlap trigger='${trigger.mesh.name}' id='${trigger.mesh.id}' success=${overlap}.`
-      );
 
       if (!overlap) {
         continue;
       }
 
+      const positionText = `(${playerPosition.x.toFixed(2)}, ${playerPosition.y.toFixed(2)}, ${playerPosition.z.toFixed(2)})`;
+      console.debug(
+        `[LocationTriggerSystem] Overlap success trigger='${trigger.mesh.name}' id='${trigger.mesh.id}' playerPosition=${positionText} playerMeshes=${playerMeshes.length}.`
+      );
       this.isTransitioning = true;
       console.debug(
         `[LocationTriggerSystem] Dispatch start kind='${trigger.metadata.kind}' type='${trigger.metadata.triggerType}'.`

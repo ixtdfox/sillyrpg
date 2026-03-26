@@ -35,17 +35,12 @@ export function extractSceneTriggerMetadata(node: Node): SceneTriggerMetadata | 
       const extras = resolveExtrasRecord(record);
 
       if (extras) {
-        const kind = extras.kind;
-        const triggerType = extras.triggerType;
-        const locationId = extras.locationId;
-        const targetScene = extras.targetScene;
+        const kind = normalizeMetadataString(extras.kind);
+        const triggerType = normalizeMetadataString(extras.triggerType);
+        const locationId = normalizeMetadataString(extras.locationId);
+        const targetScene = normalizeMetadataString(extras.targetScene);
 
-        if (
-          typeof kind === "string" &&
-          typeof triggerType === "string" &&
-          typeof locationId === "string" &&
-          typeof targetScene === "string"
-        ) {
+        if (kind && triggerType && locationId && targetScene) {
           return { kind, triggerType, locationId, targetScene };
         }
       }
@@ -101,6 +96,31 @@ function resolveExtrasRecord(metadata: Record<string, unknown>): Record<string, 
   }
 
   return metadata;
+}
+
+function normalizeMetadataString(value: unknown): string | null {
+  if (typeof value !== "string") {
+    return null;
+  }
+
+  const trimmed = value.trim();
+  if (trimmed.length === 0) {
+    return null;
+  }
+
+  const hasWrappedDoubleQuotes = trimmed.startsWith("\"") && trimmed.endsWith("\"");
+  const hasWrappedSingleQuotes = trimmed.startsWith("'") && trimmed.endsWith("'");
+
+  if (hasWrappedDoubleQuotes || hasWrappedSingleQuotes) {
+    const unwrapped = trimmed.slice(1, -1).trim();
+    return unwrapped.length > 0 ? unwrapped : null;
+  }
+
+  if (trimmed.endsWith("\"") || trimmed.endsWith("'")) {
+    return trimmed.slice(0, -1).trim();
+  }
+
+  return trimmed;
 }
 
 function resolveTriggerMeshes(node: Node): AbstractMesh[] {
