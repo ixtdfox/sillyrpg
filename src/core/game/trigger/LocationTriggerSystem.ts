@@ -8,6 +8,8 @@ import type { LocationManager } from "../../world/location/LocationManager";
 import { TriggerDispatcher } from "./TriggerDispatcher";
 import { TriggerRegistry } from "./TriggerRegistry";
 
+type PostTransitionHandler = (spawnPosition: Vector3, localPlayer: Entity) => Promise<void> | void;
+
 /**
  * Runtime gameplay system for trigger discovery, overlap checks and dispatch.
  */
@@ -17,14 +19,21 @@ export class LocationTriggerSystem {
   private readonly locationManager: LocationManager;
   private readonly triggerRegistry: TriggerRegistry;
   private readonly triggerDispatcher: TriggerDispatcher;
+  private readonly postTransitionHandler: PostTransitionHandler;
   private isTransitioning: boolean;
 
-  public constructor(scene: BabylonScene, entityManager: EntityManager, locationManager: LocationManager) {
+  public constructor(
+    scene: BabylonScene,
+    entityManager: EntityManager,
+    locationManager: LocationManager,
+    postTransitionHandler: PostTransitionHandler
+  ) {
     this.scene = scene;
     this.entityManager = entityManager;
     this.locationManager = locationManager;
     this.triggerRegistry = new TriggerRegistry();
     this.triggerDispatcher = new TriggerDispatcher();
+    this.postTransitionHandler = postTransitionHandler;
     this.isTransitioning = false;
   }
 
@@ -64,7 +73,10 @@ export class LocationTriggerSystem {
           scene: this.scene,
           localPlayer,
           locationManager: this.locationManager,
-          refreshTriggers: () => this.refreshTriggers()
+          handlePostTransition: async (spawnPosition, playerEntity) => {
+            await this.postTransitionHandler(spawnPosition, playerEntity);
+            this.refreshTriggers();
+          }
         })
         .catch((error: unknown) => {
           console.error("[LocationTriggerSystem] Scene transition failed.", error);

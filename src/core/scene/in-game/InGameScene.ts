@@ -2,6 +2,12 @@ import { Color4, Engine, Scene as BabylonScene, Vector3 } from "@babylonjs/core"
 import { CharacterFactory } from "../../character/CharacterFactory";
 import type { EntityManager } from "../../entity/EntityManager";
 import { EntityPrefabFactory } from "../../entity/EntityPrefabFactory";
+import type { Entity } from "../../entity/Entity";
+import { HexPathMovementComponent } from "../../entity/components/HexPathMovementComponent";
+import { HexPositionComponent } from "../../entity/components/HexPositionComponent";
+import { LocalPlayerComponent } from "../../entity/components/LocalPlayerComponent";
+import { RenderableComponent } from "../../entity/components/RenderableComponent";
+import { TransformComponent } from "../../entity/components/TransformComponent";
 import { Relations } from "../../entity/components/Relations";
 import { RelationsComponent } from "../../entity/components/RelationsComponent";
 import { HexGridRuntime } from "../../hex/HexGridRuntime";
@@ -82,7 +88,17 @@ export class InGameScene implements Scene {
     playerRelations.relationships[golemCharacter.getId()] = hostileToGolem;
 
     const hexGridRuntime = new HexGridRuntime(scene);
-    const locationTriggerSystem = new LocationTriggerSystem(scene, this.entityManager, this.locationManager);
+    const locationTriggerSystem = new LocationTriggerSystem(
+      scene,
+      this.entityManager,
+      this.locationManager,
+      async (spawnPosition, localPlayer) => {
+        this.cleanupLocationEntities(localPlayer);
+        this.resetPlayerAfterLocationTransition(localPlayer, spawnPosition);
+        hexGridRuntime.rebuild(scene);
+        this.refreshPlayerHexPosition(localPlayer, hexGridRuntime);
+      }
+    );
     locationTriggerSystem.initialize();
     const inGameTopPanelUi = new InGameTopPanelUi(scene, () => {
       const isEnabled = hexGridRuntime.toggleDebug();
@@ -113,5 +129,64 @@ export class InGameScene implements Scene {
    */
   public processInput(input: string): void {
     console.log(`In-game input received: ${input}`);
+  }
+
+  private cleanupLocationEntities(localPlayer: Entity): void {
+    for (const entity of this.entityManager.getEntities()) {
+      if (entity.getId() === localPlayer.getId() || entity.hasComponent(LocalPlayerComponent)) {
+        continue;
+      }
+
+      const renderable = entity.tryGetComponent(RenderableComponent);
+      if (renderable) {
+        const disposableBinding = renderable.binding as unknown as { dispose?: () => void };
+        disposableBinding.dispose?.();
+      }
+
+      this.entityManager.removeEntity(entity.getId());
+    }
+  }
+
+  private resetPlayerAfterLocationTransition(localPlayer: Entity, spawnPosition: Vector3): void {
+    const transform = localPlayer.getComponent(TransformComponent);
+    transform.value.copyFrom(spawnPosition);
+
+    const renderable = localPlayer.tryGetComponent(RenderableComponent);
+    if (renderable) {
+      renderable.binding.position.copyFrom(spawnPosition);
+    }
+
+    const pathMovement = localPlayer.tryGetComponent(HexPathMovementComponent);
+    pathMovement?.resetPathState();
+
+    const hexPosition = localPlayer.tryGetComponent(HexPositionComponent);
+    if (hexPosition) {
+      hexPosition.targetCell = null;
+    }
+  }
+
+  private refreshPlayerHexPosition(localPlayer: Entity, hexGridRuntime: HexGridRuntime): void {
+    const hexPosition = localPlayer.tryGetComponent(HexPositionComponent);
+    const transform = localPlayer.getComponent(TransformComponent);
+
+    if (!hexPosition) {
+      return;
+    }
+
+    const grid = hexGridRuntime.getGrid();
+    const cell = grid.worldToCell(transform.value);
+    if (!grid.contains(cell)) {
+      hexPosition.targetCell = null;
+      return;
+    }
+
+    hexPosition.currentCell = cell;
+    hexPosition.targetCell = null;
+    transform.value.copyFrom(grid.cellToWorld(cell, transform.value.y));
+
+    const renderable = localPlayer.tryGetComponent(RenderableComponent);
+    if (renderable) {
+      renderable.binding.position.copyFrom(transform.value);
+    }
   }
 }

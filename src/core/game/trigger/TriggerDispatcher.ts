@@ -1,6 +1,5 @@
-import type { Scene as BabylonScene } from "@babylonjs/core";
+import type { Scene as BabylonScene, Vector3 } from "@babylonjs/core";
 import type { Entity } from "../../entity/Entity";
-import { TransformComponent } from "../../entity/components/TransformComponent";
 import type { LocationManager } from "../../world/location/LocationManager";
 import type { SceneTriggerDescriptor } from "./TriggerMetadata";
 
@@ -8,7 +7,7 @@ interface TriggerDispatchContext {
   readonly scene: BabylonScene;
   readonly localPlayer: Entity;
   readonly locationManager: LocationManager;
-  readonly refreshTriggers: () => void;
+  readonly handlePostTransition: (spawnPosition: Vector3, localPlayer: Entity) => Promise<void> | void;
 }
 
 /**
@@ -35,16 +34,8 @@ export class TriggerDispatcher {
   ): Promise<void> {
     console.debug(`[LocationTriggerSystem] Scene transition started target='${trigger.metadata.targetScene}'.`);
 
-    const center = await context.locationManager.transitionToDistrictModel(context.scene, trigger.metadata.targetScene);
-    const transform = context.localPlayer.getComponent(TransformComponent);
-    const spawnPosition = center.clone();
-
-    if (!Number.isFinite(spawnPosition.y)) {
-      spawnPosition.y = 0;
-    }
-
-    transform.value.copyFrom(spawnPosition);
-    context.refreshTriggers();
+    const spawnPosition = await context.locationManager.transitionToDistrictModel(context.scene, trigger.metadata.targetScene);
+    await context.handlePostTransition(spawnPosition, context.localPlayer);
     console.debug(`[LocationTriggerSystem] Scene transition completed target='${trigger.metadata.targetScene}'.`);
   }
 }
