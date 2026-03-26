@@ -87,7 +87,7 @@ export class InGameScene implements Scene {
     hostileToGolem.hate = 100;
     playerRelations.relationships[golemCharacter.getId()] = hostileToGolem;
 
-    const hexGridRuntime = new HexGridRuntime(scene);
+    const hexGridRuntime = new HexGridRuntime(scene, undefined, this.locationManager.getActiveDistrictMeshes());
     const locationTriggerSystem = new LocationTriggerSystem(
       scene,
       this.entityManager,
@@ -95,7 +95,7 @@ export class InGameScene implements Scene {
       async (spawnPosition, localPlayer) => {
         this.cleanupLocationEntities(localPlayer);
         this.resetPlayerAfterLocationTransition(localPlayer, spawnPosition);
-        hexGridRuntime.rebuild(scene);
+        this.tryRebuildHexGridRuntime(hexGridRuntime, scene);
         this.refreshPlayerHexPosition(localPlayer, hexGridRuntime);
       }
     );
@@ -187,6 +187,20 @@ export class InGameScene implements Scene {
     const renderable = localPlayer.tryGetComponent(RenderableComponent);
     if (renderable) {
       renderable.binding.position.copyFrom(transform.value);
+    }
+  }
+
+  private tryRebuildHexGridRuntime(hexGridRuntime: HexGridRuntime, scene: BabylonScene): void {
+    const activeDistrictMeshes = this.locationManager.getActiveDistrictMeshes();
+
+    try {
+      hexGridRuntime.rebuild(scene, activeDistrictMeshes);
+    } catch (error) {
+      const candidateNames = activeDistrictMeshes.map((mesh) => `${mesh.name}(${mesh.id})`).join(", ");
+      console.error(
+        `[InGameScene] Failed to rebuild HexGridRuntime after transition. activeDistrictMeshCount=${activeDistrictMeshes.length} candidates=[${candidateNames}]`,
+        error
+      );
     }
   }
 }

@@ -25,9 +25,13 @@ export class HexGridRuntime {
   /**
    * Creates complete in-game hex runtime module.
    */
-  public constructor(scene: Scene, settings: HexGridSettings = DEFAULT_HEX_GRID_SETTINGS) {
+  public constructor(
+    scene: Scene,
+    settings: HexGridSettings = DEFAULT_HEX_GRID_SETTINGS,
+    preferredGroundMeshes: readonly AbstractMesh[] = []
+  ) {
     this.settings = settings;
-    const { grid, overlay, pickerController } = this.createRuntime(scene, settings);
+    const { grid, overlay, pickerController } = this.createRuntime(scene, settings, preferredGroundMeshes);
     this.grid = grid;
     this.overlay = overlay;
     this.pickerController = pickerController;
@@ -89,11 +93,11 @@ export class HexGridRuntime {
    *
    * @param scene - Scene containing currently active district geometry.
    */
-  public rebuild(scene: Scene): void {
+  public rebuild(scene: Scene, preferredGroundMeshes: readonly AbstractMesh[] = []): void {
+    const runtime = this.createRuntime(scene, this.settings, preferredGroundMeshes);
+
     this.pickerController.dispose();
     this.overlay.dispose();
-
-    const runtime = this.createRuntime(scene, this.settings);
     this.grid = runtime.grid;
     this.overlay = runtime.overlay;
     this.overlay.setDebugVisible(this.debugState.getIsDebugEnabled());
@@ -142,9 +146,10 @@ export class HexGridRuntime {
 
   private createRuntime(
     scene: Scene,
-    settings: HexGridSettings
+    settings: HexGridSettings,
+    preferredGroundMeshes: readonly AbstractMesh[]
   ): { grid: HexGrid; overlay: HexGridOverlay; pickerController: HexGroundPickerController } {
-    const groundSelection = new HexGridGroundMeshResolver().resolve(scene);
+    const groundSelection = new HexGridGroundMeshResolver().resolve(scene, preferredGroundMeshes);
     groundSelection.groundMesh.isPickable = true;
     const grid = this.createGridFromGround(groundSelection.groundMesh, settings);
     const overlay = new HexGridOverlay(scene, grid, settings.overlayVerticalOffset);
