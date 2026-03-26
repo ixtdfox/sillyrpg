@@ -1,7 +1,8 @@
-import type { Scene as BabylonScene } from "@babylonjs/core";
+import { AbstractMesh, type Scene as BabylonScene, type Vector3 } from "@babylonjs/core";
 import type { Entity } from "../../entity/Entity";
 import type { EntityManager } from "../../entity/EntityManager";
 import { LocalPlayerComponent } from "../../entity/components/LocalPlayerComponent";
+import { RenderableComponent } from "../../entity/components/RenderableComponent";
 import { TransformComponent } from "../../entity/components/TransformComponent";
 import type { LocationManager } from "../../world/location/LocationManager";
 import { TriggerDispatcher } from "./TriggerDispatcher";
@@ -42,13 +43,26 @@ export class LocationTriggerSystem {
     }
 
     const playerPosition = localPlayer.getComponent(TransformComponent).value;
+    const playerMeshes = this.resolvePlayerMeshes(localPlayer);
+    const positionText = `(${playerPosition.x.toFixed(2)}, ${playerPosition.y.toFixed(2)}, ${playerPosition.z.toFixed(2)})`;
+    console.debug(
+      `[LocationTriggerSystem] Trigger check playerPosition=${positionText} playerMeshes=${playerMeshes.length}.`
+    );
 
     for (const trigger of this.triggerRegistry.getTriggers()) {
-      if (!trigger.mesh.intersectsPoint(playerPosition)) {
+      const overlap = this.testTriggerOverlap(trigger.mesh, playerPosition, playerMeshes);
+      console.debug(
+        `[LocationTriggerSystem] Overlap trigger='${trigger.mesh.name}' id='${trigger.mesh.id}' success=${overlap}.`
+      );
+
+      if (!overlap) {
         continue;
       }
 
       this.isTransitioning = true;
+      console.debug(
+        `[LocationTriggerSystem] Dispatch start kind='${trigger.metadata.kind}' type='${trigger.metadata.triggerType}'.`
+      );
       void this.triggerDispatcher
         .dispatch(trigger, {
           scene: this.scene,
@@ -71,7 +85,7 @@ export class LocationTriggerSystem {
   }
 
   private refreshTriggers(): void {
-    this.triggerRegistry.registerFromMeshes(this.locationManager.getActiveDistrictMeshes());
+    this.triggerRegistry.registerFromNodes(this.locationManager.getActiveDistrictNodes());
   }
 
   private resolveLocalPlayerEntity(): Entity | null {
@@ -86,5 +100,64 @@ export class LocationTriggerSystem {
     }
 
     return candidates[0];
+  }
+
+  private resolvePlayerMeshes(localPlayer: Entity): AbstractMesh[] {
+    if (!localPlayer.hasComponent(RenderableComponent)) {
+      return [];
+    }
+
+    const renderable = localPlayer.getComponent(RenderableComponent);
+    const renderBinding = renderable.binding as unknown;
+    const meshes: AbstractMesh[] = [];
+    const seenIds = new Set<number>();
+    const bindingAsMesh = renderBinding as AbstractMesh;
+
+    if (bindingAsMesh instanceof AbstractMesh) {
+      meshes.push(bindingAsMesh);
+      seenIds.add(bindingAsMesh.uniqueId);
+    }
+
+    const meshCapableNode = renderBinding as { getChildMeshes?: (directDescendantsOnly?: boolean) => AbstractMesh[] };
+    if (typeof meshCapableNode.getChildMeshes === "function") {
+      for (const childMesh of meshCapableNode.getChildMeshes(false)) {
+        if (seenIds.has(childMesh.uniqueId)) {
+          continue;
+        }
+
+        meshes.push(childMesh);
+        seenIds.add(childMesh.uniqueId);
+      }
+    }
+
+    return meshes.filter((mesh) => !mesh.isDisposed());
+  }
+
+  private testTriggerOverlap(triggerMesh: AbstractMesh, playerPosition: Vector3, playerMeshes: readonly AbstractMesh[]): boolean {
+    triggerMesh.computeWorldMatrix(true);
+
+    for (const playerMesh of playerMeshes) {
+      playerMesh.computeWorldMatrix(true);
+      if (playerMesh.intersectsMesh(triggerMesh, false)) {
+        return true;
+      }
+    }
+
+    const bounds = triggerMesh.getBoundingInfo().boundingBox;
+    const min = bounds.minimumWorld;
+    const max = bounds.maximumWorld;
+    const containsPosition =
+      playerPosition.x >= min.x &&
+      playerPosition.x <= max.x &&
+      playerPosition.y >= min.y &&
+      playerPosition.y <= max.y &&
+      playerPosition.z >= min.z &&
+      playerPosition.z <= max.z;
+
+    if (containsPosition) {
+      return true;
+    }
+
+    return triggerMesh.intersectsPoint(playerPosition);
   }
 }

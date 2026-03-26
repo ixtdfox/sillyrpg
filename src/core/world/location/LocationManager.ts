@@ -1,4 +1,5 @@
 import {
+  Node,
   AnimationGroup,
   ArcRotateCamera,
   HemisphericLight,
@@ -151,6 +152,19 @@ export class LocationManager {
    */
   public getActiveDistrictMeshes(): readonly AbstractMesh[] {
     return this.activeDistrictContent?.meshes ?? [];
+  }
+
+  /**
+   * Returns active district nodes used for trigger discovery.
+   *
+   * @returns Active district nodes including meshes and transform nodes.
+   */
+  public getActiveDistrictNodes(): readonly Node[] {
+    if (!this.activeDistrictContent) {
+      return [];
+    }
+
+    return [...this.activeDistrictContent.meshes, ...this.activeDistrictContent.transformNodes];
   }
 
   /**

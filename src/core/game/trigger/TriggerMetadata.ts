@@ -1,4 +1,4 @@
-import type { AbstractMesh, Node } from "@babylonjs/core";
+import { AbstractMesh, type Node } from "@babylonjs/core";
 
 /**
  * Raw trigger metadata authored in Blender and exported via glTF extras.
@@ -63,17 +63,26 @@ export function extractSceneTriggerMetadata(node: Node): SceneTriggerMetadata | 
  * @param meshes - District meshes to inspect.
  * @returns Registered trigger descriptors.
  */
-export function collectSceneTriggers(meshes: readonly AbstractMesh[]): SceneTriggerDescriptor[] {
+export function collectSceneTriggers(nodes: readonly Node[]): SceneTriggerDescriptor[] {
   const triggers: SceneTriggerDescriptor[] = [];
+  const seenMeshIds = new Set<number>();
 
-  for (const mesh of meshes) {
-    const triggerMetadata = extractSceneTriggerMetadata(mesh);
+  for (const node of nodes) {
+    const candidateMeshes = resolveTriggerMeshes(node);
 
-    if (!triggerMetadata) {
-      continue;
+    for (const mesh of candidateMeshes) {
+      if (seenMeshIds.has(mesh.uniqueId)) {
+        continue;
+      }
+
+      const triggerMetadata = extractSceneTriggerMetadata(mesh);
+      if (!triggerMetadata) {
+        continue;
+      }
+
+      seenMeshIds.add(mesh.uniqueId);
+      triggers.push({ mesh, metadata: triggerMetadata });
     }
-
-    triggers.push({ mesh, metadata: triggerMetadata });
   }
 
   return triggers;
@@ -92,4 +101,17 @@ function resolveExtrasRecord(metadata: Record<string, unknown>): Record<string, 
   }
 
   return metadata;
+}
+
+function resolveTriggerMeshes(node: Node): AbstractMesh[] {
+  if (node instanceof AbstractMesh) {
+    return [node];
+  }
+
+  const meshCapableNode = node as { getChildMeshes?: (directDescendantsOnly?: boolean) => AbstractMesh[] };
+  if (typeof meshCapableNode.getChildMeshes !== "function") {
+    return [];
+  }
+
+  return meshCapableNode.getChildMeshes(false);
 }

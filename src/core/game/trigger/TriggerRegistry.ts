@@ -1,4 +1,4 @@
-import type { AbstractMesh } from "@babylonjs/core";
+import type { Node } from "@babylonjs/core";
 import { collectSceneTriggers, type SceneTriggerDescriptor } from "./TriggerMetadata";
 
 /**
@@ -11,15 +11,16 @@ export class TriggerRegistry {
     this.triggerDescriptors = [];
   }
 
-  public registerFromMeshes(meshes: readonly AbstractMesh[]): void {
-    this.triggerDescriptors = collectSceneTriggers(meshes);
+  public registerFromNodes(nodes: readonly Node[]): void {
+    this.triggerDescriptors = collectSceneTriggers(nodes);
+    console.debug(`[LocationTriggerSystem] Triggers discovered total=${this.triggerDescriptors.length}.`);
 
     for (const trigger of this.triggerDescriptors) {
       trigger.mesh.isVisible = false;
       trigger.mesh.visibility = 0;
       trigger.mesh.isPickable = false;
       console.debug(
-        `[LocationTriggerSystem] Trigger discovered kind='${trigger.metadata.kind}' type='${trigger.metadata.triggerType}' target='${trigger.metadata.targetScene}'.`
+        `[LocationTriggerSystem] Trigger discovered mesh='${trigger.mesh.name}' id='${trigger.mesh.id}' kind='${trigger.metadata.kind}' type='${trigger.metadata.triggerType}' locationId='${trigger.metadata.locationId}' target='${trigger.metadata.targetScene}'.`
       );
     }
   }
