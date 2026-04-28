@@ -104,7 +104,7 @@ export class InGameScene implements Scene {
       const isEnabled = hexGridRuntime.toggleDebug();
       inGameTopPanelUi.setHexGridDebugEnabled(isEnabled);
     });
-    attachInGameSceneRuntimeContext(scene, { hexGridRuntime, topPanelUi: inGameTopPanelUi });
+    attachInGameSceneRuntimeContext(scene, { hexGridRuntime, locationManager: this.locationManager, topPanelUi: inGameTopPanelUi });
     inGameTopPanelUi.setHexGridDebugEnabled(hexGridRuntime.getIsDebugEnabled());
     const triggerObserver = scene.onBeforeRenderObservable.add(() => {
       locationTriggerSystem.update();

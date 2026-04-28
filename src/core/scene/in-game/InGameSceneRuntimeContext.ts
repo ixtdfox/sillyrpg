@@ -1,5 +1,6 @@
 import type { Scene as BabylonScene } from "@babylonjs/core";
 import type { HexGridRuntime } from "../../hex/HexGridRuntime";
+import type { LocationManager } from "../../world/location/LocationManager";
 import type { InGameTopPanelUi } from "./ui/InGameTopPanelUi";
 
 /**
@@ -7,6 +8,7 @@ import type { InGameTopPanelUi } from "./ui/InGameTopPanelUi";
  */
 export interface InGameSceneRuntimeContext {
   readonly hexGridRuntime: HexGridRuntime;
+  readonly locationManager: LocationManager;
   readonly topPanelUi: InGameTopPanelUi;
 }
 

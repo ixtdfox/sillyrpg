@@ -4,6 +4,7 @@ import { EntityManager } from "../entity/EntityManager";
 import { InGameScene } from "../scene/in-game/InGameScene";
 import { MovementSystem } from "../entity/systems/MovementSystem";
 import { RenderSyncSystem } from "../entity/systems/RenderSyncSystem";
+import { BuildingVisibilitySystem } from "../entity/systems/BuildingVisibilitySystem";
 import { CharacterSpawnerSystem } from "../entity/systems/CharacterSpawnerSystem";
 import { LocalPlayerSystem } from "../entity/systems/LocalPlayerSystem";
 import { LocalPlayerInputSystem } from "../entity/systems/LocalPlayerInputSystem";
@@ -65,6 +66,8 @@ export class GameManager {
 
   /** ECS system that keeps camera focused on local player. */
   private readonly localPlayerSystem: LocalPlayerSystem;
+  /** ECS system that updates building wall halos and upper-story visibility. */
+  private readonly buildingVisibilitySystem: BuildingVisibilitySystem;
   /** ECS system that writes local-player movement intent from clicks. */
   private readonly localPlayerInputSystem: LocalPlayerInputSystem;
   /** ECS system that advances path-based movement. */
@@ -123,6 +126,7 @@ export class GameManager {
     const movementCostResolver = new HexMovementCostResolver();
     this.characterSpawnerSystem = new CharacterSpawnerSystem(this.entityManager);
     this.localPlayerSystem = new LocalPlayerSystem(this.entityManager);
+    this.buildingVisibilitySystem = new BuildingVisibilitySystem(this.entityManager);
     const hexSpatialIndex = new HexSpatialIndex();
     const attackTargetingService = new CombatAttackTargetingService(this.entityManager);
     this.basicCombatAiService = new BasicCombatAiService(
@@ -206,8 +210,9 @@ export class GameManager {
       this.combatHudSystem,
       this.combatBannerSystem,
       new AnimationSystem(this.entityManager),
-      this.localPlayerSystem,
       new RenderSyncSystem(this.entityManager),
+      this.localPlayerSystem,
+      this.buildingVisibilitySystem
     ];
     this.currentState = GameState.MAIN_MENU;
     this.currentSceneController = null;
@@ -284,6 +289,7 @@ export class GameManager {
     this.combatHudSystem.setScene(this.currentBabylonScene);
     this.combatBannerSystem.setScene(this.currentBabylonScene);
     this.localPlayerSystem.setScene(this.currentBabylonScene);
+    this.buildingVisibilitySystem.setScene(this.currentBabylonScene);
   }
 
   /**
