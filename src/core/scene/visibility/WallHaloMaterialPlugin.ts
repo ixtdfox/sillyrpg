@@ -86,6 +86,9 @@ export class WallHaloMaterialPlugin extends MaterialPluginBase {
     }
 
     return {
+      CUSTOM_FRAGMENT_EXTENSION: `
+        #extension GL_OES_standard_derivatives : enable
+      `,
       CUSTOM_FRAGMENT_UPDATE_ALPHA: `
         float wallHaloDistanceCylinder = distance(vPositionW.xz, wallHaloPlayerPosition.xz);
         float wallHaloDistanceSphere = distance(vPositionW.xyz, wallHaloPlayerPosition.xyz);
@@ -96,7 +99,22 @@ export class WallHaloMaterialPlugin extends MaterialPluginBase {
         float wallHaloPlayerCameraDist = distance(wallHaloPlayerPosition.xyz, wallHaloCameraPosition.xyz);
         float wallHaloInFrontOfPlayer = 1.0 - step(wallHaloPlayerCameraDist, wallHaloWallCameraDist);
         float wallHaloMask = mix(wallHaloInFrontOfPlayer, 1.0, wallHaloState);
-        alpha *= mix(1.0, wallHaloAlpha, wallHaloMask);
+        vec3 wallHaloDx = dFdx(vPositionW.xyz);
+        vec3 wallHaloDy = dFdy(vPositionW.xyz);
+        vec3 wallHaloGeomNormalW = normalize(cross(wallHaloDx, wallHaloDy));
+        float wallHaloUpAmount = abs(wallHaloGeomNormalW.y);
+        float wallHaloVerticalFace = 1.0 - smoothstep(0.15, 0.35, wallHaloUpAmount);
+        alpha *= mix(1.0, wallHaloAlpha, wallHaloMask * wallHaloVerticalFace);
+      `,
+      CUSTOM_FRAGMENT_BEFORE_FINALCOLORCOMPOSITION: `
+        alpha = max(alpha, 1.0 - wallHaloVerticalFace);
+      `,
+      CUSTOM_FRAGMENT_BEFORE_FRAGCOLOR: `
+        #ifdef PBR
+          finalColor.a = max(finalColor.a, 1.0 - wallHaloVerticalFace);
+        #else
+          color.a = max(color.a, 1.0 - wallHaloVerticalFace);
+        #endif
       `
     };
   }
@@ -156,7 +174,7 @@ function installPluginsOnMaterial(material: Material): WallHaloMaterialPlugin[] 
 
   for (const targetMaterial of targetMaterials) {
     targetMaterial.transparencyMode = Material.MATERIAL_ALPHABLEND;
-    targetMaterial.needDepthPrePass = false;
+    targetMaterial.needDepthPrePass = true;
     plugins.push(new WallHaloMaterialPlugin(targetMaterial));
   }
 

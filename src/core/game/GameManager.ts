@@ -115,25 +115,37 @@ export class GameManager {
    * @param canvas - HTML canvas attached to Babylon.
    * @param langManager - Shared language service.
    */
-  public constructor(engine: Engine, canvas: HTMLCanvasElement, langManager: LangManager) {
+  public constructor(
+    engine: Engine,
+    canvas: HTMLCanvasElement,
+    langManager: LangManager,
+  ) {
     this.engine = engine;
     this.canvas = canvas;
     this.langManager = langManager;
     this.entityManager = new EntityManager();
     this.worldModeController = new WorldModeController(WorldMode.RUNTIME);
-    this.turnBasedCombatState = new TurnBasedCombatState(this.worldModeController);
+    this.turnBasedCombatState = new TurnBasedCombatState(
+      this.worldModeController,
+    );
     this.combatInputController = new CombatInputController();
     const movementCostResolver = new HexMovementCostResolver();
-    this.characterSpawnerSystem = new CharacterSpawnerSystem(this.entityManager);
+    this.characterSpawnerSystem = new CharacterSpawnerSystem(
+      this.entityManager,
+    );
     this.localPlayerSystem = new LocalPlayerSystem(this.entityManager);
-    this.buildingVisibilitySystem = new BuildingVisibilitySystem(this.entityManager);
+    this.buildingVisibilitySystem = new BuildingVisibilitySystem(
+      this.entityManager,
+    );
     const hexSpatialIndex = new HexSpatialIndex();
-    const attackTargetingService = new CombatAttackTargetingService(this.entityManager);
+    const attackTargetingService = new CombatAttackTargetingService(
+      this.entityManager,
+    );
     this.basicCombatAiService = new BasicCombatAiService(
       this.entityManager,
       attackTargetingService,
       hexSpatialIndex,
-      movementCostResolver
+      movementCostResolver,
     );
     this.localPlayerInputSystem = new LocalPlayerInputSystem(
       this.entityManager,
@@ -141,32 +153,47 @@ export class GameManager {
       this.turnBasedCombatState,
       this.combatInputController,
       hexSpatialIndex,
-      attackTargetingService
+      attackTargetingService,
     );
     this.movementSystem = new MovementSystem(
       this.entityManager,
       this.worldModeController,
       this.turnBasedCombatState,
       movementCostResolver,
-      hexSpatialIndex
+      hexSpatialIndex,
     );
-    this.patrolSystem = new PatrolSystem(this.entityManager, this.worldModeController);
-    this.hexSpatialIndexSystem = new HexSpatialIndexSystem(this.entityManager, hexSpatialIndex);
-    const combatParticipantResolver = new CombatParticipantResolver(this.entityManager);
+    this.patrolSystem = new PatrolSystem(
+      this.entityManager,
+      this.worldModeController,
+    );
+    this.hexSpatialIndexSystem = new HexSpatialIndexSystem(
+      this.entityManager,
+      hexSpatialIndex,
+    );
+    const combatParticipantResolver = new CombatParticipantResolver(
+      this.entityManager,
+    );
     const combatEncounterCoordinator = new CombatEncounterCoordinator(
       this.worldModeController,
       this.turnBasedCombatState,
       combatParticipantResolver,
-      this.entityManager
+      this.entityManager,
     );
-    this.visionDetectionSystem = new VisionDetectionSystem(this.entityManager, hexSpatialIndex, combatEncounterCoordinator);
-    this.perceptionDebugOverlaySystem = new PerceptionDebugOverlaySystem(this.entityManager, this.worldModeController);
+    this.visionDetectionSystem = new VisionDetectionSystem(
+      this.entityManager,
+      hexSpatialIndex,
+      combatEncounterCoordinator,
+    );
+    this.perceptionDebugOverlaySystem = new PerceptionDebugOverlaySystem(
+      this.entityManager,
+      this.worldModeController,
+    );
     this.turnBasedCombatSystem = new TurnBasedCombatSystem(
       this.entityManager,
       this.worldModeController,
       this.turnBasedCombatState,
       this.combatInputController,
-      this.basicCombatAiService
+      this.basicCombatAiService,
     );
     this.combatMovementPreviewSystem = new CombatMovementPreviewSystem(
       this.entityManager,
@@ -174,25 +201,25 @@ export class GameManager {
       this.turnBasedCombatState,
       this.combatInputController,
       hexSpatialIndex,
-      movementCostResolver
+      movementCostResolver,
     );
     this.hoveredCombatTargetSystem = new HoveredCombatTargetSystem(
       this.entityManager,
       hexSpatialIndex,
       this.worldModeController,
-      this.turnBasedCombatState
+      this.turnBasedCombatState,
     );
     this.combatHoverHighlightSystem = new CombatHoverHighlightSystem(
       this.entityManager,
       this.worldModeController,
-      this.turnBasedCombatState
+      this.turnBasedCombatState,
     );
     this.combatHudSystem = new CombatHudSystem(
       this.entityManager,
       this.worldModeController,
       this.turnBasedCombatState,
       this.combatInputController,
-      this.turnBasedCombatSystem
+      this.turnBasedCombatSystem,
     );
     this.combatBannerSystem = new CombatBannerSystem(this.worldModeController);
     this.systems = [
@@ -212,7 +239,7 @@ export class GameManager {
       new AnimationSystem(this.entityManager),
       new RenderSyncSystem(this.entityManager),
       this.localPlayerSystem,
-      this.buildingVisibilitySystem
+      this.buildingVisibilitySystem,
     ];
     this.currentState = GameState.MAIN_MENU;
     this.currentSceneController = null;
@@ -301,19 +328,38 @@ export class GameManager {
   private buildSceneController(state: GameState): Scene {
     switch (state) {
       case GameState.MAIN_MENU:
-        return new MainMenuScene(this.engine, this.canvas, this.langManager, (nextState) => {
-          void this.setState(nextState);
-        });
+        return new MainMenuScene(
+          this.engine,
+          this.canvas,
+          this.langManager,
+          (nextState) => {
+            void this.setState(nextState);
+          },
+        );
       case GameState.IN_GAME:
-        return new InGameScene(this.engine, this.langManager, this.entityManager);
+        return new InGameScene(
+          this.engine,
+          this.langManager,
+          this.entityManager,
+        );
       case GameState.SETTINGS:
-        return new MainMenuScene(this.engine, this.canvas, this.langManager, (nextState) => {
-          void this.setState(nextState);
-        });
+        return new MainMenuScene(
+          this.engine,
+          this.canvas,
+          this.langManager,
+          (nextState) => {
+            void this.setState(nextState);
+          },
+        );
       default:
-        return new MainMenuScene(this.engine, this.canvas, this.langManager, (nextState) => {
-          void this.setState(nextState);
-        });
+        return new MainMenuScene(
+          this.engine,
+          this.canvas,
+          this.langManager,
+          (nextState) => {
+            void this.setState(nextState);
+          },
+        );
     }
   }
 }

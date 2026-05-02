@@ -1,4 +1,8 @@
-import { AbstractMesh, Vector3, type Scene as BabylonScene } from "@babylonjs/core";
+import {
+  AbstractMesh,
+  Vector3,
+  type Scene as BabylonScene,
+} from "@babylonjs/core";
 import type { Entity } from "../Entity";
 import type { EntityManager } from "../EntityManager";
 import type { System } from "../System";
@@ -8,14 +12,14 @@ import { getInGameSceneRuntimeContext } from "../../scene/in-game/InGameSceneRun
 import {
   BuildingVisibilityRegistry,
   type BuildingVisibilityBounds,
-  type BuildingVisibilityBuildingRecord
+  type BuildingVisibilityBuildingRecord,
 } from "../../scene/visibility/BuildingVisibilityRegistry";
 import type { BuildingVisibilityMeshRecord } from "../../scene/visibility/BuildingVisibilityMetadata";
 import {
   installWallHaloMaterial,
   updateWallHaloPlugins,
   type WallHaloMaterialBinding,
-  type WallHaloSettings
+  type WallHaloSettings,
 } from "../../scene/visibility/WallHaloMaterialPlugin";
 
 interface HiddenMeshState {
@@ -29,10 +33,11 @@ interface PlayerBuildingState {
   readonly storyIndex: number;
 }
 
-const DEBUG_BUILDING_VISIBILITY = true;
+const DEBUG_BUILDING_VISIBILITY = false;
 const STORY_EPSILON = 0.25;
 const ABOVE_PLAYER_EPSILON = 0.5;
-const OVERHEAD_PART_PATTERN = /(roof|ceiling|slab|terrace|floor|border|band|railing|stair)/i;
+const OVERHEAD_PART_PATTERN =
+  /(roof|ceiling|slab|terrace|floor|border|band|railing|stair)/i;
 
 /**
  * Applies building-specific wall halo materials and hides upper-story meshes while the local player is inside.
@@ -58,7 +63,7 @@ export class BuildingVisibilitySystem implements System {
       outerRadius: 2.85,
       minAlpha: 0.16,
       shape: "sphere",
-      insideBuilding: false
+      insideBuilding: false,
     };
     this.scene = null;
     this.localPlayerEntity = null;
@@ -86,24 +91,35 @@ export class BuildingVisibilitySystem implements System {
       return;
     }
 
-    this.rebuildIfDistrictMeshesChanged(context.locationManager.getActiveDistrictMeshes());
+    this.rebuildIfDistrictMeshesChanged(
+      context.locationManager.getActiveDistrictMeshes(),
+    );
 
-    const localPlayer = this.localPlayerEntity ?? this.resolveLocalPlayerEntity();
+    const localPlayer =
+      this.localPlayerEntity ?? this.resolveLocalPlayerEntity();
     if (!localPlayer) {
       return;
     }
 
     this.localPlayerEntity = localPlayer;
     const playerPosition = localPlayer.getComponent(TransformComponent).value;
-    const cameraPosition = this.scene.activeCamera?.globalPosition ?? playerPosition;
+    const cameraPosition =
+      this.scene.activeCamera?.globalPosition ?? playerPosition;
     const playerBuildingState = this.findPlayerBuildingState(playerPosition);
 
-    this.updateHaloMaterials(playerPosition, cameraPosition, playerBuildingState !== null);
+    this.updateHaloMaterials(
+      playerPosition,
+      cameraPosition,
+      playerBuildingState !== null,
+    );
     this.updateUpperMeshVisibility(playerPosition, playerBuildingState);
   }
 
-  private rebuildIfDistrictMeshesChanged(activeDistrictMeshes: readonly AbstractMesh[]): void {
-    const meshSignature = BuildingVisibilityRegistry.createMeshSignature(activeDistrictMeshes);
+  private rebuildIfDistrictMeshesChanged(
+    activeDistrictMeshes: readonly AbstractMesh[],
+  ): void {
+    const meshSignature =
+      BuildingVisibilityRegistry.createMeshSignature(activeDistrictMeshes);
     if (meshSignature === this.activeMeshSignature) {
       return;
     }
@@ -117,7 +133,7 @@ export class BuildingVisibilitySystem implements System {
     if (DEBUG_BUILDING_VISIBILITY) {
       const stats = this.registry.getStats();
       console.debug(
-        `[BuildingVisibility] registered buildings=${stats.buildingCount} haloMeshes=${stats.haloMeshCount} hideAboveMeshes=${stats.hideAboveMeshCount} insideVolumes=${stats.insideVolumeCount}`
+        `[BuildingVisibility] registered buildings=${stats.buildingCount} haloMeshes=${stats.haloMeshCount} hideAboveMeshes=${stats.hideAboveMeshCount} insideVolumes=${stats.insideVolumeCount}`,
       );
       this.logHaloMaterialTargets();
       this.logRoofMetadata();
@@ -128,11 +144,17 @@ export class BuildingVisibilitySystem implements System {
     for (const building of this.registry.getBuildings()) {
       for (const record of building.haloMeshes) {
         if (record.role !== "wall_halo") {
-          console.warn("[BuildingVisibility] skipped non-wall halo candidate", this.describeRecord(record));
+          console.warn(
+            "[BuildingVisibility] skipped non-wall halo candidate",
+            this.describeRecord(record),
+          );
           continue;
         }
 
-        if (record.mesh.isDisposed() || this.haloMaterialBindings.has(record.mesh.uniqueId)) {
+        if (
+          record.mesh.isDisposed() ||
+          this.haloMaterialBindings.has(record.mesh.uniqueId)
+        ) {
           continue;
         }
 
@@ -147,16 +169,28 @@ export class BuildingVisibilitySystem implements System {
     }
   }
 
-  private updateHaloMaterials(playerPosition: Vector3, cameraPosition: Vector3, insideBuilding: boolean): void {
+  private updateHaloMaterials(
+    playerPosition: Vector3,
+    cameraPosition: Vector3,
+    insideBuilding: boolean,
+  ): void {
     for (const binding of this.haloMaterialBindings.values()) {
-      updateWallHaloPlugins(binding.haloPlugins, playerPosition, cameraPosition, {
-        ...this.haloSettings,
-        insideBuilding
-      });
+      updateWallHaloPlugins(
+        binding.haloPlugins,
+        playerPosition,
+        cameraPosition,
+        {
+          ...this.haloSettings,
+          insideBuilding,
+        },
+      );
     }
   }
 
-  private updateUpperMeshVisibility(playerPosition: Vector3, playerBuildingState: PlayerBuildingState | null): void {
+  private updateUpperMeshVisibility(
+    playerPosition: Vector3,
+    playerBuildingState: PlayerBuildingState | null,
+  ): void {
     if (!playerBuildingState) {
       this.restoreHiddenMeshes();
       return;
@@ -193,7 +227,11 @@ export class BuildingVisibilitySystem implements System {
     this.applyHiddenMeshSet(renderableMeshesToHide);
   }
 
-  private shouldHideRecord(record: BuildingVisibilityMeshRecord, currentStory: number, playerPosition: Vector3): boolean {
+  private shouldHideRecord(
+    record: BuildingVisibilityMeshRecord,
+    currentStory: number,
+    playerPosition: Vector3,
+  ): boolean {
     if (!record.hideWhenAbovePlayer) {
       return false;
     }
@@ -209,7 +247,10 @@ export class BuildingVisibilitySystem implements System {
   }
 
   private isOverheadPart(record: BuildingVisibilityMeshRecord): boolean {
-    return OVERHEAD_PART_PATTERN.test(record.part) || OVERHEAD_PART_PATTERN.test(record.mesh.name);
+    return (
+      OVERHEAD_PART_PATTERN.test(record.part) ||
+      OVERHEAD_PART_PATTERN.test(record.mesh.name)
+    );
   }
 
   private logRoofMetadata(): void {
@@ -232,8 +273,8 @@ export class BuildingVisibilitySystem implements System {
           rawMetadata: record.rawMetadata,
           bounds: {
             minY: boundingBox.minimumWorld.y,
-            maxY: boundingBox.maximumWorld.y
-          }
+            maxY: boundingBox.maximumWorld.y,
+          },
         });
       }
     }
@@ -242,7 +283,9 @@ export class BuildingVisibilitySystem implements System {
   private logHaloMaterialTargets(): void {
     const haloTargets = this.registry
       .getBuildings()
-      .flatMap((building) => building.haloMeshes.map((record) => this.describeRecord(record)));
+      .flatMap((building) =>
+        building.haloMeshes.map((record) => this.describeRecord(record)),
+      );
     console.debug("[BuildingVisibility] halo material targets", haloTargets);
   }
 
@@ -268,7 +311,7 @@ export class BuildingVisibilitySystem implements System {
         this.hiddenMeshStates.set(mesh.uniqueId, {
           isEnabled: mesh.isEnabled(),
           isVisible: mesh.isVisible,
-          visibility: mesh.visibility
+          visibility: mesh.visibility,
         });
       }
 
@@ -282,7 +325,9 @@ export class BuildingVisibilitySystem implements System {
 
   private collectRenderableMeshes(mesh: AbstractMesh): AbstractMesh[] {
     const renderableMeshes = [mesh];
-    const childMeshResolver = mesh as { getChildMeshes?: (directDescendantsOnly?: boolean) => AbstractMesh[] };
+    const childMeshResolver = mesh as {
+      getChildMeshes?: (directDescendantsOnly?: boolean) => AbstractMesh[];
+    };
 
     if (typeof childMeshResolver.getChildMeshes === "function") {
       renderableMeshes.push(...childMeshResolver.getChildMeshes(false));
@@ -295,7 +340,10 @@ export class BuildingVisibilitySystem implements System {
 
     const seenMeshIds = new Set<number>();
     return renderableMeshes.filter((renderableMesh) => {
-      if (renderableMesh.isDisposed() || seenMeshIds.has(renderableMesh.uniqueId)) {
+      if (
+        renderableMesh.isDisposed() ||
+        seenMeshIds.has(renderableMesh.uniqueId)
+      ) {
         return false;
       }
 
@@ -328,14 +376,22 @@ export class BuildingVisibilitySystem implements System {
         mesh.material = binding.originalMaterial;
       }
 
-      const disposableMaterial = haloMaterial as { dispose: (forceDisposeEffect?: boolean, forceDisposeTextures?: boolean, forceDisposeChildren?: boolean) => void };
+      const disposableMaterial = haloMaterial as {
+        dispose: (
+          forceDisposeEffect?: boolean,
+          forceDisposeTextures?: boolean,
+          forceDisposeChildren?: boolean,
+        ) => void;
+      };
       disposableMaterial.dispose(false, false, true);
     }
 
     this.haloMaterialBindings.clear();
   }
 
-  private findPlayerBuildingState(playerPosition: Vector3): PlayerBuildingState | null {
+  private findPlayerBuildingState(
+    playerPosition: Vector3,
+  ): PlayerBuildingState | null {
     for (const building of this.registry.getBuildings()) {
       if (!this.isPlayerInsideBuilding(building, playerPosition)) {
         continue;
@@ -343,16 +399,21 @@ export class BuildingVisibilitySystem implements System {
 
       return {
         building,
-        storyIndex: this.resolveCurrentStory(building, playerPosition)
+        storyIndex: this.resolveCurrentStory(building, playerPosition),
       };
     }
 
     return null;
   }
 
-  private isPlayerInsideBuilding(building: BuildingVisibilityBuildingRecord, playerPosition: Vector3): boolean {
+  private isPlayerInsideBuilding(
+    building: BuildingVisibilityBuildingRecord,
+    playerPosition: Vector3,
+  ): boolean {
     if (building.insideVolumes.length > 0) {
-      return building.insideVolumes.some((record) => containsPoint(record.mesh, playerPosition, true));
+      return building.insideVolumes.some((record) =>
+        containsPoint(record.mesh, playerPosition, true),
+      );
     }
 
     if (!building.footprintBounds) {
@@ -362,7 +423,10 @@ export class BuildingVisibilitySystem implements System {
     return containsPointInXz(building.footprintBounds, playerPosition);
   }
 
-  private resolveCurrentStory(building: BuildingVisibilityBuildingRecord, playerPosition: Vector3): number {
+  private resolveCurrentStory(
+    building: BuildingVisibilityBuildingRecord,
+    playerPosition: Vector3,
+  ): number {
     let resolvedStory = Number.NEGATIVE_INFINITY;
 
     for (const [storyIndex, bounds] of building.storyBoundsByStory) {
@@ -387,7 +451,10 @@ export class BuildingVisibilitySystem implements System {
   }
 
   private resolveLocalPlayerEntity(): Entity | null {
-    const localPlayerEntities = this.entityManager.query(LocalPlayerComponent, TransformComponent);
+    const localPlayerEntities = this.entityManager.query(
+      LocalPlayerComponent,
+      TransformComponent,
+    );
 
     if (localPlayerEntities.length === 0) {
       return null;
@@ -395,7 +462,7 @@ export class BuildingVisibilitySystem implements System {
 
     if (localPlayerEntities.length > 1) {
       throw new Error(
-        `BuildingVisibilitySystem requires exactly one local player entity, but found ${localPlayerEntities.length}.`
+        `BuildingVisibilitySystem requires exactly one local player entity, but found ${localPlayerEntities.length}.`,
       );
     }
 
@@ -405,7 +472,7 @@ export class BuildingVisibilitySystem implements System {
   private logVisibilityStateChange(
     playerPosition: Vector3,
     playerBuildingState: PlayerBuildingState | null,
-    hiddenRecords: readonly BuildingVisibilityMeshRecord[]
+    hiddenRecords: readonly BuildingVisibilityMeshRecord[],
   ): void {
     const stateKey = playerBuildingState
       ? `${playerBuildingState.building.buildingId}:${playerBuildingState.storyIndex}:${hiddenRecords.map((record) => record.mesh.uniqueId).join(",")}`
@@ -420,7 +487,7 @@ export class BuildingVisibilitySystem implements System {
       playerPosition: {
         x: playerPosition.x,
         y: playerPosition.y,
-        z: playerPosition.z
+        z: playerPosition.z,
       },
       inside: playerBuildingState !== null,
       buildingId: building?.buildingId ?? null,
@@ -428,12 +495,15 @@ export class BuildingVisibilitySystem implements System {
       registeredHaloMeshes: building?.haloMeshes.length ?? 0,
       registeredHideAboveMeshes: building?.hideAboveMeshes.length ?? 0,
       hiddenMeshes: hiddenRecords.map((record) => this.describeRecord(record)),
-      haloMeshes: building?.haloMeshes.map((record) => this.describeRecord(record)) ?? []
+      haloMeshes:
+        building?.haloMeshes.map((record) => this.describeRecord(record)) ?? [],
     });
     this.lastStateKey = stateKey;
   }
 
-  private describeRecord(record: BuildingVisibilityMeshRecord): Record<string, unknown> {
+  private describeRecord(
+    record: BuildingVisibilityMeshRecord,
+  ): Record<string, unknown> {
     record.mesh.computeWorldMatrix(true);
     const boundingBox = record.mesh.getBoundingInfo().boundingBox;
 
@@ -444,18 +514,26 @@ export class BuildingVisibilitySystem implements System {
       part: record.part,
       storyIndex: record.storyIndex,
       minY: boundingBox.minimumWorld.y,
-      maxY: boundingBox.maximumWorld.y
+      maxY: boundingBox.maximumWorld.y,
     };
   }
 }
 
-function containsPoint(mesh: AbstractMesh, point: Vector3, includeY: boolean): boolean {
+function containsPoint(
+  mesh: AbstractMesh,
+  point: Vector3,
+  includeY: boolean,
+): boolean {
   mesh.computeWorldMatrix(true);
   const boundingBox = mesh.getBoundingInfo().boundingBox;
   const min = boundingBox.minimumWorld;
   const max = boundingBox.maximumWorld;
 
-  const xzContains = point.x >= min.x && point.x <= max.x && point.z >= min.z && point.z <= max.z;
+  const xzContains =
+    point.x >= min.x &&
+    point.x <= max.x &&
+    point.z >= min.z &&
+    point.z <= max.z;
   if (!xzContains || !includeY) {
     return xzContains;
   }
@@ -463,6 +541,14 @@ function containsPoint(mesh: AbstractMesh, point: Vector3, includeY: boolean): b
   return point.y >= min.y - STORY_EPSILON && point.y <= max.y + STORY_EPSILON;
 }
 
-function containsPointInXz(bounds: BuildingVisibilityBounds, point: Vector3): boolean {
-  return point.x >= bounds.min.x && point.x <= bounds.max.x && point.z >= bounds.min.z && point.z <= bounds.max.z;
+function containsPointInXz(
+  bounds: BuildingVisibilityBounds,
+  point: Vector3,
+): boolean {
+  return (
+    point.x >= bounds.min.x &&
+    point.x <= bounds.max.x &&
+    point.z >= bounds.min.z &&
+    point.z <= bounds.max.z
+  );
 }
