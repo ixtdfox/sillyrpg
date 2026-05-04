@@ -7,11 +7,10 @@ import { HexPositionComponent } from "../../components/HexPositionComponent";
 import { RelationsComponent } from "../../components/RelationsComponent";
 import { VitalsComponent } from "../../components/VitalsComponent";
 import { HexCell } from "../../../hex/HexCell";
-import { HexPathfinder } from "../../../hex/HexPathfinder";
+import { MultiFloorPathfinder } from "../../../navigation/MultiFloorPathfinder";
+import { NavigationGraph, type MovementSegment, type NavigationNode } from "../../../navigation/NavigationGraph";
 import { getInGameSceneRuntimeContext, type InGameSceneRuntimeContext } from "../../../scene/in-game/InGameSceneRuntimeContext";
 import { CombatAttackTargetingService } from "./CombatAttackTargetingService";
-import { CombatMoveRangeResolver } from "./CombatMoveRangeResolver";
-import { HexMovementCostResolver } from "../hex/HexMovementCostResolver";
 import { HexSpatialIndex } from "../hex/HexSpatialIndex";
 
 export type AiTurnStepResult = "in_progress" | "completed";
@@ -22,6 +21,19 @@ interface AiTurnContext {
   targetEntityId: string;
 }
 
+interface ApproachTarget {
+  readonly cell: HexCell;
+  readonly storyIndex: number;
+}
+
+interface ApproachPathOption {
+  readonly finalTarget: ApproachTarget;
+  readonly selectedTarget: ApproachTarget;
+  readonly totalCost: number;
+  readonly selectedCost: number;
+  readonly isComplete: boolean;
+}
+
 /**
  * Basic AI turn handler: try melee attack, else move toward nearest hostile target.
  */
@@ -29,20 +41,17 @@ export class BasicCombatAiService {
   private readonly entityManager: EntityManager;
   private readonly attackTargetingService: CombatAttackTargetingService;
   private readonly spatialIndex: HexSpatialIndex;
-  private readonly moveRangeResolver: CombatMoveRangeResolver;
   private readonly aiTurnContextByEntityId: Map<string, AiTurnContext>;
   private runtimeContext: InGameSceneRuntimeContext | null;
 
   public constructor(
     entityManager: EntityManager,
     attackTargetingService: CombatAttackTargetingService,
-    spatialIndex: HexSpatialIndex,
-    movementCostResolver: HexMovementCostResolver
+    spatialIndex: HexSpatialIndex
   ) {
     this.entityManager = entityManager;
     this.attackTargetingService = attackTargetingService;
     this.spatialIndex = spatialIndex;
-    this.moveRangeResolver = new CombatMoveRangeResolver(movementCostResolver);
     this.aiTurnContextByEntityId = new Map<string, AiTurnContext>();
     this.runtimeContext = null;
   }
@@ -127,19 +136,20 @@ export class BasicCombatAiService {
       return false;
     }
 
-    const approachCell = this.resolveApproachCell(
-      activeAi.getId(),
+    const approachTarget = this.resolveApproachTarget(
+      activeAiEntityId,
       activeHexPosition.currentCell,
       activeHexPosition.currentStoryIndex,
       targetHexPosition.currentCell,
+      targetHexPosition.currentStoryIndex,
       activeStats.currentMp
     );
-    if (!approachCell) {
+    if (!approachTarget) {
       return false;
     }
 
-    activeHexPosition.targetCell = approachCell;
-    activeHexPosition.targetStoryIndex = activeHexPosition.currentStoryIndex;
+    activeHexPosition.targetCell = approachTarget.cell;
+    activeHexPosition.targetStoryIndex = approachTarget.storyIndex;
     movement.resetPathState();
     return true;
   }
@@ -256,78 +266,182 @@ export class BasicCombatAiService {
     return aliveHostiles[0] ?? null;
   }
 
-  private resolveApproachCell(
+  private resolveApproachTarget(
     activeAiEntityId: string,
     activeCell: HexCell,
     activeStoryIndex: number,
     targetCell: HexCell,
+    targetStoryIndex: number,
     movementPoints: number
-  ): HexCell | null {
-    const grid = this.runtimeContext?.hexGridRuntime.getGrid();
-    if (!grid || movementPoints <= 0) {
+  ): ApproachTarget | null {
+    if (!this.runtimeContext || movementPoints <= 0) {
       return null;
     }
 
-    const isBlockedCell = (cell: HexCell): boolean => {
-      if (cell.equals(activeCell)) {
+    const grid = this.runtimeContext.hexGridRuntime.getGrid();
+    const registry = this.runtimeContext.hexGridRuntime.getBuildingNavigationRegistry();
+    const graph = new NavigationGraph(
+      grid,
+      registry.getStairConnectors(),
+      this.runtimeContext.hexGridRuntime.getMergedStoryYByStory(),
+      (cell, storyIndex) => this.runtimeContext?.hexGridRuntime.isWalkableCell(cell, storyIndex) ?? false
+    );
+    const pathfinder = new MultiFloorPathfinder(graph, registry.getShowStairNavigationDebug());
+    const isOccupiedByOtherEntity = (node: NavigationNode): boolean => {
+      if (node.cell.equals(activeCell) && node.storyIndex === activeStoryIndex) {
         return false;
       }
 
-      const occupants = this.spatialIndex.getEntitiesAt(cell, activeStoryIndex);
-      return occupants.some((occupantId) => occupantId !== activeAiEntityId);
+      return this.isOccupiedByOtherEntity(activeAiEntityId, node.cell, node.storyIndex);
     };
 
-    const pathfinder = new HexPathfinder(grid, isBlockedCell);
-    const rangeResolution = this.moveRangeResolver.resolveReachableCells(grid, activeCell, movementPoints, isBlockedCell);
-    const reachableByKey = new Set(rangeResolution.reachableCells.map((cell) => this.cellKey(cell)));
-    reachableByKey.delete(this.cellKey(activeCell));
-
-    if (reachableByKey.size === 0) {
-      return null;
-    }
-
-    const attackAdjacentCells = grid
+    const attackAdjacentTargets = grid
       .getNeighbors(targetCell)
       .filter((cell) => grid.contains(cell))
-      .filter((cell) => !isBlockedCell(cell));
+      .filter((cell) => this.runtimeContext?.hexGridRuntime.isWalkableCell(cell, targetStoryIndex) ?? false)
+      .map((cell): ApproachTarget => ({ cell, storyIndex: targetStoryIndex }))
+      .filter((candidate) => {
+        if (candidate.cell.equals(activeCell) && candidate.storyIndex === activeStoryIndex) {
+          return false;
+        }
 
-    const reachableAttackCells = attackAdjacentCells
-      .filter((cell) => reachableByKey.has(this.cellKey(cell)))
-      .sort((first, second) => activeCell.distance(first) - activeCell.distance(second));
+        return !this.isOccupiedByOtherEntity(activeAiEntityId, candidate.cell, candidate.storyIndex);
+      });
 
-    if (reachableAttackCells.length > 0) {
-      return reachableAttackCells[0] ?? null;
-    }
+    let bestCompleteOption: ApproachPathOption | null = null;
+    let bestPartialOption: ApproachPathOption | null = null;
 
-    let bestPartialCell: HexCell | null = null;
-    let bestPartialDistance = Number.POSITIVE_INFINITY;
+    for (const attackTarget of attackAdjacentTargets) {
+      const path = pathfinder.findPath({
+        fromCell: activeCell,
+        fromStoryIndex: activeStoryIndex,
+        toCell: attackTarget.cell,
+        toStoryIndex: attackTarget.storyIndex,
+        occupied: isOccupiedByOtherEntity
+      });
 
-    for (const attackCell of attackAdjacentCells) {
-      const path = pathfinder.findPath(activeCell, attackCell);
-      if (!path || path.length < 2) {
+      if (!path || path.length === 0) {
         continue;
       }
 
-      for (let index = path.length - 1; index >= 1; index -= 1) {
-        const candidate = path[index];
-        if (!reachableByKey.has(this.cellKey(candidate))) {
-          continue;
+      const totalCost = this.getPathCost(path);
+      const completeOption = this.resolvePathOption(attackTarget, path, totalCost, movementPoints);
+      if (!completeOption) {
+        continue;
+      }
+
+      if (completeOption.isComplete) {
+        if (!bestCompleteOption || this.compareCompleteOptions(completeOption, bestCompleteOption, activeCell) < 0) {
+          bestCompleteOption = completeOption;
         }
 
-        const candidateDistance = candidate.distance(targetCell);
-        if (candidateDistance < bestPartialDistance) {
-          bestPartialDistance = candidateDistance;
-          bestPartialCell = candidate;
-        }
+        continue;
+      }
 
-        break;
+      if (!bestPartialOption || this.comparePartialOptions(completeOption, bestPartialOption, targetCell) < 0) {
+        bestPartialOption = completeOption;
       }
     }
 
-    return bestPartialCell;
+    const selectedOption = bestCompleteOption ?? bestPartialOption;
+    console.debug("[BasicCombatAiService] AI approach", {
+      activeAiEntityId,
+      fromStory: activeStoryIndex,
+      fromCell: `${activeCell.q}:${activeCell.r}`,
+      targetStory: targetStoryIndex,
+      targetCell: `${targetCell.q}:${targetCell.r}`,
+      selectedStory: selectedOption?.selectedTarget.storyIndex,
+      selectedCell: selectedOption ? `${selectedOption.selectedTarget.cell.q}:${selectedOption.selectedTarget.cell.r}` : null
+    });
+
+    return selectedOption?.selectedTarget ?? null;
   }
 
-  private cellKey(cell: HexCell): string {
-    return `${cell.q}:${cell.r}`;
+  private resolvePathOption(
+    finalTarget: ApproachTarget,
+    path: readonly MovementSegment[],
+    totalCost: number,
+    movementPoints: number
+  ): ApproachPathOption | null {
+    if (totalCost <= movementPoints) {
+      return {
+        finalTarget,
+        selectedTarget: finalTarget,
+        totalCost,
+        selectedCost: totalCost,
+        isComplete: true
+      };
+    }
+
+    let spentCost = 0;
+    let selectedTarget: ApproachTarget | null = null;
+
+    for (const segment of path) {
+      const nextCost = spentCost + segment.cost;
+      if (nextCost > movementPoints) {
+        break;
+      }
+
+      spentCost = nextCost;
+      selectedTarget = this.getSegmentTarget(segment);
+    }
+
+    if (!selectedTarget) {
+      return null;
+    }
+
+    return {
+      finalTarget,
+      selectedTarget,
+      totalCost,
+      selectedCost: spentCost,
+      isComplete: false
+    };
+  }
+
+  private getPathCost(path: readonly MovementSegment[]): number {
+    return path.reduce((total, segment) => total + segment.cost, 0);
+  }
+
+  private getSegmentTarget(segment: MovementSegment): ApproachTarget {
+    if (segment.kind === "walk") {
+      return {
+        cell: segment.cell,
+        storyIndex: segment.storyIndex
+      };
+    }
+
+    return {
+      cell: segment.toCell,
+      storyIndex: segment.toStoryIndex
+    };
+  }
+
+  private compareCompleteOptions(first: ApproachPathOption, second: ApproachPathOption, activeCell: HexCell): number {
+    const costDelta = first.totalCost - second.totalCost;
+    if (costDelta !== 0) {
+      return costDelta;
+    }
+
+    return activeCell.distance(first.finalTarget.cell) - activeCell.distance(second.finalTarget.cell);
+  }
+
+  private comparePartialOptions(first: ApproachPathOption, second: ApproachPathOption, targetCell: HexCell): number {
+    const progressDelta = second.selectedCost - first.selectedCost;
+    if (progressDelta !== 0) {
+      return progressDelta;
+    }
+
+    const distanceDelta = first.selectedTarget.cell.distance(targetCell) - second.selectedTarget.cell.distance(targetCell);
+    if (distanceDelta !== 0) {
+      return distanceDelta;
+    }
+
+    return first.totalCost - second.totalCost;
+  }
+
+  private isOccupiedByOtherEntity(activeAiEntityId: string, cell: HexCell, storyIndex: number): boolean {
+    const occupants = this.spatialIndex.getEntitiesAt(cell, storyIndex);
+    return occupants.some((occupantId) => occupantId !== activeAiEntityId);
   }
 }

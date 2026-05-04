@@ -145,7 +145,6 @@ export class GameManager {
       this.entityManager,
       attackTargetingService,
       hexSpatialIndex,
-      movementCostResolver,
     );
     this.localPlayerInputSystem = new LocalPlayerInputSystem(
       this.entityManager,
