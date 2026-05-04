@@ -35,6 +35,7 @@ interface PlayerBuildingState {
 
 const DEBUG_BUILDING_VISIBILITY = false;
 const STORY_EPSILON = 0.25;
+const STORY_HEIGHT_EPSILON = 0.75;
 const ABOVE_PLAYER_EPSILON = 0.5;
 const OVERHEAD_PART_PATTERN =
   /(roof|ceiling|slab|terrace|floor|border|band|railing|stair)/i;
@@ -200,12 +201,8 @@ export class BuildingVisibilitySystem implements System {
     const recordsToHide: BuildingVisibilityMeshRecord[] = [];
     const renderableMeshesToHide = new Set<AbstractMesh>();
 
-    for (const record of building.hideAboveMeshes) {
-      if (record.mesh.isDisposed() || record.isInsideVolume) {
-        continue;
-      }
-
-      if (this.shouldHideRecord(record, storyIndex, playerPosition)) {
+    for (const record of building.meshes) {
+      if (this.shouldHideRecordWhenInside(record, storyIndex, playerPosition)) {
         recordsToHide.push(record);
         for (const mesh of this.collectRenderableMeshes(record.mesh)) {
           renderableMeshesToHide.add(mesh);
@@ -213,37 +210,37 @@ export class BuildingVisibilitySystem implements System {
       }
     }
 
-    for (const record of building.haloMeshes) {
-      if (record.mesh.isDisposed() || record.storyIndex <= storyIndex) {
-        continue;
-      }
-
-      recordsToHide.push(record);
-      for (const mesh of this.collectRenderableMeshes(record.mesh)) {
-        renderableMeshesToHide.add(mesh);
-      }
-    }
-
     this.applyHiddenMeshSet(renderableMeshesToHide);
+    this.logVisibilityStateChange(playerPosition, playerBuildingState, recordsToHide);
+    this.debugLogUnhiddenAboveMeshes(building, playerPosition, storyIndex, renderableMeshesToHide);
   }
 
-  private shouldHideRecord(
+  private shouldHideRecordWhenInside(
     record: BuildingVisibilityMeshRecord,
     currentStory: number,
     playerPosition: Vector3,
   ): boolean {
-    if (!record.hideWhenAbovePlayer) {
+    if (record.mesh.isDisposed() || record.isInsideVolume) {
       return false;
     }
 
-    if (record.storyIndex > currentStory) {
+    if (record.isWallHalo && record.storyIndex <= currentStory) {
+      return false;
+    }
+
+    const bounds = getWorldBounds(record.mesh);
+    const isPhysicallyAbovePlayer = bounds.min.y > playerPosition.y + ABOVE_PLAYER_EPSILON;
+    const isStoryAbovePlayer = Number.isFinite(record.storyIndex) && record.storyIndex > currentStory;
+
+    if (isStoryAbovePlayer) {
       return true;
     }
 
-    record.mesh.computeWorldMatrix(true);
-    const boundingBox = record.mesh.getBoundingInfo().boundingBox;
-    const minY = boundingBox.minimumWorld.y;
-    return minY > playerPosition.y + ABOVE_PLAYER_EPSILON;
+    if (!isPhysicallyAbovePlayer) {
+      return false;
+    }
+
+    return this.isOverheadPart(record);
   }
 
   private isOverheadPart(record: BuildingVisibilityMeshRecord): boolean {
@@ -427,16 +424,39 @@ export class BuildingVisibilitySystem implements System {
     building: BuildingVisibilityBuildingRecord,
     playerPosition: Vector3,
   ): number {
-    let resolvedStory = Number.NEGATIVE_INFINITY;
-
-    for (const [storyIndex, bounds] of building.storyBoundsByStory) {
-      if (playerPosition.y >= bounds.min.y - STORY_EPSILON) {
-        resolvedStory = Math.max(resolvedStory, storyIndex);
+    const volumeStoryCandidates: number[] = [];
+    for (const record of building.insideVolumes) {
+      if (containsPoint(record.mesh, playerPosition, true)) {
+        volumeStoryCandidates.push(record.storyIndex);
       }
     }
 
-    if (Number.isFinite(resolvedStory)) {
-      return resolvedStory;
+    if (volumeStoryCandidates.length > 0) {
+      return Math.max(...volumeStoryCandidates);
+    }
+
+    const containingStoryCandidates: number[] = [];
+    let highestStoryBelowPlayer = Number.NEGATIVE_INFINITY;
+
+    for (const [storyIndex, bounds] of building.storyBoundsByStory) {
+      if (playerPosition.y >= bounds.min.y - STORY_EPSILON) {
+        highestStoryBelowPlayer = Math.max(highestStoryBelowPlayer, storyIndex);
+      }
+
+      if (
+        playerPosition.y >= bounds.min.y - STORY_EPSILON &&
+        playerPosition.y <= bounds.max.y + STORY_HEIGHT_EPSILON
+      ) {
+        containingStoryCandidates.push(storyIndex);
+      }
+    }
+
+    if (containingStoryCandidates.length > 0) {
+      return Math.max(...containingStoryCandidates);
+    }
+
+    if (Number.isFinite(highestStoryBelowPlayer)) {
+      return highestStoryBelowPlayer;
     }
 
     return Math.min(...building.meshes.map((record) => record.storyIndex), 0);
@@ -501,6 +521,42 @@ export class BuildingVisibilitySystem implements System {
     this.lastStateKey = stateKey;
   }
 
+  private debugLogUnhiddenAboveMeshes(
+    building: BuildingVisibilityBuildingRecord,
+    playerPosition: Vector3,
+    currentStory: number,
+    hiddenMeshes: ReadonlySet<AbstractMesh>,
+  ): void {
+    if (!DEBUG_BUILDING_VISIBILITY) {
+      return;
+    }
+
+    for (const record of building.meshes) {
+      if (record.mesh.isDisposed() || record.isInsideVolume) {
+        continue;
+      }
+
+      if (
+        !this.shouldHideRecordWhenInside(record, currentStory, playerPosition) ||
+        hiddenMeshes.has(record.mesh)
+      ) {
+        continue;
+      }
+
+      const bounds = getWorldBounds(record.mesh);
+      console.warn("[BuildingVisibility] above but not hidden", {
+        name: record.mesh.name,
+        id: record.mesh.id,
+        role: record.role,
+        part: record.part,
+        storyIndex: record.storyIndex,
+        minY: bounds.min.y,
+        maxY: bounds.max.y,
+        rawMetadata: record.rawMetadata,
+      });
+    }
+  }
+
   private describeRecord(
     record: BuildingVisibilityMeshRecord,
   ): Record<string, unknown> {
@@ -539,6 +595,15 @@ function containsPoint(
   }
 
   return point.y >= min.y - STORY_EPSILON && point.y <= max.y + STORY_EPSILON;
+}
+
+function getWorldBounds(mesh: AbstractMesh): BuildingVisibilityBounds {
+  mesh.computeWorldMatrix(true);
+  const boundingBox = mesh.getBoundingInfo().boundingBox;
+  return {
+    min: boundingBox.minimumWorld,
+    max: boundingBox.maximumWorld,
+  };
 }
 
 function containsPointInXz(

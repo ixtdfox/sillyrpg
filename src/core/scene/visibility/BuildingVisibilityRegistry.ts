@@ -68,6 +68,8 @@ export class BuildingVisibilityRegistry {
       }
     }
 
+    mergeAnonymousBuildingsIntoSingleNamedBuilding(mutableBuildings);
+
     for (const [buildingId, mutableBuilding] of mutableBuildings) {
       const storyBoundsByStory = computeStoryBounds(mutableBuilding.meshes);
       this.buildingsById.set(buildingId, {
@@ -147,6 +149,43 @@ function getOrCreateMutableBuilding(
   };
   buildings.set(buildingId, created);
   return created;
+}
+
+function mergeAnonymousBuildingsIntoSingleNamedBuilding(
+  buildings: Map<
+    string,
+    {
+      meshes: BuildingVisibilityMeshRecord[];
+      haloMeshes: BuildingVisibilityMeshRecord[];
+      hideAboveMeshes: BuildingVisibilityMeshRecord[];
+      insideVolumes: BuildingVisibilityMeshRecord[];
+    }
+  >
+): void {
+  const anonymousBuildingIds = new Set(["fallback-building", "metadata-building"]);
+  const namedBuildingIds = [...buildings.keys()].filter((buildingId) => !anonymousBuildingIds.has(buildingId));
+
+  if (namedBuildingIds.length !== 1) {
+    return;
+  }
+
+  const targetBuilding = buildings.get(namedBuildingIds[0]);
+  if (!targetBuilding) {
+    return;
+  }
+
+  for (const anonymousBuildingId of anonymousBuildingIds) {
+    const anonymousBuilding = buildings.get(anonymousBuildingId);
+    if (!anonymousBuilding) {
+      continue;
+    }
+
+    targetBuilding.meshes.push(...anonymousBuilding.meshes);
+    targetBuilding.haloMeshes.push(...anonymousBuilding.haloMeshes);
+    targetBuilding.hideAboveMeshes.push(...anonymousBuilding.hideAboveMeshes);
+    targetBuilding.insideVolumes.push(...anonymousBuilding.insideVolumes);
+    buildings.delete(anonymousBuildingId);
+  }
 }
 
 function computeStoryBounds(records: readonly BuildingVisibilityMeshRecord[]): Map<number, BuildingVisibilityBounds> {

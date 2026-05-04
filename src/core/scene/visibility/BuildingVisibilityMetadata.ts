@@ -38,7 +38,10 @@ const ROLE_VALUES = new Set<BuildingVisibilityRole>([
 ]);
 
 const WALL_NAME_PATTERN = /(OuterWall|InnerWall)/i;
-const HIDE_ABOVE_NAME_PATTERN = /(Roof|Ceiling|Slab|Terrace|Floor|Border|Band|Railing|Stair)/i;
+const BUILDING_PART_NAME_PATTERN =
+  /(Story|OuterWall|InnerWall|Wall|Roof|Ceiling|Slab|Terrace|Floor|Border|Band|Railing|Stair|Window|Door|Glass|Frame|Sill|Reveal)/i;
+const HIDE_ABOVE_NAME_PATTERN =
+  /(Roof|Ceiling|Slab|Terrace|Floor|Border|Band|Railing|Stair|Window|Door|Glass|Frame|Sill|Reveal)/i;
 const INSIDE_VOLUME_NAME_PATTERN = /(InsideVolume|InteriorVolume|BuildingVolume)/i;
 
 export function parseBuildingVisibilityMesh(mesh: AbstractMesh): BuildingVisibilityMeshRecord | null {
@@ -54,7 +57,7 @@ function parseMetadataRecord(
   mesh: AbstractMesh,
   metadata: RawBuildingVisibilityMetadata
 ): BuildingVisibilityMeshRecord | null {
-  const hasVisibilityMarker = metadata.game_visibility === true;
+  const hasVisibilityMarker = hasGameVisibilityMetadata(metadata as Record<string, unknown>);
   const role = normalizeRole(metadata.game_visibility_role) ?? inferFallbackRole(mesh.name);
   const buildingId = normalizeString(metadata.game_building_id);
 
@@ -63,9 +66,6 @@ function parseMetadataRecord(
   }
 
   const normalizedRole = role ?? "ignore";
-  if (normalizedRole === "ignore" || normalizedRole === "ground") {
-    return null;
-  }
 
   return {
     mesh,
@@ -76,7 +76,7 @@ function parseMetadataRecord(
     isWallHalo: normalizedRole === "wall_halo",
     hideWhenAbovePlayer:
       normalizedRole === "hide_above_player" || metadata.game_hide_when_above_player === true,
-    isInsideVolume: normalizedRole === "inside_volume" || metadata.game_inside_volume_source === true,
+    isInsideVolume: isInsideVolumeRecord(mesh, metadata, normalizedRole),
     rawMetadata: metadata as Record<string, unknown>
   };
 }
@@ -85,20 +85,21 @@ function parseFallbackNameRecord(mesh: AbstractMesh): BuildingVisibilityMeshReco
   const name = mesh.name;
   const role = inferFallbackRole(name);
 
-  if (!role) {
+  if (!role && !BUILDING_PART_NAME_PATTERN.test(name)) {
     return null;
   }
 
-  const isWallHalo = role === "wall_halo";
-  const isInsideVolume = role === "inside_volume";
-  const hideWhenAbovePlayer = role === "hide_above_player";
+  const normalizedRole = role ?? "ignore";
+  const isWallHalo = normalizedRole === "wall_halo";
+  const isInsideVolume = normalizedRole === "inside_volume";
+  const hideWhenAbovePlayer = normalizedRole === "hide_above_player";
 
   return {
     mesh,
     buildingId: parseFallbackBuildingId(name),
     storyIndex: parseStoryIndex(name) ?? 0,
     part: name,
-    role,
+    role: normalizedRole,
     isWallHalo,
     hideWhenAbovePlayer,
     isInsideVolume,
@@ -180,7 +181,7 @@ function normalizeStoryIndex(value: unknown): number | null {
 }
 
 function parseStoryIndex(name: string): number | null {
-  const match = /Story(-?\d+)/i.exec(name);
+  const match = /Story[_ -]?(-?\d+)/i.exec(name);
   if (!match) {
     return null;
   }
@@ -203,6 +204,23 @@ function inferFallbackRole(name: string): BuildingVisibilityRole | null {
   }
 
   return null;
+}
+
+function isInsideVolumeRecord(
+  mesh: AbstractMesh,
+  metadata: RawBuildingVisibilityMetadata,
+  role: BuildingVisibilityRole
+): boolean {
+  if (role === "inside_volume") {
+    return true;
+  }
+
+  const part = normalizeString(metadata.game_part);
+  return metadata.game_inside_volume_source === true && isInsideVolumeName(part ?? mesh.name);
+}
+
+function isInsideVolumeName(name: string): boolean {
+  return INSIDE_VOLUME_NAME_PATTERN.test(name) || /visibility[_ -]?volume/i.test(name);
 }
 
 function parseFallbackBuildingId(name: string): string {
