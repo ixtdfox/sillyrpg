@@ -162,6 +162,8 @@ export class InGameScene implements Scene {
     const hexPosition = localPlayer.tryGetComponent(HexPositionComponent);
     if (hexPosition) {
       hexPosition.targetCell = null;
+      hexPosition.targetStoryIndex = null;
+      hexPosition.currentStoryIndex = 0;
     }
   }
 
@@ -177,11 +179,14 @@ export class InGameScene implements Scene {
     const cell = grid.worldToCell(transform.value);
     if (!grid.contains(cell)) {
       hexPosition.targetCell = null;
+      hexPosition.targetStoryIndex = null;
       return;
     }
 
     hexPosition.currentCell = cell;
+    hexPosition.currentStoryIndex = 0;
     hexPosition.targetCell = null;
+    hexPosition.targetStoryIndex = null;
     transform.value.copyFrom(grid.cellToWorld(cell, transform.value.y));
 
     const renderable = localPlayer.tryGetComponent(RenderableComponent);

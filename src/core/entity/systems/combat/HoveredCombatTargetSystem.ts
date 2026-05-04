@@ -3,6 +3,7 @@ import type { Entity } from "../../Entity";
 import type { EntityManager } from "../../EntityManager";
 import type { System } from "../../System";
 import { LocalPlayerComponent } from "../../components/LocalPlayerComponent";
+import { HexPositionComponent } from "../../components/HexPositionComponent";
 import { RelationsComponent } from "../../components/RelationsComponent";
 import { getInGameSceneRuntimeContext, type InGameSceneRuntimeContext } from "../../../scene/in-game/InGameSceneRuntimeContext";
 import { TurnBasedCombatState } from "../../../game/TurnBasedCombatState";
@@ -49,13 +50,16 @@ export class HoveredCombatTargetSystem implements System {
       return;
     }
 
-    const hoveredCell = this.runtimeContext.hexGridRuntime.getHoveredCell();
-    if (!hoveredCell) {
+    const localPlayerHexPosition = localPlayer.tryGetComponent(HexPositionComponent);
+    const pickedNavigationCell = this.runtimeContext.hexGridRuntime.getHoveredNavigationCell(
+      localPlayerHexPosition?.currentStoryIndex ?? 0
+    );
+    if (!pickedNavigationCell) {
       this.combatState.setHoveredHostileEntityId(null);
       return;
     }
 
-    const hoveredEntityIds = this.spatialIndex.getEntitiesAt(hoveredCell);
+    const hoveredEntityIds = this.spatialIndex.getEntitiesAt(pickedNavigationCell.cell, pickedNavigationCell.storyIndex);
     const playerRelations = localPlayer.getComponent(RelationsComponent);
 
     for (const hoveredEntityId of hoveredEntityIds) {

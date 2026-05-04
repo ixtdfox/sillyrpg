@@ -88,10 +88,13 @@ export class LocalPlayerInputSystem implements System {
       return;
     }
 
-    const clickedCell = this.runtimeContext.hexGridRuntime.getHoveredCell();
-    if (!clickedCell) {
+    const hexPosition = this.localPlayerEntity.getComponent(HexPositionComponent);
+    const pickedNavigationCell = this.runtimeContext.hexGridRuntime.getHoveredNavigationCell(hexPosition.currentStoryIndex);
+    if (!pickedNavigationCell) {
       return;
     }
+    const clickedCell = pickedNavigationCell.cell;
+    const clickedStoryIndex = pickedNavigationCell.storyIndex;
 
     if (this.worldModeController.isTurnBased() && inputMode === CombatInputMode.ATTACK) {
       this.tryHandleAttackClick(clickedCell);
@@ -102,12 +105,15 @@ export class LocalPlayerInputSystem implements System {
       return;
     }
 
-    const hexPosition = this.localPlayerEntity.getComponent(HexPositionComponent);
-    if (hexPosition.currentCell.equals(clickedCell)) {
+    if (hexPosition.currentCell.equals(clickedCell) && hexPosition.currentStoryIndex === clickedStoryIndex) {
       return;
     }
 
-    if (hexPosition.targetCell && hexPosition.targetCell.equals(clickedCell)) {
+    if (
+      hexPosition.targetCell &&
+      hexPosition.targetCell.equals(clickedCell) &&
+      (hexPosition.targetStoryIndex ?? hexPosition.currentStoryIndex) === clickedStoryIndex
+    ) {
       return;
     }
 
@@ -120,6 +126,7 @@ export class LocalPlayerInputSystem implements System {
       : null;
 
     hexPosition.targetCell = clickedCell;
+    hexPosition.targetStoryIndex = clickedStoryIndex;
     pathMovement?.resetPathState();
   };
 
@@ -161,7 +168,8 @@ export class LocalPlayerInputSystem implements System {
 
     const localPlayerId = this.localPlayerEntity.getId();
     const localPlayerRelations = this.localPlayerEntity.getComponent(RelationsComponent);
-    const entitiesAtCell = this.spatialIndex.getEntitiesAt(clickedCell);
+    const attackerStoryIndex = this.localPlayerEntity.getComponent(HexPositionComponent).currentStoryIndex;
+    const entitiesAtCell = this.spatialIndex.getEntitiesAt(clickedCell, attackerStoryIndex);
 
     for (const targetEntityId of entitiesAtCell) {
       if (targetEntityId === localPlayerId) {

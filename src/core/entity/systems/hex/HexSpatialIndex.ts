@@ -17,23 +17,23 @@ export class HexSpatialIndex {
     this.cellKeyToEntities.clear();
   }
 
-  public addEntity(entityId: string, cell: HexCell): void {
+  public addEntity(entityId: string, cell: HexCell, storyIndex = 0): void {
     this.removeEntity(entityId);
 
-    const key = this.getCellKey(cell);
+    const key = this.getCellKey(cell, storyIndex);
     const entitiesAtCell = this.cellKeyToEntities.get(key) ?? new Set<string>();
     entitiesAtCell.add(entityId);
     this.cellKeyToEntities.set(key, entitiesAtCell);
     this.entityToCellKey.set(entityId, key);
   }
 
-  public moveEntity(entityId: string, fromCell: HexCell, toCell: HexCell): void {
-    if (fromCell.equals(toCell)) {
+  public moveEntity(entityId: string, fromCell: HexCell, toCell: HexCell, fromStoryIndex = 0, toStoryIndex = 0): void {
+    if (fromCell.equals(toCell) && fromStoryIndex === toStoryIndex) {
       return;
     }
 
-    this.removeEntityFromCell(entityId, fromCell);
-    this.addEntity(entityId, toCell);
+    this.removeEntityFromCell(entityId, fromCell, fromStoryIndex);
+    this.addEntity(entityId, toCell, toStoryIndex);
   }
 
   public removeEntity(entityId: string): void {
@@ -52,8 +52,8 @@ export class HexSpatialIndex {
     this.entityToCellKey.delete(entityId);
   }
 
-  public removeEntityFromCell(entityId: string, cell: HexCell): void {
-    const key = this.getCellKey(cell);
+  public removeEntityFromCell(entityId: string, cell: HexCell, storyIndex = 0): void {
+    const key = this.getCellKey(cell, storyIndex);
     const entitiesAtCell = this.cellKeyToEntities.get(key);
     entitiesAtCell?.delete(entityId);
 
@@ -67,16 +67,16 @@ export class HexSpatialIndex {
     }
   }
 
-  public getEntitiesAt(cell: HexCell): string[] {
-    const key = this.getCellKey(cell);
+  public getEntitiesAt(cell: HexCell, storyIndex = 0): string[] {
+    const key = this.getCellKey(cell, storyIndex);
     return Array.from(this.cellKeyToEntities.get(key) ?? []);
   }
 
-  public getEntitiesInCells(cells: readonly HexCell[]): string[] {
+  public getEntitiesInCells(cells: readonly HexCell[], storyIndex = 0): string[] {
     const result = new Set<string>();
 
     for (const cell of cells) {
-      const entitiesAtCell = this.getEntitiesAt(cell);
+      const entitiesAtCell = this.getEntitiesAt(cell, storyIndex);
       for (const entityId of entitiesAtCell) {
         result.add(entityId);
       }
@@ -85,7 +85,7 @@ export class HexSpatialIndex {
     return Array.from(result);
   }
 
-  private getCellKey(cell: HexCell): string {
-    return `${cell.q}:${cell.r}`;
+  private getCellKey(cell: HexCell, storyIndex: number): string {
+    return `${storyIndex}:${cell.q}:${cell.r}`;
   }
 }

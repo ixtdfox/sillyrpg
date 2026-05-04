@@ -65,6 +65,7 @@ export class PatrolSystem implements System {
 
       patrol.currentPatrolTargetCell = nextDestination;
       hexPosition.targetCell = nextDestination;
+      hexPosition.targetStoryIndex = hexPosition.currentStoryIndex;
     }
   }
 

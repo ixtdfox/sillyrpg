@@ -130,6 +130,7 @@ export class BasicCombatAiService {
     const approachCell = this.resolveApproachCell(
       activeAi.getId(),
       activeHexPosition.currentCell,
+      activeHexPosition.currentStoryIndex,
       targetHexPosition.currentCell,
       activeStats.currentMp
     );
@@ -138,6 +139,7 @@ export class BasicCombatAiService {
     }
 
     activeHexPosition.targetCell = approachCell;
+    activeHexPosition.targetStoryIndex = activeHexPosition.currentStoryIndex;
     movement.resetPathState();
     return true;
   }
@@ -254,7 +256,13 @@ export class BasicCombatAiService {
     return aliveHostiles[0] ?? null;
   }
 
-  private resolveApproachCell(activeAiEntityId: string, activeCell: HexCell, targetCell: HexCell, movementPoints: number): HexCell | null {
+  private resolveApproachCell(
+    activeAiEntityId: string,
+    activeCell: HexCell,
+    activeStoryIndex: number,
+    targetCell: HexCell,
+    movementPoints: number
+  ): HexCell | null {
     const grid = this.runtimeContext?.hexGridRuntime.getGrid();
     if (!grid || movementPoints <= 0) {
       return null;
@@ -265,7 +273,7 @@ export class BasicCombatAiService {
         return false;
       }
 
-      const occupants = this.spatialIndex.getEntitiesAt(cell);
+      const occupants = this.spatialIndex.getEntitiesAt(cell, activeStoryIndex);
       return occupants.some((occupantId) => occupantId !== activeAiEntityId);
     };
 

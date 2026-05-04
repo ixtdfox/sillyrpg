@@ -4,18 +4,23 @@ import { HexPositionComponent } from "../../components/HexPositionComponent";
 import { HexCell } from "../../../hex/HexCell";
 import { HexSpatialIndex } from "./HexSpatialIndex";
 
+interface TrackedHexPosition {
+  readonly cell: HexCell;
+  readonly storyIndex: number;
+}
+
 /**
  * Keeps HexSpatialIndex synchronized with ECS HexPositionComponent values.
  */
 export class HexSpatialIndexSystem implements System {
   private readonly entityManager: EntityManager;
   private readonly spatialIndex: HexSpatialIndex;
-  private readonly trackedEntityCells: Map<string, HexCell>;
+  private readonly trackedEntityCells: Map<string, TrackedHexPosition>;
 
   public constructor(entityManager: EntityManager, spatialIndex: HexSpatialIndex) {
     this.entityManager = entityManager;
     this.spatialIndex = spatialIndex;
-    this.trackedEntityCells = new Map<string, HexCell>();
+    this.trackedEntityCells = new Map<string, TrackedHexPosition>();
   }
 
   public update(_deltaSeconds: number): void {
@@ -27,18 +32,31 @@ export class HexSpatialIndexSystem implements System {
       currentEntityIds.add(entityId);
 
       const hexPosition = entity.getComponent(HexPositionComponent);
-      const previousCell = this.trackedEntityCells.get(entityId);
+      const previousPosition = this.trackedEntityCells.get(entityId);
       const currentCell = hexPosition.currentCell;
+      const currentStoryIndex = hexPosition.currentStoryIndex;
 
-      if (!previousCell) {
-        this.spatialIndex.addEntity(entityId, currentCell);
-        this.trackedEntityCells.set(entityId, new HexCell(currentCell.q, currentCell.r));
+      if (!previousPosition) {
+        this.spatialIndex.addEntity(entityId, currentCell, currentStoryIndex);
+        this.trackedEntityCells.set(entityId, {
+          cell: new HexCell(currentCell.q, currentCell.r),
+          storyIndex: currentStoryIndex
+        });
         continue;
       }
 
-      if (!previousCell.equals(currentCell)) {
-        this.spatialIndex.moveEntity(entityId, previousCell, currentCell);
-        this.trackedEntityCells.set(entityId, new HexCell(currentCell.q, currentCell.r));
+      if (!previousPosition.cell.equals(currentCell) || previousPosition.storyIndex !== currentStoryIndex) {
+        this.spatialIndex.moveEntity(
+          entityId,
+          previousPosition.cell,
+          currentCell,
+          previousPosition.storyIndex,
+          currentStoryIndex
+        );
+        this.trackedEntityCells.set(entityId, {
+          cell: new HexCell(currentCell.q, currentCell.r),
+          storyIndex: currentStoryIndex
+        });
       }
     }
 

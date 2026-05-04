@@ -1,6 +1,7 @@
 import { Vector3 } from "@babylonjs/core";
 import type { Component } from "../Component";
 import { HexCell } from "../../hex/HexCell";
+import type { MovementSegment } from "../../navigation/NavigationGraph";
 
 /**
  * Stores runtime path/motion state for hex-based movement.
@@ -21,6 +22,21 @@ export class HexPathMovementComponent implements Component {
   /** Index of the next path cell to reach. */
   public nextStepIndex: number;
 
+  /** Precomputed multi-floor movement segments. */
+  public pathSegments: MovementSegment[];
+
+  /** Index of the current movement segment. */
+  public currentSegmentIndex: number;
+
+  /** Index of the next stair checkpoint inside the current stair segment. */
+  public currentStairPointIndex: number;
+
+  /** Destination cell for the active precomputed path. */
+  public activeTargetCell: HexCell | null;
+
+  /** Destination story for the active precomputed path. */
+  public activeTargetStoryIndex: number | null;
+
   /** True while actively traversing a path. */
   public isMoving: boolean;
 
@@ -35,6 +51,11 @@ export class HexPathMovementComponent implements Component {
     this.direction = Vector3.Zero();
     this.pathCells = [];
     this.nextStepIndex = 0;
+    this.pathSegments = [];
+    this.currentSegmentIndex = 0;
+    this.currentStairPointIndex = 0;
+    this.activeTargetCell = null;
+    this.activeTargetStoryIndex = null;
     this.isMoving = false;
   }
 
@@ -44,6 +65,11 @@ export class HexPathMovementComponent implements Component {
   public resetPathState(): void {
     this.pathCells = [];
     this.nextStepIndex = 0;
+    this.pathSegments = [];
+    this.currentSegmentIndex = 0;
+    this.currentStairPointIndex = 0;
+    this.activeTargetCell = null;
+    this.activeTargetStoryIndex = null;
     this.isMoving = false;
     this.velocity.setAll(0);
     this.direction.setAll(0);

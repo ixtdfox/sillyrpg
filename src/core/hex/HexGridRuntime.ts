@@ -6,6 +6,8 @@ import { HexGrid } from "./HexGrid";
 import { HexGridGroundMeshResolver } from "./HexGridGroundMeshResolver";
 import { HexGridOverlay } from "./HexGridOverlay";
 import { HexGroundPickerController } from "./HexGroundPickerController";
+import type { PickedNavigationCell } from "./HexGroundPickerController";
+import { BuildingNavigationRegistry } from "../navigation/BuildingNavigationRegistry";
 
 export interface HexDebugDetectedCell {
   readonly cell: HexCell;
@@ -21,6 +23,7 @@ export class HexGridRuntime {
   private overlay: HexGridOverlay;
   private pickerController: HexGroundPickerController;
   private readonly settings: HexGridSettings;
+  private readonly buildingNavigationRegistry: BuildingNavigationRegistry;
 
   /**
    * Creates complete in-game hex runtime module.
@@ -35,8 +38,11 @@ export class HexGridRuntime {
     this.grid = grid;
     this.overlay = overlay;
     this.pickerController = pickerController;
+    this.buildingNavigationRegistry = new BuildingNavigationRegistry();
+    this.buildingNavigationRegistry.rebuild(scene, this.grid);
     this.debugState = new HexGridDebugState(settings.debugEnabledByDefault);
     this.overlay.setDebugVisible(this.debugState.getIsDebugEnabled());
+    this.buildingNavigationRegistry.setDebugVisible(this.debugState.getIsDebugEnabled());
   }
 
   /**
@@ -52,6 +58,7 @@ export class HexGridRuntime {
   public toggleDebug(): boolean {
     const isEnabled = this.debugState.toggle();
     this.overlay.setDebugVisible(isEnabled);
+    this.buildingNavigationRegistry.setDebugVisible(isEnabled);
     return isEnabled;
   }
 
@@ -86,6 +93,7 @@ export class HexGridRuntime {
   public dispose(): void {
     this.pickerController.dispose();
     this.overlay.dispose();
+    this.buildingNavigationRegistry.dispose();
   }
 
   /**
@@ -102,6 +110,8 @@ export class HexGridRuntime {
     this.overlay = runtime.overlay;
     this.overlay.setDebugVisible(this.debugState.getIsDebugEnabled());
     this.pickerController = runtime.pickerController;
+    this.buildingNavigationRegistry.rebuild(scene, this.grid);
+    this.buildingNavigationRegistry.setDebugVisible(this.debugState.getIsDebugEnabled());
   }
 
   /**
@@ -116,6 +126,14 @@ export class HexGridRuntime {
    */
   public getHoveredCell(): HexCell | null {
     return this.pickerController.getHoveredCell();
+  }
+
+  public getHoveredNavigationCell(fallbackStoryIndex = 0): PickedNavigationCell | null {
+    return this.pickerController.getHoveredNavigationCell(fallbackStoryIndex);
+  }
+
+  public getBuildingNavigationRegistry(): BuildingNavigationRegistry {
+    return this.buildingNavigationRegistry;
   }
 
   /**

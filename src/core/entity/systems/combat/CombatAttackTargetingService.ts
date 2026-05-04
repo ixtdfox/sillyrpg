@@ -41,10 +41,16 @@ export class CombatAttackTargetingService {
       return { success: false, reason: "Not enough AP for melee attack." };
     }
 
-    const attackerCell = attacker.tryGetComponent(HexPositionComponent)?.currentCell;
-    const targetCell = target.tryGetComponent(HexPositionComponent)?.currentCell;
-    if (!attackerCell || !targetCell) {
+    const attackerHexPosition = attacker.tryGetComponent(HexPositionComponent);
+    const targetHexPosition = target.tryGetComponent(HexPositionComponent);
+    const attackerCell = attackerHexPosition?.currentCell;
+    const targetCell = targetHexPosition?.currentCell;
+    if (!attackerCell || !targetCell || !attackerHexPosition || !targetHexPosition) {
       return { success: false, reason: "Attacker or target has no hex position." };
+    }
+
+    if (attackerHexPosition.currentStoryIndex !== targetHexPosition.currentStoryIndex) {
+      return { success: false, reason: "Target is on a different story." };
     }
 
     if (attackerCell.distance(targetCell) > 1) {

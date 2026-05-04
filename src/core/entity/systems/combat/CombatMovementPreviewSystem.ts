@@ -78,11 +78,16 @@ export class CombatMovementPreviewSystem implements System {
 
     this.runtimeContext.hexGridRuntime.setMoveRangeCells(rangeResolution.reachableCells);
 
-    const hoveredCell = this.runtimeContext.hexGridRuntime.getHoveredCell();
-    if (!hoveredCell || hoveredCell.equals(hexPosition.currentCell)) {
+    const pickedNavigationCell = this.runtimeContext.hexGridRuntime.getHoveredNavigationCell(hexPosition.currentStoryIndex);
+    if (
+      !pickedNavigationCell ||
+      pickedNavigationCell.storyIndex !== hexPosition.currentStoryIndex ||
+      pickedNavigationCell.cell.equals(hexPosition.currentCell)
+    ) {
       this.runtimeContext.hexGridRuntime.setMovePathCells([]);
       return;
     }
+    const hoveredCell = pickedNavigationCell.cell;
 
     if (!rangeResolution.costByCellKey.has(cellKey(hoveredCell))) {
       this.runtimeContext.hexGridRuntime.setMovePathCells([]);
@@ -141,7 +146,9 @@ export class CombatMovementPreviewSystem implements System {
       return false;
     }
 
-    const entitiesAtCell = this.spatialIndex.getEntitiesAt(cell);
+    const localPlayer = this.resolveLocalPlayer();
+    const storyIndex = localPlayer?.getComponent(HexPositionComponent).currentStoryIndex ?? 0;
+    const entitiesAtCell = this.spatialIndex.getEntitiesAt(cell, storyIndex);
     return entitiesAtCell.some((occupantEntityId) => occupantEntityId !== entityId);
   }
 

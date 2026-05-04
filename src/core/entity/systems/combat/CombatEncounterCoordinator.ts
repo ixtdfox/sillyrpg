@@ -52,6 +52,7 @@ export class CombatEncounterCoordinator {
       const hexPosition = entity.tryGetComponent(HexPositionComponent);
       if (hexPosition) {
         hexPosition.targetCell = null;
+        hexPosition.targetStoryIndex = null;
       }
 
       entity.tryGetComponent(HexPathMovementComponent)?.resetPathState();
