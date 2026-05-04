@@ -15,6 +15,7 @@ import { CombatInputController } from "../../game/CombatInputController";
 import { CombatInputMode } from "../../game/CombatInputMode";
 import { HexSpatialIndex } from "./hex/HexSpatialIndex";
 import { CombatAttackTargetingService } from "./combat/CombatAttackTargetingService";
+import type { PickedNavigationTarget } from "../../hex/HexGroundPickerController";
 
 /**
  * Handles local-player click-to-move intent on the ground hex grid.
@@ -72,6 +73,15 @@ export class LocalPlayerInputSystem implements System {
       this.localPlayerEntity = this.resolveLocalPlayerEntity();
     }
 
+    const hexPosition = this.localPlayerEntity?.tryGetComponent(HexPositionComponent);
+    if (hexPosition && this.runtimeContext) {
+      this.runtimeContext.hexGridRuntime.setNavigationFallbackStoryIndex(hexPosition.currentStoryIndex);
+      this.runtimeContext.hexGridRuntime.updateStairHoverAffordance(
+        this.runtimeContext.hexGridRuntime.getHoveredNavigationTarget(hexPosition.currentStoryIndex),
+        hexPosition.currentStoryIndex
+      );
+    }
+
     this.tryAttachPointerObserver();
   }
 
@@ -89,21 +99,29 @@ export class LocalPlayerInputSystem implements System {
     }
 
     const hexPosition = this.localPlayerEntity.getComponent(HexPositionComponent);
-    const pickedNavigationCell = this.runtimeContext.hexGridRuntime.getHoveredNavigationCell(hexPosition.currentStoryIndex);
-    if (!pickedNavigationCell) {
+    const pickedTarget = this.runtimeContext.hexGridRuntime.getHoveredNavigationTarget(hexPosition.currentStoryIndex);
+    if (!pickedTarget) {
       return;
     }
-    const clickedCell = pickedNavigationCell.cell;
-    const clickedStoryIndex = pickedNavigationCell.storyIndex;
 
     if (this.worldModeController.isTurnBased() && inputMode === CombatInputMode.ATTACK) {
-      this.tryHandleAttackClick(clickedCell);
+      if (pickedTarget.kind === "cell") {
+        this.tryHandleAttackClick(pickedTarget.cell);
+      }
       return;
     }
 
     if (!this.isMovementInputAllowed(inputMode)) {
       return;
     }
+
+    if (pickedTarget.kind === "stair") {
+      this.tryHandleStairClick(hexPosition, pickedTarget, this.localPlayerEntity.tryGetComponent(HexPathMovementComponent) ?? null);
+      return;
+    }
+
+    const clickedCell = pickedTarget.cell;
+    const clickedStoryIndex = pickedTarget.storyIndex;
 
     if (hexPosition.currentCell.equals(clickedCell) && hexPosition.currentStoryIndex === clickedStoryIndex) {
       return;
@@ -129,6 +147,44 @@ export class LocalPlayerInputSystem implements System {
     hexPosition.targetStoryIndex = clickedStoryIndex;
     pathMovement?.resetPathState();
   };
+
+  private tryHandleStairClick(
+    hexPosition: HexPositionComponent,
+    pickedTarget: Extract<PickedNavigationTarget, { kind: "stair" }>,
+    pathMovement: HexPathMovementComponent | null
+  ): void {
+    if (!this.runtimeContext) {
+      return;
+    }
+
+    const registry = this.runtimeContext.hexGridRuntime.getBuildingNavigationRegistry();
+    const stairTarget = registry.resolveStairInteractionTarget({
+      stairId: pickedTarget.stairId,
+      pickedPoint: pickedTarget.pickedPoint,
+      currentStoryIndex: hexPosition.currentStoryIndex
+    });
+
+    if (!stairTarget) {
+      console.warn(
+        `[LocalPlayerInputSystem] Stair click unresolved point=(${pickedTarget.pickedPoint.x.toFixed(2)},${pickedTarget.pickedPoint.y.toFixed(2)},${pickedTarget.pickedPoint.z.toFixed(2)}) currentStory=${hexPosition.currentStoryIndex}`
+      );
+      return;
+    }
+
+    console.debug(
+      `[LocalPlayerInputSystem] Stair click mesh='${pickedTarget.pickedMeshName ?? "unknown"}' stairId='${stairTarget.connector.stairId}' currentStory=${hexPosition.currentStoryIndex} targetStory=${stairTarget.targetStoryIndex} targetCell=${stairTarget.targetCell.q}:${stairTarget.targetCell.r} direction=${stairTarget.direction}`
+    );
+
+    if (stairTarget.resolvedByNearest) {
+      console.debug(
+        `[LocalPlayerInputSystem] Stair click resolved by nearest connector stairId='${stairTarget.connector.stairId}' distance=${stairTarget.distance?.toFixed(2) ?? "unknown"}`
+      );
+    }
+
+    hexPosition.targetCell = stairTarget.targetCell;
+    hexPosition.targetStoryIndex = stairTarget.targetStoryIndex;
+    pathMovement?.resetPathState();
+  }
 
   private resolveCurrentInputMode(): CombatInputMode {
     if (!this.worldModeController.isTurnBased()) {

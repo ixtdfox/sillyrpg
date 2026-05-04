@@ -1,4 +1,5 @@
 import type { AbstractMesh, Node, Scene } from "@babylonjs/core";
+import { isNavigationPickableSurface } from "../navigation/BuildingNavigationMetadata";
 
 /**
  * Selection result for ground used by hex-grid sizing and mouse picking.
@@ -80,8 +81,13 @@ export class HexGridGroundMeshResolver {
 
     return {
       groundMesh,
-      isGroundPick: (mesh: AbstractMesh): boolean => this.isMeshInGroundHierarchy(mesh, groundMesh),
+      isGroundPick: (mesh: AbstractMesh): boolean =>
+        this.isMeshInGroundHierarchy(mesh, groundMesh) || this.isNavigationPickableSurface(mesh),
     };
+  }
+
+  private isNavigationPickableSurface(mesh: AbstractMesh): boolean {
+    return isNavigationPickableSurface(mesh);
   }
 
   private isMeshInGroundHierarchy(mesh: AbstractMesh, groundMesh: AbstractMesh): boolean {

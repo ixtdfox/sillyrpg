@@ -28,6 +28,14 @@ export interface PickableStoryMetadata {
   readonly storyIndex: number;
 }
 
+export interface StairPickMetadata {
+  readonly stairId?: string;
+  readonly stairKind?: StairKind;
+  readonly fromStory?: number;
+  readonly toStory?: number;
+  readonly isStairLike: boolean;
+}
+
 export function parseStairCheckpointMetadata(mesh: AbstractMesh): StairCheckpointMetadata | null {
   const metadata = resolveNavigationMetadata(mesh);
   if (!metadata || metadata.nav_kind !== "stair_checkpoint") {
@@ -81,6 +89,62 @@ export function parseStairConnectorMetadata(mesh: AbstractMesh): StairConnectorM
   };
 }
 
+export function parseStairPickMetadata(mesh: AbstractMesh): StairPickMetadata | null {
+  const metadata = resolveNavigationMetadata(mesh);
+  const stairId = metadata ? normalizeString(metadata.stair_id) : null;
+  const stairKind = metadata ? normalizeStairKind(metadata.stair_kind) : null;
+  const navKind = metadata ? normalizeString(metadata.nav_kind) : null;
+  const part = metadata ? normalizeString(metadata.part) ?? normalizeString(metadata.building_part) : null;
+  const stairPart = metadata ? normalizeString(metadata.stair_part) : null;
+  const isMetadataStairLike = Boolean(
+    navKind === "stair_connector" ||
+    navKind === "stair_checkpoint" ||
+    navKind === "stair_pick_proxy" ||
+    stairId ||
+    stairKind ||
+    stairPart ||
+    part === "stair" ||
+    part === "external_stair"
+  );
+  const isNameStairLike = /\b(external[_ -]?stair|stairs?|staircase)\b/i.test(mesh.name);
+
+  if (!isMetadataStairLike && !isNameStairLike) {
+    return null;
+  }
+
+  return {
+    stairId: stairId ?? undefined,
+    stairKind: stairKind ?? undefined,
+    fromStory: metadata ? normalizeInteger(metadata.from_story) ?? undefined : undefined,
+    toStory: metadata ? normalizeInteger(metadata.to_story) ?? undefined : undefined,
+    isStairLike: true
+  };
+}
+
+export function isNavigationPickableSurface(mesh: AbstractMesh): boolean {
+  if (parseStairPickMetadata(mesh)) {
+    return true;
+  }
+
+  const metadata = resolveNavigationMetadata(mesh);
+  const part = metadata
+    ? normalizeString(metadata.part) ?? normalizeString(metadata.building_part) ?? normalizeString(metadata.role)
+    : null;
+  if ((part && isBlockedSurfaceName(part)) || isBlockedSurfaceName(mesh.name)) {
+    return false;
+  }
+
+  if (parsePickableStoryMetadata(mesh)) {
+    return true;
+  }
+
+  if (part && isWalkableSurfaceName(part) && !isBlockedSurfaceName(part)) {
+    return true;
+  }
+
+  return isWalkableSurfaceName(mesh.name) && !isBlockedSurfaceName(mesh.name);
+}
+
 export function parsePickableStoryMetadata(mesh: AbstractMesh): PickableStoryMetadata | null {
   const metadata = resolveNavigationMetadata(mesh);
   if (!metadata) {
@@ -129,6 +193,11 @@ function resolveExtrasRecord(metadata: Record<string, unknown>): Record<string, 
 function hasNavigationMetadata(record: Record<string, unknown>): boolean {
   return (
     "nav_kind" in record ||
+    "stair_id" in record ||
+    "stair_kind" in record ||
+    "stair_part" in record ||
+    "part" in record ||
+    "building_part" in record ||
     "storyIndex" in record ||
     "story_index" in record ||
     "floorIndex" in record ||
@@ -196,4 +265,12 @@ function normalizeStairKind(value: unknown): StairKind | null {
   }
 
   return null;
+}
+
+function isWalkableSurfaceName(name: string): boolean {
+  return /(story[_ -]?floor|room[_ -]?floor|roof[_ -]?floor|floor|platform|landing|balcony|walkway|roof[_ -]?platform|stair[_ -]?landing|terrace|external[_ -]?stair[_ -]?landing)/i.test(name);
+}
+
+function isBlockedSurfaceName(name: string): boolean {
+  return /(wall|railing|rail|window|door|glass|frame|sill|reveal)/i.test(name);
 }

@@ -7,7 +7,9 @@ import { HexGridGroundMeshResolver } from "./HexGridGroundMeshResolver";
 import { HexGridOverlay } from "./HexGridOverlay";
 import { HexGroundPickerController } from "./HexGroundPickerController";
 import type { PickedNavigationCell } from "./HexGroundPickerController";
+import type { PickedNavigationTarget } from "./HexGroundPickerController";
 import { BuildingNavigationRegistry } from "../navigation/BuildingNavigationRegistry";
+import type { StoryHexCell } from "./HexGridOverlay";
 
 export interface HexDebugDetectedCell {
   readonly cell: HexCell;
@@ -40,6 +42,7 @@ export class HexGridRuntime {
     this.pickerController = pickerController;
     this.buildingNavigationRegistry = new BuildingNavigationRegistry();
     this.buildingNavigationRegistry.rebuild(scene, this.grid);
+    this.overlay.setStoryYByStory(this.buildingNavigationRegistry.getStoryYByStory());
     this.debugState = new HexGridDebugState(settings.debugEnabledByDefault);
     this.overlay.setDebugVisible(this.debugState.getIsDebugEnabled());
     this.buildingNavigationRegistry.setDebugVisible(this.debugState.getIsDebugEnabled());
@@ -86,6 +89,14 @@ export class HexGridRuntime {
     this.overlay.setMovePathCells(cells);
   }
 
+  public setMoveRangeNavigationCells(cells: readonly StoryHexCell[]): void {
+    this.overlay.setMoveRangeNavigationCells(cells);
+  }
+
+  public setMovePathNavigationCells(cells: readonly StoryHexCell[]): void {
+    this.overlay.setMovePathNavigationCells(cells);
+  }
+
   public clearCombatMovementPreview(): void {
     this.overlay.clearCombatMovementPreview();
   }
@@ -111,6 +122,7 @@ export class HexGridRuntime {
     this.overlay.setDebugVisible(this.debugState.getIsDebugEnabled());
     this.pickerController = runtime.pickerController;
     this.buildingNavigationRegistry.rebuild(scene, this.grid);
+    this.overlay.setStoryYByStory(this.buildingNavigationRegistry.getStoryYByStory());
     this.buildingNavigationRegistry.setDebugVisible(this.debugState.getIsDebugEnabled());
   }
 
@@ -132,8 +144,34 @@ export class HexGridRuntime {
     return this.pickerController.getHoveredNavigationCell(fallbackStoryIndex);
   }
 
+  public getHoveredNavigationTarget(fallbackStoryIndex = 0): PickedNavigationTarget | null {
+    return this.pickerController.getHoveredNavigationTarget(fallbackStoryIndex);
+  }
+
   public getBuildingNavigationRegistry(): BuildingNavigationRegistry {
     return this.buildingNavigationRegistry;
+  }
+
+  public setNavigationFallbackStoryIndex(storyIndex: number): void {
+    this.pickerController.setFallbackStoryIndex(storyIndex);
+    this.overlay.setCurrentStoryIndex(storyIndex);
+  }
+
+  public updateStairHoverAffordance(target: PickedNavigationTarget | null, currentStoryIndex: number): void {
+    if (target?.kind !== "stair") {
+      this.buildingNavigationRegistry.setHoveredStairConnector(null, currentStoryIndex);
+      return;
+    }
+
+    const resolvedTarget = this.buildingNavigationRegistry.resolveStairInteractionTarget({
+      stairId: target.stairId,
+      pickedPoint: target.pickedPoint,
+      currentStoryIndex
+    });
+    this.buildingNavigationRegistry.setHoveredStairConnector(
+      resolvedTarget?.connector.stairId ?? target.stairId ?? null,
+      currentStoryIndex
+    );
   }
 
   /**

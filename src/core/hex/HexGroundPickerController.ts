@@ -1,14 +1,26 @@
-import type { AbstractMesh, Scene } from "@babylonjs/core";
+import type { AbstractMesh, Scene, Vector3 } from "@babylonjs/core";
 import { HexCell } from "./HexCell";
 import { HexGrid } from "./HexGrid";
 import { HexGridOverlay } from "./HexGridOverlay";
-import { parsePickableStoryMetadata } from "../navigation/BuildingNavigationMetadata";
+import { parsePickableStoryMetadata, parseStairPickMetadata } from "../navigation/BuildingNavigationMetadata";
 
 export interface PickedNavigationCell {
   readonly cell: HexCell;
   readonly storyIndex: number;
-  readonly worldPosition: import("@babylonjs/core").Vector3;
+  readonly worldPosition: Vector3;
+  readonly pickedMeshName?: string;
 }
+
+export type PickedNavigationTarget =
+  | ({
+      readonly kind: "cell";
+    } & PickedNavigationCell)
+  | {
+      readonly kind: "stair";
+      readonly stairId?: string;
+      readonly pickedPoint: Vector3;
+      readonly pickedMeshName?: string;
+    };
 
 /**
  * Integrates mouse picking with logical hex snapping and hovered-cell highlight.
@@ -20,7 +32,9 @@ export class HexGroundPickerController {
   private readonly overlay: HexGridOverlay;
   private hoveredCell: HexCell | null;
   private hoveredNavigationCell: PickedNavigationCell | null;
+  private hoveredNavigationTarget: PickedNavigationTarget | null;
   private warnedMissingStoryMetadataMeshIds: Set<number>;
+  private fallbackStoryIndex: number;
 
   /**
    * Creates mouse-driven ground picking controller.
@@ -37,7 +51,9 @@ export class HexGroundPickerController {
     this.overlay = overlay;
     this.hoveredCell = null;
     this.hoveredNavigationCell = null;
+    this.hoveredNavigationTarget = null;
     this.warnedMissingStoryMetadataMeshIds = new Set();
+    this.fallbackStoryIndex = 0;
 
     this.scene.onBeforeRenderObservable.add(this.updateHoverFromPointer);
   }
@@ -54,18 +70,25 @@ export class HexGroundPickerController {
   }
 
   public getHoveredNavigationCell(fallbackStoryIndex = 0): PickedNavigationCell | null {
-    if (!this.hoveredNavigationCell) {
+    const target = this.getHoveredNavigationTarget(fallbackStoryIndex);
+    if (!target || target.kind !== "cell") {
       return null;
     }
 
-    if (this.hoveredNavigationCell.storyIndex === Number.MIN_SAFE_INTEGER) {
-      return {
-        ...this.hoveredNavigationCell,
-        storyIndex: fallbackStoryIndex
-      };
+    return target;
+  }
+
+  public getHoveredNavigationTarget(fallbackStoryIndex = 0): PickedNavigationTarget | null {
+    if (!this.hoveredNavigationTarget) {
+      return null;
     }
 
-    return this.hoveredNavigationCell;
+    void fallbackStoryIndex;
+    return this.hoveredNavigationTarget;
+  }
+
+  public setFallbackStoryIndex(storyIndex: number): void {
+    this.fallbackStoryIndex = storyIndex;
   }
 
   private readonly updateHoverFromPointer = (): void => {
@@ -80,6 +103,22 @@ export class HexGroundPickerController {
     if (!pickResult?.hit || !pickResult.pickedPoint) {
       this.hoveredCell = null;
       this.hoveredNavigationCell = null;
+      this.hoveredNavigationTarget = null;
+      this.overlay.hideHoveredCell();
+      return;
+    }
+
+    const pickedMesh = pickResult.pickedMesh ?? null;
+    const stairPickMetadata = pickedMesh ? parseStairPickMetadata(pickedMesh) : null;
+    if (stairPickMetadata?.isStairLike) {
+      this.hoveredCell = null;
+      this.hoveredNavigationCell = null;
+      this.hoveredNavigationTarget = {
+        kind: "stair",
+        stairId: stairPickMetadata.stairId,
+        pickedPoint: pickResult.pickedPoint.clone(),
+        pickedMeshName: pickedMesh?.name
+      };
       this.overlay.hideHoveredCell();
       return;
     }
@@ -88,13 +127,13 @@ export class HexGroundPickerController {
     if (!this.grid.contains(nextCell)) {
       this.hoveredCell = null;
       this.hoveredNavigationCell = null;
+      this.hoveredNavigationTarget = null;
       this.overlay.hideHoveredCell();
       return;
     }
 
-    const pickedMesh = pickResult.pickedMesh ?? null;
     const storyMetadata = pickedMesh ? parsePickableStoryMetadata(pickedMesh) : null;
-    const storyIndex = storyMetadata?.storyIndex ?? Number.MIN_SAFE_INTEGER;
+    const storyIndex = storyMetadata?.storyIndex ?? this.fallbackStoryIndex;
     if (!storyMetadata && pickedMesh && !this.warnedMissingStoryMetadataMeshIds.has(pickedMesh.uniqueId)) {
       this.warnedMissingStoryMetadataMeshIds.add(pickedMesh.uniqueId);
       console.warn(
@@ -110,8 +149,13 @@ export class HexGroundPickerController {
     this.hoveredNavigationCell = {
       cell: nextCell,
       storyIndex,
-      worldPosition: pickResult.pickedPoint.clone()
+      worldPosition: pickResult.pickedPoint.clone(),
+      pickedMeshName: pickedMesh?.name
     };
-    this.overlay.setHoveredCell(nextCell);
+    this.hoveredNavigationTarget = {
+      kind: "cell",
+      ...this.hoveredNavigationCell
+    };
+    this.overlay.setHoveredNavigationCell(nextCell, storyIndex);
   };
 }
