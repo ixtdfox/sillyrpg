@@ -21,7 +21,9 @@ export class CombatMoveRangeResolver {
     grid: HexGrid,
     startCell: HexCell,
     movementPoints: number,
-    isCellBlocked: (cell: HexCell) => boolean
+    isCellBlocked: (cell: HexCell) => boolean,
+    storyIndex = 0,
+    isEdgeBlocked: (fromCell: HexCell, toCell: HexCell) => boolean = () => false
   ): CombatMoveRangeResolution {
     if (movementPoints <= 0 || !grid.contains(startCell)) {
       return {
@@ -49,7 +51,11 @@ export class CombatMoveRangeResolver {
           continue;
         }
 
-        const stepCost = this.movementCostResolver.getStepCost(current, neighbor);
+        if (isEdgeBlocked(current, neighbor)) {
+          continue;
+        }
+
+        const stepCost = this.movementCostResolver.getStepCost(current, neighbor, storyIndex);
         if (!Number.isFinite(stepCost) || stepCost <= 0) {
           continue;
         }

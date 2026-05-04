@@ -61,18 +61,24 @@ export class NavigationGraph {
   private readonly storyYByStory: Map<number, number>;
   private readonly stairEdgesByNodeId: Map<string, NavigationEdge[]>;
   private readonly isWalkableCell: (cell: HexCell, storyIndex: number) => boolean;
+  private readonly isEdgeBlocked: (fromCell: HexCell, toCell: HexCell, storyIndex: number) => boolean;
+  private readonly getMovementCost: (cell: HexCell, storyIndex: number) => number;
 
   public constructor(
     grid: HexGrid,
     stairConnectors: readonly StairNavigationConnector[] = [],
     storyYByStory: ReadonlyMap<number, number> = new Map(),
-    isWalkableCell?: (cell: HexCell, storyIndex: number) => boolean
+    isWalkableCell?: (cell: HexCell, storyIndex: number) => boolean,
+    isEdgeBlocked?: (fromCell: HexCell, toCell: HexCell, storyIndex: number) => boolean,
+    getMovementCost?: (cell: HexCell, storyIndex: number) => number
   ) {
     this.grid = grid;
     this.storyIndices = new Set<number>([0]);
     this.storyYByStory = new Map(storyYByStory);
     this.stairEdgesByNodeId = new Map();
     this.isWalkableCell = isWalkableCell ?? ((cell) => this.grid.contains(cell));
+    this.isEdgeBlocked = isEdgeBlocked ?? (() => false);
+    this.getMovementCost = getMovementCost ?? (() => 1);
 
     for (const connector of stairConnectors) {
       this.storyIndices.add(connector.fromStoryIndex);
@@ -123,12 +129,21 @@ export class NavigationGraph {
         continue;
       }
 
+      if (this.isEdgeBlocked(node.cell, neighborCell, node.storyIndex)) {
+        continue;
+      }
+
+      const movementCost = this.getMovementCost(neighborCell, node.storyIndex);
+      if (!Number.isFinite(movementCost) || movementCost <= 0) {
+        continue;
+      }
+
       edges.push({
         id: `walk:${node.id}->${neighborNode.id}`,
         fromNodeId: node.id,
         toNodeId: neighborNode.id,
         kind: "walk",
-        cost: 1
+        cost: movementCost
       });
     }
 

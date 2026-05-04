@@ -284,7 +284,10 @@ export class BasicCombatAiService {
       grid,
       registry.getStairConnectors(),
       this.runtimeContext.hexGridRuntime.getMergedStoryYByStory(),
-      (cell, storyIndex) => this.runtimeContext?.hexGridRuntime.isWalkableCell(cell, storyIndex) ?? false
+      (cell, storyIndex) => this.runtimeContext?.hexGridRuntime.isWalkableCell(cell, storyIndex) ?? false,
+      (fromCell, toCell, storyIndex) =>
+        this.runtimeContext?.hexGridRuntime.isNavigationEdgeBlocked(fromCell, toCell, storyIndex) ?? false,
+      (cell, storyIndex) => this.runtimeContext?.hexGridRuntime.getMovementCost(cell, storyIndex) ?? 1
     );
     const pathfinder = new MultiFloorPathfinder(graph, registry.getShowStairNavigationDebug());
     const isOccupiedByOtherEntity = (node: NavigationNode): boolean => {

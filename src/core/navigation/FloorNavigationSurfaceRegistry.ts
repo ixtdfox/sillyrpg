@@ -1,7 +1,7 @@
 import { Vector3, type AbstractMesh, type Node, type Scene } from "@babylonjs/core";
 import { HexCell } from "../hex/HexCell";
 import type { HexGrid } from "../hex/HexGrid";
-import { parseStairCheckpointMetadata } from "./BuildingNavigationMetadata";
+import { parseGameNavigationMetadata, parseStairCheckpointMetadata } from "./BuildingNavigationMetadata";
 
 export interface WalkableFloorSurface {
   readonly mesh: AbstractMesh;
@@ -193,6 +193,7 @@ export class FloorNavigationSurfaceRegistry {
   ): number | null {
     const metadata = resolveMetadata(mesh);
     const explicitStory =
+      normalizeInteger(metadata?.game_nav_story_index) ??
       normalizeInteger(metadata?.storyIndex) ??
       normalizeInteger(metadata?.story_index) ??
       normalizeInteger(metadata?.floorIndex) ??
@@ -219,6 +220,14 @@ export class FloorNavigationSurfaceRegistry {
   }
 
   private isWalkableFloorSurface(mesh: AbstractMesh): boolean {
+    const gameNavigationMetadata = parseGameNavigationMetadata(mesh);
+    if (gameNavigationMetadata?.kind === "floor") {
+      return true;
+    }
+    if (gameNavigationMetadata) {
+      return false;
+    }
+
     const metadata = resolveMetadata(mesh);
     const navKind = normalizeString(metadata?.nav_kind);
     if (navKind === "stair_checkpoint" || navKind === "stair_pick_proxy") {

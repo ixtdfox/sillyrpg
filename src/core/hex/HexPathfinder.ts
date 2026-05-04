@@ -5,6 +5,7 @@ import { HexGrid } from "./HexGrid";
  * Optional rule used to reject traversal through blocked cells.
  */
 export type HexCellBlockedPredicate = (cell: HexCell) => boolean;
+export type HexEdgeBlockedPredicate = (fromCell: HexCell, toCell: HexCell) => boolean;
 
 /**
  * Computes deterministic shortest paths across bounded hex grids.
@@ -12,16 +13,23 @@ export type HexCellBlockedPredicate = (cell: HexCell) => boolean;
 export class HexPathfinder {
   private readonly grid: HexGrid;
   private readonly isCellBlocked: HexCellBlockedPredicate;
+  private readonly isEdgeBlocked: HexEdgeBlockedPredicate;
 
   /**
    * Creates a new pathfinder for a specific grid.
    *
    * @param grid - Logical hex grid.
    * @param isCellBlocked - Optional blocked-cell predicate.
+   * @param isEdgeBlocked - Optional blocked-edge predicate.
    */
-  public constructor(grid: HexGrid, isCellBlocked: HexCellBlockedPredicate = () => false) {
+  public constructor(
+    grid: HexGrid,
+    isCellBlocked: HexCellBlockedPredicate = () => false,
+    isEdgeBlocked: HexEdgeBlockedPredicate = () => false
+  ) {
     this.grid = grid;
     this.isCellBlocked = isCellBlocked;
+    this.isEdgeBlocked = isEdgeBlocked;
   }
 
   /**
@@ -50,6 +58,10 @@ export class HexPathfinder {
 
       for (const neighbor of this.grid.getNeighbors(current)) {
         if (!this.grid.contains(neighbor) || this.isCellBlocked(neighbor)) {
+          continue;
+        }
+
+        if (this.isEdgeBlocked(current, neighbor)) {
           continue;
         }
 

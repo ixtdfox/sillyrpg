@@ -49,6 +49,11 @@ export class CombatMovementPreviewSystem implements System {
 
   public setScene(scene: BabylonScene | null): void {
     this.runtimeContext = scene ? getInGameSceneRuntimeContext(scene) : null;
+    this.movementCostResolver.setMovementCostProvider(
+      this.runtimeContext
+        ? (cell, storyIndex) => this.runtimeContext?.hexGridRuntime.getMovementCost(cell, storyIndex) ?? 1
+        : null
+    );
     this.clearPreview();
   }
 
@@ -73,7 +78,10 @@ export class CombatMovementPreviewSystem implements System {
       grid,
       hexPosition.currentCell,
       combatStats.currentMp,
-      (cell) => this.isBlockedCell(entityId, hexPosition.currentCell, hexPosition.currentStoryIndex, cell)
+      (cell) => this.isBlockedCell(entityId, hexPosition.currentCell, hexPosition.currentStoryIndex, cell),
+      hexPosition.currentStoryIndex,
+      (fromCell, toCell) =>
+        this.runtimeContext?.hexGridRuntime.isNavigationEdgeBlocked(fromCell, toCell, hexPosition.currentStoryIndex) ?? false
     );
 
     this.runtimeContext.hexGridRuntime.setMoveRangeNavigationCells(
@@ -96,7 +104,12 @@ export class CombatMovementPreviewSystem implements System {
       return;
     }
 
-    const pathfinder = new HexPathfinder(grid, (cell) => this.isBlockedCell(entityId, hexPosition.currentCell, hexPosition.currentStoryIndex, cell));
+    const pathfinder = new HexPathfinder(
+      grid,
+      (cell) => this.isBlockedCell(entityId, hexPosition.currentCell, hexPosition.currentStoryIndex, cell),
+      (fromCell, toCell) =>
+        this.runtimeContext?.hexGridRuntime.isNavigationEdgeBlocked(fromCell, toCell, hexPosition.currentStoryIndex) ?? false
+    );
     const path = pathfinder.findPath(hexPosition.currentCell, hoveredCell);
     if (!path || path.length < 2) {
       this.runtimeContext.hexGridRuntime.setMovePathNavigationCells([]);
@@ -107,7 +120,7 @@ export class CombatMovementPreviewSystem implements System {
     let totalCost = 0;
 
     for (let index = 1; index < path.length; index += 1) {
-      const stepCost = this.movementCostResolver.getStepCost(path[index - 1], path[index]);
+      const stepCost = this.movementCostResolver.getStepCost(path[index - 1], path[index], hexPosition.currentStoryIndex);
       if (!Number.isFinite(stepCost) || stepCost <= 0) {
         this.runtimeContext.hexGridRuntime.setMovePathNavigationCells([]);
         return;

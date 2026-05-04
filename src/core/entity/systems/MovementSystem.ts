@@ -60,6 +60,11 @@ export class MovementSystem implements System {
     this.scene = scene;
     this.runtimeContext = scene ? getInGameSceneRuntimeContext(scene) : null;
     this.activeGrid = this.runtimeContext ? this.runtimeContext.hexGridRuntime.getGrid() : null;
+    this.movementCostResolver.setMovementCostProvider(
+      this.runtimeContext
+        ? (cell, storyIndex) => this.runtimeContext?.hexGridRuntime.getMovementCost(cell, storyIndex) ?? 1
+        : null
+    );
   }
 
   public update(deltaSeconds: number): void {
@@ -377,7 +382,7 @@ export class MovementSystem implements System {
     }
 
     const stepCost = fromCell && toCell && fromStoryIndex === toStoryIndex
-      ? this.movementCostResolver.getStepCost(fromCell, toCell)
+      ? this.movementCostResolver.getStepCost(fromCell, toCell, toStoryIndex)
       : cost;
     combatStats.currentMp = Math.max(0, combatStats.currentMp - stepCost);
   }
@@ -398,7 +403,10 @@ export class MovementSystem implements System {
       grid,
       registry.getStairConnectors(),
       this.runtimeContext.hexGridRuntime.getMergedStoryYByStory(),
-      (cell, storyIndex) => this.runtimeContext?.hexGridRuntime.isWalkableCell(cell, storyIndex) ?? false
+      (cell, storyIndex) => this.runtimeContext?.hexGridRuntime.isWalkableCell(cell, storyIndex) ?? false,
+      (fromCell, toCell, storyIndex) =>
+        this.runtimeContext?.hexGridRuntime.isNavigationEdgeBlocked(fromCell, toCell, storyIndex) ?? false,
+      (cell, storyIndex) => this.runtimeContext?.hexGridRuntime.getMovementCost(cell, storyIndex) ?? 1
     );
     const pathfinder = new MultiFloorPathfinder(graph, registry.getShowStairNavigationDebug());
     return pathfinder.findPath({

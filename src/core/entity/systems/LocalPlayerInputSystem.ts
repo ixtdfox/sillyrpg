@@ -127,8 +127,12 @@ export class LocalPlayerInputSystem implements System {
       `[LocalPlayerInputSystem] Cell click mesh='${pickedTarget.pickedMeshName ?? "unknown"}' currentStory=${hexPosition.currentStoryIndex} targetStory=${clickedStoryIndex} cell=${clickedCell.q}:${clickedCell.r} walkable=${isWalkable}`
     );
     if (!isWalkable) {
+      const blockedBy = this.runtimeContext.hexGridRuntime
+        .getNavigationBlockerRegistry()
+        .getBlockersForCell(clickedCell, clickedStoryIndex)
+        .map((blocker) => blocker.meshName);
       console.debug(
-        `[LocalPlayerInputSystem] Ignored non-walkable target mesh='${pickedTarget.pickedMeshName ?? "unknown"}' story=${clickedStoryIndex} cell=${clickedCell.q}:${clickedCell.r}`
+        `[LocalPlayerInputSystem] Ignored non-walkable target mesh='${pickedTarget.pickedMeshName ?? "unknown"}' story=${clickedStoryIndex} cell=${clickedCell.q}:${clickedCell.r} blockedBy=${blockedBy.join(",") || "none"}`
       );
       return;
     }

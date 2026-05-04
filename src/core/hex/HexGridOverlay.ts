@@ -42,6 +42,7 @@ export class HexGridOverlay {
   private readonly visionPool: HexHighlightPool;
   private readonly patrolPool: HexHighlightPool;
   private readonly detectedPool: HexHighlightPool;
+  private readonly blockedNavigationPool: HexHighlightPool;
   private readonly moveRangePool: HexHighlightPool;
   private readonly movePathPool: HexHighlightPool;
 
@@ -56,6 +57,7 @@ export class HexGridOverlay {
   private storyYByStory: ReadonlyMap<number, number>;
   private currentStoryIndex: number;
   private walkableNavigationCells: StoryHexCell[];
+  private blockedNavigationCells: StoryHexCell[];
 
   /**
    * Creates visual overlay meshes for grid debug and hover cell.
@@ -78,6 +80,7 @@ export class HexGridOverlay {
     this.visionPool = this.createHighlightPool("hex-vision-highlight");
     this.patrolPool = this.createHighlightPool("hex-patrol-highlight");
     this.detectedPool = this.createHighlightPool("hex-detected-highlight");
+    this.blockedNavigationPool = this.createHighlightPool("hex-navigation-blocked");
     this.moveRangePool = this.createHighlightPool("hex-combat-move-range");
     this.movePathPool = this.createHighlightPool("hex-combat-move-path");
 
@@ -92,6 +95,7 @@ export class HexGridOverlay {
     this.storyYByStory = new Map();
     this.currentStoryIndex = 0;
     this.walkableNavigationCells = [];
+    this.blockedNavigationCells = [];
   }
 
   public setDebugVisible(isVisible: boolean): void {
@@ -192,6 +196,11 @@ export class HexGridOverlay {
     this.refreshHighlights();
   }
 
+  public setBlockedNavigationCells(cells: readonly StoryHexCell[]): void {
+    this.blockedNavigationCells = [...cells];
+    this.refreshHighlights();
+  }
+
   public hideHoveredCell(): void {
     this.hoverMesh.isVisible = false;
   }
@@ -203,6 +212,7 @@ export class HexGridOverlay {
     this.disposePool(this.visionPool);
     this.disposePool(this.patrolPool);
     this.disposePool(this.detectedPool);
+    this.disposePool(this.blockedNavigationPool);
     this.disposePool(this.moveRangePool);
     this.disposePool(this.movePathPool);
   }
@@ -258,6 +268,7 @@ export class HexGridOverlay {
       this.setPoolVisibility(this.visionPool, 0);
       this.setPoolVisibility(this.patrolPool, 0);
       this.setPoolVisibility(this.detectedPool, 0);
+      this.setPoolVisibility(this.blockedNavigationPool, 0);
     } else {
       const visionHighlights = this.visionCells.map((cell) => ({
         cell,
@@ -272,6 +283,18 @@ export class HexGridOverlay {
       this.updatePool(this.visionPool, visionHighlights, this.verticalOffset * 0.3);
       this.updatePool(this.patrolPool, patrolHighlights, this.verticalOffset * 0.6);
       this.updatePool(this.detectedPool, this.detectedCells, this.verticalOffset * 0.9);
+      this.updatePool(
+        this.blockedNavigationPool,
+        this.blockedNavigationCells
+          .filter((entry) => entry.storyIndex === this.currentStoryIndex)
+          .map((entry) => ({
+            cell: entry.cell,
+            storyIndex: entry.storyIndex,
+            color: new Color4(1.0, 0.16, 0.12, 0.46),
+          })),
+        this.verticalOffset * 0.75,
+        true
+      );
     }
 
     const moveRangeHighlights = this.moveRangeCells.map((cell) => ({
@@ -310,9 +333,14 @@ export class HexGridOverlay {
     );
   }
 
-  private updatePool(pool: HexHighlightPool, highlights: readonly HexCellHighlightSpec[], yOffset: number): void {
+  private updatePool(
+    pool: HexHighlightPool,
+    highlights: readonly HexCellHighlightSpec[],
+    yOffset: number,
+    allowOutsideWalkableCells = false
+  ): void {
     const filteredHighlights = highlights.filter((highlight) =>
-      this.isCellOverlayAllowed(highlight.cell, highlight.storyIndex ?? this.currentStoryIndex)
+      allowOutsideWalkableCells || this.isCellOverlayAllowed(highlight.cell, highlight.storyIndex ?? this.currentStoryIndex)
     );
     this.ensurePoolCapacity(pool, filteredHighlights.length);
 

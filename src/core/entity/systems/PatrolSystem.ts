@@ -97,7 +97,11 @@ export class PatrolSystem implements System {
         continue;
       }
 
-      const pathfinder = new HexPathfinder(grid, (cell) => !this.runtimeContext!.hexGridRuntime.isWalkableCell(cell, storyIndex));
+      const pathfinder = new HexPathfinder(
+        grid,
+        (cell) => !this.runtimeContext!.hexGridRuntime.isWalkableCell(cell, storyIndex),
+        (fromCell, toCell) => this.runtimeContext!.hexGridRuntime.isNavigationEdgeBlocked(fromCell, toCell, storyIndex)
+      );
       const path = pathfinder.findPath(currentCell, candidate);
       if (!path || path.length < 2) {
         continue;
