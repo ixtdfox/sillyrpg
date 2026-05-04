@@ -7,12 +7,23 @@ export type BuildingVisibilityRole =
   | "ground"
   | "ignore";
 
+export type BuildingVisibilityBehavior =
+  | "default"
+  | "hide_above_player"
+  | "external_stair_connector"
+  | "always_visible_when_building_visible"
+  | "ignore";
+
 export interface BuildingVisibilityMeshRecord {
   readonly mesh: AbstractMesh;
   readonly buildingId: string;
   readonly storyIndex: number;
   readonly part: string;
   readonly role: BuildingVisibilityRole;
+  readonly visibilityBehavior: BuildingVisibilityBehavior;
+  readonly stairKind?: string | null;
+  readonly fromStory?: number | null;
+  readonly toStory?: number | null;
   readonly isWallHalo: boolean;
   readonly hideWhenAbovePlayer: boolean;
   readonly isInsideVolume: boolean;
@@ -25,8 +36,15 @@ interface RawBuildingVisibilityMetadata {
   readonly game_story_index?: unknown;
   readonly game_part?: unknown;
   readonly game_visibility_role?: unknown;
+  readonly game_visibility_behavior?: unknown;
   readonly game_hide_when_above_player?: unknown;
   readonly game_inside_volume_source?: unknown;
+  readonly stair_kind?: unknown;
+  readonly from_story?: unknown;
+  readonly to_story?: unknown;
+  readonly part?: unknown;
+  readonly building_part?: unknown;
+  readonly stair_part?: unknown;
 }
 
 const ROLE_VALUES = new Set<BuildingVisibilityRole>([
@@ -34,6 +52,14 @@ const ROLE_VALUES = new Set<BuildingVisibilityRole>([
   "hide_above_player",
   "inside_volume",
   "ground",
+  "ignore"
+]);
+
+const BEHAVIOR_VALUES = new Set<BuildingVisibilityBehavior>([
+  "default",
+  "hide_above_player",
+  "external_stair_connector",
+  "always_visible_when_building_visible",
   "ignore"
 ]);
 
@@ -60,19 +86,34 @@ function parseMetadataRecord(
   const hasVisibilityMarker = hasGameVisibilityMetadata(metadata as Record<string, unknown>);
   const role = normalizeRole(metadata.game_visibility_role) ?? inferFallbackRole(mesh.name);
   const buildingId = normalizeString(metadata.game_building_id);
+  const part =
+    normalizeString(metadata.game_part) ??
+    normalizeString(metadata.part) ??
+    normalizeString(metadata.building_part) ??
+    normalizeString(metadata.stair_part) ??
+    mesh.name;
+  const stairKind = normalizeString(metadata.stair_kind);
+  const fromStory = normalizeStoryIndex(metadata.from_story);
+  const toStory = normalizeStoryIndex(metadata.to_story);
 
   if (!hasVisibilityMarker && !role && !buildingId) {
     return null;
   }
 
   const normalizedRole = role ?? "ignore";
+  const visibilityBehavior = normalizeBehavior(metadata.game_visibility_behavior)
+    ?? inferFallbackBehavior(part, stairKind, normalizedRole);
 
   return {
     mesh,
     buildingId: buildingId ?? "metadata-building",
     storyIndex: normalizeStoryIndex(metadata.game_story_index) ?? parseStoryIndex(mesh.name) ?? 0,
-    part: normalizeString(metadata.game_part) ?? mesh.name,
+    part,
     role: normalizedRole,
+    visibilityBehavior,
+    stairKind,
+    fromStory,
+    toStory,
     isWallHalo: normalizedRole === "wall_halo",
     hideWhenAbovePlayer:
       normalizedRole === "hide_above_player" || metadata.game_hide_when_above_player === true,
@@ -100,6 +141,10 @@ function parseFallbackNameRecord(mesh: AbstractMesh): BuildingVisibilityMeshReco
     storyIndex: parseStoryIndex(name) ?? 0,
     part: name,
     role: normalizedRole,
+    visibilityBehavior: inferFallbackBehavior(name, null, normalizedRole),
+    stairKind: null,
+    fromStory: null,
+    toStory: null,
     isWallHalo,
     hideWhenAbovePlayer,
     isInsideVolume,
@@ -144,8 +189,15 @@ function hasGameVisibilityMetadata(record: Record<string, unknown>): boolean {
     "game_story_index" in record ||
     "game_part" in record ||
     "game_visibility_role" in record ||
+    "game_visibility_behavior" in record ||
     "game_hide_when_above_player" in record ||
-    "game_inside_volume_source" in record
+    "game_inside_volume_source" in record ||
+    "stair_kind" in record ||
+    "from_story" in record ||
+    "to_story" in record ||
+    "part" in record ||
+    "building_part" in record ||
+    "stair_part" in record
   );
 }
 
@@ -156,6 +208,39 @@ function normalizeRole(value: unknown): BuildingVisibilityRole | null {
   }
 
   return normalized as BuildingVisibilityRole;
+}
+
+function normalizeBehavior(value: unknown): BuildingVisibilityBehavior | null {
+  const normalized = normalizeString(value);
+  if (!normalized || !BEHAVIOR_VALUES.has(normalized as BuildingVisibilityBehavior)) {
+    return null;
+  }
+
+  return normalized as BuildingVisibilityBehavior;
+}
+
+function inferFallbackBehavior(
+  part: string,
+  stairKind: string | null,
+  role: BuildingVisibilityRole
+): BuildingVisibilityBehavior {
+  if (isExternalStairPart(part) && stairKind === "external") {
+    return "external_stair_connector";
+  }
+
+  if (role === "hide_above_player") {
+    return "hide_above_player";
+  }
+
+  if (role === "ignore") {
+    return "ignore";
+  }
+
+  return "default";
+}
+
+function isExternalStairPart(part: string): boolean {
+  return /^(external[_ -]?stair|stairs?|staircase)$/i.test(part);
 }
 
 function normalizeString(value: unknown): string | null {

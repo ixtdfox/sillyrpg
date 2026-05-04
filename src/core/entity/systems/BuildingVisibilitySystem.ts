@@ -8,6 +8,7 @@ import type { EntityManager } from "../EntityManager";
 import type { System } from "../System";
 import { LocalPlayerComponent } from "../components/LocalPlayerComponent";
 import { TransformComponent } from "../components/TransformComponent";
+import { HexPositionComponent } from "../components/HexPositionComponent";
 import { getInGameSceneRuntimeContext } from "../../scene/in-game/InGameSceneRuntimeContext";
 import {
   BuildingVisibilityRegistry,
@@ -38,7 +39,7 @@ const STORY_EPSILON = 0.25;
 const STORY_HEIGHT_EPSILON = 0.75;
 const ABOVE_PLAYER_EPSILON = 0.5;
 const OVERHEAD_PART_PATTERN =
-  /(roof|ceiling|slab|terrace|floor|border|band|railing|stair)/i;
+  /(roof|ceiling|slab|terrace|floor|border|band|railing)/i;
 
 /**
  * Applies building-specific wall halo materials and hides upper-story meshes while the local player is inside.
@@ -104,9 +105,15 @@ export class BuildingVisibilitySystem implements System {
 
     this.localPlayerEntity = localPlayer;
     const playerPosition = localPlayer.getComponent(TransformComponent).value;
+    const playerHexPosition = localPlayer.tryGetComponent(HexPositionComponent);
+    const logicalPlayerStoryIndex =
+      playerHexPosition?.currentStoryIndex ?? null;
     const cameraPosition =
       this.scene.activeCamera?.globalPosition ?? playerPosition;
-    const playerBuildingState = this.findPlayerBuildingState(playerPosition);
+    const playerBuildingState = this.findPlayerBuildingState(
+      playerPosition,
+      logicalPlayerStoryIndex,
+    );
 
     this.updateHaloMaterials(
       playerPosition,
@@ -224,6 +231,26 @@ export class BuildingVisibilitySystem implements System {
       return false;
     }
 
+    if (record.visibilityBehavior === "external_stair_connector") {
+      const hidden = this.shouldHideExternalStairRecord(record, currentStory);
+      if (DEBUG_BUILDING_VISIBILITY) {
+        console.debug("[BuildingVisibility] external stair visibility", {
+          meshName: record.mesh.name,
+          currentStory,
+          recordStory: record.storyIndex,
+          fromStory: record.fromStory,
+          toStory: record.toStory,
+          behavior: record.visibilityBehavior,
+          hidden,
+        });
+      }
+      return hidden;
+    }
+
+    if (record.visibilityBehavior === "always_visible_when_building_visible") {
+      return false;
+    }
+
     if (record.isWallHalo && record.storyIndex <= currentStory) {
       return false;
     }
@@ -241,6 +268,28 @@ export class BuildingVisibilitySystem implements System {
     }
 
     return this.isOverheadPart(record);
+  }
+
+  private shouldHideExternalStairRecord(
+    record: BuildingVisibilityMeshRecord,
+    currentStory: number,
+  ): boolean {
+    const fromStory = isFiniteNumber(record.fromStory)
+      ? record.fromStory
+      : record.storyIndex;
+
+    const toStory = isFiniteNumber(record.toStory)
+      ? record.toStory
+      : fromStory;
+
+    if (!isFiniteNumber(fromStory) || !isFiniteNumber(toStory)) {
+      return false;
+    }
+
+    const minStory = Math.min(fromStory, toStory);
+    const maxStory = Math.max(fromStory, toStory);
+
+    return !(maxStory >= currentStory - 1 && minStory <= currentStory + 1);
   }
 
   private isOverheadPart(record: BuildingVisibilityMeshRecord): boolean {
@@ -388,6 +437,7 @@ export class BuildingVisibilitySystem implements System {
 
   private findPlayerBuildingState(
     playerPosition: Vector3,
+    logicalPlayerStoryIndex: number | null,
   ): PlayerBuildingState | null {
     for (const building of this.registry.getBuildings()) {
       if (!this.isPlayerInsideBuilding(building, playerPosition)) {
@@ -396,7 +446,11 @@ export class BuildingVisibilitySystem implements System {
 
       return {
         building,
-        storyIndex: this.resolveCurrentStory(building, playerPosition),
+        storyIndex: this.resolveCurrentStory(
+          building,
+          playerPosition,
+          logicalPlayerStoryIndex,
+        ),
       };
     }
 
@@ -423,7 +477,12 @@ export class BuildingVisibilitySystem implements System {
   private resolveCurrentStory(
     building: BuildingVisibilityBuildingRecord,
     playerPosition: Vector3,
+    logicalPlayerStoryIndex: number | null,
   ): number {
+    if (isFiniteNumber(logicalPlayerStoryIndex)) {
+      return logicalPlayerStoryIndex;
+    }
+
     const volumeStoryCandidates: number[] = [];
     for (const record of building.insideVolumes) {
       if (containsPoint(record.mesh, playerPosition, true)) {
@@ -616,4 +675,8 @@ function containsPointInXz(
     point.z >= bounds.min.z &&
     point.z <= bounds.max.z
   );
+}
+
+function isFiniteNumber(value: unknown): value is number {
+  return typeof value === "number" && Number.isFinite(value);
 }
