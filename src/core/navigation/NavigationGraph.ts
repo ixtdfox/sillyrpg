@@ -60,16 +60,19 @@ export class NavigationGraph {
   private readonly storyIndices: Set<number>;
   private readonly storyYByStory: Map<number, number>;
   private readonly stairEdgesByNodeId: Map<string, NavigationEdge[]>;
+  private readonly isWalkableCell: (cell: HexCell, storyIndex: number) => boolean;
 
   public constructor(
     grid: HexGrid,
     stairConnectors: readonly StairNavigationConnector[] = [],
-    storyYByStory: ReadonlyMap<number, number> = new Map()
+    storyYByStory: ReadonlyMap<number, number> = new Map(),
+    isWalkableCell?: (cell: HexCell, storyIndex: number) => boolean
   ) {
     this.grid = grid;
     this.storyIndices = new Set<number>([0]);
     this.storyYByStory = new Map(storyYByStory);
     this.stairEdgesByNodeId = new Map();
+    this.isWalkableCell = isWalkableCell ?? ((cell) => this.grid.contains(cell));
 
     for (const connector of stairConnectors) {
       this.storyIndices.add(connector.fromStoryIndex);
@@ -87,11 +90,19 @@ export class NavigationGraph {
       return null;
     }
 
+    if (!this.isWalkableCell(parsed.cell, parsed.storyIndex)) {
+      return null;
+    }
+
     return this.createNode(parsed.storyIndex, parsed.cell);
   }
 
   public getNodeForCell(storyIndex: number, cell: HexCell): NavigationNode | null {
     if (!this.grid.contains(cell)) {
+      return null;
+    }
+
+    if (!this.isWalkableCell(cell, storyIndex)) {
       return null;
     }
 
@@ -103,7 +114,7 @@ export class NavigationGraph {
     const edges: NavigationEdge[] = [];
 
     for (const neighborCell of this.grid.getNeighbors(node.cell)) {
-      if (!this.grid.contains(neighborCell)) {
+      if (!this.grid.contains(neighborCell) || !this.isWalkableCell(neighborCell, node.storyIndex)) {
         continue;
       }
 

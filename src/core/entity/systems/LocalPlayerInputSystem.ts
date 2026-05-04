@@ -122,6 +122,16 @@ export class LocalPlayerInputSystem implements System {
 
     const clickedCell = pickedTarget.cell;
     const clickedStoryIndex = pickedTarget.storyIndex;
+    const isWalkable = this.runtimeContext.hexGridRuntime.isWalkableCell(clickedCell, clickedStoryIndex);
+    console.debug(
+      `[LocalPlayerInputSystem] Cell click mesh='${pickedTarget.pickedMeshName ?? "unknown"}' currentStory=${hexPosition.currentStoryIndex} targetStory=${clickedStoryIndex} cell=${clickedCell.q}:${clickedCell.r} walkable=${isWalkable}`
+    );
+    if (!isWalkable) {
+      console.debug(
+        `[LocalPlayerInputSystem] Ignored non-walkable target mesh='${pickedTarget.pickedMeshName ?? "unknown"}' story=${clickedStoryIndex} cell=${clickedCell.q}:${clickedCell.r}`
+      );
+      return;
+    }
 
     if (hexPosition.currentCell.equals(clickedCell) && hexPosition.currentStoryIndex === clickedStoryIndex) {
       return;

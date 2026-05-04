@@ -394,7 +394,12 @@ export class MovementSystem implements System {
 
     const grid = this.runtimeContext.hexGridRuntime.getGrid();
     const registry = this.runtimeContext.hexGridRuntime.getBuildingNavigationRegistry();
-    const graph = new NavigationGraph(grid, registry.getStairConnectors(), registry.getStoryYByStory());
+    const graph = new NavigationGraph(
+      grid,
+      registry.getStairConnectors(),
+      this.runtimeContext.hexGridRuntime.getMergedStoryYByStory(),
+      (cell, storyIndex) => this.runtimeContext?.hexGridRuntime.isWalkableCell(cell, storyIndex) ?? false
+    );
     const pathfinder = new MultiFloorPathfinder(graph, registry.getShowStairNavigationDebug());
     return pathfinder.findPath({
       fromCell: hexPosition.currentCell,

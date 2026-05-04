@@ -73,10 +73,12 @@ export class CombatMovementPreviewSystem implements System {
       grid,
       hexPosition.currentCell,
       combatStats.currentMp,
-      (cell) => this.isBlockedCell(entityId, hexPosition.currentCell, cell)
+      (cell) => this.isBlockedCell(entityId, hexPosition.currentCell, hexPosition.currentStoryIndex, cell)
     );
 
-    this.runtimeContext.hexGridRuntime.setMoveRangeCells(rangeResolution.reachableCells);
+    this.runtimeContext.hexGridRuntime.setMoveRangeNavigationCells(
+      rangeResolution.reachableCells.map((cell) => ({ cell, storyIndex: hexPosition.currentStoryIndex }))
+    );
 
     const pickedNavigationCell = this.runtimeContext.hexGridRuntime.getHoveredNavigationCell(hexPosition.currentStoryIndex);
     if (
@@ -84,20 +86,20 @@ export class CombatMovementPreviewSystem implements System {
       pickedNavigationCell.storyIndex !== hexPosition.currentStoryIndex ||
       pickedNavigationCell.cell.equals(hexPosition.currentCell)
     ) {
-      this.runtimeContext.hexGridRuntime.setMovePathCells([]);
+      this.runtimeContext.hexGridRuntime.setMovePathNavigationCells([]);
       return;
     }
     const hoveredCell = pickedNavigationCell.cell;
 
     if (!rangeResolution.costByCellKey.has(cellKey(hoveredCell))) {
-      this.runtimeContext.hexGridRuntime.setMovePathCells([]);
+      this.runtimeContext.hexGridRuntime.setMovePathNavigationCells([]);
       return;
     }
 
-    const pathfinder = new HexPathfinder(grid, (cell) => this.isBlockedCell(entityId, hexPosition.currentCell, cell));
+    const pathfinder = new HexPathfinder(grid, (cell) => this.isBlockedCell(entityId, hexPosition.currentCell, hexPosition.currentStoryIndex, cell));
     const path = pathfinder.findPath(hexPosition.currentCell, hoveredCell);
     if (!path || path.length < 2) {
-      this.runtimeContext.hexGridRuntime.setMovePathCells([]);
+      this.runtimeContext.hexGridRuntime.setMovePathNavigationCells([]);
       return;
     }
 
@@ -107,20 +109,22 @@ export class CombatMovementPreviewSystem implements System {
     for (let index = 1; index < path.length; index += 1) {
       const stepCost = this.movementCostResolver.getStepCost(path[index - 1], path[index]);
       if (!Number.isFinite(stepCost) || stepCost <= 0) {
-        this.runtimeContext.hexGridRuntime.setMovePathCells([]);
+        this.runtimeContext.hexGridRuntime.setMovePathNavigationCells([]);
         return;
       }
 
       totalCost += stepCost;
       if (totalCost > combatStats.currentMp) {
-        this.runtimeContext.hexGridRuntime.setMovePathCells([]);
+        this.runtimeContext.hexGridRuntime.setMovePathNavigationCells([]);
         return;
       }
 
       movePath.push(path[index]);
     }
 
-    this.runtimeContext.hexGridRuntime.setMovePathCells(movePath);
+    this.runtimeContext.hexGridRuntime.setMovePathNavigationCells(
+      movePath.map((cell) => ({ cell, storyIndex: hexPosition.currentStoryIndex }))
+    );
   }
 
   private isMovePreviewActive(): boolean {
@@ -141,13 +145,15 @@ export class CombatMovementPreviewSystem implements System {
     return localPlayer ?? null;
   }
 
-  private isBlockedCell(entityId: string, startCell: HexCell, cell: HexCell): boolean {
+  private isBlockedCell(entityId: string, startCell: HexCell, storyIndex: number, cell: HexCell): boolean {
     if (cell.equals(startCell)) {
       return false;
     }
 
-    const localPlayer = this.resolveLocalPlayer();
-    const storyIndex = localPlayer?.getComponent(HexPositionComponent).currentStoryIndex ?? 0;
+    if (!this.runtimeContext?.hexGridRuntime.isWalkableCell(cell, storyIndex)) {
+      return true;
+    }
+
     const entitiesAtCell = this.spatialIndex.getEntitiesAt(cell, storyIndex);
     return entitiesAtCell.some((occupantEntityId) => occupantEntityId !== entityId);
   }

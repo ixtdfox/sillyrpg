@@ -1,14 +1,16 @@
-import type { AbstractMesh, Scene, Vector3 } from "@babylonjs/core";
+import { Matrix, type AbstractMesh, type PickingInfo, type Ray, type Scene, Vector3 } from "@babylonjs/core";
 import { HexCell } from "./HexCell";
 import { HexGrid } from "./HexGrid";
 import { HexGridOverlay } from "./HexGridOverlay";
-import { parsePickableStoryMetadata, parseStairPickMetadata } from "../navigation/BuildingNavigationMetadata";
+import { parseStairPickMetadata } from "../navigation/BuildingNavigationMetadata";
 
 export interface PickedNavigationCell {
   readonly cell: HexCell;
   readonly storyIndex: number;
   readonly worldPosition: Vector3;
   readonly pickedMeshName?: string;
+  readonly hasStoryMetadata?: boolean;
+  readonly pickedMeshUniqueId?: number;
 }
 
 export type PickedNavigationTarget =
@@ -28,6 +30,9 @@ export type PickedNavigationTarget =
 export class HexGroundPickerController {
   private readonly scene: Scene;
   private readonly isGroundPick: (mesh: AbstractMesh) => boolean;
+  private isWalkableCell: (cell: HexCell, storyIndex: number) => boolean;
+  private storyYResolver: (storyIndex: number) => number;
+  private storyIndicesProvider: () => readonly number[];
   private readonly grid: HexGrid;
   private readonly overlay: HexGridOverlay;
   private hoveredCell: HexCell | null;
@@ -43,10 +48,14 @@ export class HexGroundPickerController {
     scene: Scene,
     isGroundPick: (mesh: AbstractMesh) => boolean,
     grid: HexGrid,
-    overlay: HexGridOverlay
+    overlay: HexGridOverlay,
+    isWalkableCell: (cell: HexCell, storyIndex: number) => boolean = () => true
   ) {
     this.scene = scene;
     this.isGroundPick = isGroundPick;
+    this.isWalkableCell = isWalkableCell;
+    this.storyYResolver = () => this.grid.getOrigin().y;
+    this.storyIndicesProvider = () => [this.fallbackStoryIndex];
     this.grid = grid;
     this.overlay = overlay;
     this.hoveredCell = null;
@@ -91,16 +100,28 @@ export class HexGroundPickerController {
     this.fallbackStoryIndex = storyIndex;
   }
 
+  public setWalkableCellPredicate(isWalkableCell: (cell: HexCell, storyIndex: number) => boolean): void {
+    this.isWalkableCell = isWalkableCell;
+  }
+
+  public setStoryYResolver(resolver: (storyIndex: number) => number): void {
+    this.storyYResolver = resolver;
+  }
+
+  public setStoryIndicesProvider(provider: () => readonly number[]): void {
+    this.storyIndicesProvider = provider;
+  }
+
   private readonly updateHoverFromPointer = (): void => {
-    const pickResult = this.scene.pick(
+    const pickResults = this.scene.multiPick(
       this.scene.pointerX,
       this.scene.pointerY,
       this.isGroundPick,
-      false,
       this.scene.activeCamera ?? undefined
-    );
+    ) ?? [];
 
-    if (!pickResult?.hit || !pickResult.pickedPoint) {
+    const target = this.resolveNavigationTargetFromHits(pickResults);
+    if (!target) {
       this.hoveredCell = null;
       this.hoveredNavigationCell = null;
       this.hoveredNavigationTarget = null;
@@ -108,38 +129,16 @@ export class HexGroundPickerController {
       return;
     }
 
-    const pickedMesh = pickResult.pickedMesh ?? null;
-    const stairPickMetadata = pickedMesh ? parseStairPickMetadata(pickedMesh) : null;
-    if (stairPickMetadata?.isStairLike) {
+    if (target.kind === "stair") {
       this.hoveredCell = null;
       this.hoveredNavigationCell = null;
-      this.hoveredNavigationTarget = {
-        kind: "stair",
-        stairId: stairPickMetadata.stairId,
-        pickedPoint: pickResult.pickedPoint.clone(),
-        pickedMeshName: pickedMesh?.name
-      };
+      this.hoveredNavigationTarget = target;
       this.overlay.hideHoveredCell();
       return;
     }
 
-    const nextCell = this.grid.worldToCell(pickResult.pickedPoint);
-    if (!this.grid.contains(nextCell)) {
-      this.hoveredCell = null;
-      this.hoveredNavigationCell = null;
-      this.hoveredNavigationTarget = null;
-      this.overlay.hideHoveredCell();
-      return;
-    }
-
-    const storyMetadata = pickedMesh ? parsePickableStoryMetadata(pickedMesh) : null;
-    const storyIndex = storyMetadata?.storyIndex ?? this.fallbackStoryIndex;
-    if (!storyMetadata && pickedMesh && !this.warnedMissingStoryMetadataMeshIds.has(pickedMesh.uniqueId)) {
-      this.warnedMissingStoryMetadataMeshIds.add(pickedMesh.uniqueId);
-      console.warn(
-        `[HexGroundPickerController] Missing floor story metadata on picked mesh '${pickedMesh.name}'. Falling back to current entity story.`
-      );
-    }
+    const nextCell = target.cell;
+    const storyIndex = target.storyIndex;
 
     if (this.hoveredCell?.equals(nextCell) && this.hoveredNavigationCell?.storyIndex === storyIndex) {
       return;
@@ -149,8 +148,8 @@ export class HexGroundPickerController {
     this.hoveredNavigationCell = {
       cell: nextCell,
       storyIndex,
-      worldPosition: pickResult.pickedPoint.clone(),
-      pickedMeshName: pickedMesh?.name
+      worldPosition: target.worldPosition.clone(),
+      pickedMeshName: target.pickedMeshName
     };
     this.hoveredNavigationTarget = {
       kind: "cell",
@@ -158,4 +157,116 @@ export class HexGroundPickerController {
     };
     this.overlay.setHoveredNavigationCell(nextCell, storyIndex);
   };
+
+  private resolveNavigationTargetFromHits(pickResults: readonly PickingInfo[]): PickedNavigationTarget | null {
+    const stairCandidates: Extract<PickedNavigationTarget, { kind: "stair" }>[] = [];
+
+    for (const pickResult of pickResults) {
+      if (!pickResult.hit || !pickResult.pickedPoint) {
+        continue;
+      }
+
+      const pickedMesh = pickResult.pickedMesh ?? null;
+      const stairPickMetadata = pickedMesh ? parseStairPickMetadata(pickedMesh) : null;
+      if (stairPickMetadata?.isStairLike) {
+        const stairTarget: Extract<PickedNavigationTarget, { kind: "stair" }> = {
+          kind: "stair",
+          stairId: stairPickMetadata.stairId,
+          pickedPoint: pickResult.pickedPoint.clone(),
+          pickedMeshName: pickedMesh?.name
+        };
+
+        if (stairCandidates.length === 0) {
+          stairCandidates.push(stairTarget);
+        }
+
+        if (pickResults[0] === pickResult) {
+          return stairTarget;
+        }
+        continue;
+      }
+    }
+
+    const selectedStair = stairCandidates[0] ?? null;
+    if (selectedStair) {
+      return selectedStair;
+    }
+
+    return this.resolveCurrentStoryPlaneCellTarget() ?? this.resolveLowerStoryPlaneCellTarget();
+  }
+
+  private resolveCurrentStoryPlaneCellTarget(): Extract<PickedNavigationTarget, { kind: "cell" }> | null {
+    return this.resolvePlaneCellTarget(this.fallbackStoryIndex, "current-story-plane");
+  }
+
+  private resolveLowerStoryPlaneCellTarget(): Extract<PickedNavigationTarget, { kind: "cell" }> | null {
+    const lowerStories = this.storyIndicesProvider()
+      .filter((storyIndex) => storyIndex < this.fallbackStoryIndex)
+      .sort((first, second) => second - first);
+
+    for (const storyIndex of lowerStories) {
+      const target = this.resolvePlaneCellTarget(storyIndex, "lower-story-plane");
+      if (target) {
+        return target;
+      }
+    }
+
+    return null;
+  }
+
+  private resolvePlaneCellTarget(
+    storyIndex: number,
+    pickedMeshName: string
+  ): Extract<PickedNavigationTarget, { kind: "cell" }> | null {
+    const ray = this.getPointerRay();
+    if (!ray) {
+      return null;
+    }
+
+    const planePoint = this.intersectRayWithHorizontalPlane(ray, this.storyYResolver(storyIndex));
+    if (!planePoint) {
+      return null;
+    }
+
+    const nextCell = this.grid.worldToCell(planePoint);
+    if (!this.grid.contains(nextCell) || !this.isWalkableCell(nextCell, storyIndex)) {
+      return null;
+    }
+
+    return {
+      kind: "cell",
+      cell: nextCell,
+      storyIndex,
+      worldPosition: planePoint,
+      pickedMeshName,
+      hasStoryMetadata: false
+    };
+  }
+
+  private getPointerRay(): Ray | null {
+    const camera = this.scene.activeCamera;
+    if (!camera) {
+      return null;
+    }
+
+    return this.scene.createPickingRay(
+      this.scene.pointerX,
+      this.scene.pointerY,
+      Matrix.Identity(),
+      camera
+    );
+  }
+
+  private intersectRayWithHorizontalPlane(ray: Ray, y: number): Vector3 | null {
+    if (Math.abs(ray.direction.y) < 0.00001) {
+      return null;
+    }
+
+    const t = (y - ray.origin.y) / ray.direction.y;
+    if (t < 0) {
+      return null;
+    }
+
+    return ray.origin.add(ray.direction.scale(t));
+  }
 }

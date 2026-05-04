@@ -58,7 +58,7 @@ export class PatrolSystem implements System {
         continue;
       }
 
-      const nextDestination = this.pickNextDestination(hexPosition.currentCell, patrol);
+      const nextDestination = this.pickNextDestination(hexPosition.currentCell, hexPosition.currentStoryIndex, patrol);
       if (!nextDestination) {
         continue;
       }
@@ -69,7 +69,7 @@ export class PatrolSystem implements System {
     }
   }
 
-  private pickNextDestination(currentCell: HexCell, patrol: PatrolComponent): HexCell | null {
+  private pickNextDestination(currentCell: HexCell, storyIndex: number, patrol: PatrolComponent): HexCell | null {
     if (!this.runtimeContext || !this.pathfinder || !patrol.anchorCell) {
       return null;
     }
@@ -85,6 +85,10 @@ export class PatrolSystem implements System {
         continue;
       }
 
+      if (!this.runtimeContext.hexGridRuntime.isWalkableCell(candidate, storyIndex)) {
+        continue;
+      }
+
       if (candidate.equals(currentCell)) {
         continue;
       }
@@ -93,7 +97,8 @@ export class PatrolSystem implements System {
         continue;
       }
 
-      const path = this.pathfinder.findPath(currentCell, candidate);
+      const pathfinder = new HexPathfinder(grid, (cell) => !this.runtimeContext!.hexGridRuntime.isWalkableCell(cell, storyIndex));
+      const path = pathfinder.findPath(currentCell, candidate);
       if (!path || path.length < 2) {
         continue;
       }

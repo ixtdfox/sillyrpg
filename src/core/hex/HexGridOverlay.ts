@@ -37,6 +37,7 @@ export class HexGridOverlay {
   private readonly grid: HexGrid;
   private readonly verticalOffset: number;
   private readonly gridMesh: LinesMesh;
+  private currentStoryGridMesh: LinesMesh | null;
   private readonly hoverMesh: LinesMesh;
   private readonly visionPool: HexHighlightPool;
   private readonly patrolPool: HexHighlightPool;
@@ -54,6 +55,7 @@ export class HexGridOverlay {
   private movePathNavigationCells: StoryHexCell[];
   private storyYByStory: ReadonlyMap<number, number>;
   private currentStoryIndex: number;
+  private walkableNavigationCells: StoryHexCell[];
 
   /**
    * Creates visual overlay meshes for grid debug and hover cell.
@@ -66,6 +68,7 @@ export class HexGridOverlay {
     this.gridMesh = this.buildGridMesh();
     this.gridMesh.color = new Color3(0.31, 0.73, 0.93);
     this.gridMesh.isPickable = false;
+    this.currentStoryGridMesh = null;
 
     this.hoverMesh = this.buildHoverMesh();
     this.hoverMesh.color = new Color3(1, 0.86, 0.3);
@@ -88,11 +91,12 @@ export class HexGridOverlay {
     this.movePathNavigationCells = [];
     this.storyYByStory = new Map();
     this.currentStoryIndex = 0;
+    this.walkableNavigationCells = [];
   }
 
   public setDebugVisible(isVisible: boolean): void {
     this.isDebugVisible = isVisible;
-    this.gridMesh.isVisible = isVisible;
+    this.refreshGridVisibility();
     this.refreshHighlights();
   }
 
@@ -155,6 +159,11 @@ export class HexGridOverlay {
   }
 
   public setHoveredNavigationCell(cell: HexCell, storyIndex: number): void {
+    if (!this.isCellOverlayAllowed(cell, storyIndex)) {
+      this.hideHoveredCell();
+      return;
+    }
+
     const center = this.grid.cellToWorld(cell, this.getStoryY(storyIndex));
     this.hoverMesh.position.copyFrom(center);
     this.hoverMesh.position.y += this.verticalOffset * 1.2;
@@ -163,7 +172,7 @@ export class HexGridOverlay {
 
   public setStoryYByStory(storyYByStory: ReadonlyMap<number, number>): void {
     this.storyYByStory = new Map(storyYByStory);
-    this.refreshCurrentStoryGridPosition();
+    this.rebuildCurrentStoryGridMesh();
     this.refreshHighlights();
   }
 
@@ -173,7 +182,13 @@ export class HexGridOverlay {
     }
 
     this.currentStoryIndex = storyIndex;
-    this.refreshCurrentStoryGridPosition();
+    this.rebuildCurrentStoryGridMesh();
+    this.refreshHighlights();
+  }
+
+  public setWalkableNavigationCells(cells: readonly StoryHexCell[]): void {
+    this.walkableNavigationCells = [...cells];
+    this.rebuildCurrentStoryGridMesh();
     this.refreshHighlights();
   }
 
@@ -183,6 +198,7 @@ export class HexGridOverlay {
 
   public dispose(): void {
     this.gridMesh.dispose();
+    this.currentStoryGridMesh?.dispose();
     this.hoverMesh.dispose();
     this.disposePool(this.visionPool);
     this.disposePool(this.patrolPool);
@@ -295,10 +311,13 @@ export class HexGridOverlay {
   }
 
   private updatePool(pool: HexHighlightPool, highlights: readonly HexCellHighlightSpec[], yOffset: number): void {
-    this.ensurePoolCapacity(pool, highlights.length);
+    const filteredHighlights = highlights.filter((highlight) =>
+      this.isCellOverlayAllowed(highlight.cell, highlight.storyIndex ?? this.currentStoryIndex)
+    );
+    this.ensurePoolCapacity(pool, filteredHighlights.length);
 
-    for (let index = 0; index < highlights.length; index += 1) {
-      const highlight = highlights[index];
+    for (let index = 0; index < filteredHighlights.length; index += 1) {
+      const highlight = filteredHighlights[index];
       const mesh = pool.meshes[index];
       const center = this.grid.cellToWorld(highlight.cell, this.getStoryY(highlight.storyIndex ?? this.currentStoryIndex));
       mesh.position.set(center.x, center.y + yOffset, center.z);
@@ -309,7 +328,7 @@ export class HexGridOverlay {
       mesh.isVisible = true;
     }
 
-    this.setPoolVisibility(pool, highlights.length);
+    this.setPoolVisibility(pool, filteredHighlights.length);
   }
 
   private ensurePoolCapacity(pool: HexHighlightPool, desiredSize: number): void {
@@ -363,7 +382,49 @@ export class HexGridOverlay {
     return this.storyYByStory.get(storyIndex) ?? this.grid.getOrigin().y;
   }
 
-  private refreshCurrentStoryGridPosition(): void {
-    this.gridMesh.position.y = this.getStoryY(this.currentStoryIndex) - this.grid.getOrigin().y;
+  private rebuildCurrentStoryGridMesh(): void {
+    this.currentStoryGridMesh?.dispose();
+    this.currentStoryGridMesh = null;
+
+    if (this.walkableNavigationCells.length === 0) {
+      this.refreshGridVisibility();
+      return;
+    }
+
+    const lines = this.walkableNavigationCells
+      .filter((entry) => entry.storyIndex === this.currentStoryIndex)
+      .map((entry) => this.buildHexPoints(this.grid.cellToWorld(entry.cell, this.getStoryY(entry.storyIndex)), this.verticalOffset));
+
+    if (lines.length === 0) {
+      this.refreshGridVisibility();
+      return;
+    }
+
+    this.currentStoryGridMesh = MeshBuilder.CreateLineSystem(
+      `hex-current-story-grid-overlay-${this.currentStoryIndex}`,
+      { lines, updatable: false },
+      this.scene
+    );
+    this.currentStoryGridMesh.color = new Color3(0.31, 0.73, 0.93);
+    this.currentStoryGridMesh.isPickable = false;
+    this.refreshGridVisibility();
+  }
+
+  private refreshGridVisibility(): void {
+    const hasWalkableCells = this.walkableNavigationCells.length > 0;
+    this.gridMesh.isVisible = this.isDebugVisible && !hasWalkableCells;
+    if (this.currentStoryGridMesh) {
+      this.currentStoryGridMesh.isVisible = this.isDebugVisible;
+    }
+  }
+
+  private isCellOverlayAllowed(cell: HexCell, storyIndex: number): boolean {
+    if (this.walkableNavigationCells.length === 0) {
+      return true;
+    }
+
+    return this.walkableNavigationCells.some(
+      (entry) => entry.storyIndex === storyIndex && entry.cell.equals(cell)
+    );
   }
 }

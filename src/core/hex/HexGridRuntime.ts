@@ -10,6 +10,7 @@ import type { PickedNavigationCell } from "./HexGroundPickerController";
 import type { PickedNavigationTarget } from "./HexGroundPickerController";
 import { BuildingNavigationRegistry } from "../navigation/BuildingNavigationRegistry";
 import type { StoryHexCell } from "./HexGridOverlay";
+import { FloorNavigationSurfaceRegistry } from "../navigation/FloorNavigationSurfaceRegistry";
 
 export interface HexDebugDetectedCell {
   readonly cell: HexCell;
@@ -26,6 +27,7 @@ export class HexGridRuntime {
   private pickerController: HexGroundPickerController;
   private readonly settings: HexGridSettings;
   private readonly buildingNavigationRegistry: BuildingNavigationRegistry;
+  private readonly floorNavigationSurfaceRegistry: FloorNavigationSurfaceRegistry;
 
   /**
    * Creates complete in-game hex runtime module.
@@ -41,8 +43,12 @@ export class HexGridRuntime {
     this.overlay = overlay;
     this.pickerController = pickerController;
     this.buildingNavigationRegistry = new BuildingNavigationRegistry();
+    this.floorNavigationSurfaceRegistry = new FloorNavigationSurfaceRegistry();
+    this.floorNavigationSurfaceRegistry.rebuild(scene, this.grid);
     this.buildingNavigationRegistry.rebuild(scene, this.grid);
-    this.overlay.setStoryYByStory(this.buildingNavigationRegistry.getStoryYByStory());
+    this.addForcedStairEndpointCells();
+    this.pickerController.setWalkableCellPredicate((cell, storyIndex) => this.isWalkableCell(cell, storyIndex));
+    this.refreshOverlayNavigationData();
     this.debugState = new HexGridDebugState(settings.debugEnabledByDefault);
     this.overlay.setDebugVisible(this.debugState.getIsDebugEnabled());
     this.buildingNavigationRegistry.setDebugVisible(this.debugState.getIsDebugEnabled());
@@ -121,8 +127,11 @@ export class HexGridRuntime {
     this.overlay = runtime.overlay;
     this.overlay.setDebugVisible(this.debugState.getIsDebugEnabled());
     this.pickerController = runtime.pickerController;
+    this.floorNavigationSurfaceRegistry.rebuild(scene, this.grid);
     this.buildingNavigationRegistry.rebuild(scene, this.grid);
-    this.overlay.setStoryYByStory(this.buildingNavigationRegistry.getStoryYByStory());
+    this.addForcedStairEndpointCells();
+    this.pickerController.setWalkableCellPredicate((cell, storyIndex) => this.isWalkableCell(cell, storyIndex));
+    this.refreshOverlayNavigationData();
     this.buildingNavigationRegistry.setDebugVisible(this.debugState.getIsDebugEnabled());
   }
 
@@ -150,6 +159,22 @@ export class HexGridRuntime {
 
   public getBuildingNavigationRegistry(): BuildingNavigationRegistry {
     return this.buildingNavigationRegistry;
+  }
+
+  public getFloorNavigationSurfaceRegistry(): FloorNavigationSurfaceRegistry {
+    return this.floorNavigationSurfaceRegistry;
+  }
+
+  public isWalkableCell(cell: HexCell, storyIndex: number): boolean {
+    return this.floorNavigationSurfaceRegistry.isWalkableCell(cell, storyIndex);
+  }
+
+  public getWalkableCells(storyIndex: number): readonly HexCell[] {
+    return this.floorNavigationSurfaceRegistry.getWalkableCells(storyIndex);
+  }
+
+  public getMergedStoryYByStory(): ReadonlyMap<number, number> {
+    return this.mergeStoryYMaps();
   }
 
   public setNavigationFallbackStoryIndex(storyIndex: number): void {
@@ -211,5 +236,35 @@ export class HexGridRuntime {
     const overlay = new HexGridOverlay(scene, grid, settings.overlayVerticalOffset);
     const pickerController = new HexGroundPickerController(scene, groundSelection.isGroundPick, grid, overlay);
     return { grid, overlay, pickerController };
+  }
+
+  private addForcedStairEndpointCells(): void {
+    for (const connector of this.buildingNavigationRegistry.getStairConnectors()) {
+      this.floorNavigationSurfaceRegistry.addForcedWalkableCell(connector.fromCell, connector.fromStoryIndex);
+      this.floorNavigationSurfaceRegistry.addForcedWalkableCell(connector.toCell, connector.toStoryIndex);
+    }
+  }
+
+  private refreshOverlayNavigationData(): void {
+    const storyYByStory = this.mergeStoryYMaps();
+    this.overlay.setStoryYByStory(storyYByStory);
+    this.overlay.setWalkableNavigationCells(this.floorNavigationSurfaceRegistry.getWalkableCellEntries());
+    this.pickerController.setStoryYResolver((storyIndex) =>
+      storyYByStory.get(storyIndex) ?? this.grid.getOrigin().y
+    );
+    this.pickerController.setStoryIndicesProvider(() =>
+      this.floorNavigationSurfaceRegistry.getStoryIndices()
+    );
+  }
+
+  private mergeStoryYMaps(): ReadonlyMap<number, number> {
+    const merged = new Map<number, number>();
+    for (const [storyIndex, y] of this.buildingNavigationRegistry.getStoryYByStory()) {
+      merged.set(storyIndex, y);
+    }
+    for (const [storyIndex, y] of this.floorNavigationSurfaceRegistry.getStoryYByStory()) {
+      merged.set(storyIndex, y);
+    }
+    return merged;
   }
 }
