@@ -166,6 +166,22 @@ export class NavigationBlockerRegistry {
     return this.doorOpenedEdgeKeys.has(makeEdgeKey(storyIndex, fromCell, toCell));
   }
 
+  public getDebugInfoForMove(fromCell: HexCell, toCell: HexCell, storyIndex: number): {
+    readonly cellBlocked: boolean;
+    readonly edgeBlocked: boolean;
+    readonly edgeOpenedByDoor: boolean;
+    readonly blockersForTargetCell: readonly string[];
+    readonly blockedEdgeCount: number;
+  } {
+    return {
+      cellBlocked: this.isCellBlocked(toCell, storyIndex),
+      edgeBlocked: this.isEdgeBlocked(fromCell, toCell, storyIndex),
+      edgeOpenedByDoor: this.isEdgeOpenedByDoor(fromCell, toCell, storyIndex),
+      blockersForTargetCell: this.getBlockersForCell(toCell, storyIndex).map((blocker) => blocker.meshName),
+      blockedEdgeCount: this.getBlockedEdgeCount()
+    };
+  }
+
   public getBlockersForCell(cell: HexCell, storyIndex: number): readonly NavigationBlockerRecord[] {
     return this.blockersByCellKey.get(makeStoryCellKey(storyIndex, cell)) ?? [];
   }
@@ -270,8 +286,9 @@ export class NavigationBlockerRegistry {
 
     // Render-mesh AABBs are a compatibility fallback for current GLBs. The robust exporter contract should emit
     // dedicated nav wall blockers and nav door openings so merged visual wall meshes do not over-block doorways.
-    const wallEpsilon = this.grid.getHexSize() * 0.04;
-    const doorEpsilon = this.grid.getHexSize() * 0.35;
+    const hexSize = this.grid.getHexSize();
+    const wallEpsilon = Math.max(0.08, hexSize * 0.08);
+    const doorEpsilon = Math.max(0.20, hexSize * 0.35);
     let carvedEdgesLogged = 0;
     const maxCarvedEdgeLogs = 25;
 
@@ -338,12 +355,15 @@ export class NavigationBlockerRegistry {
   }
 
   private logStats(): void {
-    const stories = [...this.blockersByStory.keys()].sort((a, b) => a - b);
+    const stories = [...new Set([...this.blockersByStory.keys(), ...this.doorOpeningsByStory.keys()])].sort((a, b) => a - b);
     const blockedCellCount = [...this.blockedCellsByStory.values()].reduce((total, cells) => total + cells.size, 0);
     const wallBlockers = this.blockers.filter((blocker) => blocker.kind === "wall").length;
     const cellBlockers = this.blockers.filter((blocker) => this.shouldProjectAsBlockedCell(blocker)).length;
+    const hexSize = this.grid?.getHexSize() ?? 0;
+    const wallEpsilon = this.grid ? Math.max(0.08, hexSize * 0.08) : 0;
+    const doorEpsilon = this.grid ? Math.max(0.20, hexSize * 0.35) : 0;
     console.info(
-      `[NavigationBlockerRegistry] blockers=${this.blockers.length} walls=${wallBlockers} doors=${this.doorOpenings.length} cellBlockers=${cellBlockers} blockedCells=${blockedCellCount} blockedEdges=${this.blockedEdgeKeys.size} stories=${stories.join(",") || "none"}`
+      `[NavigationBlockerRegistry] blockers=${this.blockers.length} walls=${wallBlockers} doors=${this.doorOpenings.length} cellBlockers=${cellBlockers} blockedCells=${blockedCellCount} blockedEdges=${this.blockedEdgeKeys.size} hexSize=${hexSize.toFixed(3)} wallEpsilon=${wallEpsilon.toFixed(3)} doorEpsilon=${doorEpsilon.toFixed(3)} stories=${stories.join(",") || "none"}`
     );
   }
 }

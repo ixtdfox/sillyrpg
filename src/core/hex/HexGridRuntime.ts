@@ -32,6 +32,7 @@ export class HexGridRuntime {
   private readonly floorNavigationSurfaceRegistry: FloorNavigationSurfaceRegistry;
   private readonly navigationObstacleRegistry: NavigationObstacleRegistry;
   private readonly navigationBlockerRegistry: NavigationBlockerRegistry;
+  private groundMesh: AbstractMesh;
 
   /**
    * Creates complete in-game hex runtime module.
@@ -42,15 +43,16 @@ export class HexGridRuntime {
     preferredGroundMeshes: readonly AbstractMesh[] = []
   ) {
     this.settings = settings;
-    const { grid, overlay, pickerController } = this.createRuntime(scene, settings, preferredGroundMeshes);
+    const { grid, overlay, pickerController, groundMesh } = this.createRuntime(scene, settings, preferredGroundMeshes);
     this.grid = grid;
     this.overlay = overlay;
     this.pickerController = pickerController;
+    this.groundMesh = groundMesh;
     this.buildingNavigationRegistry = new BuildingNavigationRegistry();
     this.floorNavigationSurfaceRegistry = new FloorNavigationSurfaceRegistry();
     this.navigationObstacleRegistry = new NavigationObstacleRegistry();
     this.navigationBlockerRegistry = new NavigationBlockerRegistry();
-    this.floorNavigationSurfaceRegistry.rebuild(scene, this.grid);
+    this.floorNavigationSurfaceRegistry.rebuild(scene, this.grid, { forcedGroundMesh: this.groundMesh });
     this.buildingNavigationRegistry.rebuild(scene, this.grid);
     this.addForcedStairEndpointCells();
     this.rebuildNavigationMetadata(scene);
@@ -132,9 +134,10 @@ export class HexGridRuntime {
     this.overlay.dispose();
     this.grid = runtime.grid;
     this.overlay = runtime.overlay;
+    this.groundMesh = runtime.groundMesh;
     this.overlay.setDebugVisible(this.debugState.getIsDebugEnabled());
     this.pickerController = runtime.pickerController;
-    this.floorNavigationSurfaceRegistry.rebuild(scene, this.grid);
+    this.floorNavigationSurfaceRegistry.rebuild(scene, this.grid, { forcedGroundMesh: this.groundMesh });
     this.buildingNavigationRegistry.rebuild(scene, this.grid);
     this.addForcedStairEndpointCells();
     this.rebuildNavigationMetadata(scene);
@@ -275,13 +278,13 @@ export class HexGridRuntime {
     scene: Scene,
     settings: HexGridSettings,
     preferredGroundMeshes: readonly AbstractMesh[]
-  ): { grid: HexGrid; overlay: HexGridOverlay; pickerController: HexGroundPickerController } {
+  ): { grid: HexGrid; overlay: HexGridOverlay; pickerController: HexGroundPickerController; groundMesh: AbstractMesh } {
     const groundSelection = new HexGridGroundMeshResolver().resolve(scene, preferredGroundMeshes);
     groundSelection.groundMesh.isPickable = true;
     const grid = this.createGridFromGround(groundSelection.groundMesh, settings);
     const overlay = new HexGridOverlay(scene, grid, settings.overlayVerticalOffset);
     const pickerController = new HexGroundPickerController(scene, groundSelection.isGroundPick, grid, overlay);
-    return { grid, overlay, pickerController };
+    return { grid, overlay, pickerController, groundMesh: groundSelection.groundMesh };
   }
 
   private addForcedStairEndpointCells(): void {

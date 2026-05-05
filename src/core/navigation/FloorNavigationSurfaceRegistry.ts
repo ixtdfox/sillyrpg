@@ -15,6 +15,10 @@ export interface FloorNavigationCell {
   readonly storyIndex: number;
 }
 
+export interface FloorNavigationSurfaceRegistryRebuildOptions {
+  readonly forcedGroundMesh?: AbstractMesh;
+}
+
 export function makeStoryCellKey(storyIndex: number, cell: HexCell): string {
   return `${storyIndex}:${cell.q}:${cell.r}`;
 }
@@ -34,7 +38,7 @@ export class FloorNavigationSurfaceRegistry {
     this.hasExplicitSurfaces = false;
   }
 
-  public rebuild(scene: Scene, grid: HexGrid): void {
+  public rebuild(scene: Scene, grid: HexGrid, options: FloorNavigationSurfaceRegistryRebuildOptions = {}): void {
     this.surfaces.length = 0;
     this.cellsByStory.clear();
     this.storyYByStory.clear();
@@ -42,6 +46,10 @@ export class FloorNavigationSurfaceRegistry {
     this.hasExplicitSurfaces = false;
 
     const knownStoryY = this.collectKnownStoryY(scene);
+
+    if (options.forcedGroundMesh && !options.forcedGroundMesh.isDisposed() && options.forcedGroundMesh.getTotalVertices() > 0) {
+      this.addWalkableSurface(grid, options.forcedGroundMesh, 0, getWorldBounds(options.forcedGroundMesh));
+    }
 
     for (const mesh of scene.meshes) {
       if (mesh.isDisposed() || mesh.getTotalVertices() <= 0) {
@@ -59,15 +67,7 @@ export class FloorNavigationSurfaceRegistry {
         continue;
       }
 
-      this.hasExplicitSurfaces = true;
-      this.surfaces.push({
-        mesh,
-        storyIndex,
-        boundsMin: bounds.min.clone(),
-        boundsMax: bounds.max.clone()
-      });
-      this.recordStoryY(storyIndex, bounds.max.y);
-      this.addCellsForBounds(grid, storyIndex, bounds.min, bounds.max);
+      this.addWalkableSurface(grid, mesh, storyIndex, bounds);
     }
 
     if (!this.hasExplicitSurfaces) {
@@ -139,6 +139,23 @@ export class FloorNavigationSurfaceRegistry {
 
   public addForcedWalkableCell(cell: HexCell, storyIndex: number): void {
     this.addWalkableCell(cell, storyIndex);
+  }
+
+  private addWalkableSurface(
+    grid: HexGrid,
+    mesh: AbstractMesh,
+    storyIndex: number,
+    bounds: { readonly min: Vector3; readonly max: Vector3 }
+  ): void {
+    this.hasExplicitSurfaces = true;
+    this.surfaces.push({
+      mesh,
+      storyIndex,
+      boundsMin: bounds.min.clone(),
+      boundsMax: bounds.max.clone()
+    });
+    this.recordStoryY(storyIndex, bounds.max.y);
+    this.addCellsForBounds(grid, storyIndex, bounds.min, bounds.max);
   }
 
   private addCellsForBounds(grid: HexGrid, storyIndex: number, min: Vector3, max: Vector3): void {

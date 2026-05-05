@@ -123,16 +123,20 @@ export class LocalPlayerInputSystem implements System {
     const clickedCell = pickedTarget.cell;
     const clickedStoryIndex = pickedTarget.storyIndex;
     const isWalkable = this.runtimeContext.hexGridRuntime.isWalkableCell(clickedCell, clickedStoryIndex);
+    const blockerRegistry = this.runtimeContext.hexGridRuntime.getNavigationBlockerRegistry();
+    const isNeighborClick = hexPosition.currentStoryIndex === clickedStoryIndex &&
+      hexPosition.currentCell.distance(clickedCell) === 1;
+    const moveDebugInfo = blockerRegistry.getDebugInfoForMove(
+      hexPosition.currentCell,
+      clickedCell,
+      clickedStoryIndex
+    );
     console.debug(
-      `[LocalPlayerInputSystem] Cell click mesh='${pickedTarget.pickedMeshName ?? "unknown"}' currentStory=${hexPosition.currentStoryIndex} targetStory=${clickedStoryIndex} cell=${clickedCell.q}:${clickedCell.r} walkable=${isWalkable}`
+      `[LocalPlayerInputSystem] Cell click mesh='${pickedTarget.pickedMeshName ?? "unknown"}' currentStory=${hexPosition.currentStoryIndex} fromCell=${hexPosition.currentCell.q}:${hexPosition.currentCell.r} targetStory=${clickedStoryIndex} cell=${clickedCell.q}:${clickedCell.r} walkable=${isWalkable} neighbor=${isNeighborClick} edgeBlocked=${isNeighborClick ? moveDebugInfo.edgeBlocked : "n/a"} edgeOpenedByDoor=${isNeighborClick ? moveDebugInfo.edgeOpenedByDoor : "n/a"} blockersForClickedCell=${moveDebugInfo.blockersForTargetCell.join(",") || "none"} blockedEdgeCount=${moveDebugInfo.blockedEdgeCount}`
     );
     if (!isWalkable) {
-      const blockedBy = this.runtimeContext.hexGridRuntime
-        .getNavigationBlockerRegistry()
-        .getBlockersForCell(clickedCell, clickedStoryIndex)
-        .map((blocker) => blocker.meshName);
       console.debug(
-        `[LocalPlayerInputSystem] Ignored non-walkable target mesh='${pickedTarget.pickedMeshName ?? "unknown"}' story=${clickedStoryIndex} cell=${clickedCell.q}:${clickedCell.r} blockedBy=${blockedBy.join(",") || "none"}`
+        `[LocalPlayerInputSystem] Ignored non-walkable target mesh='${pickedTarget.pickedMeshName ?? "unknown"}' story=${clickedStoryIndex} cell=${clickedCell.q}:${clickedCell.r} blockedBy=${moveDebugInfo.blockersForTargetCell.join(",") || "none"}`
       );
       return;
     }

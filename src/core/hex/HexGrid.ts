@@ -27,7 +27,7 @@ export class HexGrid {
   /** Grid world-space origin. */
   private readonly origin: Vector3;
 
-  /** Hex outer radius (center to corner) in world units. */
+  /** Hex outer radius (center to corner) in world units, not tile diameter. */
   private readonly hexSize: number;
 
   /** Axial bounds derived from current ground area. */
@@ -37,7 +37,7 @@ export class HexGrid {
    * Creates a logical hex grid.
    *
    * @param origin - World-space origin for axial {0,0}.
-   * @param hexSize - Hex outer radius.
+   * @param hexSize - Hex outer radius (center to corner).
    * @param bounds - Grid bounds.
    */
   public constructor(origin: Vector3, hexSize: number, bounds: HexGridBounds) {
