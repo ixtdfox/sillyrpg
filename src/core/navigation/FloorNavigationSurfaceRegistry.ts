@@ -2,7 +2,7 @@ import { Vector3, type AbstractMesh, type Node, type Scene } from "@babylonjs/co
 import { GridCell } from "../grid/GridCell";
 import type { RectGrid } from "../grid/RectGrid";
 import { parseGameNavigationMetadata, parseStairCheckpointMetadata } from "./BuildingNavigationMetadata";
-import { parseGridNavigationContracts } from "./GridNavigationContract";
+import { mapGridNavigationContractsToRuntime } from "./GridNavigationContract";
 
 export interface WalkableFloorSurface {
   readonly mesh: AbstractMesh;
@@ -47,21 +47,27 @@ export class FloorNavigationSurfaceRegistry {
     this.hasExplicitSurfaces = false;
 
     const knownStoryY = this.collectKnownStoryY(scene);
-    const gridContracts = parseGridNavigationContracts(scene);
+    const gridContracts = mapGridNavigationContractsToRuntime(scene, grid);
+    let contractCellCount = 0;
+    let contractSkippedOutOfBounds = 0;
     for (const contract of gridContracts) {
       for (const story of contract.stories) {
         this.hasExplicitSurfaces = true;
-        this.recordStoryY(story.storyIndex, grid.getOrigin().y);
+        this.recordStoryY(story.storyIndex, story.storyY);
+        contractCellCount += story.walkableCells.length;
         for (const cell of story.walkableCells) {
           if (grid.contains(cell)) {
             this.addWalkableCell(cell, story.storyIndex);
+            continue;
           }
+          contractSkippedOutOfBounds += 1;
         }
       }
     }
-    if (gridContracts.length > 0) {
-      this.logStats();
-      return;
+    if (gridContracts.length > 0 && contractSkippedOutOfBounds > 0) {
+      console.warn(
+        `[FloorNavigationSurfaceRegistry] skipped ${contractSkippedOutOfBounds}/${contractCellCount} contract walkable cells because they are outside RectGrid bounds.`,
+      );
     }
 
     if (options.forcedGroundMesh && !options.forcedGroundMesh.isDisposed() && options.forcedGroundMesh.getTotalVertices() > 0) {

@@ -9,7 +9,7 @@ import { RectGroundPickerController } from "./RectGroundPickerController";
 import type { PickedNavigationCell } from "./RectGroundPickerController";
 import type { PickedNavigationTarget } from "./RectGroundPickerController";
 import { BuildingNavigationRegistry } from "../navigation/BuildingNavigationRegistry";
-import type { StoryGridCell } from "./RectGridOverlay";
+import type { StoryDoorGridEdge, StoryGridCell, StoryGridEdge } from "./RectGridOverlay";
 import { FloorNavigationSurfaceRegistry } from "../navigation/FloorNavigationSurfaceRegistry";
 import { NavigationObstacleRegistry, type NavigationCover } from "../navigation/NavigationObstacleRegistry";
 import { NavigationBlockerRegistry } from "../navigation/NavigationBlockerRegistry";
@@ -57,6 +57,7 @@ export class RectGridRuntime {
     this.buildingNavigationRegistry.rebuild(scene, this.grid);
     this.addForcedStairEndpointCells();
     this.rebuildNavigationMetadata(scene);
+    this.validateStairEndpointCells();
     this.pickerController.setWalkableCellPredicate((cell, storyIndex) => this.isWalkableCell(cell, storyIndex));
     this.refreshOverlayNavigationData();
     this.debugState = new GridDebugState(settings.debugEnabledByDefault);
@@ -142,6 +143,7 @@ export class RectGridRuntime {
     this.buildingNavigationRegistry.rebuild(scene, this.grid);
     this.addForcedStairEndpointCells();
     this.rebuildNavigationMetadata(scene);
+    this.validateStairEndpointCells();
     this.pickerController.setWalkableCellPredicate((cell, storyIndex) => this.isWalkableCell(cell, storyIndex));
     this.refreshOverlayNavigationData();
     this.buildingNavigationRegistry.setDebugVisible(this.debugState.getIsDebugEnabled());
@@ -295,6 +297,29 @@ export class RectGridRuntime {
     }
   }
 
+  private validateStairEndpointCells(): void {
+    for (const connector of this.buildingNavigationRegistry.getStairConnectors()) {
+      const fromWalkable = this.floorNavigationSurfaceRegistry.isWalkableCell(connector.fromCell, connector.fromStoryIndex);
+      const toWalkable = this.floorNavigationSurfaceRegistry.isWalkableCell(connector.toCell, connector.toStoryIndex);
+      const initialFromBlocked = this.navigationBlockerRegistry.isCellBlocked(connector.fromCell, connector.fromStoryIndex);
+      const initialToBlocked = this.navigationBlockerRegistry.isCellBlocked(connector.toCell, connector.toStoryIndex);
+      if (initialFromBlocked) {
+        this.navigationBlockerRegistry.forceUnblockCell(connector.fromCell, connector.fromStoryIndex, `stairEndpoint:${connector.stairId}:from`);
+      }
+      if (initialToBlocked) {
+        this.navigationBlockerRegistry.forceUnblockCell(connector.toCell, connector.toStoryIndex, `stairEndpoint:${connector.stairId}:to`);
+      }
+      const fromBlocked = this.navigationBlockerRegistry.isCellBlocked(connector.fromCell, connector.fromStoryIndex);
+      const toBlocked = this.navigationBlockerRegistry.isCellBlocked(connector.toCell, connector.toStoryIndex);
+      console.info(
+        `[RectNavStairValidation] id=${connector.stairId} ` +
+        `from=${connector.fromStoryIndex}:${connector.fromCell.x}:${connector.fromCell.z} walkable=${fromWalkable} blocked=${fromBlocked} ` +
+        `to=${connector.toStoryIndex}:${connector.toCell.x}:${connector.toCell.z} walkable=${toWalkable} blocked=${toBlocked} ` +
+        `ok=${fromWalkable && !fromBlocked && toWalkable && !toBlocked}`
+      );
+    }
+  }
+
   private rebuildNavigationMetadata(scene: Scene): void {
     const storyYByStory = this.mergeStoryYMaps();
     this.navigationObstacleRegistry.rebuild(scene, this.grid, storyYByStory);
@@ -306,6 +331,8 @@ export class RectGridRuntime {
     this.overlay.setStoryYByStory(storyYByStory);
     this.overlay.setWalkableNavigationCells(this.getWalkableCellEntries());
     this.overlay.setBlockedNavigationCells(this.navigationBlockerRegistry.getBlockedCellEntries());
+    this.overlay.setBlockedNavigationEdges(this.getBlockedEdgeEntries());
+    this.overlay.setDoorNavigationEdges(this.getDoorEdgeEntries());
     this.pickerController.setStoryYResolver((storyIndex) =>
       storyYByStory.get(storyIndex) ?? this.grid.getOrigin().y
     );
@@ -318,6 +345,23 @@ export class RectGridRuntime {
     return this.floorNavigationSurfaceRegistry
       .getWalkableCellEntries()
       .filter((entry) => this.isWalkableCell(entry.cell, entry.storyIndex));
+  }
+
+  private getBlockedEdgeEntries(): readonly StoryGridEdge[] {
+    return this.navigationBlockerRegistry.getBlockedEdgeEntries().map((entry) => ({
+      storyIndex: entry.storyIndex,
+      a: entry.a,
+      b: entry.b
+    }));
+  }
+
+  private getDoorEdgeEntries(): readonly StoryDoorGridEdge[] {
+    return this.navigationBlockerRegistry.getDoorEdgeEntries().map((entry) => ({
+      storyIndex: entry.storyIndex,
+      a: entry.a,
+      b: entry.b,
+      isOpen: entry.isOpen
+    }));
   }
 
   private mergeStoryYMaps(): ReadonlyMap<number, number> {

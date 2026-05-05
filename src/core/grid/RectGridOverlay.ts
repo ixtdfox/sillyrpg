@@ -27,6 +27,16 @@ interface GridHighlightPool {
   readonly meshes: Mesh[];
 }
 
+export interface StoryGridEdge {
+  readonly storyIndex: number;
+  readonly a: GridCell;
+  readonly b: GridCell;
+}
+
+export interface StoryDoorGridEdge extends StoryGridEdge {
+  readonly isOpen: boolean;
+}
+
 /**
  * Handles rendering for debug grid grid and hovered-cell highlight visuals.
  */
@@ -43,6 +53,8 @@ export class RectGridOverlay {
   private readonly blockedNavigationPool: GridHighlightPool;
   private readonly moveRangePool: GridHighlightPool;
   private readonly movePathPool: GridHighlightPool;
+  private readonly blockedEdgeMeshes: LinesMesh[];
+  private readonly doorEdgeMeshes: LinesMesh[];
 
   private isDebugVisible: boolean;
   private visionCells: GridCell[];
@@ -56,6 +68,8 @@ export class RectGridOverlay {
   private currentStoryIndex: number;
   private walkableNavigationCells: StoryGridCell[];
   private blockedNavigationCells: StoryGridCell[];
+  private blockedNavigationEdges: StoryGridEdge[];
+  private doorNavigationEdges: StoryDoorGridEdge[];
 
   /**
    * Creates visual overlay meshes for grid debug and hover cell.
@@ -81,6 +95,8 @@ export class RectGridOverlay {
     this.blockedNavigationPool = this.createHighlightPool("grid-navigation-blocked");
     this.moveRangePool = this.createHighlightPool("grid-combat-move-range");
     this.movePathPool = this.createHighlightPool("grid-combat-move-path");
+    this.blockedEdgeMeshes = [];
+    this.doorEdgeMeshes = [];
 
     this.isDebugVisible = false;
     this.visionCells = [];
@@ -94,6 +110,8 @@ export class RectGridOverlay {
     this.currentStoryIndex = 0;
     this.walkableNavigationCells = [];
     this.blockedNavigationCells = [];
+    this.blockedNavigationEdges = [];
+    this.doorNavigationEdges = [];
   }
 
   public setDebugVisible(isVisible: boolean): void {
@@ -199,6 +217,16 @@ export class RectGridOverlay {
     this.refreshHighlights();
   }
 
+  public setBlockedNavigationEdges(edges: readonly StoryGridEdge[]): void {
+    this.blockedNavigationEdges = [...edges];
+    this.refreshHighlights();
+  }
+
+  public setDoorNavigationEdges(edges: readonly StoryDoorGridEdge[]): void {
+    this.doorNavigationEdges = [...edges];
+    this.refreshHighlights();
+  }
+
   public hideHoveredCell(): void {
     this.hoverMesh.isVisible = false;
   }
@@ -213,6 +241,8 @@ export class RectGridOverlay {
     this.disposePool(this.blockedNavigationPool);
     this.disposePool(this.moveRangePool);
     this.disposePool(this.movePathPool);
+    this.disposeEdgeMeshes(this.blockedEdgeMeshes);
+    this.disposeEdgeMeshes(this.doorEdgeMeshes);
   }
 
   /**
@@ -268,6 +298,8 @@ export class RectGridOverlay {
       this.setPoolVisibility(this.patrolPool, 0);
       this.setPoolVisibility(this.detectedPool, 0);
       this.setPoolVisibility(this.blockedNavigationPool, 0);
+      this.setEdgeMeshVisibility(this.blockedEdgeMeshes, false);
+      this.setEdgeMeshVisibility(this.doorEdgeMeshes, false);
     } else {
       const visionHighlights = this.visionCells.map((cell) => ({
         cell,
@@ -294,6 +326,7 @@ export class RectGridOverlay {
         this.verticalOffset * 0.75,
         true
       );
+      this.refreshEdgeMeshes();
     }
 
     const moveRangeHighlights = this.moveRangeCells.map((cell) => ({
@@ -330,6 +363,76 @@ export class RectGridOverlay {
       movePathNavigationHighlights.length > 0 ? movePathNavigationHighlights : movePathHighlights,
       this.verticalOffset * 1.2
     );
+  }
+
+  private refreshEdgeMeshes(): void {
+    const blockedEdges = this.blockedNavigationEdges.filter((entry) => entry.storyIndex === this.currentStoryIndex);
+    const openDoorEdges = this.doorNavigationEdges.filter((entry) => entry.storyIndex === this.currentStoryIndex && entry.isOpen);
+
+    this.ensureEdgeMeshCapacity(this.blockedEdgeMeshes, blockedEdges.length, "grid-blocked-edge", new Color3(1.0, 0.18, 0.14));
+    this.ensureEdgeMeshCapacity(this.doorEdgeMeshes, openDoorEdges.length, "grid-door-edge", new Color3(0.96, 0.9, 0.24));
+
+    for (let index = 0; index < blockedEdges.length; index += 1) {
+      this.updateEdgeMesh(this.blockedEdgeMeshes[index], blockedEdges[index], this.verticalOffset * 1.35);
+      this.blockedEdgeMeshes[index].isVisible = true;
+    }
+    for (let index = blockedEdges.length; index < this.blockedEdgeMeshes.length; index += 1) {
+      this.blockedEdgeMeshes[index].isVisible = false;
+    }
+
+    for (let index = 0; index < openDoorEdges.length; index += 1) {
+      this.updateEdgeMesh(this.doorEdgeMeshes[index], openDoorEdges[index], this.verticalOffset * 1.4);
+      this.doorEdgeMeshes[index].isVisible = true;
+    }
+    for (let index = openDoorEdges.length; index < this.doorEdgeMeshes.length; index += 1) {
+      this.doorEdgeMeshes[index].isVisible = false;
+    }
+  }
+
+  private ensureEdgeMeshCapacity(meshes: LinesMesh[], desiredSize: number, prefix: string, color: Color3): void {
+    while (meshes.length < desiredSize) {
+      const mesh = MeshBuilder.CreateLines(
+        `${prefix}-${meshes.length}`,
+        {
+          points: [Vector3.Zero(), Vector3.Right()],
+          updatable: true
+        },
+        this.scene
+      );
+      mesh.color = color;
+      mesh.isPickable = false;
+      mesh.isVisible = false;
+      meshes.push(mesh);
+    }
+  }
+
+  private updateEdgeMesh(mesh: LinesMesh, edge: StoryGridEdge, yOffset: number): void {
+    const y = this.getStoryY(edge.storyIndex) + yOffset;
+    const a = this.grid.cellToWorld(edge.a, y);
+    const b = this.grid.cellToWorld(edge.b, y);
+    const midpoint = Vector3.Center(a, b);
+    const dx = b.x - a.x;
+    const dz = b.z - a.z;
+    const length = Math.sqrt(dx * dx + dz * dz);
+    const nx = length > Number.EPSILON ? -dz / length : 0;
+    const nz = length > Number.EPSILON ? dx / length : 0;
+    const half = this.grid.getTileSize() * 0.5;
+    const start = new Vector3(midpoint.x - nx * half, y, midpoint.z - nz * half);
+    const end = new Vector3(midpoint.x + nx * half, y, midpoint.z + nz * half);
+    MeshBuilder.CreateLines("", { points: [start, end], instance: mesh });
+  }
+
+  private setEdgeMeshVisibility(meshes: readonly LinesMesh[], visible: boolean): void {
+    for (const mesh of meshes) {
+      mesh.isVisible = visible;
+    }
+  }
+
+  private disposeEdgeMeshes(meshes: LinesMesh[]): void {
+    for (const mesh of meshes) {
+      mesh.dispose();
+    }
+    meshes.length = 0;
   }
 
   private updatePool(

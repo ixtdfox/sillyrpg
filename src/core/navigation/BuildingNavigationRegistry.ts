@@ -16,6 +16,11 @@ import {
 } from "./BuildingNavigationMetadata";
 import type { StairNavigationConnector } from "./NavigationGraph";
 import type { GridCell } from "../grid/GridCell";
+import {
+  mapGridNavigationContractsToRuntime,
+  type GridNavigationContract,
+  type GridNavigationStair
+} from "./GridNavigationContract";
 
 interface StairCheckpointRecord {
   readonly mesh: AbstractMesh;
@@ -62,51 +67,151 @@ export class BuildingNavigationRegistry {
     this.storyYByStory.clear();
     this.checkpointMeshes.clear();
 
-    const connectorMetadataByStairId = new Map<string, StairConnectorMetadata>();
-    const checkpointsByStairId = new Map<string, StairCheckpointRecord[]>();
+    const contractConnectors = this.buildContractStairConnectors(scene, grid);
+    if (contractConnectors.length > 0) {
+      for (const connector of contractConnectors) {
+        this.stairConnectors.push(connector);
+        this.recordStoryY(connector.fromStoryIndex, connector.traversalPathWorld[0]);
+        this.recordStoryY(connector.toStoryIndex, connector.traversalPathWorld[connector.traversalPathWorld.length - 1]);
+        this.createDebugLine(scene, connector);
+        this.createPickProxies(scene, connector);
+      }
+      console.info(`[BuildingNavigationRegistry] using ${contractConnectors.length} v3 contract stair connectors.`);
+    } else {
+      const connectorMetadataByStairId = new Map<string, StairConnectorMetadata>();
+      const checkpointsByStairId = new Map<string, StairCheckpointRecord[]>();
 
-    for (const mesh of scene.meshes) {
-      if (mesh.isDisposed()) {
-        continue;
+      for (const mesh of scene.meshes) {
+        if (mesh.isDisposed()) {
+          continue;
+        }
+
+        const checkpointMetadata = parseStairCheckpointMetadata(mesh);
+        if (checkpointMetadata) {
+          this.checkpointMeshes.add(mesh);
+          const record: StairCheckpointRecord = {
+            mesh,
+            metadata: checkpointMetadata,
+            worldPosition: mesh.getAbsolutePosition().clone()
+          };
+          mesh.setEnabled(this.showStairNavigationDebug);
+          const checkpoints = checkpointsByStairId.get(checkpointMetadata.stair_id) ?? [];
+          checkpoints.push(record);
+          checkpointsByStairId.set(checkpointMetadata.stair_id, checkpoints);
+          continue;
+        }
+
+        const connectorMetadata = parseStairConnectorMetadata(mesh);
+        if (connectorMetadata) {
+          connectorMetadataByStairId.set(connectorMetadata.stair_id, connectorMetadata);
+        }
       }
 
-      const checkpointMetadata = parseStairCheckpointMetadata(mesh);
-      if (checkpointMetadata) {
-        this.checkpointMeshes.add(mesh);
-        const record: StairCheckpointRecord = {
-          mesh,
-          metadata: checkpointMetadata,
-          worldPosition: mesh.getAbsolutePosition().clone()
-        };
-        mesh.setEnabled(this.showStairNavigationDebug);
-        const checkpoints = checkpointsByStairId.get(checkpointMetadata.stair_id) ?? [];
-        checkpoints.push(record);
-        checkpointsByStairId.set(checkpointMetadata.stair_id, checkpoints);
-        continue;
-      }
+      for (const [stairId, checkpoints] of checkpointsByStairId) {
+        const connector = this.tryBuildConnector(stairId, checkpoints, connectorMetadataByStairId.get(stairId), grid);
+        if (!connector) {
+          continue;
+        }
 
-      const connectorMetadata = parseStairConnectorMetadata(mesh);
-      if (connectorMetadata) {
-        connectorMetadataByStairId.set(connectorMetadata.stair_id, connectorMetadata);
+        this.stairConnectors.push(connector);
+        this.recordStoryY(connector.fromStoryIndex, connector.traversalPathWorld[0]);
+        this.recordStoryY(connector.toStoryIndex, connector.traversalPathWorld[connector.traversalPathWorld.length - 1]);
+        this.createDebugLine(scene, connector);
+        this.createPickProxies(scene, connector);
       }
-    }
-
-    for (const [stairId, checkpoints] of checkpointsByStairId) {
-      const connector = this.tryBuildConnector(stairId, checkpoints, connectorMetadataByStairId.get(stairId), grid);
-      if (!connector) {
-        continue;
-      }
-
-      this.stairConnectors.push(connector);
-      this.recordStoryY(connector.fromStoryIndex, connector.traversalPathWorld[0]);
-      this.recordStoryY(connector.toStoryIndex, connector.traversalPathWorld[connector.traversalPathWorld.length - 1]);
-      this.createDebugLine(scene, connector);
-      this.createPickProxies(scene, connector);
     }
 
     this.setDebugVisible(this.showStairNavigationDebug);
     this.logLoadedStairs();
     console.info(`BuildingNavigationRegistry: created stair pick proxies count=${this.pickProxyMeshes.length}`);
+  }
+
+  private buildContractStairConnectors(scene: Scene, grid: RectGrid): StairNavigationConnector[] {
+    const contracts = mapGridNavigationContractsToRuntime(scene, grid);
+    if (contracts.length === 0) {
+      return [];
+    }
+
+    const connectors: StairNavigationConnector[] = [];
+    const seenConnectorIds = new Set<string>();
+    let totalContractStairs = 0;
+    const storyYByStory = this.collectStoryYByStory(contracts);
+
+    for (const contract of contracts) {
+      for (const story of contract.stories) {
+        for (const stair of story.stairs) {
+          totalContractStairs += 1;
+          const connector = this.createContractStairConnector(stair, grid, storyYByStory);
+          if (!connector) {
+            continue;
+          }
+          const connectorKey = `${connector.stairId}:${connector.fromStoryIndex}:${connector.fromCell.x}:${connector.fromCell.z}->${connector.toStoryIndex}:${connector.toCell.x}:${connector.toCell.z}`;
+          if (seenConnectorIds.has(connectorKey)) {
+            continue;
+          }
+          seenConnectorIds.add(connectorKey);
+          connectors.push(connector);
+        }
+      }
+    }
+
+    if (totalContractStairs === 0) {
+      console.warn("[BuildingNavigationRegistry] v3 contracts found but stairs=0. Falling back to stair checkpoint metadata.");
+      return [];
+    }
+
+    if (connectors.length !== totalContractStairs) {
+      console.warn(
+        `[BuildingNavigationRegistry] contract stairs deduplicated: declared=${totalContractStairs} unique=${connectors.length}`
+      );
+    }
+
+    return connectors;
+  }
+
+  private collectStoryYByStory(contracts: readonly GridNavigationContract[]): ReadonlyMap<number, number> {
+    const storyYByStory = new Map<number, number>();
+    for (const contract of contracts) {
+      for (const story of contract.stories) {
+        if (!storyYByStory.has(story.storyIndex)) {
+          storyYByStory.set(story.storyIndex, story.storyY);
+        }
+      }
+    }
+    return storyYByStory;
+  }
+
+  private createContractStairConnector(
+    stair: GridNavigationStair,
+    grid: RectGrid,
+    storyYByStory: ReadonlyMap<number, number>
+  ): StairNavigationConnector | null {
+    const fromStoryY = storyYByStory.get(stair.from.storyIndex) ?? this.storyYByStory.get(stair.from.storyIndex) ?? grid.getOrigin().y;
+    const toStoryY = storyYByStory.get(stair.to.storyIndex) ?? this.storyYByStory.get(stair.to.storyIndex) ?? grid.getOrigin().y;
+    const fromCell = stair.from.cell;
+    const toCell = stair.to.cell;
+    const fromPoint = grid.cellToWorld(fromCell, fromStoryY);
+    const toPoint = grid.cellToWorld(toCell, toStoryY);
+    const midpoint = Vector3.Center(fromPoint, toPoint);
+    midpoint.y = (fromStoryY + toStoryY) * 0.5;
+
+    if (!grid.contains(fromCell) || !grid.contains(toCell)) {
+      console.warn(
+        `[BuildingNavigationRegistry] contract stair '${stair.id}' endpoint outside grid bounds: from=${fromCell.x}:${fromCell.z}@${stair.from.storyIndex} to=${toCell.x}:${toCell.z}@${stair.to.storyIndex}`
+      );
+    }
+
+    return {
+      stairId: stair.id,
+      fromStoryIndex: stair.from.storyIndex,
+      toStoryIndex: stair.to.storyIndex,
+      fromCell,
+      toCell,
+      kind: "internal",
+      cost: Math.max(2, Math.abs(stair.to.storyIndex - stair.from.storyIndex) * 2),
+      bidirectional: true,
+      traversalPathWorld: [fromPoint, midpoint, toPoint]
+    };
   }
 
   public getStairConnectors(): StairNavigationConnector[] {

@@ -409,13 +409,55 @@ export class MovementSystem implements System {
       (cell, storyIndex) => this.runtimeContext?.gridRuntime.getMovementCost(cell, storyIndex) ?? 1
     );
     const pathfinder = new MultiFloorPathfinder(graph, registry.getShowStairNavigationDebug());
-    return pathfinder.findPath({
+    const path = pathfinder.findPath({
       fromCell: gridPosition.currentCell,
       fromStoryIndex: gridPosition.currentStoryIndex,
       toCell: targetCell,
       toStoryIndex: targetStoryIndex,
       occupied: (node) => this.isOccupiedByOtherEntity(entityId, gridPosition, node)
     });
+    this.logPathDiagnostics(gridPosition.currentCell, gridPosition.currentStoryIndex, targetCell, targetStoryIndex, path);
+    return path;
+  }
+
+  private logPathDiagnostics(
+    fromCell: GridCell,
+    fromStoryIndex: number,
+    toCell: GridCell,
+    toStoryIndex: number,
+    path: MovementSegment[] | null
+  ): void {
+    if (!this.runtimeContext || !path) {
+      return;
+    }
+    if (!isRectNavDebugEnabled()) {
+      return;
+    }
+
+    let cursorCell = fromCell;
+    let cursorStory = fromStoryIndex;
+    let crossedBlockedEdge = false;
+    const steps: string[] = [`${cursorStory}:${cursorCell.x}:${cursorCell.z}`];
+    for (const segment of path) {
+      if (segment.kind === "walk") {
+        const blocked = this.runtimeContext.gridRuntime.isNavigationEdgeBlocked(cursorCell, segment.cell, cursorStory);
+        if (blocked) {
+          crossedBlockedEdge = true;
+        }
+        cursorCell = segment.cell;
+        cursorStory = segment.storyIndex;
+        steps.push(`${cursorStory}:${cursorCell.x}:${cursorCell.z}[walk,blocked=${blocked}]`);
+        continue;
+      }
+
+      cursorCell = segment.toCell;
+      cursorStory = segment.toStoryIndex;
+      steps.push(`${cursorStory}:${cursorCell.x}:${cursorCell.z}[stair:${segment.stairId}]`);
+    }
+
+    console.debug(
+      `[RectNavPath] from=${fromStoryIndex}:${fromCell.x}:${fromCell.z} to=${toStoryIndex}:${toCell.x}:${toCell.z} blockedCrossing=${crossedBlockedEdge} path=${steps.join(" -> ")}`
+    );
   }
 
   private isOccupiedByOtherEntity(entityId: string, gridPosition: GridPositionComponent, node: NavigationNode): boolean {
@@ -430,4 +472,14 @@ export class MovementSystem implements System {
     const entitiesAtCell = this.spatialIndex.getEntitiesAt(node.cell, node.storyIndex);
     return entitiesAtCell.some((occupantId) => occupantId !== entityId);
   }
+}
+
+function isRectNavDebugEnabled(): boolean {
+  const g = globalThis as { readonly __RECT_NAV_DEBUG__?: unknown; readonly location?: { readonly search?: string } };
+  const raw = typeof g.__RECT_NAV_DEBUG__ === "string" ? g.__RECT_NAV_DEBUG__.toLowerCase() : "";
+  if (raw === "1" || raw === "true") {
+    return true;
+  }
+  const query = g.location?.search ?? "";
+  return query.includes("rectNavDebug=1") || query.includes("rectNavDebug=true");
 }

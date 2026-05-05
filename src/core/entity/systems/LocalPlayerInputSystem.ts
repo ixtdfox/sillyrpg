@@ -131,6 +131,11 @@ export class LocalPlayerInputSystem implements System {
       clickedCell,
       clickedStoryIndex
     );
+    if (isNeighborClick) {
+      console.debug(
+        `[GridNavigationMoveCheck] fromStory=${gridPosition.currentStoryIndex} from=${gridPosition.currentCell.x}:${gridPosition.currentCell.z} toStory=${clickedStoryIndex} to=${clickedCell.x}:${clickedCell.z} walkable=${isWalkable} edgeBlocked=${moveDebugInfo.edgeBlocked} openedByDoor=${moveDebugInfo.edgeOpenedByDoor} blockedEdgeCount=${moveDebugInfo.blockedEdgeCount}`
+      );
+    }
     console.debug(
       `[LocalPlayerInputSystem] Cell click mesh='${pickedTarget.pickedMeshName ?? "unknown"}' currentStory=${gridPosition.currentStoryIndex} fromCell=${gridPosition.currentCell.x}:${gridPosition.currentCell.z} targetStory=${clickedStoryIndex} cell=${clickedCell.x}:${clickedCell.z} walkable=${isWalkable} neighbor=${isNeighborClick} edgeBlocked=${isNeighborClick ? moveDebugInfo.edgeBlocked : "n/a"} edgeOpenedByDoor=${isNeighborClick ? moveDebugInfo.edgeOpenedByDoor : "n/a"} blockersForClickedCell=${moveDebugInfo.blockersForTargetCell.join(",") || "none"} blockedEdgeCount=${moveDebugInfo.blockedEdgeCount}`
     );
@@ -196,6 +201,16 @@ export class LocalPlayerInputSystem implements System {
     if (stairTarget.resolvedByNearest) {
       console.debug(
         `[LocalPlayerInputSystem] Stair click resolved by nearest connector stairId='${stairTarget.connector.stairId}' distance=${stairTarget.distance?.toFixed(2) ?? "unknown"}`
+      );
+    }
+
+    const stairEndpointWalkable = this.runtimeContext.gridRuntime.isWalkableCell(
+      stairTarget.targetCell,
+      stairTarget.targetStoryIndex
+    );
+    if (!stairEndpointWalkable) {
+      console.warn(
+        `[LocalPlayerInputSystem] Stair '${stairTarget.connector.stairId}' target endpoint is not walkable: story=${stairTarget.targetStoryIndex} cell=${stairTarget.targetCell.x}:${stairTarget.targetCell.z}`
       );
     }
 
