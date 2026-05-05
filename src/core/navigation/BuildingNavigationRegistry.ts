@@ -190,10 +190,10 @@ export class BuildingNavigationRegistry {
     const toStoryY = storyYByStory.get(stair.to.storyIndex) ?? this.storyYByStory.get(stair.to.storyIndex) ?? grid.getOrigin().y;
     const fromCell = stair.from.cell;
     const toCell = stair.to.cell;
-    const fromPoint = grid.cellToWorld(fromCell, fromStoryY);
-    const toPoint = grid.cellToWorld(toCell, toStoryY);
-    const midpoint = Vector3.Center(fromPoint, toPoint);
-    midpoint.y = (fromStoryY + toStoryY) * 0.5;
+    const traversalPathWorld = this.resolveContractStairPath(stair, grid, fromStoryY, toStoryY);
+    const kind = stair.kind ?? "internal";
+    const cost = stair.cost ?? Math.max(kind === "external" ? 4 : 2, Math.abs(stair.to.storyIndex - stair.from.storyIndex) * 2);
+    const bidirectional = stair.bidirectional ?? true;
 
     if (!grid.contains(fromCell) || !grid.contains(toCell)) {
       console.warn(
@@ -207,11 +207,38 @@ export class BuildingNavigationRegistry {
       toStoryIndex: stair.to.storyIndex,
       fromCell,
       toCell,
-      kind: "internal",
-      cost: Math.max(2, Math.abs(stair.to.storyIndex - stair.from.storyIndex) * 2),
-      bidirectional: true,
-      traversalPathWorld: [fromPoint, midpoint, toPoint]
+      kind,
+      cost,
+      bidirectional,
+      traversalPathWorld: traversalPathWorld.path,
+      isSynthetic: traversalPathWorld.synthetic
     };
+  }
+
+  private resolveContractStairPath(
+    stair: GridNavigationStair,
+    grid: RectGrid,
+    fromStoryY: number,
+    toStoryY: number
+  ): { readonly path: Vector3[]; readonly synthetic: boolean } {
+    const contractPath = stair.traversalPathWorld?.filter((point) => isValidVector3(point)).map((point) => point.clone()) ?? [];
+    if (contractPath.length >= 2) {
+      if ((stair.kind ?? "internal") === "external" && contractPath.length <= 3) {
+        console.warn(
+          `[BuildingNavigationRegistry] External stair '${stair.id}' traversal_path_world has only ${contractPath.length} points; switchback stairs should provide a detailed polyline.`
+        );
+      }
+      return { path: contractPath, synthetic: false };
+    }
+
+    console.warn(
+      `[BuildingNavigationRegistry] Stair '${stair.id}' has no traversal_path_world; using synthetic direct path. This is invalid for external switchback stairs.`
+    );
+    const fromPoint = grid.cellToWorld(stair.from.cell, fromStoryY);
+    const toPoint = grid.cellToWorld(stair.to.cell, toStoryY);
+    const midpoint = Vector3.Center(fromPoint, toPoint);
+    midpoint.y = (fromStoryY + toStoryY) * 0.5;
+    return { path: [fromPoint, midpoint, toPoint], synthetic: true };
   }
 
   public getStairConnectors(): StairNavigationConnector[] {

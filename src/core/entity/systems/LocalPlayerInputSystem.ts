@@ -197,6 +197,19 @@ export class LocalPlayerInputSystem implements System {
     console.debug(
       `[LocalPlayerInputSystem] Stair click mesh='${pickedTarget.pickedMeshName ?? "unknown"}' stairId='${stairTarget.connector.stairId}' currentStory=${gridPosition.currentStoryIndex} targetStory=${stairTarget.targetStoryIndex} targetCell=${stairTarget.targetCell.x}:${stairTarget.targetCell.z} direction=${stairTarget.direction}`
     );
+    console.info(
+      `[StairNav] click stair=${stairTarget.connector.stairId} currentStory=${gridPosition.currentStoryIndex} ` +
+      `targetStory=${stairTarget.targetStoryIndex} fromCell=${stairTarget.connector.fromCell.x}:${stairTarget.connector.fromCell.z} ` +
+      `toCell=${stairTarget.connector.toCell.x}:${stairTarget.connector.toCell.z} ` +
+      `pathPoints=${stairTarget.connector.traversalPathWorld.length} ` +
+      `pathBounds=${formatStairPathBounds(stairTarget.connector.traversalPathWorld)} ` +
+      `synthetic=${stairTarget.connector.isSynthetic === true}`
+    );
+    if (stairTarget.connector.kind === "external" && stairTarget.connector.traversalPathWorld.length <= 3) {
+      console.warn(
+        `[StairNav] external stair=${stairTarget.connector.stairId} has pathPoints=${stairTarget.connector.traversalPathWorld.length}; expected detailed switchback traversal_path_world.`
+      );
+    }
 
     if (stairTarget.resolvedByNearest) {
       console.debug(
@@ -309,4 +322,25 @@ export class LocalPlayerInputSystem implements System {
 
     this.pointerObserver = this.scene.onPointerObservable.add(this.onPointerEvent);
   }
+}
+
+function formatStairPathBounds(path: readonly { readonly x: number; readonly y: number; readonly z: number }[]): string {
+  if (path.length === 0) {
+    return "n/a";
+  }
+  let minX = Number.POSITIVE_INFINITY;
+  let maxX = Number.NEGATIVE_INFINITY;
+  let minY = Number.POSITIVE_INFINITY;
+  let maxY = Number.NEGATIVE_INFINITY;
+  let minZ = Number.POSITIVE_INFINITY;
+  let maxZ = Number.NEGATIVE_INFINITY;
+  for (const point of path) {
+    minX = Math.min(minX, point.x);
+    maxX = Math.max(maxX, point.x);
+    minY = Math.min(minY, point.y);
+    maxY = Math.max(maxY, point.y);
+    minZ = Math.min(minZ, point.z);
+    maxZ = Math.max(maxZ, point.z);
+  }
+  return `x=[${minX.toFixed(2)},${maxX.toFixed(2)}] y=[${minY.toFixed(2)},${maxY.toFixed(2)}] z=[${minZ.toFixed(2)},${maxZ.toFixed(2)}]`;
 }

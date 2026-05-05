@@ -29,8 +29,12 @@ export interface GridNavigationDoorEdge {
 
 export interface GridNavigationStair {
   readonly id: string;
+  readonly kind?: "internal" | "external";
+  readonly cost?: number;
+  readonly bidirectional?: boolean;
   readonly from: { readonly storyIndex: number; readonly cell: GridCell };
   readonly to: { readonly storyIndex: number; readonly cell: GridCell };
+  readonly traversalPathWorld?: readonly Vector3[];
 }
 
 export interface GridNavigationContract {
@@ -136,6 +140,9 @@ function mapContractEntryToRuntime(entry: ParsedGridNavigationContract, grid: Re
     }));
     const mappedStairs = story.stairs.map((stair) => ({
       id: stair.id,
+      kind: stair.kind,
+      cost: stair.cost,
+      bidirectional: stair.bidirectional,
       from: {
         storyIndex: stair.from.storyIndex,
         cell: mapCellToRuntime(
@@ -155,7 +162,8 @@ function mapContractEntryToRuntime(entry: ParsedGridNavigationContract, grid: Re
           worldMatrix,
           grid
         )
-      }
+      },
+      traversalPathWorld: stair.traversalPathWorld?.map((point) => mapWorldPointToRuntime(point, worldMatrix))
     }));
 
     for (let i = 0; i < mappedBlockedEdges.length; i += 1) {
@@ -208,6 +216,10 @@ function mapStoryY(contract: GridNavigationContract, rawStoryY: number, worldMat
   return Vector3.TransformCoordinates(rawPoint, worldMatrix).y;
 }
 
+function mapWorldPointToRuntime(point: Vector3, worldMatrix: Matrix): Vector3 {
+  return Vector3.TransformCoordinates(point, worldMatrix);
+}
+
 function dedupeCells(cells: readonly GridCell[]): GridCell[] {
   const map = new Map<string, GridCell>();
   for (const cell of cells) {
@@ -253,8 +265,12 @@ function dedupeStairs(stairs: readonly GridNavigationStair[]): GridNavigationSta
     const key = `${stair.id}:${stair.from.storyIndex}:${stair.from.cell.key()}->${stair.to.storyIndex}:${stair.to.cell.key()}`;
     map.set(key, {
       id: stair.id,
+      kind: stair.kind,
+      cost: stair.cost,
+      bidirectional: stair.bidirectional,
       from: { storyIndex: stair.from.storyIndex, cell: new GridCell(stair.from.cell.x, stair.from.cell.z) },
-      to: { storyIndex: stair.to.storyIndex, cell: new GridCell(stair.to.cell.x, stair.to.cell.z) }
+      to: { storyIndex: stair.to.storyIndex, cell: new GridCell(stair.to.cell.x, stair.to.cell.z) },
+      traversalPathWorld: stair.traversalPathWorld?.map((point) => point.clone())
     });
   }
   return [...map.values()];
@@ -303,10 +319,12 @@ function logMappingDiagnostics(
       const mappedWalkable = computeCellBounds(mappedStory.walkableCells);
       const rawBlockedEdgeBounds = computeEdgeBounds((rawStory?.blockedEdges ?? []).map((edge) => [edge.a, edge.b]));
       const mappedBlockedEdgeBounds = computeEdgeBounds(mappedStory.blockedEdges.map((edge) => [edge.a, edge.b]));
+      const rawStairPathBounds = computeVectorBounds((rawStory?.stairs ?? []).flatMap((stair) => [...(stair.traversalPathWorld ?? [])]));
+      const mappedStairPathBounds = computeVectorBounds(mappedStory.stairs.flatMap((stair) => [...(stair.traversalPathWorld ?? [])]));
       const floorBounds = floorsBySource.get(mapped.mappingSourceNodeName)?.get(mappedStory.storyIndex) ?? null;
       const delta = computeBoundsDelta(mappedWalkable, floorBounds, grid);
       console.info(
-        `[GridNavigationMapping] source=${mapped.mappingSourceNodeName} story=${mappedStory.storyIndex} rawWalkable=${formatBounds(rawWalkable)} mappedWalkable=${formatBounds(mappedWalkable)} rawBlockedEdges=${formatBounds(rawBlockedEdgeBounds)} mappedBlockedEdges=${formatBounds(mappedBlockedEdgeBounds)} floorBoundsWorld=${formatWorldBounds(floorBounds)} delta=${delta}`
+        `[GridNavigationMapping] source=${mapped.mappingSourceNodeName} story=${mappedStory.storyIndex} rawWalkable=${formatBounds(rawWalkable)} mappedWalkable=${formatBounds(mappedWalkable)} rawBlockedEdges=${formatBounds(rawBlockedEdgeBounds)} mappedBlockedEdges=${formatBounds(mappedBlockedEdgeBounds)} rawStairPath=${formatVectorBounds(rawStairPathBounds)} mappedStairPath=${formatVectorBounds(mappedStairPathBounds)} floorBoundsWorld=${formatWorldBounds(floorBounds)} delta=${delta}`
       );
     }
   }
@@ -367,6 +385,34 @@ function formatWorldBounds(bounds: { minX: number; maxX: number; minZ: number; m
     return "n/a";
   }
   return `x=[${bounds.minX.toFixed(2)},${bounds.maxX.toFixed(2)}] z=[${bounds.minZ.toFixed(2)},${bounds.maxZ.toFixed(2)}]`;
+}
+
+function computeVectorBounds(points: readonly Vector3[]): { minX: number; maxX: number; minY: number; maxY: number; minZ: number; maxZ: number } | null {
+  if (points.length === 0) {
+    return null;
+  }
+  let minX = Number.POSITIVE_INFINITY;
+  let maxX = Number.NEGATIVE_INFINITY;
+  let minY = Number.POSITIVE_INFINITY;
+  let maxY = Number.NEGATIVE_INFINITY;
+  let minZ = Number.POSITIVE_INFINITY;
+  let maxZ = Number.NEGATIVE_INFINITY;
+  for (const point of points) {
+    minX = Math.min(minX, point.x);
+    maxX = Math.max(maxX, point.x);
+    minY = Math.min(minY, point.y);
+    maxY = Math.max(maxY, point.y);
+    minZ = Math.min(minZ, point.z);
+    maxZ = Math.max(maxZ, point.z);
+  }
+  return { minX, maxX, minY, maxY, minZ, maxZ };
+}
+
+function formatVectorBounds(bounds: { minX: number; maxX: number; minY: number; maxY: number; minZ: number; maxZ: number } | null): string {
+  if (!bounds) {
+    return "n/a";
+  }
+  return `x=[${bounds.minX.toFixed(2)},${bounds.maxX.toFixed(2)}] y=[${bounds.minY.toFixed(2)},${bounds.maxY.toFixed(2)}] z=[${bounds.minZ.toFixed(2)},${bounds.maxZ.toFixed(2)}]`;
 }
 
 function formatMatrix(matrix: Matrix): string {
@@ -483,8 +529,55 @@ function parseStairs(raw: unknown): GridNavigationStair[] {
     const from = parseStoryCell(record.from);
     const to = parseStoryCell(record.to);
     const id = normalizeString(record.id) ?? "stair";
-    return from && to ? [{ id, from, to }] : [];
+    const kind = normalizeStairKind(record.kind ?? record.stair_kind);
+    const cost = normalizePositiveNumber(record.cost);
+    const bidirectional = normalizeBoolean(record.bidirectional);
+    const traversalPathWorld = parseStairPath(record.traversal_path_world ?? record.traversalPathWorld);
+    return from && to ? [{ id, kind, cost, bidirectional, from, to, traversalPathWorld }] : [];
   });
+}
+
+function parseStairPath(raw: unknown): Vector3[] | undefined {
+  if (!Array.isArray(raw)) {
+    return undefined;
+  }
+  const points = raw.map(parseWorldPointObject).filter((point): point is Vector3 => point !== null);
+  return points.length > 0 ? points : undefined;
+}
+
+function parseWorldPointObject(raw: unknown): Vector3 | null {
+  const record = raw as Record<string, unknown>;
+  const x = normalizeNumber(record?.x);
+  const y = normalizeNumber(record?.y);
+  const z = normalizeNumber(record?.z);
+  return x === null || y === null || z === null ? null : new Vector3(x, y, z);
+}
+
+function normalizeStairKind(value: unknown): "internal" | "external" | undefined {
+  const normalized = normalizeString(value)?.toLowerCase();
+  return normalized === "internal" || normalized === "external" ? normalized : undefined;
+}
+
+function normalizePositiveNumber(value: unknown): number | undefined {
+  const normalized = normalizeNumber(value);
+  return normalized !== null && normalized > 0 ? normalized : undefined;
+}
+
+function normalizeBoolean(value: unknown): boolean | undefined {
+  if (typeof value === "boolean") {
+    return value;
+  }
+  if (typeof value === "number") {
+    return value !== 0;
+  }
+  const normalized = normalizeString(value)?.toLowerCase();
+  if (normalized === "true" || normalized === "1" || normalized === "yes" || normalized === "on") {
+    return true;
+  }
+  if (normalized === "false" || normalized === "0" || normalized === "no" || normalized === "off") {
+    return false;
+  }
+  return undefined;
 }
 
 function parseStoryCell(raw: unknown): { readonly storyIndex: number; readonly cell: GridCell } | null {

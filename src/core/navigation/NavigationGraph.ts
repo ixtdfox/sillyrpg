@@ -49,6 +49,7 @@ export interface StairNavigationConnector {
   readonly cost: number;
   readonly bidirectional: boolean;
   readonly traversalPathWorld: Vector3[];
+  readonly isSynthetic?: boolean;
 }
 
 export function makeNavigationNodeId(storyIndex: number, cell: GridCell): string {
