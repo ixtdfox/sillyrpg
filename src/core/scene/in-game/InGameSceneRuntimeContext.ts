@@ -1,5 +1,5 @@
 import type { Scene as BabylonScene } from "@babylonjs/core";
-import type { HexGridRuntime } from "../../hex/HexGridRuntime";
+import type { RectGridRuntime } from "../../grid/RectGridRuntime";
 import type { LocationManager } from "../../world/location/LocationManager";
 import type { InGameTopPanelUi } from "./ui/InGameTopPanelUi";
 
@@ -7,7 +7,7 @@ import type { InGameTopPanelUi } from "./ui/InGameTopPanelUi";
  * Runtime context published by in-game scenes for ECS systems.
  */
 export interface InGameSceneRuntimeContext {
-  readonly hexGridRuntime: HexGridRuntime;
+  readonly gridRuntime: RectGridRuntime;
   readonly locationManager: LocationManager;
   readonly topPanelUi: InGameTopPanelUi;
 }

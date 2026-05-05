@@ -2,9 +2,9 @@ import type { AbstractMesh, Node, Scene } from "@babylonjs/core";
 import { isNavigationPickableSurface } from "../navigation/BuildingNavigationMetadata";
 
 /**
- * Selection result for ground used by hex-grid sizing and mouse picking.
+ * Selection result for ground used by rect-grid sizing and mouse picking.
  */
-export interface HexGridGroundSelection {
+export interface RectGridGroundSelection {
   /** Primary ground mesh used for bounds/origin setup. */
   readonly groundMesh: AbstractMesh;
 
@@ -13,10 +13,10 @@ export interface HexGridGroundSelection {
 }
 
 /**
- * Resolves the scene ground mesh for hex-grid initialization.
+ * Resolves the scene ground mesh for rect-grid initialization.
  */
-export class HexGridGroundMeshResolver {
-  private static readonly EXACT_GROUND_NAMES = ["ground", "hex-ground", "terrain", "floor"];
+export class RectGridGroundMeshResolver {
+  private static readonly EXACT_GROUND_NAMES = ["ground", "grid-ground", "terrain", "floor"];
   private static readonly KEYWORD_GROUND_NAMES = ["ground", "terrain", "floor", "walk", "tile"];
 
   /**
@@ -24,20 +24,20 @@ export class HexGridGroundMeshResolver {
    *
    * Resolution order:
    * 1) metadata marker `metadata.isGround === true`
-   * 2) exact naming convention (`ground`, `terrain`, `floor`, `hex-ground`)
+   * 2) exact naming convention (`ground`, `terrain`, `floor`, `grid-ground`)
    * 3) single conservative keyword candidate (`ground` or `terrain` in name)
    *
    * This intentionally avoids selecting arbitrary "largest" meshes.
    */
-  public resolve(scene: Scene, preferredMeshes: readonly AbstractMesh[] = []): HexGridGroundSelection {
+  public resolve(scene: Scene, preferredMeshes: readonly AbstractMesh[] = []): RectGridGroundSelection {
     const scopeSource = preferredMeshes.length > 0 ? preferredMeshes : scene.meshes;
     const meshes = scopeSource.filter((mesh) => mesh.getTotalVertices() > 0 && !mesh.isDisposed());
     console.debug(
-      `[HexGridGroundMeshResolver] Ground resolution started meshCount=${meshes.length} preferredScope=${preferredMeshes.length > 0}.`
+      `[RectGridGroundMeshResolver] Ground resolution started meshCount=${meshes.length} preferredScope=${preferredMeshes.length > 0}.`
     );
 
     if (meshes.length === 0) {
-      throw new Error("[HexGridGroundMeshResolver] No mesh candidates available for ground resolution.");
+      throw new Error("[RectGridGroundMeshResolver] No mesh candidates available for ground resolution.");
     }
 
     this.logCandidateMeshes(meshes);
@@ -49,7 +49,7 @@ export class HexGridGroundMeshResolver {
 
     const exactNameMatches = meshes.filter((mesh) => {
       const normalizedName = this.normalizeName(mesh.name);
-      return HexGridGroundMeshResolver.EXACT_GROUND_NAMES.includes(normalizedName);
+      return RectGridGroundMeshResolver.EXACT_GROUND_NAMES.includes(normalizedName);
     });
     if (exactNameMatches.length > 0) {
       return this.createSelection(this.selectLargestHorizontalMesh(exactNameMatches), "exact-name-match");
@@ -57,7 +57,7 @@ export class HexGridGroundMeshResolver {
 
     const keywordMatches = meshes.filter((mesh) => {
       const normalizedName = this.normalizeName(mesh.name);
-      return HexGridGroundMeshResolver.KEYWORD_GROUND_NAMES.some((token) => normalizedName.includes(token));
+      return RectGridGroundMeshResolver.KEYWORD_GROUND_NAMES.some((token) => normalizedName.includes(token));
     });
     if (keywordMatches.length > 0) {
       return this.createSelection(this.selectLargestHorizontalMesh(keywordMatches), "keyword-name-match");
@@ -70,13 +70,13 @@ export class HexGridGroundMeshResolver {
 
     const inspectedMeshes = meshes.map((mesh) => `'${mesh.name}'(id='${mesh.id}')`).join(", ");
     throw new Error(
-      `[HexGridGroundMeshResolver] Ground mesh was not resolved. Inspected candidates: ${inspectedMeshes}.`
+      `[RectGridGroundMeshResolver] Ground mesh was not resolved. Inspected candidates: ${inspectedMeshes}.`
     );
   }
 
-  private createSelection(groundMesh: AbstractMesh, reason: string): HexGridGroundSelection {
+  private createSelection(groundMesh: AbstractMesh, reason: string): RectGridGroundSelection {
     console.debug(
-      `[HexGridGroundMeshResolver] Ground selected mesh='${groundMesh.name}' id='${groundMesh.id}' reason=${reason}.`
+      `[RectGridGroundMeshResolver] Ground selected mesh='${groundMesh.name}' id='${groundMesh.id}' reason=${reason}.`
     );
 
     return {
@@ -132,7 +132,7 @@ export class HexGridGroundMeshResolver {
       const area = (bounds.x * 2) * (bounds.z * 2);
       const metadataGround = (mesh.metadata as { isGround?: unknown } | null | undefined)?.isGround === true;
       console.debug(
-        `[HexGridGroundMeshResolver] Candidate mesh='${mesh.name}' id='${mesh.id}' metadataGround=${metadataGround} footprint=${area.toFixed(2)}.`
+        `[RectGridGroundMeshResolver] Candidate mesh='${mesh.name}' id='${mesh.id}' metadataGround=${metadataGround} footprint=${area.toFixed(2)}.`
       );
     }
   }

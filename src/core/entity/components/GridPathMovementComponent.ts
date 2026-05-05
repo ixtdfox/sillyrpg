@@ -1,12 +1,12 @@
 import { Vector3 } from "@babylonjs/core";
 import type { Component } from "../Component";
-import { HexCell } from "../../hex/HexCell";
+import { GridCell } from "../../grid/GridCell";
 import type { MovementSegment } from "../../navigation/NavigationGraph";
 
 /**
- * Stores runtime path/motion state for hex-based movement.
+ * Stores runtime path/motion state for grid-based movement.
  */
-export class HexPathMovementComponent implements Component {
+export class GridPathMovementComponent implements Component {
   /** Configured movement speed in world units per second. */
   public speed: number;
 
@@ -17,7 +17,7 @@ export class HexPathMovementComponent implements Component {
   public direction: Vector3;
 
   /** Precomputed path cells from start to destination (inclusive). */
-  public pathCells: HexCell[];
+  public pathCells: GridCell[];
 
   /** Index of the next path cell to reach. */
   public nextStepIndex: number;
@@ -32,7 +32,7 @@ export class HexPathMovementComponent implements Component {
   public currentStairPointIndex: number;
 
   /** Destination cell for the active precomputed path. */
-  public activeTargetCell: HexCell | null;
+  public activeTargetCell: GridCell | null;
 
   /** Destination story for the active precomputed path. */
   public activeTargetStoryIndex: number | null;

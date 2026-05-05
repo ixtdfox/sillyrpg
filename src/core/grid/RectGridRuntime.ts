@@ -1,33 +1,34 @@
 import { Color4, Vector3, type AbstractMesh, type Scene } from "@babylonjs/core";
-import { HexGridDebugState } from "./debug/HexGridDebugState";
-import { DEFAULT_HEX_GRID_SETTINGS, type HexGridSettings } from "./HexGridSettings";
-import { HexCell } from "./HexCell";
-import { HexGrid } from "./HexGrid";
-import { HexGridGroundMeshResolver } from "./HexGridGroundMeshResolver";
-import { HexGridOverlay } from "./HexGridOverlay";
-import { HexGroundPickerController } from "./HexGroundPickerController";
-import type { PickedNavigationCell } from "./HexGroundPickerController";
-import type { PickedNavigationTarget } from "./HexGroundPickerController";
+import { GridDebugState } from "./debug/GridDebugState";
+import { DEFAULT_RECT_GRID_SETTINGS, type RectGridSettings } from "./RectGridSettings";
+import { GridCell } from "./GridCell";
+import { RectGrid } from "./RectGrid";
+import { RectGridGroundMeshResolver } from "./RectGridGroundMeshResolver";
+import { RectGridOverlay } from "./RectGridOverlay";
+import { RectGroundPickerController } from "./RectGroundPickerController";
+import type { PickedNavigationCell } from "./RectGroundPickerController";
+import type { PickedNavigationTarget } from "./RectGroundPickerController";
 import { BuildingNavigationRegistry } from "../navigation/BuildingNavigationRegistry";
-import type { StoryHexCell } from "./HexGridOverlay";
+import type { StoryGridCell } from "./RectGridOverlay";
 import { FloorNavigationSurfaceRegistry } from "../navigation/FloorNavigationSurfaceRegistry";
 import { NavigationObstacleRegistry, type NavigationCover } from "../navigation/NavigationObstacleRegistry";
 import { NavigationBlockerRegistry } from "../navigation/NavigationBlockerRegistry";
+import { WORLD_GRID_ORIGIN_X, WORLD_GRID_ORIGIN_Z } from "./WorldGridConstants";
 
-export interface HexDebugDetectedCell {
-  readonly cell: HexCell;
+export interface GridDebugDetectedCell {
+  readonly cell: GridCell;
   readonly color: Color4;
 }
 
 /**
- * Wires hex grid logic, renderer, and picking runtime for the active scene.
+ * Wires grid grid logic, renderer, and picking runtime for the active scene.
  */
-export class HexGridRuntime {
-  private grid: HexGrid;
-  private readonly debugState: HexGridDebugState;
-  private overlay: HexGridOverlay;
-  private pickerController: HexGroundPickerController;
-  private readonly settings: HexGridSettings;
+export class RectGridRuntime {
+  private grid: RectGrid;
+  private readonly debugState: GridDebugState;
+  private overlay: RectGridOverlay;
+  private pickerController: RectGroundPickerController;
+  private readonly settings: RectGridSettings;
   private readonly buildingNavigationRegistry: BuildingNavigationRegistry;
   private readonly floorNavigationSurfaceRegistry: FloorNavigationSurfaceRegistry;
   private readonly navigationObstacleRegistry: NavigationObstacleRegistry;
@@ -35,11 +36,11 @@ export class HexGridRuntime {
   private groundMesh: AbstractMesh;
 
   /**
-   * Creates complete in-game hex runtime module.
+   * Creates complete in-game grid runtime module.
    */
   public constructor(
     scene: Scene,
-    settings: HexGridSettings = DEFAULT_HEX_GRID_SETTINGS,
+    settings: RectGridSettings = DEFAULT_RECT_GRID_SETTINGS,
     preferredGroundMeshes: readonly AbstractMesh[] = []
   ) {
     this.settings = settings;
@@ -58,7 +59,7 @@ export class HexGridRuntime {
     this.rebuildNavigationMetadata(scene);
     this.pickerController.setWalkableCellPredicate((cell, storyIndex) => this.isWalkableCell(cell, storyIndex));
     this.refreshOverlayNavigationData();
-    this.debugState = new HexGridDebugState(settings.debugEnabledByDefault);
+    this.debugState = new GridDebugState(settings.debugEnabledByDefault);
     this.overlay.setDebugVisible(this.debugState.getIsDebugEnabled());
     this.buildingNavigationRegistry.setDebugVisible(this.debugState.getIsDebugEnabled());
   }
@@ -80,15 +81,15 @@ export class HexGridRuntime {
     return isEnabled;
   }
 
-  public setVisionCells(cells: readonly HexCell[]): void {
+  public setVisionCells(cells: readonly GridCell[]): void {
     this.overlay.setVisionCells(cells);
   }
 
-  public setPatrolTargetCells(cells: readonly HexCell[]): void {
+  public setPatrolTargetCells(cells: readonly GridCell[]): void {
     this.overlay.setPatrolTargetCells(cells);
   }
 
-  public setDetectedCells(cells: readonly HexDebugDetectedCell[]): void {
+  public setDetectedCells(cells: readonly GridDebugDetectedCell[]): void {
     this.overlay.setDetectedCells(cells);
   }
 
@@ -96,19 +97,19 @@ export class HexGridRuntime {
     this.overlay.clearDebugHighlights();
   }
 
-  public setMoveRangeCells(cells: readonly HexCell[]): void {
+  public setMoveRangeCells(cells: readonly GridCell[]): void {
     this.overlay.setMoveRangeCells(cells);
   }
 
-  public setMovePathCells(cells: readonly HexCell[]): void {
+  public setMovePathCells(cells: readonly GridCell[]): void {
     this.overlay.setMovePathCells(cells);
   }
 
-  public setMoveRangeNavigationCells(cells: readonly StoryHexCell[]): void {
+  public setMoveRangeNavigationCells(cells: readonly StoryGridCell[]): void {
     this.overlay.setMoveRangeNavigationCells(cells);
   }
 
-  public setMovePathNavigationCells(cells: readonly StoryHexCell[]): void {
+  public setMovePathNavigationCells(cells: readonly StoryGridCell[]): void {
     this.overlay.setMovePathNavigationCells(cells);
   }
 
@@ -147,16 +148,16 @@ export class HexGridRuntime {
   }
 
   /**
-   * Returns logical hex grid backing this runtime.
+   * Returns logical grid grid backing this runtime.
    */
-  public getGrid(): HexGrid {
+  public getGrid(): RectGrid {
     return this.grid;
   }
 
   /**
-   * Returns currently hovered ground hex under pointer, if any.
+   * Returns currently hovered ground grid under pointer, if any.
    */
-  public getHoveredCell(): HexCell | null {
+  public getHoveredCell(): GridCell | null {
     return this.pickerController.getHoveredCell();
   }
 
@@ -184,15 +185,15 @@ export class HexGridRuntime {
     return this.navigationBlockerRegistry;
   }
 
-  public isNavigationCellBlocked(cell: HexCell, storyIndex: number): boolean {
+  public isNavigationCellBlocked(cell: GridCell, storyIndex: number): boolean {
     return this.navigationBlockerRegistry.isCellBlocked(cell, storyIndex);
   }
 
-  public isNavigationEdgeBlocked(fromCell: HexCell, toCell: HexCell, storyIndex: number): boolean {
+  public isNavigationEdgeBlocked(fromCell: GridCell, toCell: GridCell, storyIndex: number): boolean {
     return this.navigationBlockerRegistry.isEdgeBlocked(fromCell, toCell, storyIndex);
   }
 
-  public isWalkableCell(cell: HexCell, storyIndex: number): boolean {
+  public isWalkableCell(cell: GridCell, storyIndex: number): boolean {
     if (!this.floorNavigationSurfaceRegistry.isWalkableCell(cell, storyIndex)) {
       return false;
     }
@@ -200,7 +201,7 @@ export class HexGridRuntime {
     return !this.navigationBlockerRegistry.isCellBlocked(cell, storyIndex);
   }
 
-  public getWalkableCells(storyIndex: number): readonly HexCell[] {
+  public getWalkableCells(storyIndex: number): readonly GridCell[] {
     return this.floorNavigationSurfaceRegistry
       .getWalkableCells(storyIndex)
       .filter((cell) => this.isWalkableCell(cell, storyIndex));
@@ -210,7 +211,7 @@ export class HexGridRuntime {
     return this.mergeStoryYMaps();
   }
 
-  public getMovementCost(cell: HexCell, storyIndex: number): number {
+  public getMovementCost(cell: GridCell, storyIndex: number): number {
     if (!this.isWalkableCell(cell, storyIndex)) {
       return Number.POSITIVE_INFINITY;
     }
@@ -218,11 +219,11 @@ export class HexGridRuntime {
     return this.navigationObstacleRegistry.getMovementCost(cell, storyIndex);
   }
 
-  public getCover(cell: HexCell, storyIndex: number): "none" | NavigationCover {
+  public getCover(cell: GridCell, storyIndex: number): "none" | NavigationCover {
     return this.navigationObstacleRegistry.getCover(cell, storyIndex);
   }
 
-  public isVisionBlocked(cell: HexCell, storyIndex: number): boolean {
+  public isVisionBlocked(cell: GridCell, storyIndex: number): boolean {
     return this.navigationObstacleRegistry.isVisionBlocked(cell, storyIndex);
   }
 
@@ -251,39 +252,39 @@ export class HexGridRuntime {
   /**
    * Builds a logical grid from the selected ground surface.
    *
-   * Origin strategy: anchor at world-space minimum X/Z corner of ground AABB.
-   * This avoids dependence on imported mesh pivot placement or center drift.
+   * Origin strategy: world X/Z origin is the shared editor/runtime contract.
+   * Ground AABB only decides how many bounded cells are created.
    */
-  private createGridFromGround(groundMesh: AbstractMesh, settings: HexGridSettings): HexGrid {
+  private createGridFromGround(groundMesh: AbstractMesh, settings: RectGridSettings): RectGrid {
     const boundingBox = groundMesh.getBoundingInfo().boundingBox;
     const origin = new Vector3(
-      boundingBox.minimumWorld.x,
+      WORLD_GRID_ORIGIN_X,
       boundingBox.centerWorld.y,
-      boundingBox.minimumWorld.z
+      WORLD_GRID_ORIGIN_Z
     );
 
-    const bounds = HexGrid.deriveBoundsFromWorldRect(
+    const bounds = RectGrid.deriveBoundsFromWorldRect(
       origin,
-      settings.hexSize,
+      settings.tileSize,
       boundingBox.minimumWorld.x,
       boundingBox.maximumWorld.x,
       boundingBox.minimumWorld.z,
       boundingBox.maximumWorld.z
     );
 
-    return new HexGrid(origin, settings.hexSize, bounds);
+    return new RectGrid(origin, settings.tileSize, bounds);
   }
 
   private createRuntime(
     scene: Scene,
-    settings: HexGridSettings,
+    settings: RectGridSettings,
     preferredGroundMeshes: readonly AbstractMesh[]
-  ): { grid: HexGrid; overlay: HexGridOverlay; pickerController: HexGroundPickerController; groundMesh: AbstractMesh } {
-    const groundSelection = new HexGridGroundMeshResolver().resolve(scene, preferredGroundMeshes);
+  ): { grid: RectGrid; overlay: RectGridOverlay; pickerController: RectGroundPickerController; groundMesh: AbstractMesh } {
+    const groundSelection = new RectGridGroundMeshResolver().resolve(scene, preferredGroundMeshes);
     groundSelection.groundMesh.isPickable = true;
     const grid = this.createGridFromGround(groundSelection.groundMesh, settings);
-    const overlay = new HexGridOverlay(scene, grid, settings.overlayVerticalOffset);
-    const pickerController = new HexGroundPickerController(scene, groundSelection.isGroundPick, grid, overlay);
+    const overlay = new RectGridOverlay(scene, grid, settings.overlayVerticalOffset);
+    const pickerController = new RectGroundPickerController(scene, groundSelection.isGroundPick, grid, overlay);
     return { grid, overlay, pickerController, groundMesh: groundSelection.groundMesh };
   }
 
@@ -313,7 +314,7 @@ export class HexGridRuntime {
     );
   }
 
-  private getWalkableCellEntries(): readonly StoryHexCell[] {
+  private getWalkableCellEntries(): readonly StoryGridCell[] {
     return this.floorNavigationSurfaceRegistry
       .getWalkableCellEntries()
       .filter((entry) => this.isWalkableCell(entry.cell, entry.storyIndex));

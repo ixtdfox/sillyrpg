@@ -3,8 +3,8 @@ import type { Nullable, Observer, PointerInfo } from "@babylonjs/core";
 import type { Entity } from "../Entity";
 import type { EntityManager } from "../EntityManager";
 import type { System } from "../System";
-import { HexPathMovementComponent } from "../components/HexPathMovementComponent";
-import { HexPositionComponent } from "../components/HexPositionComponent";
+import { GridPathMovementComponent } from "../components/GridPathMovementComponent";
+import { GridPositionComponent } from "../components/GridPositionComponent";
 import { LocalPlayerComponent } from "../components/LocalPlayerComponent";
 import { RelationsComponent } from "../components/RelationsComponent";
 import { CombatStatsComponent } from "../components/CombatStatsComponent";
@@ -13,19 +13,19 @@ import { WorldModeController } from "../../game/WorldModeController";
 import { TurnBasedCombatState } from "../../game/TurnBasedCombatState";
 import { CombatInputController } from "../../game/CombatInputController";
 import { CombatInputMode } from "../../game/CombatInputMode";
-import { HexSpatialIndex } from "./hex/HexSpatialIndex";
+import { GridSpatialIndex } from "./grid/GridSpatialIndex";
 import { CombatAttackTargetingService } from "./combat/CombatAttackTargetingService";
-import type { PickedNavigationTarget } from "../../hex/HexGroundPickerController";
+import type { PickedNavigationTarget } from "../../grid/RectGroundPickerController";
 
 /**
- * Handles local-player click-to-move intent on the ground hex grid.
+ * Handles local-player click-to-move intent on the ground grid grid.
  */
 export class LocalPlayerInputSystem implements System {
   private readonly entityManager: EntityManager;
   private readonly worldModeController: WorldModeController;
   private readonly combatState: TurnBasedCombatState;
   private readonly combatInputController: CombatInputController;
-  private readonly spatialIndex: HexSpatialIndex;
+  private readonly spatialIndex: GridSpatialIndex;
   private readonly attackTargetingService: CombatAttackTargetingService;
   private scene: BabylonScene | null;
   private runtimeContext: InGameSceneRuntimeContext | null;
@@ -37,7 +37,7 @@ export class LocalPlayerInputSystem implements System {
     worldModeController: WorldModeController,
     combatState: TurnBasedCombatState,
     combatInputController: CombatInputController,
-    spatialIndex: HexSpatialIndex,
+    spatialIndex: GridSpatialIndex,
     attackTargetingService: CombatAttackTargetingService
   ) {
     this.entityManager = entityManager;
@@ -69,16 +69,16 @@ export class LocalPlayerInputSystem implements System {
   }
 
   public update(_deltaSeconds: number): void {
-    if (!this.scene || !this.localPlayerEntity || !this.localPlayerEntity.hasComponent(HexPositionComponent)) {
+    if (!this.scene || !this.localPlayerEntity || !this.localPlayerEntity.hasComponent(GridPositionComponent)) {
       this.localPlayerEntity = this.resolveLocalPlayerEntity();
     }
 
-    const hexPosition = this.localPlayerEntity?.tryGetComponent(HexPositionComponent);
-    if (hexPosition && this.runtimeContext) {
-      this.runtimeContext.hexGridRuntime.setNavigationFallbackStoryIndex(hexPosition.currentStoryIndex);
-      this.runtimeContext.hexGridRuntime.updateStairHoverAffordance(
-        this.runtimeContext.hexGridRuntime.getHoveredNavigationTarget(hexPosition.currentStoryIndex),
-        hexPosition.currentStoryIndex
+    const gridPosition = this.localPlayerEntity?.tryGetComponent(GridPositionComponent);
+    if (gridPosition && this.runtimeContext) {
+      this.runtimeContext.gridRuntime.setNavigationFallbackStoryIndex(gridPosition.currentStoryIndex);
+      this.runtimeContext.gridRuntime.updateStairHoverAffordance(
+        this.runtimeContext.gridRuntime.getHoveredNavigationTarget(gridPosition.currentStoryIndex),
+        gridPosition.currentStoryIndex
       );
     }
 
@@ -90,7 +90,7 @@ export class LocalPlayerInputSystem implements System {
       return;
     }
 
-    if (!this.runtimeContext || !this.localPlayerEntity || !this.localPlayerEntity.hasComponent(HexPositionComponent)) {
+    if (!this.runtimeContext || !this.localPlayerEntity || !this.localPlayerEntity.hasComponent(GridPositionComponent)) {
       return;
     }
     const inputMode = this.resolveCurrentInputMode();
@@ -98,8 +98,8 @@ export class LocalPlayerInputSystem implements System {
       return;
     }
 
-    const hexPosition = this.localPlayerEntity.getComponent(HexPositionComponent);
-    const pickedTarget = this.runtimeContext.hexGridRuntime.getHoveredNavigationTarget(hexPosition.currentStoryIndex);
+    const gridPosition = this.localPlayerEntity.getComponent(GridPositionComponent);
+    const pickedTarget = this.runtimeContext.gridRuntime.getHoveredNavigationTarget(gridPosition.currentStoryIndex);
     if (!pickedTarget) {
       return;
     }
@@ -116,81 +116,81 @@ export class LocalPlayerInputSystem implements System {
     }
 
     if (pickedTarget.kind === "stair") {
-      this.tryHandleStairClick(hexPosition, pickedTarget, this.localPlayerEntity.tryGetComponent(HexPathMovementComponent) ?? null);
+      this.tryHandleStairClick(gridPosition, pickedTarget, this.localPlayerEntity.tryGetComponent(GridPathMovementComponent) ?? null);
       return;
     }
 
     const clickedCell = pickedTarget.cell;
     const clickedStoryIndex = pickedTarget.storyIndex;
-    const isWalkable = this.runtimeContext.hexGridRuntime.isWalkableCell(clickedCell, clickedStoryIndex);
-    const blockerRegistry = this.runtimeContext.hexGridRuntime.getNavigationBlockerRegistry();
-    const isNeighborClick = hexPosition.currentStoryIndex === clickedStoryIndex &&
-      hexPosition.currentCell.distance(clickedCell) === 1;
+    const isWalkable = this.runtimeContext.gridRuntime.isWalkableCell(clickedCell, clickedStoryIndex);
+    const blockerRegistry = this.runtimeContext.gridRuntime.getNavigationBlockerRegistry();
+    const isNeighborClick = gridPosition.currentStoryIndex === clickedStoryIndex &&
+      gridPosition.currentCell.distance(clickedCell) === 1;
     const moveDebugInfo = blockerRegistry.getDebugInfoForMove(
-      hexPosition.currentCell,
+      gridPosition.currentCell,
       clickedCell,
       clickedStoryIndex
     );
     console.debug(
-      `[LocalPlayerInputSystem] Cell click mesh='${pickedTarget.pickedMeshName ?? "unknown"}' currentStory=${hexPosition.currentStoryIndex} fromCell=${hexPosition.currentCell.q}:${hexPosition.currentCell.r} targetStory=${clickedStoryIndex} cell=${clickedCell.q}:${clickedCell.r} walkable=${isWalkable} neighbor=${isNeighborClick} edgeBlocked=${isNeighborClick ? moveDebugInfo.edgeBlocked : "n/a"} edgeOpenedByDoor=${isNeighborClick ? moveDebugInfo.edgeOpenedByDoor : "n/a"} blockersForClickedCell=${moveDebugInfo.blockersForTargetCell.join(",") || "none"} blockedEdgeCount=${moveDebugInfo.blockedEdgeCount}`
+      `[LocalPlayerInputSystem] Cell click mesh='${pickedTarget.pickedMeshName ?? "unknown"}' currentStory=${gridPosition.currentStoryIndex} fromCell=${gridPosition.currentCell.x}:${gridPosition.currentCell.z} targetStory=${clickedStoryIndex} cell=${clickedCell.x}:${clickedCell.z} walkable=${isWalkable} neighbor=${isNeighborClick} edgeBlocked=${isNeighborClick ? moveDebugInfo.edgeBlocked : "n/a"} edgeOpenedByDoor=${isNeighborClick ? moveDebugInfo.edgeOpenedByDoor : "n/a"} blockersForClickedCell=${moveDebugInfo.blockersForTargetCell.join(",") || "none"} blockedEdgeCount=${moveDebugInfo.blockedEdgeCount}`
     );
     if (!isWalkable) {
       console.debug(
-        `[LocalPlayerInputSystem] Ignored non-walkable target mesh='${pickedTarget.pickedMeshName ?? "unknown"}' story=${clickedStoryIndex} cell=${clickedCell.q}:${clickedCell.r} blockedBy=${moveDebugInfo.blockersForTargetCell.join(",") || "none"}`
+        `[LocalPlayerInputSystem] Ignored non-walkable target mesh='${pickedTarget.pickedMeshName ?? "unknown"}' story=${clickedStoryIndex} cell=${clickedCell.x}:${clickedCell.z} blockedBy=${moveDebugInfo.blockersForTargetCell.join(",") || "none"}`
       );
       return;
     }
 
-    if (hexPosition.currentCell.equals(clickedCell) && hexPosition.currentStoryIndex === clickedStoryIndex) {
+    if (gridPosition.currentCell.equals(clickedCell) && gridPosition.currentStoryIndex === clickedStoryIndex) {
       return;
     }
 
     if (
-      hexPosition.targetCell &&
-      hexPosition.targetCell.equals(clickedCell) &&
-      (hexPosition.targetStoryIndex ?? hexPosition.currentStoryIndex) === clickedStoryIndex
+      gridPosition.targetCell &&
+      gridPosition.targetCell.equals(clickedCell) &&
+      (gridPosition.targetStoryIndex ?? gridPosition.currentStoryIndex) === clickedStoryIndex
     ) {
       return;
     }
 
-    if (!this.runtimeContext.hexGridRuntime.getGrid().contains(clickedCell)) {
+    if (!this.runtimeContext.gridRuntime.getGrid().contains(clickedCell)) {
       return;
     }
 
-    const pathMovement = this.localPlayerEntity.hasComponent(HexPathMovementComponent)
-      ? this.localPlayerEntity.getComponent(HexPathMovementComponent)
+    const pathMovement = this.localPlayerEntity.hasComponent(GridPathMovementComponent)
+      ? this.localPlayerEntity.getComponent(GridPathMovementComponent)
       : null;
 
-    hexPosition.targetCell = clickedCell;
-    hexPosition.targetStoryIndex = clickedStoryIndex;
+    gridPosition.targetCell = clickedCell;
+    gridPosition.targetStoryIndex = clickedStoryIndex;
     pathMovement?.resetPathState();
   };
 
   private tryHandleStairClick(
-    hexPosition: HexPositionComponent,
+    gridPosition: GridPositionComponent,
     pickedTarget: Extract<PickedNavigationTarget, { kind: "stair" }>,
-    pathMovement: HexPathMovementComponent | null
+    pathMovement: GridPathMovementComponent | null
   ): void {
     if (!this.runtimeContext) {
       return;
     }
 
-    const registry = this.runtimeContext.hexGridRuntime.getBuildingNavigationRegistry();
+    const registry = this.runtimeContext.gridRuntime.getBuildingNavigationRegistry();
     const stairTarget = registry.resolveStairInteractionTarget({
       stairId: pickedTarget.stairId,
       pickedPoint: pickedTarget.pickedPoint,
-      currentStoryIndex: hexPosition.currentStoryIndex
+      currentStoryIndex: gridPosition.currentStoryIndex
     });
 
     if (!stairTarget) {
       console.warn(
-        `[LocalPlayerInputSystem] Stair click unresolved point=(${pickedTarget.pickedPoint.x.toFixed(2)},${pickedTarget.pickedPoint.y.toFixed(2)},${pickedTarget.pickedPoint.z.toFixed(2)}) currentStory=${hexPosition.currentStoryIndex}`
+        `[LocalPlayerInputSystem] Stair click unresolved point=(${pickedTarget.pickedPoint.x.toFixed(2)},${pickedTarget.pickedPoint.y.toFixed(2)},${pickedTarget.pickedPoint.z.toFixed(2)}) currentStory=${gridPosition.currentStoryIndex}`
       );
       return;
     }
 
     console.debug(
-      `[LocalPlayerInputSystem] Stair click mesh='${pickedTarget.pickedMeshName ?? "unknown"}' stairId='${stairTarget.connector.stairId}' currentStory=${hexPosition.currentStoryIndex} targetStory=${stairTarget.targetStoryIndex} targetCell=${stairTarget.targetCell.q}:${stairTarget.targetCell.r} direction=${stairTarget.direction}`
+      `[LocalPlayerInputSystem] Stair click mesh='${pickedTarget.pickedMeshName ?? "unknown"}' stairId='${stairTarget.connector.stairId}' currentStory=${gridPosition.currentStoryIndex} targetStory=${stairTarget.targetStoryIndex} targetCell=${stairTarget.targetCell.x}:${stairTarget.targetCell.z} direction=${stairTarget.direction}`
     );
 
     if (stairTarget.resolvedByNearest) {
@@ -199,8 +199,8 @@ export class LocalPlayerInputSystem implements System {
       );
     }
 
-    hexPosition.targetCell = stairTarget.targetCell;
-    hexPosition.targetStoryIndex = stairTarget.targetStoryIndex;
+    gridPosition.targetCell = stairTarget.targetCell;
+    gridPosition.targetStoryIndex = stairTarget.targetStoryIndex;
     pathMovement?.resetPathState();
   }
 
@@ -232,7 +232,7 @@ export class LocalPlayerInputSystem implements System {
     return Boolean(combatStats && combatStats.currentMp > 0);
   }
 
-  private tryHandleAttackClick(clickedCell: HexPositionComponent["currentCell"]): void {
+  private tryHandleAttackClick(clickedCell: GridPositionComponent["currentCell"]): void {
     if (!this.localPlayerEntity || !this.localPlayerEntity.hasComponent(RelationsComponent)) {
       return;
     }
@@ -242,7 +242,7 @@ export class LocalPlayerInputSystem implements System {
 
     const localPlayerId = this.localPlayerEntity.getId();
     const localPlayerRelations = this.localPlayerEntity.getComponent(RelationsComponent);
-    const attackerStoryIndex = this.localPlayerEntity.getComponent(HexPositionComponent).currentStoryIndex;
+    const attackerStoryIndex = this.localPlayerEntity.getComponent(GridPositionComponent).currentStoryIndex;
     const entitiesAtCell = this.spatialIndex.getEntitiesAt(clickedCell, attackerStoryIndex);
 
     for (const targetEntityId of entitiesAtCell) {

@@ -3,7 +3,7 @@ import type { EntityManager } from "../EntityManager";
 import type { System } from "../System";
 import { PatrolComponent } from "../components/PatrolComponent";
 import { VisionDebugComponent } from "../components/VisionDebugComponent";
-import { HexCell } from "../../hex/HexCell";
+import { GridCell } from "../../grid/GridCell";
 import {
   getInGameSceneRuntimeContext,
   type InGameSceneRuntimeContext,
@@ -11,7 +11,7 @@ import {
 import { WorldModeController } from "../../game/WorldModeController";
 
 /**
- * Feeds gameplay debug state into the hex overlay runtime.
+ * Feeds gameplay debug state into the grid overlay runtime.
  */
 export class PerceptionDebugOverlaySystem implements System {
   private readonly entityManager: EntityManager;
@@ -33,20 +33,20 @@ export class PerceptionDebugOverlaySystem implements System {
       return;
     }
 
-    const hexGridRuntime = this.runtimeContext.hexGridRuntime;
+    const gridRuntime = this.runtimeContext.gridRuntime;
     if (this.worldModeController.isTurnBased()) {
-      hexGridRuntime.clearDebugHighlights();
+      gridRuntime.clearDebugHighlights();
       return;
     }
 
-    if (!hexGridRuntime.getIsDebugEnabled()) {
-      hexGridRuntime.clearDebugHighlights();
+    if (!gridRuntime.getIsDebugEnabled()) {
+      gridRuntime.clearDebugHighlights();
       return;
     }
 
-    const visionCells = new Map<string, HexCell>();
-    const patrolTargetCells = new Map<string, HexCell>();
-    const detectedCells = new Map<string, { cell: HexCell; color: Color4; priority: number }>();
+    const visionCells = new Map<string, GridCell>();
+    const patrolTargetCells = new Map<string, GridCell>();
+    const detectedCells = new Map<string, { cell: GridCell; color: Color4; priority: number }>();
 
     const visionEntities = this.entityManager.query(VisionDebugComponent);
     for (const entity of visionEntities) {
@@ -81,14 +81,14 @@ export class PerceptionDebugOverlaySystem implements System {
       patrolTargetCells.set(cellKey(patrolTarget), patrolTarget);
     }
 
-    hexGridRuntime.setVisionCells(Array.from(visionCells.values()));
-    hexGridRuntime.setPatrolTargetCells(Array.from(patrolTargetCells.values()));
-    hexGridRuntime.setDetectedCells(Array.from(detectedCells.values()).map(({ cell, color }) => ({ cell, color })));
+    gridRuntime.setVisionCells(Array.from(visionCells.values()));
+    gridRuntime.setPatrolTargetCells(Array.from(patrolTargetCells.values()));
+    gridRuntime.setDetectedCells(Array.from(detectedCells.values()).map(({ cell, color }) => ({ cell, color })));
   }
 }
 
-function cellKey(cell: HexCell): string {
-  return `${cell.q}:${cell.r}`;
+function cellKey(cell: GridCell): string {
+  return `${cell.x}:${cell.z}`;
 }
 
 function relationToColor(relation: "friendly" | "neutral" | "hostile"): Color4 {

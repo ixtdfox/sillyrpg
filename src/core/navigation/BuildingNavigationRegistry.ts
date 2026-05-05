@@ -7,7 +7,7 @@ import {
   type Scene,
   Vector3
 } from "@babylonjs/core";
-import { HexGrid } from "../hex/HexGrid";
+import { RectGrid } from "../grid/RectGrid";
 import {
   parseStairCheckpointMetadata,
   parseStairConnectorMetadata,
@@ -15,7 +15,7 @@ import {
   type StairConnectorMetadata
 } from "./BuildingNavigationMetadata";
 import type { StairNavigationConnector } from "./NavigationGraph";
-import type { HexCell } from "../hex/HexCell";
+import type { GridCell } from "../grid/GridCell";
 
 interface StairCheckpointRecord {
   readonly mesh: AbstractMesh;
@@ -52,7 +52,7 @@ export class BuildingNavigationRegistry {
     this.showStairNavigationDebug = false;
   }
 
-  public rebuild(scene: Scene, grid: HexGrid): void {
+  public rebuild(scene: Scene, grid: RectGrid): void {
     this.disposeDebugLines();
     this.disposePickProxies();
     this.disposeHoverAffordance();
@@ -164,7 +164,7 @@ export class BuildingNavigationRegistry {
     readonly pickedPoint?: Vector3;
     readonly currentStoryIndex: number;
   }): {
-    readonly targetCell: HexCell;
+    readonly targetCell: GridCell;
     readonly targetStoryIndex: number;
     readonly connector: StairNavigationConnector;
     readonly direction: "forward" | "reverse";
@@ -277,7 +277,7 @@ export class BuildingNavigationRegistry {
     stairId: string,
     checkpoints: readonly StairCheckpointRecord[],
     rootMetadata: StairConnectorMetadata | undefined,
-    grid: HexGrid
+    grid: RectGrid
   ): StairNavigationConnector | null {
     if (!stairId) {
       console.warn("[BuildingNavigationRegistry] skipped stair checkpoint group with missing stair_id.");
@@ -314,7 +314,7 @@ export class BuildingNavigationRegistry {
     const fromCell = grid.worldToCell(first.worldPosition);
     const toCell = grid.worldToCell(last.worldPosition);
     if (!grid.contains(fromCell) || !grid.contains(toCell)) {
-      console.warn(`[BuildingNavigationRegistry] stair '${stairId}' endpoint is outside hex grid bounds; pathfinding may not reach it.`);
+      console.warn(`[BuildingNavigationRegistry] stair '${stairId}' endpoint is outside grid grid bounds; pathfinding may not reach it.`);
     }
 
     const kind = rootMetadata?.stair_kind ?? first.metadata.stair_kind ?? "internal";
@@ -552,7 +552,7 @@ export class BuildingNavigationRegistry {
     connector: StairNavigationConnector,
     pickedPoint: Vector3 | undefined
   ): {
-    readonly targetCell: HexCell;
+    readonly targetCell: GridCell;
     readonly targetStoryIndex: number;
     readonly direction: "forward" | "reverse";
   } {

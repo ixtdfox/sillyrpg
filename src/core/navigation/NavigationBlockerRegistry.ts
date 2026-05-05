@@ -1,12 +1,13 @@
 import { Vector3, type AbstractMesh, type Scene } from "@babylonjs/core";
-import { HexCell } from "../hex/HexCell";
-import type { HexGrid } from "../hex/HexGrid";
+import { GridCell } from "../grid/GridCell";
+import type { RectGrid } from "../grid/RectGrid";
 import {
   parseGameNavigationMetadata,
   type GameNavFootprint,
   type GameNavKind
 } from "./BuildingNavigationMetadata";
 import { makeStoryCellKey } from "./FloorNavigationSurfaceRegistry";
+import { parseGridNavigationContracts } from "./GridNavigationContract";
 
 export interface NavigationBlockerRecord {
   readonly mesh: AbstractMesh;
@@ -50,11 +51,11 @@ export class NavigationBlockerRegistry {
   private readonly blockersByStory: Map<number, NavigationBlockerRecord[]>;
   private readonly doorOpenings: NavigationDoorOpeningRecord[];
   private readonly doorOpeningsByStory: Map<number, NavigationDoorOpeningRecord[]>;
-  private readonly blockedCellsByStory: Map<number, Map<string, HexCell>>;
+  private readonly blockedCellsByStory: Map<number, Map<string, GridCell>>;
   private readonly blockersByCellKey: Map<string, NavigationBlockerRecord[]>;
   private readonly blockedEdgeKeys: Set<string>;
   private readonly doorOpenedEdgeKeys: Set<string>;
-  private grid: HexGrid | null;
+  private grid: RectGrid | null;
   private storyYByStory: ReadonlyMap<number, number>;
 
   public constructor() {
@@ -70,10 +71,23 @@ export class NavigationBlockerRegistry {
     this.storyYByStory = new Map();
   }
 
-  public rebuild(scene: Scene, grid: HexGrid, storyYByStory: ReadonlyMap<number, number> = new Map()): void {
+  public rebuild(scene: Scene, grid: RectGrid, storyYByStory: ReadonlyMap<number, number> = new Map()): void {
     this.clear();
     this.grid = grid;
     this.storyYByStory = new Map(storyYByStory);
+    const gridContracts = parseGridNavigationContracts(scene);
+    for (const contract of gridContracts) {
+      for (const story of contract.stories) {
+        for (const edge of story.blockedEdges) {
+          this.blockedEdgeKeys.add(makeEdgeKey(story.storyIndex, edge.a, edge.b));
+        }
+        for (const edge of story.doorEdges) {
+          if (edge.isOpen) {
+            this.doorOpenedEdgeKeys.add(makeEdgeKey(story.storyIndex, edge.a, edge.b));
+          }
+        }
+      }
+    }
 
     for (const mesh of scene.meshes) {
       if (mesh.isDisposed() || mesh.getTotalVertices() <= 0) {
@@ -120,24 +134,26 @@ export class NavigationBlockerRegistry {
     }
 
     this.projectBlockedCells();
-    this.projectBlockedEdges();
+    if (gridContracts.length === 0) {
+      this.projectBlockedEdges();
+    }
     this.logStats();
   }
 
-  public isCellBlocked(cell: HexCell, storyIndex: number): boolean {
+  public isCellBlocked(cell: GridCell, storyIndex: number): boolean {
     return this.blockedCellsByStory.get(storyIndex)?.has(makeStoryCellKey(storyIndex, cell)) ?? false;
   }
 
-  public isEdgeBlocked(fromCell: HexCell, toCell: HexCell, storyIndex: number): boolean {
+  public isEdgeBlocked(fromCell: GridCell, toCell: GridCell, storyIndex: number): boolean {
     return this.blockedEdgeKeys.has(makeEdgeKey(storyIndex, fromCell, toCell));
   }
 
-  public getBlockedCells(storyIndex: number): readonly HexCell[] {
+  public getBlockedCells(storyIndex: number): readonly GridCell[] {
     return [...(this.blockedCellsByStory.get(storyIndex)?.values() ?? [])];
   }
 
-  public getBlockedCellEntries(): readonly { readonly cell: HexCell; readonly storyIndex: number }[] {
-    const entries: { cell: HexCell; storyIndex: number }[] = [];
+  public getBlockedCellEntries(): readonly { readonly cell: GridCell; readonly storyIndex: number }[] {
+    const entries: { cell: GridCell; storyIndex: number }[] = [];
     for (const [storyIndex, cells] of this.blockedCellsByStory) {
       for (const cell of cells.values()) {
         entries.push({ cell, storyIndex });
@@ -162,11 +178,11 @@ export class NavigationBlockerRegistry {
     return this.blockedEdgeKeys.size;
   }
 
-  public isEdgeOpenedByDoor(fromCell: HexCell, toCell: HexCell, storyIndex: number): boolean {
+  public isEdgeOpenedByDoor(fromCell: GridCell, toCell: GridCell, storyIndex: number): boolean {
     return this.doorOpenedEdgeKeys.has(makeEdgeKey(storyIndex, fromCell, toCell));
   }
 
-  public getDebugInfoForMove(fromCell: HexCell, toCell: HexCell, storyIndex: number): {
+  public getDebugInfoForMove(fromCell: GridCell, toCell: GridCell, storyIndex: number): {
     readonly cellBlocked: boolean;
     readonly edgeBlocked: boolean;
     readonly edgeOpenedByDoor: boolean;
@@ -182,7 +198,7 @@ export class NavigationBlockerRegistry {
     };
   }
 
-  public getBlockersForCell(cell: HexCell, storyIndex: number): readonly NavigationBlockerRecord[] {
+  public getBlockersForCell(cell: GridCell, storyIndex: number): readonly NavigationBlockerRecord[] {
     return this.blockersByCellKey.get(makeStoryCellKey(storyIndex, cell)) ?? [];
   }
 
@@ -252,7 +268,7 @@ export class NavigationBlockerRegistry {
       return;
     }
 
-    const epsilon = this.grid.getHexSize() * 0.05;
+    const epsilon = this.grid.getTileSize() * 0.05;
 
     for (const blocker of this.blockers) {
       if (!this.shouldProjectAsBlockedCell(blocker)) {
@@ -268,8 +284,8 @@ export class NavigationBlockerRegistry {
         }
 
         const key = makeStoryCellKey(blocker.storyIndex, cell);
-        const cells = this.blockedCellsByStory.get(blocker.storyIndex) ?? new Map<string, HexCell>();
-        cells.set(key, new HexCell(cell.q, cell.r));
+        const cells = this.blockedCellsByStory.get(blocker.storyIndex) ?? new Map<string, GridCell>();
+        cells.set(key, new GridCell(cell.x, cell.z));
         this.blockedCellsByStory.set(blocker.storyIndex, cells);
 
         const cellBlockers = this.blockersByCellKey.get(key) ?? [];
@@ -286,9 +302,9 @@ export class NavigationBlockerRegistry {
 
     // Render-mesh AABBs are a compatibility fallback for current GLBs. The robust exporter contract should emit
     // dedicated nav wall blockers and nav door openings so merged visual wall meshes do not over-block doorways.
-    const hexSize = this.grid.getHexSize();
-    const wallEpsilon = Math.max(0.08, hexSize * 0.08);
-    const doorEpsilon = Math.max(0.20, hexSize * 0.35);
+    const tileSize = this.grid.getTileSize();
+    const wallEpsilon = Math.max(0.08, tileSize * 0.08);
+    const doorEpsilon = Math.max(0.20, tileSize * 0.35);
     let carvedEdgesLogged = 0;
     const maxCarvedEdgeLogs = 25;
 
@@ -325,7 +341,7 @@ export class NavigationBlockerRegistry {
             this.doorOpenedEdgeKeys.add(edgeKey);
             if (carvedEdgesLogged < maxCarvedEdgeLogs) {
               console.debug(
-                `[NavigationBlockerRegistry] carved door edge story=${storyIndex} from=${fromCell.q}:${fromCell.r} to=${toCell.q}:${toCell.r} door='${openingDoor.meshName}'`
+                `[NavigationBlockerRegistry] carved door edge story=${storyIndex} from=${fromCell.x}:${fromCell.z} to=${toCell.x}:${toCell.z} door='${openingDoor.meshName}'`
               );
               carvedEdgesLogged += 1;
             }
@@ -359,11 +375,11 @@ export class NavigationBlockerRegistry {
     const blockedCellCount = [...this.blockedCellsByStory.values()].reduce((total, cells) => total + cells.size, 0);
     const wallBlockers = this.blockers.filter((blocker) => blocker.kind === "wall").length;
     const cellBlockers = this.blockers.filter((blocker) => this.shouldProjectAsBlockedCell(blocker)).length;
-    const hexSize = this.grid?.getHexSize() ?? 0;
-    const wallEpsilon = this.grid ? Math.max(0.08, hexSize * 0.08) : 0;
-    const doorEpsilon = this.grid ? Math.max(0.20, hexSize * 0.35) : 0;
+    const tileSize = this.grid?.getTileSize() ?? 0;
+    const wallEpsilon = this.grid ? Math.max(0.08, tileSize * 0.08) : 0;
+    const doorEpsilon = this.grid ? Math.max(0.20, tileSize * 0.35) : 0;
     console.info(
-      `[NavigationBlockerRegistry] blockers=${this.blockers.length} walls=${wallBlockers} doors=${this.doorOpenings.length} cellBlockers=${cellBlockers} blockedCells=${blockedCellCount} blockedEdges=${this.blockedEdgeKeys.size} hexSize=${hexSize.toFixed(3)} wallEpsilon=${wallEpsilon.toFixed(3)} doorEpsilon=${doorEpsilon.toFixed(3)} stories=${stories.join(",") || "none"}`
+      `[NavigationBlockerRegistry] blockers=${this.blockers.length} walls=${wallBlockers} doors=${this.doorOpenings.length} cellBlockers=${cellBlockers} blockedCells=${blockedCellCount} blockedEdges=${this.blockedEdgeKeys.size} tileSize=${tileSize.toFixed(3)} wallEpsilon=${wallEpsilon.toFixed(3)} doorEpsilon=${doorEpsilon.toFixed(3)} stories=${stories.join(",") || "none"}`
     );
   }
 }
@@ -448,9 +464,9 @@ function toDoorBounds2D(door: NavigationDoorOpeningRecord): Bounds2D {
   };
 }
 
-function makeEdgeKey(storyIndex: number, first: HexCell, second: HexCell): string {
-  const firstKey = `${first.q}:${first.r}`;
-  const secondKey = `${second.q}:${second.r}`;
+function makeEdgeKey(storyIndex: number, first: GridCell, second: GridCell): string {
+  const firstKey = `${first.x}:${first.z}`;
+  const secondKey = `${second.x}:${second.z}`;
   return firstKey < secondKey
     ? `${storyIndex}:${firstKey}->${secondKey}`
     : `${storyIndex}:${secondKey}->${firstKey}`;

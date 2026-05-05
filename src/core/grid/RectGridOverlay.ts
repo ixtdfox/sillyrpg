@@ -8,61 +8,59 @@ import {
   Scene,
   Vector3,
 } from "@babylonjs/core";
-import { HexCell } from "./HexCell";
-import { HexGrid } from "./HexGrid";
+import { GridCell } from "./GridCell";
+import { RectGrid } from "./RectGrid";
 
-interface HexCellHighlightSpec {
-  readonly cell: HexCell;
+interface GridCellHighlightSpec {
+  readonly cell: GridCell;
   readonly storyIndex?: number;
   readonly color: Color4;
 }
 
-export interface StoryHexCell {
-  readonly cell: HexCell;
+export interface StoryGridCell {
+  readonly cell: GridCell;
   readonly storyIndex: number;
 }
 
-interface HexHighlightPool {
+interface GridHighlightPool {
   readonly name: string;
   readonly meshes: Mesh[];
 }
 
 /**
- * Handles rendering for debug hex grid and hovered-cell highlight visuals.
+ * Handles rendering for debug grid grid and hovered-cell highlight visuals.
  */
-export class HexGridOverlay {
-  private static readonly HEX_FILL_ROTATION_Y = -Math.PI / 6;
-
+export class RectGridOverlay {
   private readonly scene: Scene;
-  private readonly grid: HexGrid;
+  private readonly grid: RectGrid;
   private readonly verticalOffset: number;
   private readonly gridMesh: LinesMesh;
   private currentStoryGridMesh: LinesMesh | null;
   private readonly hoverMesh: LinesMesh;
-  private readonly visionPool: HexHighlightPool;
-  private readonly patrolPool: HexHighlightPool;
-  private readonly detectedPool: HexHighlightPool;
-  private readonly blockedNavigationPool: HexHighlightPool;
-  private readonly moveRangePool: HexHighlightPool;
-  private readonly movePathPool: HexHighlightPool;
+  private readonly visionPool: GridHighlightPool;
+  private readonly patrolPool: GridHighlightPool;
+  private readonly detectedPool: GridHighlightPool;
+  private readonly blockedNavigationPool: GridHighlightPool;
+  private readonly moveRangePool: GridHighlightPool;
+  private readonly movePathPool: GridHighlightPool;
 
   private isDebugVisible: boolean;
-  private visionCells: HexCell[];
-  private patrolTargetCells: HexCell[];
-  private detectedCells: HexCellHighlightSpec[];
-  private moveRangeCells: HexCell[];
-  private movePathCells: HexCell[];
-  private moveRangeNavigationCells: StoryHexCell[];
-  private movePathNavigationCells: StoryHexCell[];
+  private visionCells: GridCell[];
+  private patrolTargetCells: GridCell[];
+  private detectedCells: GridCellHighlightSpec[];
+  private moveRangeCells: GridCell[];
+  private movePathCells: GridCell[];
+  private moveRangeNavigationCells: StoryGridCell[];
+  private movePathNavigationCells: StoryGridCell[];
   private storyYByStory: ReadonlyMap<number, number>;
   private currentStoryIndex: number;
-  private walkableNavigationCells: StoryHexCell[];
-  private blockedNavigationCells: StoryHexCell[];
+  private walkableNavigationCells: StoryGridCell[];
+  private blockedNavigationCells: StoryGridCell[];
 
   /**
    * Creates visual overlay meshes for grid debug and hover cell.
    */
-  public constructor(scene: Scene, grid: HexGrid, verticalOffset: number) {
+  public constructor(scene: Scene, grid: RectGrid, verticalOffset: number) {
     this.scene = scene;
     this.grid = grid;
     this.verticalOffset = verticalOffset;
@@ -77,12 +75,12 @@ export class HexGridOverlay {
     this.hoverMesh.isPickable = false;
     this.hoverMesh.isVisible = false;
 
-    this.visionPool = this.createHighlightPool("hex-vision-highlight");
-    this.patrolPool = this.createHighlightPool("hex-patrol-highlight");
-    this.detectedPool = this.createHighlightPool("hex-detected-highlight");
-    this.blockedNavigationPool = this.createHighlightPool("hex-navigation-blocked");
-    this.moveRangePool = this.createHighlightPool("hex-combat-move-range");
-    this.movePathPool = this.createHighlightPool("hex-combat-move-path");
+    this.visionPool = this.createHighlightPool("grid-vision-highlight");
+    this.patrolPool = this.createHighlightPool("grid-patrol-highlight");
+    this.detectedPool = this.createHighlightPool("grid-detected-highlight");
+    this.blockedNavigationPool = this.createHighlightPool("grid-navigation-blocked");
+    this.moveRangePool = this.createHighlightPool("grid-combat-move-range");
+    this.movePathPool = this.createHighlightPool("grid-combat-move-path");
 
     this.isDebugVisible = false;
     this.visionCells = [];
@@ -104,17 +102,17 @@ export class HexGridOverlay {
     this.refreshHighlights();
   }
 
-  public setVisionCells(cells: readonly HexCell[]): void {
+  public setVisionCells(cells: readonly GridCell[]): void {
     this.visionCells = [...cells];
     this.refreshHighlights();
   }
 
-  public setPatrolTargetCells(cells: readonly HexCell[]): void {
+  public setPatrolTargetCells(cells: readonly GridCell[]): void {
     this.patrolTargetCells = [...cells];
     this.refreshHighlights();
   }
 
-  public setDetectedCells(cells: readonly HexCellHighlightSpec[]): void {
+  public setDetectedCells(cells: readonly GridCellHighlightSpec[]): void {
     this.detectedCells = [...cells];
     this.refreshHighlights();
   }
@@ -126,25 +124,25 @@ export class HexGridOverlay {
     this.refreshHighlights();
   }
 
-  public setMoveRangeCells(cells: readonly HexCell[]): void {
+  public setMoveRangeCells(cells: readonly GridCell[]): void {
     this.moveRangeCells = [...cells];
     this.moveRangeNavigationCells = [];
     this.refreshHighlights();
   }
 
-  public setMovePathCells(cells: readonly HexCell[]): void {
+  public setMovePathCells(cells: readonly GridCell[]): void {
     this.movePathCells = [...cells];
     this.movePathNavigationCells = [];
     this.refreshHighlights();
   }
 
-  public setMoveRangeNavigationCells(cells: readonly StoryHexCell[]): void {
+  public setMoveRangeNavigationCells(cells: readonly StoryGridCell[]): void {
     this.moveRangeCells = [];
     this.moveRangeNavigationCells = [...cells];
     this.refreshHighlights();
   }
 
-  public setMovePathNavigationCells(cells: readonly StoryHexCell[]): void {
+  public setMovePathNavigationCells(cells: readonly StoryGridCell[]): void {
     this.movePathCells = [];
     this.movePathNavigationCells = [...cells];
     this.refreshHighlights();
@@ -158,11 +156,11 @@ export class HexGridOverlay {
     this.refreshHighlights();
   }
 
-  public setHoveredCell(cell: HexCell): void {
+  public setHoveredCell(cell: GridCell): void {
     this.setHoveredNavigationCell(cell, 0);
   }
 
-  public setHoveredNavigationCell(cell: HexCell, storyIndex: number): void {
+  public setHoveredNavigationCell(cell: GridCell, storyIndex: number): void {
     if (!this.isCellOverlayAllowed(cell, storyIndex)) {
       this.hideHoveredCell();
       return;
@@ -190,13 +188,13 @@ export class HexGridOverlay {
     this.refreshHighlights();
   }
 
-  public setWalkableNavigationCells(cells: readonly StoryHexCell[]): void {
+  public setWalkableNavigationCells(cells: readonly StoryGridCell[]): void {
     this.walkableNavigationCells = [...cells];
     this.rebuildCurrentStoryGridMesh();
     this.refreshHighlights();
   }
 
-  public setBlockedNavigationCells(cells: readonly StoryHexCell[]): void {
+  public setBlockedNavigationCells(cells: readonly StoryGridCell[]): void {
     this.blockedNavigationCells = [...cells];
     this.refreshHighlights();
   }
@@ -220,43 +218,44 @@ export class HexGridOverlay {
   /**
    * Builds static debug line mesh for all logical cells within the bounded grid area.
    *
-   * Limitation: this first pass still renders a bounded rectangular axial footprint
+   * Limitation: this first pass still renders a bounded rectangular rectangular footprint
    * derived from ground extents rather than terrain-aware walkable cells.
    */
   private buildGridMesh(): LinesMesh {
     const lines: Vector3[][] = [];
 
     for (const cell of this.grid.getCellsWithinBounds()) {
-      const center = this.grid.cellToWorld(cell);
-      const points = this.buildHexPoints(center, this.verticalOffset);
+      const points = this.buildRectPoints(cell, this.grid.getOrigin().y, this.verticalOffset);
       lines.push(points);
     }
 
-    return MeshBuilder.CreateLineSystem("hex-grid-overlay", { lines, updatable: false }, this.scene);
+    return MeshBuilder.CreateLineSystem("rect-grid-overlay", { lines, updatable: false }, this.scene);
   }
 
   private buildHoverMesh(): LinesMesh {
-    const points = this.buildHexPoints(Vector3.Zero(), 0);
-    return MeshBuilder.CreateLines("hex-hover-overlay", { points, updatable: false }, this.scene);
+    const points = [
+      new Vector3(-0.5, 0, -0.5),
+      new Vector3(0.5, 0, -0.5),
+      new Vector3(0.5, 0, 0.5),
+      new Vector3(-0.5, 0, 0.5),
+      new Vector3(-0.5, 0, -0.5)
+    ];
+    return MeshBuilder.CreateLines("grid-hover-overlay", { points, updatable: false }, this.scene);
   }
 
-  private buildHexPoints(center: Vector3, yOffset: number): Vector3[] {
-    const points: Vector3[] = [];
-    const radius = this.grid.getHexSize();
-
-    for (let corner = 0; corner < 6; corner += 1) {
-      const angle = Math.PI / 180 * (60 * corner - 30);
-      const x = center.x + radius * Math.cos(angle);
-      const z = center.z + radius * Math.sin(angle);
-      const y = center.y + yOffset;
-      points.push(new Vector3(x, y, z));
-    }
-
-    points.push(points[0].clone());
-    return points;
+  private buildRectPoints(cell: GridCell, y: number, yOffset: number): Vector3[] {
+    const bounds = this.grid.cellBounds(cell);
+    const lineY = y + yOffset;
+    return [
+      new Vector3(bounds.minX, lineY, bounds.minZ),
+      new Vector3(bounds.maxX, lineY, bounds.minZ),
+      new Vector3(bounds.maxX, lineY, bounds.maxZ),
+      new Vector3(bounds.minX, lineY, bounds.maxZ),
+      new Vector3(bounds.minX, lineY, bounds.minZ)
+    ];
   }
 
-  private createHighlightPool(name: string): HexHighlightPool {
+  private createHighlightPool(name: string): GridHighlightPool {
     return {
       name,
       meshes: [],
@@ -334,8 +333,8 @@ export class HexGridOverlay {
   }
 
   private updatePool(
-    pool: HexHighlightPool,
-    highlights: readonly HexCellHighlightSpec[],
+    pool: GridHighlightPool,
+    highlights: readonly GridCellHighlightSpec[],
     yOffset: number,
     allowOutsideWalkableCells = false
   ): void {
@@ -359,20 +358,18 @@ export class HexGridOverlay {
     this.setPoolVisibility(pool, filteredHighlights.length);
   }
 
-  private ensurePoolCapacity(pool: HexHighlightPool, desiredSize: number): void {
+  private ensurePoolCapacity(pool: GridHighlightPool, desiredSize: number): void {
     while (pool.meshes.length < desiredSize) {
       const index = pool.meshes.length;
-      const mesh = MeshBuilder.CreateDisc(
+      const mesh = MeshBuilder.CreatePlane(
         `${pool.name}-${index}`,
         {
-          radius: this.grid.getHexSize() * 0.92,
-          tessellation: 6,
-          sideOrientation: Mesh.DOUBLESIDE,
+          size: this.grid.getTileSize() * 0.92,
+          sideOrientation: Mesh.DOUBLESIDE
         },
         this.scene
       );
       mesh.rotation.x = Math.PI / 2;
-      mesh.rotation.y = HexGridOverlay.HEX_FILL_ROTATION_Y;
       mesh.isPickable = false;
       mesh.isVisible = false;
       pool.meshes.push(mesh);
@@ -392,13 +389,13 @@ export class HexGridOverlay {
     return material;
   }
 
-  private setPoolVisibility(pool: HexHighlightPool, visibleCount: number): void {
+  private setPoolVisibility(pool: GridHighlightPool, visibleCount: number): void {
     for (let index = 0; index < pool.meshes.length; index += 1) {
       pool.meshes[index].isVisible = index < visibleCount;
     }
   }
 
-  private disposePool(pool: HexHighlightPool): void {
+  private disposePool(pool: GridHighlightPool): void {
     for (const mesh of pool.meshes) {
       mesh.material?.dispose();
       mesh.dispose();
@@ -421,7 +418,7 @@ export class HexGridOverlay {
 
     const lines = this.walkableNavigationCells
       .filter((entry) => entry.storyIndex === this.currentStoryIndex)
-      .map((entry) => this.buildHexPoints(this.grid.cellToWorld(entry.cell, this.getStoryY(entry.storyIndex)), this.verticalOffset));
+      .map((entry) => this.buildRectPoints(entry.cell, this.getStoryY(entry.storyIndex), this.verticalOffset));
 
     if (lines.length === 0) {
       this.refreshGridVisibility();
@@ -429,7 +426,7 @@ export class HexGridOverlay {
     }
 
     this.currentStoryGridMesh = MeshBuilder.CreateLineSystem(
-      `hex-current-story-grid-overlay-${this.currentStoryIndex}`,
+      `grid-current-story-grid-overlay-${this.currentStoryIndex}`,
       { lines, updatable: false },
       this.scene
     );
@@ -446,7 +443,7 @@ export class HexGridOverlay {
     }
   }
 
-  private isCellOverlayAllowed(cell: HexCell, storyIndex: number): boolean {
+  private isCellOverlayAllowed(cell: GridCell, storyIndex: number): boolean {
     if (this.walkableNavigationCells.length === 0) {
       return true;
     }

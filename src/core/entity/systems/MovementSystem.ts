@@ -2,21 +2,21 @@ import { Scene as BabylonScene, Vector3 } from "@babylonjs/core";
 import type { EntityManager } from "../EntityManager";
 import type { System } from "../System";
 import { TransformComponent } from "../components/TransformComponent";
-import { HexPathMovementComponent } from "../components/HexPathMovementComponent";
-import { HexPositionComponent } from "../components/HexPositionComponent";
+import { GridPathMovementComponent } from "../components/GridPathMovementComponent";
+import { GridPositionComponent } from "../components/GridPositionComponent";
 import { CombatStatsComponent } from "../components/CombatStatsComponent";
-import { HexCell } from "../../hex/HexCell";
+import { GridCell } from "../../grid/GridCell";
 import { getInGameSceneRuntimeContext, type InGameSceneRuntimeContext } from "../../scene/in-game/InGameSceneRuntimeContext";
 import { WorldModeController } from "../../game/WorldModeController";
 import { TurnBasedCombatState } from "../../game/TurnBasedCombatState";
-import { HexMovementCostResolver } from "./hex/HexMovementCostResolver";
-import { HexSpatialIndex } from "./hex/HexSpatialIndex";
-import type { HexGrid } from "../../hex/HexGrid";
+import { GridMovementCostResolver } from "./grid/GridMovementCostResolver";
+import { GridSpatialIndex } from "./grid/GridSpatialIndex";
+import type { RectGrid } from "../../grid/RectGrid";
 import { MultiFloorPathfinder } from "../../navigation/MultiFloorPathfinder";
 import { NavigationGraph, type MovementSegment, type NavigationNode } from "../../navigation/NavigationGraph";
 
 /**
- * Executes path-based hex movement and synchronizes transform positions.
+ * Executes path-based grid movement and synchronizes transform positions.
  */
 export class MovementSystem implements System {
   /**
@@ -33,18 +33,18 @@ export class MovementSystem implements System {
   private readonly entityManager: EntityManager;
   private readonly worldModeController: WorldModeController;
   private readonly combatState: TurnBasedCombatState;
-  private readonly movementCostResolver: HexMovementCostResolver;
-  private readonly spatialIndex: HexSpatialIndex;
+  private readonly movementCostResolver: GridMovementCostResolver;
+  private readonly spatialIndex: GridSpatialIndex;
   private scene: BabylonScene | null;
   private runtimeContext: InGameSceneRuntimeContext | null;
-  private activeGrid: HexGrid | null;
+  private activeGrid: RectGrid | null;
 
   public constructor(
     entityManager: EntityManager,
     worldModeController: WorldModeController,
     combatState: TurnBasedCombatState,
-    movementCostResolver: HexMovementCostResolver,
-    spatialIndex: HexSpatialIndex
+    movementCostResolver: GridMovementCostResolver,
+    spatialIndex: GridSpatialIndex
   ) {
     this.entityManager = entityManager;
     this.worldModeController = worldModeController;
@@ -59,10 +59,10 @@ export class MovementSystem implements System {
   public setScene(scene: BabylonScene | null): void {
     this.scene = scene;
     this.runtimeContext = scene ? getInGameSceneRuntimeContext(scene) : null;
-    this.activeGrid = this.runtimeContext ? this.runtimeContext.hexGridRuntime.getGrid() : null;
+    this.activeGrid = this.runtimeContext ? this.runtimeContext.gridRuntime.getGrid() : null;
     this.movementCostResolver.setMovementCostProvider(
       this.runtimeContext
-        ? (cell, storyIndex) => this.runtimeContext?.hexGridRuntime.getMovementCost(cell, storyIndex) ?? 1
+        ? (cell, storyIndex) => this.runtimeContext?.gridRuntime.getMovementCost(cell, storyIndex) ?? 1
         : null
     );
   }
@@ -72,33 +72,33 @@ export class MovementSystem implements System {
       return;
     }
 
-    const currentGrid = this.runtimeContext.hexGridRuntime.getGrid();
+    const currentGrid = this.runtimeContext.gridRuntime.getGrid();
     if (this.activeGrid !== currentGrid) {
       this.activeGrid = currentGrid;
     }
 
-    const movingEntities = this.entityManager.query(TransformComponent, HexPositionComponent, HexPathMovementComponent);
+    const movingEntities = this.entityManager.query(TransformComponent, GridPositionComponent, GridPathMovementComponent);
 
     for (const entity of movingEntities) {
       const transform = entity.getComponent(TransformComponent);
-      const hexPosition = entity.getComponent(HexPositionComponent);
-      const pathMovement = entity.getComponent(HexPathMovementComponent);
-      if (!this.canEntityMove(entity.getId(), hexPosition, pathMovement)) {
+      const gridPosition = entity.getComponent(GridPositionComponent);
+      const pathMovement = entity.getComponent(GridPathMovementComponent);
+      if (!this.canEntityMove(entity.getId(), gridPosition, pathMovement)) {
         continue;
       }
 
-      this.tryInitializePath(entity.getId(), hexPosition, pathMovement);
-      this.advanceMovementStep(entity.getId(), transform, hexPosition, pathMovement, deltaSeconds);
+      this.tryInitializePath(entity.getId(), gridPosition, pathMovement);
+      this.advanceMovementStep(entity.getId(), transform, gridPosition, pathMovement, deltaSeconds);
     }
   }
 
-  private tryInitializePath(entityId: string, hexPosition: HexPositionComponent, pathMovement: HexPathMovementComponent): void {
-    if (!hexPosition.targetCell) {
+  private tryInitializePath(entityId: string, gridPosition: GridPositionComponent, pathMovement: GridPathMovementComponent): void {
+    if (!gridPosition.targetCell) {
       return;
     }
 
-    const targetStoryIndex = hexPosition.targetStoryIndex ?? hexPosition.currentStoryIndex;
-    if (pathMovement.isMoving && !this.isActivePathForTarget(pathMovement, hexPosition.targetCell, targetStoryIndex)) {
+    const targetStoryIndex = gridPosition.targetStoryIndex ?? gridPosition.currentStoryIndex;
+    if (pathMovement.isMoving && !this.isActivePathForTarget(pathMovement, gridPosition.targetCell, targetStoryIndex)) {
       pathMovement.resetPathState();
     }
 
@@ -106,48 +106,48 @@ export class MovementSystem implements System {
       return;
     }
 
-    if (hexPosition.currentCell.equals(hexPosition.targetCell) && hexPosition.currentStoryIndex === targetStoryIndex) {
-      hexPosition.targetCell = null;
-      hexPosition.targetStoryIndex = null;
+    if (gridPosition.currentCell.equals(gridPosition.targetCell) && gridPosition.currentStoryIndex === targetStoryIndex) {
+      gridPosition.targetCell = null;
+      gridPosition.targetStoryIndex = null;
       pathMovement.resetPathState();
       return;
     }
 
-    const path = this.findMovementSegments(entityId, hexPosition, hexPosition.targetCell, targetStoryIndex);
+    const path = this.findMovementSegments(entityId, gridPosition, gridPosition.targetCell, targetStoryIndex);
     if (!path || path.length === 0) {
       console.warn(
-        `[MovementSystem] Cannot connect start ${hexPosition.currentStoryIndex}:${hexPosition.currentCell.q}:${hexPosition.currentCell.r} to target ${targetStoryIndex}:${hexPosition.targetCell.q}:${hexPosition.targetCell.r}.`
+        `[MovementSystem] Cannot connect start ${gridPosition.currentStoryIndex}:${gridPosition.currentCell.x}:${gridPosition.currentCell.z} to target ${targetStoryIndex}:${gridPosition.targetCell.x}:${gridPosition.targetCell.z}.`
       );
-      hexPosition.targetCell = null;
-      hexPosition.targetStoryIndex = null;
+      gridPosition.targetCell = null;
+      gridPosition.targetStoryIndex = null;
       pathMovement.resetPathState();
       return;
     }
 
     const limitedPath = this.limitSegmentsByMovementBudget(path);
     if (limitedPath.length === 0) {
-      hexPosition.targetCell = null;
-      hexPosition.targetStoryIndex = null;
+      gridPosition.targetCell = null;
+      gridPosition.targetStoryIndex = null;
       pathMovement.resetPathState();
       return;
     }
 
     pathMovement.pathSegments = limitedPath;
     pathMovement.pathCells = [
-      hexPosition.currentCell,
+      gridPosition.currentCell,
       ...limitedPath.filter((segment) => segment.kind === "walk").map((segment) => segment.cell)
     ];
     pathMovement.nextStepIndex = 1;
     pathMovement.currentSegmentIndex = 0;
     pathMovement.currentStairPointIndex = 0;
-    pathMovement.activeTargetCell = hexPosition.targetCell;
+    pathMovement.activeTargetCell = gridPosition.targetCell;
     pathMovement.activeTargetStoryIndex = targetStoryIndex;
     pathMovement.isMoving = true;
   }
 
   private isActivePathForTarget(
-    pathMovement: HexPathMovementComponent,
-    targetCell: HexPositionComponent["targetCell"],
+    pathMovement: GridPathMovementComponent,
+    targetCell: GridPositionComponent["targetCell"],
     targetStoryIndex: number
   ): boolean {
     if (!targetCell || !pathMovement.activeTargetCell || pathMovement.activeTargetStoryIndex === null) {
@@ -160,8 +160,8 @@ export class MovementSystem implements System {
   private advanceMovementStep(
     entityId: string,
     transform: TransformComponent,
-    hexPosition: HexPositionComponent,
-    pathMovement: HexPathMovementComponent,
+    gridPosition: GridPositionComponent,
+    pathMovement: GridPathMovementComponent,
     deltaSeconds: number
   ): void {
     if (!pathMovement.isMoving || !this.runtimeContext) {
@@ -170,7 +170,7 @@ export class MovementSystem implements System {
 
     const segment = pathMovement.pathSegments[pathMovement.currentSegmentIndex];
     if (!segment) {
-      this.finishMovement(hexPosition, pathMovement);
+      this.finishMovement(gridPosition, pathMovement);
       return;
     }
 
@@ -180,14 +180,14 @@ export class MovementSystem implements System {
         pathMovement,
         segment.worldPosition,
         deltaSeconds,
-        () => this.completeWalkSegment(entityId, transform, hexPosition, pathMovement, segment)
+        () => this.completeWalkSegment(entityId, transform, gridPosition, pathMovement, segment)
       );
       return;
     }
 
     const nextStairPoint = segment.traversalPath[pathMovement.currentStairPointIndex];
     if (!nextStairPoint) {
-      this.completeStairSegment(entityId, hexPosition, pathMovement, segment);
+      this.completeStairSegment(entityId, gridPosition, pathMovement, segment);
       return;
     }
 
@@ -196,13 +196,13 @@ export class MovementSystem implements System {
       pathMovement,
       nextStairPoint,
       deltaSeconds,
-      () => this.completeStairPoint(entityId, hexPosition, pathMovement, segment)
+      () => this.completeStairPoint(entityId, gridPosition, pathMovement, segment)
     );
   }
 
   private advanceTowardWorldPoint(
     transform: TransformComponent,
-    pathMovement: HexPathMovementComponent,
+    pathMovement: GridPathMovementComponent,
     targetPoint: Vector3,
     deltaSeconds: number,
     onReached: () => void
@@ -253,64 +253,64 @@ export class MovementSystem implements System {
   private completeWalkSegment(
     entityId: string,
     transform: TransformComponent,
-    hexPosition: HexPositionComponent,
-    pathMovement: HexPathMovementComponent,
+    gridPosition: GridPositionComponent,
+    pathMovement: GridPathMovementComponent,
     segment: Extract<MovementSegment, { kind: "walk" }>
   ): void {
-    const previousCell = hexPosition.currentCell;
-    const previousStoryIndex = hexPosition.currentStoryIndex;
+    const previousCell = gridPosition.currentCell;
+    const previousStoryIndex = gridPosition.currentStoryIndex;
     transform.value.copyFrom(segment.worldPosition);
-    hexPosition.currentCell = segment.cell;
-    hexPosition.currentStoryIndex = segment.storyIndex;
+    gridPosition.currentCell = segment.cell;
+    gridPosition.currentStoryIndex = segment.storyIndex;
     pathMovement.nextStepIndex += 1;
     pathMovement.currentSegmentIndex += 1;
     this.consumeMovementPoints(entityId, segment.cost, previousCell, segment.cell, previousStoryIndex, segment.storyIndex);
 
     if (pathMovement.currentSegmentIndex >= pathMovement.pathSegments.length) {
-      this.finishMovement(hexPosition, pathMovement);
+      this.finishMovement(gridPosition, pathMovement);
     }
   }
 
   private completeStairPoint(
     entityId: string,
-    hexPosition: HexPositionComponent,
-    pathMovement: HexPathMovementComponent,
+    gridPosition: GridPositionComponent,
+    pathMovement: GridPathMovementComponent,
     segment: Extract<MovementSegment, { kind: "stair" }>
   ): void {
     pathMovement.currentStairPointIndex += 1;
 
     if (pathMovement.currentStairPointIndex >= segment.traversalPath.length) {
-      this.completeStairSegment(entityId, hexPosition, pathMovement, segment);
+      this.completeStairSegment(entityId, gridPosition, pathMovement, segment);
     }
   }
 
   private completeStairSegment(
     entityId: string,
-    hexPosition: HexPositionComponent,
-    pathMovement: HexPathMovementComponent,
+    gridPosition: GridPositionComponent,
+    pathMovement: GridPathMovementComponent,
     segment: Extract<MovementSegment, { kind: "stair" }>
   ): void {
-    hexPosition.currentCell = segment.toCell;
-    hexPosition.currentStoryIndex = segment.toStoryIndex;
+    gridPosition.currentCell = segment.toCell;
+    gridPosition.currentStoryIndex = segment.toStoryIndex;
     pathMovement.currentStairPointIndex = 0;
     pathMovement.currentSegmentIndex += 1;
     this.consumeMovementPoints(entityId, segment.cost);
 
     if (pathMovement.currentSegmentIndex >= pathMovement.pathSegments.length) {
-      this.finishMovement(hexPosition, pathMovement);
+      this.finishMovement(gridPosition, pathMovement);
     }
   }
 
-  private finishMovement(hexPosition: HexPositionComponent, pathMovement: HexPathMovementComponent): void {
-    hexPosition.targetCell = null;
-    hexPosition.targetStoryIndex = null;
+  private finishMovement(gridPosition: GridPositionComponent, pathMovement: GridPathMovementComponent): void {
+    gridPosition.targetCell = null;
+    gridPosition.targetStoryIndex = null;
     pathMovement.resetPathState();
   }
 
   private canEntityMove(
     entityId: string,
-    hexPosition: HexPositionComponent,
-    pathMovement: HexPathMovementComponent
+    gridPosition: GridPositionComponent,
+    pathMovement: GridPathMovementComponent
   ): boolean {
     if (!this.worldModeController.isTurnBased()) {
       return true;
@@ -318,8 +318,8 @@ export class MovementSystem implements System {
 
     if (!this.combatState.isActiveEntity(entityId)) {
       pathMovement.resetPathState();
-      hexPosition.targetCell = null;
-      hexPosition.targetStoryIndex = null;
+      gridPosition.targetCell = null;
+      gridPosition.targetStoryIndex = null;
       return false;
     }
 
@@ -327,8 +327,8 @@ export class MovementSystem implements System {
     const combatStats = combatEntity?.tryGetComponent(CombatStatsComponent);
     if (!combatStats || combatStats.currentMp <= 0) {
       pathMovement.resetPathState();
-      hexPosition.targetCell = null;
-      hexPosition.targetStoryIndex = null;
+      gridPosition.targetCell = null;
+      gridPosition.targetStoryIndex = null;
       return false;
     }
 
@@ -366,8 +366,8 @@ export class MovementSystem implements System {
   private consumeMovementPoints(
     entityId: string,
     cost: number,
-    fromCell?: HexPositionComponent["currentCell"],
-    toCell?: HexPositionComponent["currentCell"],
+    fromCell?: GridPositionComponent["currentCell"],
+    toCell?: GridPositionComponent["currentCell"],
     fromStoryIndex = 0,
     toStoryIndex = 0
   ): void {
@@ -389,37 +389,37 @@ export class MovementSystem implements System {
 
   private findMovementSegments(
     entityId: string,
-    hexPosition: HexPositionComponent,
-    targetCell: HexCell,
+    gridPosition: GridPositionComponent,
+    targetCell: GridCell,
     targetStoryIndex: number
   ): MovementSegment[] | null {
     if (!this.runtimeContext) {
       return null;
     }
 
-    const grid = this.runtimeContext.hexGridRuntime.getGrid();
-    const registry = this.runtimeContext.hexGridRuntime.getBuildingNavigationRegistry();
+    const grid = this.runtimeContext.gridRuntime.getGrid();
+    const registry = this.runtimeContext.gridRuntime.getBuildingNavigationRegistry();
     const graph = new NavigationGraph(
       grid,
       registry.getStairConnectors(),
-      this.runtimeContext.hexGridRuntime.getMergedStoryYByStory(),
-      (cell, storyIndex) => this.runtimeContext?.hexGridRuntime.isWalkableCell(cell, storyIndex) ?? false,
+      this.runtimeContext.gridRuntime.getMergedStoryYByStory(),
+      (cell, storyIndex) => this.runtimeContext?.gridRuntime.isWalkableCell(cell, storyIndex) ?? false,
       (fromCell, toCell, storyIndex) =>
-        this.runtimeContext?.hexGridRuntime.isNavigationEdgeBlocked(fromCell, toCell, storyIndex) ?? false,
-      (cell, storyIndex) => this.runtimeContext?.hexGridRuntime.getMovementCost(cell, storyIndex) ?? 1
+        this.runtimeContext?.gridRuntime.isNavigationEdgeBlocked(fromCell, toCell, storyIndex) ?? false,
+      (cell, storyIndex) => this.runtimeContext?.gridRuntime.getMovementCost(cell, storyIndex) ?? 1
     );
     const pathfinder = new MultiFloorPathfinder(graph, registry.getShowStairNavigationDebug());
     return pathfinder.findPath({
-      fromCell: hexPosition.currentCell,
-      fromStoryIndex: hexPosition.currentStoryIndex,
+      fromCell: gridPosition.currentCell,
+      fromStoryIndex: gridPosition.currentStoryIndex,
       toCell: targetCell,
       toStoryIndex: targetStoryIndex,
-      occupied: (node) => this.isOccupiedByOtherEntity(entityId, hexPosition, node)
+      occupied: (node) => this.isOccupiedByOtherEntity(entityId, gridPosition, node)
     });
   }
 
-  private isOccupiedByOtherEntity(entityId: string, hexPosition: HexPositionComponent, node: NavigationNode): boolean {
-    if (node.cell.equals(hexPosition.currentCell) && node.storyIndex === hexPosition.currentStoryIndex) {
+  private isOccupiedByOtherEntity(entityId: string, gridPosition: GridPositionComponent, node: NavigationNode): boolean {
+    if (node.cell.equals(gridPosition.currentCell) && node.storyIndex === gridPosition.currentStoryIndex) {
       return false;
     }
 

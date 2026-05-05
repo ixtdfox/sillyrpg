@@ -7,7 +7,7 @@ import { AIComponent } from "./components/AIComponent";
 import { CombatStatsComponent } from "./components/CombatStatsComponent";
 import { DetectableComponent } from "./components/DetectableComponent";
 import { DetectionStateComponent } from "./components/DetectionStateComponent";
-import { HexPathMovementComponent } from "./components/HexPathMovementComponent";
+import { GridPathMovementComponent } from "./components/GridPathMovementComponent";
 import { IdentityComponent } from "./components/IdentityComponent";
 import { LocalPlayerComponent } from "./components/LocalPlayerComponent";
 import { ModelComponent } from "./components/ModelComponent";
@@ -70,7 +70,7 @@ interface SpawnComponentData {
   rotation?: Vector3Data;
 }
 
-interface HexPathMovementData {
+interface GridPathMovementData {
   speed: number;
 }
 
@@ -109,7 +109,7 @@ export interface ComponentOverrideMap {
   spawn?: Partial<SpawnComponentData>;
   ai?: Record<string, never>;
   localPlayer?: Record<string, never>;
-  hexPathMovement?: Partial<HexPathMovementData>;
+  gridPathMovement?: Partial<GridPathMovementData>;
   vision?: Partial<VisionData>;
   detectionState?: Record<string, never>;
   patrol?: Partial<PatrolData>;
@@ -446,10 +446,10 @@ export class EntityPrefabFactory {
       ["ai", () => ({ ctor: AIComponent, instance: new AIComponent() })],
       ["localPlayer", () => ({ ctor: LocalPlayerComponent, instance: new LocalPlayerComponent() })],
       [
-        "hexPathMovement",
+        "gridPathMovement",
         (definition, context) => {
-          const data = this.parseHexPathMovementData(definition.data, context.prefabId);
-          return { ctor: HexPathMovementComponent, instance: new HexPathMovementComponent(data.speed) };
+          const data = this.parseGridPathMovementData(definition.data, context.prefabId);
+          return { ctor: GridPathMovementComponent, instance: new GridPathMovementComponent(data.speed) };
         }
       ],
       [
@@ -574,9 +574,9 @@ export class EntityPrefabFactory {
     return this.parseTransformData(data, prefabId, componentType);
   }
 
-  private parseHexPathMovementData(data: unknown, prefabId: string): HexPathMovementData {
-    const parsed = this.assertRecord(data, prefabId, "hexPathMovement", "data") as Partial<HexPathMovementData>;
-    this.assertNumber(parsed.speed, prefabId, "hexPathMovement", "speed");
+  private parseGridPathMovementData(data: unknown, prefabId: string): GridPathMovementData {
+    const parsed = this.assertRecord(data, prefabId, "gridPathMovement", "data") as Partial<GridPathMovementData>;
+    this.assertNumber(parsed.speed, prefabId, "gridPathMovement", "speed");
     return { speed: parsed.speed };
   }
 

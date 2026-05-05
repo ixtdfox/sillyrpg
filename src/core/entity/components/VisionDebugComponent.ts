@@ -1,10 +1,10 @@
 import type { Component } from "../Component";
-import { HexCell } from "../../hex/HexCell";
+import { GridCell } from "../../grid/GridCell";
 
 export type VisionDebugRelation = "friendly" | "neutral" | "hostile";
 
 export interface VisionDebugDetectedCell {
-  readonly cell: HexCell;
+  readonly cell: GridCell;
   readonly relation: VisionDebugRelation;
 }
 
@@ -13,7 +13,7 @@ export interface VisionDebugDetectedCell {
  */
 export class VisionDebugComponent implements Component {
   /** Broad-phase vision sector cells for current frame. */
-  public visibleSectorCells: HexCell[];
+  public visibleSectorCells: GridCell[];
 
   /** Cells containing currently visible entities, classified by relation. */
   public detectedCells: VisionDebugDetectedCell[];

@@ -2,11 +2,11 @@ import { Scene as BabylonScene } from "@babylonjs/core";
 import type { EntityManager } from "../EntityManager";
 import type { System } from "../System";
 import { AIComponent } from "../components/AIComponent";
-import { HexPathMovementComponent } from "../components/HexPathMovementComponent";
-import { HexPositionComponent } from "../components/HexPositionComponent";
+import { GridPathMovementComponent } from "../components/GridPathMovementComponent";
+import { GridPositionComponent } from "../components/GridPositionComponent";
 import { PatrolComponent } from "../components/PatrolComponent";
-import { HexCell } from "../../hex/HexCell";
-import { HexPathfinder } from "../../hex/HexPathfinder";
+import { GridCell } from "../../grid/GridCell";
+import { RectPathfinder } from "../../grid/RectPathfinder";
 import { getInGameSceneRuntimeContext, type InGameSceneRuntimeContext } from "../../scene/in-game/InGameSceneRuntimeContext";
 import { WorldModeController } from "../../game/WorldModeController";
 
@@ -17,7 +17,7 @@ export class PatrolSystem implements System {
   private readonly entityManager: EntityManager;
   private readonly worldModeController: WorldModeController;
   private runtimeContext: InGameSceneRuntimeContext | null;
-  private pathfinder: HexPathfinder | null;
+  private pathfinder: RectPathfinder | null;
 
   public constructor(entityManager: EntityManager, worldModeController: WorldModeController) {
     this.entityManager = entityManager;
@@ -28,7 +28,7 @@ export class PatrolSystem implements System {
 
   public setScene(scene: BabylonScene | null): void {
     this.runtimeContext = scene ? getInGameSceneRuntimeContext(scene) : null;
-    this.pathfinder = this.runtimeContext ? new HexPathfinder(this.runtimeContext.hexGridRuntime.getGrid()) : null;
+    this.pathfinder = this.runtimeContext ? new RectPathfinder(this.runtimeContext.gridRuntime.getGrid()) : null;
   }
 
   public update(_deltaSeconds: number): void {
@@ -39,53 +39,53 @@ export class PatrolSystem implements System {
       return;
     }
 
-    const entities = this.entityManager.query(AIComponent, PatrolComponent, HexPositionComponent, HexPathMovementComponent);
+    const entities = this.entityManager.query(AIComponent, PatrolComponent, GridPositionComponent, GridPathMovementComponent);
 
     for (const entity of entities) {
       const patrol = entity.getComponent(PatrolComponent);
-      const hexPosition = entity.getComponent(HexPositionComponent);
-      const pathMovement = entity.getComponent(HexPathMovementComponent);
+      const gridPosition = entity.getComponent(GridPositionComponent);
+      const pathMovement = entity.getComponent(GridPathMovementComponent);
 
       if (!patrol.anchorCell) {
-        patrol.anchorCell = hexPosition.currentCell;
+        patrol.anchorCell = gridPosition.currentCell;
       }
 
-      if (patrol.currentPatrolTargetCell && hexPosition.currentCell.equals(patrol.currentPatrolTargetCell)) {
+      if (patrol.currentPatrolTargetCell && gridPosition.currentCell.equals(patrol.currentPatrolTargetCell)) {
         patrol.currentPatrolTargetCell = null;
       }
 
-      if (hexPosition.targetCell || pathMovement.isMoving) {
+      if (gridPosition.targetCell || pathMovement.isMoving) {
         continue;
       }
 
-      const nextDestination = this.pickNextDestination(hexPosition.currentCell, hexPosition.currentStoryIndex, patrol);
+      const nextDestination = this.pickNextDestination(gridPosition.currentCell, gridPosition.currentStoryIndex, patrol);
       if (!nextDestination) {
         continue;
       }
 
       patrol.currentPatrolTargetCell = nextDestination;
-      hexPosition.targetCell = nextDestination;
-      hexPosition.targetStoryIndex = hexPosition.currentStoryIndex;
+      gridPosition.targetCell = nextDestination;
+      gridPosition.targetStoryIndex = gridPosition.currentStoryIndex;
     }
   }
 
-  private pickNextDestination(currentCell: HexCell, storyIndex: number, patrol: PatrolComponent): HexCell | null {
+  private pickNextDestination(currentCell: GridCell, storyIndex: number, patrol: PatrolComponent): GridCell | null {
     if (!this.runtimeContext || !this.pathfinder || !patrol.anchorCell) {
       return null;
     }
 
-    const grid = this.runtimeContext.hexGridRuntime.getGrid();
+    const grid = this.runtimeContext.gridRuntime.getGrid();
 
     for (let attempt = 0; attempt < patrol.maxCandidateAttempts; attempt += 1) {
       const dq = this.randomInt(-patrol.radiusCells, patrol.radiusCells);
       const dr = this.randomInt(-patrol.radiusCells, patrol.radiusCells);
-      const candidate = new HexCell(patrol.anchorCell.q + dq, patrol.anchorCell.r + dr);
+      const candidate = new GridCell(patrol.anchorCell.x + dq, patrol.anchorCell.z + dr);
 
       if (!grid.contains(candidate)) {
         continue;
       }
 
-      if (!this.runtimeContext.hexGridRuntime.isWalkableCell(candidate, storyIndex)) {
+      if (!this.runtimeContext.gridRuntime.isWalkableCell(candidate, storyIndex)) {
         continue;
       }
 
@@ -97,10 +97,10 @@ export class PatrolSystem implements System {
         continue;
       }
 
-      const pathfinder = new HexPathfinder(
+      const pathfinder = new RectPathfinder(
         grid,
-        (cell) => !this.runtimeContext!.hexGridRuntime.isWalkableCell(cell, storyIndex),
-        (fromCell, toCell) => this.runtimeContext!.hexGridRuntime.isNavigationEdgeBlocked(fromCell, toCell, storyIndex)
+        (cell) => !this.runtimeContext!.gridRuntime.isWalkableCell(cell, storyIndex),
+        (fromCell, toCell) => this.runtimeContext!.gridRuntime.isNavigationEdgeBlocked(fromCell, toCell, storyIndex)
       );
       const path = pathfinder.findPath(currentCell, candidate);
       if (!path || path.length < 2) {

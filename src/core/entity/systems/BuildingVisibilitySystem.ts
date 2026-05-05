@@ -8,7 +8,7 @@ import type { EntityManager } from "../EntityManager";
 import type { System } from "../System";
 import { LocalPlayerComponent } from "../components/LocalPlayerComponent";
 import { TransformComponent } from "../components/TransformComponent";
-import { HexPositionComponent } from "../components/HexPositionComponent";
+import { GridPositionComponent } from "../components/GridPositionComponent";
 import { getInGameSceneRuntimeContext } from "../../scene/in-game/InGameSceneRuntimeContext";
 import {
   BuildingVisibilityRegistry,
@@ -105,9 +105,9 @@ export class BuildingVisibilitySystem implements System {
 
     this.localPlayerEntity = localPlayer;
     const playerPosition = localPlayer.getComponent(TransformComponent).value;
-    const playerHexPosition = localPlayer.tryGetComponent(HexPositionComponent);
+    const playerGridPosition = localPlayer.tryGetComponent(GridPositionComponent);
     const logicalPlayerStoryIndex =
-      playerHexPosition?.currentStoryIndex ?? null;
+      playerGridPosition?.currentStoryIndex ?? null;
     const cameraPosition =
       this.scene.activeCamera?.globalPosition ?? playerPosition;
     const playerBuildingState = this.findPlayerBuildingState(

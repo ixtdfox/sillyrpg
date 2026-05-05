@@ -3,14 +3,14 @@ import { CharacterFactory } from "../../character/CharacterFactory";
 import type { EntityManager } from "../../entity/EntityManager";
 import { EntityPrefabFactory } from "../../entity/EntityPrefabFactory";
 import type { Entity } from "../../entity/Entity";
-import { HexPathMovementComponent } from "../../entity/components/HexPathMovementComponent";
-import { HexPositionComponent } from "../../entity/components/HexPositionComponent";
+import { GridPathMovementComponent } from "../../entity/components/GridPathMovementComponent";
+import { GridPositionComponent } from "../../entity/components/GridPositionComponent";
 import { LocalPlayerComponent } from "../../entity/components/LocalPlayerComponent";
 import { RenderableComponent } from "../../entity/components/RenderableComponent";
 import { TransformComponent } from "../../entity/components/TransformComponent";
 import { Relations } from "../../entity/components/Relations";
 import { RelationsComponent } from "../../entity/components/RelationsComponent";
-import { HexGridRuntime } from "../../hex/HexGridRuntime";
+import { RectGridRuntime } from "../../grid/RectGridRuntime";
 import type { LangManager } from "../../lang/LangManager";
 import { LocationManager } from "../../world/location/LocationManager";
 import { InGameTopPanelUi } from "./ui/InGameTopPanelUi";
@@ -87,7 +87,7 @@ export class InGameScene implements Scene {
     hostileToGolem.hate = 100;
     playerRelations.relationships[golemCharacter.getId()] = hostileToGolem;
 
-    const hexGridRuntime = new HexGridRuntime(scene, undefined, this.locationManager.getActiveDistrictMeshes());
+    const gridRuntime = new RectGridRuntime(scene, undefined, this.locationManager.getActiveDistrictMeshes());
     const locationTriggerSystem = new LocationTriggerSystem(
       scene,
       this.entityManager,
@@ -95,23 +95,23 @@ export class InGameScene implements Scene {
       async (spawnPosition, localPlayer) => {
         this.cleanupLocationEntities(localPlayer);
         this.resetPlayerAfterLocationTransition(localPlayer, spawnPosition);
-        this.tryRebuildHexGridRuntime(hexGridRuntime, scene);
-        this.refreshPlayerHexPosition(localPlayer, hexGridRuntime);
+        this.tryRebuildRectGridRuntime(gridRuntime, scene);
+        this.refreshPlayerGridPosition(localPlayer, gridRuntime);
       }
     );
     locationTriggerSystem.initialize();
     const inGameTopPanelUi = new InGameTopPanelUi(scene, () => {
-      const isEnabled = hexGridRuntime.toggleDebug();
-      inGameTopPanelUi.setHexGridDebugEnabled(isEnabled);
+      const isEnabled = gridRuntime.toggleDebug();
+      inGameTopPanelUi.setRectGridDebugEnabled(isEnabled);
     });
-    attachInGameSceneRuntimeContext(scene, { hexGridRuntime, locationManager: this.locationManager, topPanelUi: inGameTopPanelUi });
-    inGameTopPanelUi.setHexGridDebugEnabled(hexGridRuntime.getIsDebugEnabled());
+    attachInGameSceneRuntimeContext(scene, { gridRuntime, locationManager: this.locationManager, topPanelUi: inGameTopPanelUi });
+    inGameTopPanelUi.setRectGridDebugEnabled(gridRuntime.getIsDebugEnabled());
     const triggerObserver = scene.onBeforeRenderObservable.add(() => {
       locationTriggerSystem.update();
     });
 
     scene.onDisposeObservable.addOnce(() => {
-      hexGridRuntime.dispose();
+      gridRuntime.dispose();
       inGameTopPanelUi.dispose();
       locationTriggerSystem.dispose();
       if (triggerObserver) {
@@ -156,37 +156,37 @@ export class InGameScene implements Scene {
       renderable.binding.position.copyFrom(spawnPosition);
     }
 
-    const pathMovement = localPlayer.tryGetComponent(HexPathMovementComponent);
+    const pathMovement = localPlayer.tryGetComponent(GridPathMovementComponent);
     pathMovement?.resetPathState();
 
-    const hexPosition = localPlayer.tryGetComponent(HexPositionComponent);
-    if (hexPosition) {
-      hexPosition.targetCell = null;
-      hexPosition.targetStoryIndex = null;
-      hexPosition.currentStoryIndex = 0;
+    const gridPosition = localPlayer.tryGetComponent(GridPositionComponent);
+    if (gridPosition) {
+      gridPosition.targetCell = null;
+      gridPosition.targetStoryIndex = null;
+      gridPosition.currentStoryIndex = 0;
     }
   }
 
-  private refreshPlayerHexPosition(localPlayer: Entity, hexGridRuntime: HexGridRuntime): void {
-    const hexPosition = localPlayer.tryGetComponent(HexPositionComponent);
+  private refreshPlayerGridPosition(localPlayer: Entity, gridRuntime: RectGridRuntime): void {
+    const gridPosition = localPlayer.tryGetComponent(GridPositionComponent);
     const transform = localPlayer.getComponent(TransformComponent);
 
-    if (!hexPosition) {
+    if (!gridPosition) {
       return;
     }
 
-    const grid = hexGridRuntime.getGrid();
+    const grid = gridRuntime.getGrid();
     const cell = grid.worldToCell(transform.value);
     if (!grid.contains(cell)) {
-      hexPosition.targetCell = null;
-      hexPosition.targetStoryIndex = null;
+      gridPosition.targetCell = null;
+      gridPosition.targetStoryIndex = null;
       return;
     }
 
-    hexPosition.currentCell = cell;
-    hexPosition.currentStoryIndex = 0;
-    hexPosition.targetCell = null;
-    hexPosition.targetStoryIndex = null;
+    gridPosition.currentCell = cell;
+    gridPosition.currentStoryIndex = 0;
+    gridPosition.targetCell = null;
+    gridPosition.targetStoryIndex = null;
     transform.value.copyFrom(grid.cellToWorld(cell, transform.value.y));
 
     const renderable = localPlayer.tryGetComponent(RenderableComponent);
@@ -195,15 +195,15 @@ export class InGameScene implements Scene {
     }
   }
 
-  private tryRebuildHexGridRuntime(hexGridRuntime: HexGridRuntime, scene: BabylonScene): void {
+  private tryRebuildRectGridRuntime(gridRuntime: RectGridRuntime, scene: BabylonScene): void {
     const activeDistrictMeshes = this.locationManager.getActiveDistrictMeshes();
 
     try {
-      hexGridRuntime.rebuild(scene, activeDistrictMeshes);
+      gridRuntime.rebuild(scene, activeDistrictMeshes);
     } catch (error) {
       const candidateNames = activeDistrictMeshes.map((mesh) => `${mesh.name}(${mesh.id})`).join(", ");
       console.error(
-        `[InGameScene] Failed to rebuild HexGridRuntime after transition. activeDistrictMeshCount=${activeDistrictMeshes.length} candidates=[${candidateNames}]`,
+        `[InGameScene] Failed to rebuild RectGridRuntime after transition. activeDistrictMeshCount=${activeDistrictMeshes.length} candidates=[${candidateNames}]`,
         error
       );
     }

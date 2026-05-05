@@ -1,13 +1,13 @@
 import { Button, Control, TextBlock } from "@babylonjs/gui";
 
 /**
- * Hex-specific debug toggle control that can be embedded into any parent HUD layout.
+ * Grid-specific debug toggle control that can be embedded into any parent HUD layout.
  */
-export class HexGridDebugToggleControl {
+export class GridDebugToggleControl {
   private readonly toggleButton: Button;
 
   /**
-   * Creates reusable hex debug toggle button.
+   * Creates reusable grid debug toggle button.
    *
    * @param onToggleRequested - Callback invoked on click.
    */
@@ -27,7 +27,7 @@ export class HexGridDebugToggleControl {
   }
 
   /**
-   * Returns root GUI control for this hex debug widget.
+   * Returns root GUI control for this grid debug widget.
    */
   public getControl(): Control {
     return this.toggleButton;

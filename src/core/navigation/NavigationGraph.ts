@@ -1,10 +1,10 @@
 import { Vector3 } from "@babylonjs/core";
-import { HexCell } from "../hex/HexCell";
-import { HexGrid } from "../hex/HexGrid";
+import { GridCell } from "../grid/GridCell";
+import { RectGrid } from "../grid/RectGrid";
 
 export interface NavigationNode {
   readonly id: string;
-  readonly cell: HexCell;
+  readonly cell: GridCell;
   readonly storyIndex: number;
   readonly worldPosition: Vector3;
 }
@@ -24,7 +24,7 @@ export interface NavigationEdge {
 export type MovementSegment =
   | {
       readonly kind: "walk";
-      readonly cell: HexCell;
+      readonly cell: GridCell;
       readonly storyIndex: number;
       readonly worldPosition: Vector3;
       readonly cost: number;
@@ -34,7 +34,7 @@ export type MovementSegment =
       readonly stairId: string;
       readonly fromStoryIndex: number;
       readonly toStoryIndex: number;
-      readonly toCell: HexCell;
+      readonly toCell: GridCell;
       readonly traversalPath: Vector3[];
       readonly cost: number;
     };
@@ -43,34 +43,34 @@ export interface StairNavigationConnector {
   readonly stairId: string;
   readonly fromStoryIndex: number;
   readonly toStoryIndex: number;
-  readonly fromCell: HexCell;
-  readonly toCell: HexCell;
+  readonly fromCell: GridCell;
+  readonly toCell: GridCell;
   readonly kind: "internal" | "external";
   readonly cost: number;
   readonly bidirectional: boolean;
   readonly traversalPathWorld: Vector3[];
 }
 
-export function makeNavigationNodeId(storyIndex: number, cell: HexCell): string {
-  return `node:${storyIndex}:${cell.q}:${cell.r}`;
+export function makeNavigationNodeId(storyIndex: number, cell: GridCell): string {
+  return `node:${storyIndex}:${cell.x}:${cell.z}`;
 }
 
 export class NavigationGraph {
-  private readonly grid: HexGrid;
+  private readonly grid: RectGrid;
   private readonly storyIndices: Set<number>;
   private readonly storyYByStory: Map<number, number>;
   private readonly stairEdgesByNodeId: Map<string, NavigationEdge[]>;
-  private readonly isWalkableCell: (cell: HexCell, storyIndex: number) => boolean;
-  private readonly isEdgeBlocked: (fromCell: HexCell, toCell: HexCell, storyIndex: number) => boolean;
-  private readonly getMovementCost: (cell: HexCell, storyIndex: number) => number;
+  private readonly isWalkableCell: (cell: GridCell, storyIndex: number) => boolean;
+  private readonly isEdgeBlocked: (fromCell: GridCell, toCell: GridCell, storyIndex: number) => boolean;
+  private readonly getMovementCost: (cell: GridCell, storyIndex: number) => number;
 
   public constructor(
-    grid: HexGrid,
+    grid: RectGrid,
     stairConnectors: readonly StairNavigationConnector[] = [],
     storyYByStory: ReadonlyMap<number, number> = new Map(),
-    isWalkableCell?: (cell: HexCell, storyIndex: number) => boolean,
-    isEdgeBlocked?: (fromCell: HexCell, toCell: HexCell, storyIndex: number) => boolean,
-    getMovementCost?: (cell: HexCell, storyIndex: number) => number
+    isWalkableCell?: (cell: GridCell, storyIndex: number) => boolean,
+    isEdgeBlocked?: (fromCell: GridCell, toCell: GridCell, storyIndex: number) => boolean,
+    getMovementCost?: (cell: GridCell, storyIndex: number) => number
   ) {
     this.grid = grid;
     this.storyIndices = new Set<number>([0]);
@@ -103,7 +103,7 @@ export class NavigationGraph {
     return this.createNode(parsed.storyIndex, parsed.cell);
   }
 
-  public getNodeForCell(storyIndex: number, cell: HexCell): NavigationNode | null {
+  public getNodeForCell(storyIndex: number, cell: GridCell): NavigationNode | null {
     if (!this.grid.contains(cell)) {
       return null;
     }
@@ -188,7 +188,7 @@ export class NavigationGraph {
     this.stairEdgesByNodeId.set(fromNodeId, edges);
   }
 
-  private createNode(storyIndex: number, cell: HexCell): NavigationNode {
+  private createNode(storyIndex: number, cell: GridCell): NavigationNode {
     return {
       id: makeNavigationNodeId(storyIndex, cell),
       cell,
@@ -198,7 +198,7 @@ export class NavigationGraph {
   }
 }
 
-function parseNavigationNodeId(nodeId: string): { storyIndex: number; cell: HexCell } | null {
+function parseNavigationNodeId(nodeId: string): { storyIndex: number; cell: GridCell } | null {
   const match = /^node:(-?\d+):(-?\d+):(-?\d+)$/.exec(nodeId);
   if (!match) {
     return null;
@@ -206,6 +206,6 @@ function parseNavigationNodeId(nodeId: string): { storyIndex: number; cell: HexC
 
   return {
     storyIndex: Number.parseInt(match[1], 10),
-    cell: new HexCell(Number.parseInt(match[2], 10), Number.parseInt(match[3], 10))
+    cell: new GridCell(Number.parseInt(match[2], 10), Number.parseInt(match[3], 10))
   };
 }

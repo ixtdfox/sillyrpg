@@ -1,6 +1,6 @@
 import type { EntityManager } from "../../EntityManager";
 import { CombatStatsComponent } from "../../components/CombatStatsComponent";
-import { HexPositionComponent } from "../../components/HexPositionComponent";
+import { GridPositionComponent } from "../../components/GridPositionComponent";
 import { RelationsComponent } from "../../components/RelationsComponent";
 import { VitalsComponent } from "../../components/VitalsComponent";
 
@@ -15,7 +15,7 @@ export class CombatParticipantResolver {
   }
 
   public resolveParticipants(initiatorEntityId: string, targetEntityId: string): string[] {
-    const allCandidates = this.entityManager.query(CombatStatsComponent, VitalsComponent, HexPositionComponent, RelationsComponent);
+    const allCandidates = this.entityManager.query(CombatStatsComponent, VitalsComponent, GridPositionComponent, RelationsComponent);
 
     const participants = allCandidates.filter((entity) => {
       const vitals = entity.getComponent(VitalsComponent);

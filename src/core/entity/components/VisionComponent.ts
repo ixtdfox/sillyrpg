@@ -5,7 +5,7 @@ import type { Component } from "../Component";
  * Describes an entity's cone-based vision settings.
  */
 export class VisionComponent implements Component {
-  /** Vision range measured in hex cells. */
+  /** Vision range measured in grid cells. */
   public rangeCells: number;
 
   /** Cone field-of-view angle in degrees. */

@@ -1,6 +1,6 @@
 import { Vector3, type AbstractMesh, type Scene } from "@babylonjs/core";
-import { HexCell } from "../hex/HexCell";
-import type { HexGrid } from "../hex/HexGrid";
+import { GridCell } from "../grid/GridCell";
+import type { RectGrid } from "../grid/RectGrid";
 import {
   parseGameNavigationMetadata,
   parseStairCheckpointMetadata,
@@ -21,7 +21,7 @@ export interface NavigationObstacleDebugInfo {
 }
 
 export interface CoverNavigationCell {
-  readonly cell: HexCell;
+  readonly cell: GridCell;
   readonly storyIndex: number;
   readonly cover: NavigationCover;
 }
@@ -39,7 +39,7 @@ export class NavigationObstacleRegistry {
     this.movementCostByCellKey = new Map();
   }
 
-  public rebuild(scene: Scene, grid: HexGrid, storyYByStory: ReadonlyMap<number, number>): void {
+  public rebuild(scene: Scene, grid: RectGrid, storyYByStory: ReadonlyMap<number, number>): void {
     this.clear();
 
     for (const mesh of scene.meshes) {
@@ -74,19 +74,19 @@ export class NavigationObstacleRegistry {
     this.movementCostByCellKey.clear();
   }
 
-  public isMovementBlocked(cell: HexCell, storyIndex: number): boolean {
+  public isMovementBlocked(cell: GridCell, storyIndex: number): boolean {
     return this.movementBlockedCells.has(makeStoryCellKey(storyIndex, cell));
   }
 
-  public isVisionBlocked(cell: HexCell, storyIndex: number): boolean {
+  public isVisionBlocked(cell: GridCell, storyIndex: number): boolean {
     return this.visionBlockedCells.has(makeStoryCellKey(storyIndex, cell));
   }
 
-  public getCover(cell: HexCell, storyIndex: number): GameNavigationCover {
+  public getCover(cell: GridCell, storyIndex: number): GameNavigationCover {
     return this.coverByCellKey.get(makeStoryCellKey(storyIndex, cell))?.cover ?? "none";
   }
 
-  public getMovementCost(cell: HexCell, storyIndex: number): number {
+  public getMovementCost(cell: GridCell, storyIndex: number): number {
     return this.movementCostByCellKey.get(makeStoryCellKey(storyIndex, cell)) ?? 1;
   }
 
@@ -102,7 +102,7 @@ export class NavigationObstacleRegistry {
     return [...this.coverByCellKey.values()];
   }
 
-  public getDebugInfo(cell: HexCell, storyIndex: number): NavigationObstacleDebugInfo {
+  public getDebugInfo(cell: GridCell, storyIndex: number): NavigationObstacleDebugInfo {
     return {
       movementBlocked: this.isMovementBlocked(cell, storyIndex),
       visionBlocked: this.isVisionBlocked(cell, storyIndex),
@@ -130,12 +130,12 @@ export class NavigationObstacleRegistry {
   private projectFootprint(
     mesh: AbstractMesh,
     metadata: GameNavigationMetadata,
-    grid: HexGrid,
+    grid: RectGrid,
     storyIndex: number,
     storyYByStory: ReadonlyMap<number, number>
-  ): HexCell[] {
+  ): GridCell[] {
     if (metadata.footprint === "tile" && metadata.tileX !== undefined && metadata.tileY !== undefined) {
-      return [new HexCell(metadata.tileX, metadata.tileY)].filter((cell) => grid.contains(cell));
+      return [new GridCell(metadata.tileX, metadata.tileY)].filter((cell) => grid.contains(cell));
     }
 
     if (metadata.footprint !== "bounds" && metadata.footprint !== "bbox") {
@@ -144,14 +144,14 @@ export class NavigationObstacleRegistry {
 
     const bounds = getWorldBounds(mesh);
     const storyY = storyYByStory.get(storyIndex) ?? bounds.center.y;
-    const hexSize = grid.getHexSize();
-    const halfX = Math.max((bounds.max.x - bounds.min.x) / 2, hexSize * 0.15);
-    const halfZ = Math.max((bounds.max.z - bounds.min.z) / 2, hexSize * 0.15);
+    const tileSize = grid.getTileSize();
+    const halfX = Math.max((bounds.max.x - bounds.min.x) / 2, tileSize * 0.15);
+    const halfZ = Math.max((bounds.max.z - bounds.min.z) / 2, tileSize * 0.15);
     const minX = bounds.center.x - halfX;
     const maxX = bounds.center.x + halfX;
     const minZ = bounds.center.z - halfZ;
     const maxZ = bounds.center.z + halfZ;
-    const cells: HexCell[] = [];
+    const cells: GridCell[] = [];
 
     for (const cell of grid.getCellsWithinBounds()) {
       const center = grid.cellToWorld(cell, storyY);
@@ -163,9 +163,9 @@ export class NavigationObstacleRegistry {
     return cells;
   }
 
-  private recordCell(cell: HexCell, storyIndex: number, metadata: GameNavigationMetadata): void {
+  private recordCell(cell: GridCell, storyIndex: number, metadata: GameNavigationMetadata): void {
     const key = makeStoryCellKey(storyIndex, cell);
-    const entry = { cell: new HexCell(cell.q, cell.r), storyIndex };
+    const entry = { cell: new GridCell(cell.x, cell.z), storyIndex };
 
     if (metadata.blocksMovement) {
       this.movementBlockedCells.set(key, entry);

@@ -1,4 +1,4 @@
-import { HexCell } from "../hex/HexCell";
+import { GridCell } from "../grid/GridCell";
 import {
   makeNavigationNodeId,
   type MovementSegment,
@@ -17,9 +17,9 @@ export class MultiFloorPathfinder {
   }
 
   public findPath(input: {
-    fromCell: HexCell;
+    fromCell: GridCell;
     fromStoryIndex: number;
-    toCell: HexCell;
+    toCell: GridCell;
     toStoryIndex: number;
     blocked?: (node: NavigationNode) => boolean;
     occupied?: (node: NavigationNode) => boolean;
@@ -180,12 +180,12 @@ export class MultiFloorPathfinder {
     console.debug(
       [
         "MultiFloorPathfinder:",
-        `from story ${start.storyIndex} cell ${start.cell.q}:${start.cell.r}`,
-        `to story ${goal.storyIndex} cell ${goal.cell.q}:${goal.cell.r}`,
+        `from story ${start.storyIndex} cell ${start.cell.x}:${start.cell.z}`,
+        `to story ${goal.storyIndex} cell ${goal.cell.x}:${goal.cell.z}`,
         "path:",
         ...segments.map((segment) => {
           if (segment.kind === "walk") {
-            return `walk ${segment.storyIndex}:${segment.cell.q}:${segment.cell.r}`;
+            return `walk ${segment.storyIndex}:${segment.cell.x}:${segment.cell.z}`;
           }
 
           return `stair ${segment.stairId} ${segment.fromStoryIndex} -> ${segment.toStoryIndex} checkpoints=${segment.traversalPath.length}`;
@@ -195,6 +195,6 @@ export class MultiFloorPathfinder {
   }
 }
 
-export function makeMovementTargetKey(cell: HexCell, storyIndex: number): string {
+export function makeMovementTargetKey(cell: GridCell, storyIndex: number): string {
   return makeNavigationNodeId(storyIndex, cell);
 }

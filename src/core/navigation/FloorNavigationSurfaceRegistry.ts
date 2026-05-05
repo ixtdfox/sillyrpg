@@ -1,7 +1,8 @@
 import { Vector3, type AbstractMesh, type Node, type Scene } from "@babylonjs/core";
-import { HexCell } from "../hex/HexCell";
-import type { HexGrid } from "../hex/HexGrid";
+import { GridCell } from "../grid/GridCell";
+import type { RectGrid } from "../grid/RectGrid";
 import { parseGameNavigationMetadata, parseStairCheckpointMetadata } from "./BuildingNavigationMetadata";
+import { parseGridNavigationContracts } from "./GridNavigationContract";
 
 export interface WalkableFloorSurface {
   readonly mesh: AbstractMesh;
@@ -11,7 +12,7 @@ export interface WalkableFloorSurface {
 }
 
 export interface FloorNavigationCell {
-  readonly cell: HexCell;
+  readonly cell: GridCell;
   readonly storyIndex: number;
 }
 
@@ -19,15 +20,15 @@ export interface FloorNavigationSurfaceRegistryRebuildOptions {
   readonly forcedGroundMesh?: AbstractMesh;
 }
 
-export function makeStoryCellKey(storyIndex: number, cell: HexCell): string {
-  return `${storyIndex}:${cell.q}:${cell.r}`;
+export function makeStoryCellKey(storyIndex: number, cell: GridCell): string {
+  return `${storyIndex}:${cell.x}:${cell.z}`;
 }
 
 export class FloorNavigationSurfaceRegistry {
   private readonly surfaces: WalkableFloorSurface[];
-  private readonly cellsByStory: Map<number, Map<string, HexCell>>;
+  private readonly cellsByStory: Map<number, Map<string, GridCell>>;
   private readonly storyYByStory: Map<number, number>;
-  private grid: HexGrid | null;
+  private grid: RectGrid | null;
   private hasExplicitSurfaces: boolean;
 
   public constructor() {
@@ -38,7 +39,7 @@ export class FloorNavigationSurfaceRegistry {
     this.hasExplicitSurfaces = false;
   }
 
-  public rebuild(scene: Scene, grid: HexGrid, options: FloorNavigationSurfaceRegistryRebuildOptions = {}): void {
+  public rebuild(scene: Scene, grid: RectGrid, options: FloorNavigationSurfaceRegistryRebuildOptions = {}): void {
     this.surfaces.length = 0;
     this.cellsByStory.clear();
     this.storyYByStory.clear();
@@ -46,6 +47,22 @@ export class FloorNavigationSurfaceRegistry {
     this.hasExplicitSurfaces = false;
 
     const knownStoryY = this.collectKnownStoryY(scene);
+    const gridContracts = parseGridNavigationContracts(scene);
+    for (const contract of gridContracts) {
+      for (const story of contract.stories) {
+        this.hasExplicitSurfaces = true;
+        this.recordStoryY(story.storyIndex, grid.getOrigin().y);
+        for (const cell of story.walkableCells) {
+          if (grid.contains(cell)) {
+            this.addWalkableCell(cell, story.storyIndex);
+          }
+        }
+      }
+    }
+    if (gridContracts.length > 0) {
+      this.logStats();
+      return;
+    }
 
     if (options.forcedGroundMesh && !options.forcedGroundMesh.isDisposed() && options.forcedGroundMesh.getTotalVertices() > 0) {
       this.addWalkableSurface(grid, options.forcedGroundMesh, 0, getWorldBounds(options.forcedGroundMesh));
@@ -80,7 +97,7 @@ export class FloorNavigationSurfaceRegistry {
     this.logStats();
   }
 
-  public isWalkableCell(cell: HexCell, storyIndex: number): boolean {
+  public isWalkableCell(cell: GridCell, storyIndex: number): boolean {
     if (!this.hasExplicitSurfaces && storyIndex === 0) {
       return true;
     }
@@ -88,7 +105,7 @@ export class FloorNavigationSurfaceRegistry {
     return this.cellsByStory.get(storyIndex)?.has(makeStoryCellKey(storyIndex, cell)) ?? false;
   }
 
-  public getWalkableCells(storyIndex: number): readonly HexCell[] {
+  public getWalkableCells(storyIndex: number): readonly GridCell[] {
     return [...(this.cellsByStory.get(storyIndex)?.values() ?? [])];
   }
 
@@ -118,11 +135,11 @@ export class FloorNavigationSurfaceRegistry {
     readonly point: Vector3;
     readonly storyIndex: number;
     readonly maxDistance?: number;
-  }): HexCell | null {
+  }): GridCell | null {
     const maxDistance = input.maxDistance ?? 2;
     const cells = this.getWalkableCells(input.storyIndex);
     const storyY = this.getStoryY(input.storyIndex) ?? input.point.y;
-    let bestCell: HexCell | null = null;
+    let bestCell: GridCell | null = null;
     let bestDistanceSquared = maxDistance * maxDistance;
 
     for (const cell of cells) {
@@ -137,12 +154,12 @@ export class FloorNavigationSurfaceRegistry {
     return bestCell;
   }
 
-  public addForcedWalkableCell(cell: HexCell, storyIndex: number): void {
+  public addForcedWalkableCell(cell: GridCell, storyIndex: number): void {
     this.addWalkableCell(cell, storyIndex);
   }
 
   private addWalkableSurface(
-    grid: HexGrid,
+    grid: RectGrid,
     mesh: AbstractMesh,
     storyIndex: number,
     bounds: { readonly min: Vector3; readonly max: Vector3 }
@@ -158,10 +175,10 @@ export class FloorNavigationSurfaceRegistry {
     this.addCellsForBounds(grid, storyIndex, bounds.min, bounds.max);
   }
 
-  private addCellsForBounds(grid: HexGrid, storyIndex: number, min: Vector3, max: Vector3): void {
-    const hexSize = grid.getHexSize();
-    const padX = Math.min(hexSize * 0.25, Math.max(0, (max.x - min.x) * 0.12));
-    const padZ = Math.min(hexSize * 0.25, Math.max(0, (max.z - min.z) * 0.12));
+  private addCellsForBounds(grid: RectGrid, storyIndex: number, min: Vector3, max: Vector3): void {
+    const tileSize = grid.getTileSize();
+    const padX = Math.min(tileSize * 0.25, Math.max(0, (max.x - min.x) * 0.12));
+    const padZ = Math.min(tileSize * 0.25, Math.max(0, (max.z - min.z) * 0.12));
     const storyY = this.storyYByStory.get(storyIndex) ?? (min.y + max.y) / 2;
 
     for (const cell of grid.getCellsWithinBounds()) {
@@ -179,9 +196,9 @@ export class FloorNavigationSurfaceRegistry {
     }
   }
 
-  private addWalkableCell(cell: HexCell, storyIndex: number): void {
-    const cells = this.cellsByStory.get(storyIndex) ?? new Map<string, HexCell>();
-    cells.set(makeStoryCellKey(storyIndex, cell), new HexCell(cell.q, cell.r));
+  private addWalkableCell(cell: GridCell, storyIndex: number): void {
+    const cells = this.cellsByStory.get(storyIndex) ?? new Map<string, GridCell>();
+    cells.set(makeStoryCellKey(storyIndex, cell), new GridCell(cell.x, cell.z));
     this.cellsByStory.set(storyIndex, cells);
   }
 
@@ -269,7 +286,7 @@ export class FloorNavigationSurfaceRegistry {
     if (metadata?.isGround === true) {
       return true;
     }
-    return /^(ground|hex-ground|terrain|floor)$/i.test(mesh.name.replace(/\.[0-9]+$/u, ""));
+    return /^(ground|grid-ground|terrain|floor)$/i.test(mesh.name.replace(/\.[0-9]+$/u, ""));
   }
 
   private recordStoryY(storyIndex: number, y: number): void {

@@ -1,11 +1,11 @@
 import { Matrix, type AbstractMesh, type PickingInfo, type Ray, type Scene, Vector3 } from "@babylonjs/core";
-import { HexCell } from "./HexCell";
-import { HexGrid } from "./HexGrid";
-import { HexGridOverlay } from "./HexGridOverlay";
+import { GridCell } from "./GridCell";
+import { RectGrid } from "./RectGrid";
+import { RectGridOverlay } from "./RectGridOverlay";
 import { parseStairPickMetadata } from "../navigation/BuildingNavigationMetadata";
 
 export interface PickedNavigationCell {
-  readonly cell: HexCell;
+  readonly cell: GridCell;
   readonly storyIndex: number;
   readonly worldPosition: Vector3;
   readonly pickedMeshName?: string;
@@ -25,17 +25,17 @@ export type PickedNavigationTarget =
     };
 
 /**
- * Integrates mouse picking with logical hex snapping and hovered-cell highlight.
+ * Integrates mouse picking with logical grid snapping and hovered-cell highlight.
  */
-export class HexGroundPickerController {
+export class RectGroundPickerController {
   private readonly scene: Scene;
   private readonly isGroundPick: (mesh: AbstractMesh) => boolean;
-  private isWalkableCell: (cell: HexCell, storyIndex: number) => boolean;
+  private isWalkableCell: (cell: GridCell, storyIndex: number) => boolean;
   private storyYResolver: (storyIndex: number) => number;
   private storyIndicesProvider: () => readonly number[];
-  private readonly grid: HexGrid;
-  private readonly overlay: HexGridOverlay;
-  private hoveredCell: HexCell | null;
+  private readonly grid: RectGrid;
+  private readonly overlay: RectGridOverlay;
+  private hoveredCell: GridCell | null;
   private hoveredNavigationCell: PickedNavigationCell | null;
   private hoveredNavigationTarget: PickedNavigationTarget | null;
   private warnedMissingStoryMetadataMeshIds: Set<number>;
@@ -47,9 +47,9 @@ export class HexGroundPickerController {
   public constructor(
     scene: Scene,
     isGroundPick: (mesh: AbstractMesh) => boolean,
-    grid: HexGrid,
-    overlay: HexGridOverlay,
-    isWalkableCell: (cell: HexCell, storyIndex: number) => boolean = () => true
+    grid: RectGrid,
+    overlay: RectGridOverlay,
+    isWalkableCell: (cell: GridCell, storyIndex: number) => boolean = () => true
   ) {
     this.scene = scene;
     this.isGroundPick = isGroundPick;
@@ -74,7 +74,7 @@ export class HexGroundPickerController {
   /**
    * Returns currently hovered cell derived from pointer pick, if any.
    */
-  public getHoveredCell(): HexCell | null {
+  public getHoveredCell(): GridCell | null {
     return this.hoveredCell;
   }
 
@@ -100,7 +100,7 @@ export class HexGroundPickerController {
     this.fallbackStoryIndex = storyIndex;
   }
 
-  public setWalkableCellPredicate(isWalkableCell: (cell: HexCell, storyIndex: number) => boolean): void {
+  public setWalkableCellPredicate(isWalkableCell: (cell: GridCell, storyIndex: number) => boolean): void {
     this.isWalkableCell = isWalkableCell;
   }
 

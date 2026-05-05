@@ -1,45 +1,45 @@
 import type { EntityManager } from "../../EntityManager";
 import type { System } from "../../System";
-import { HexPositionComponent } from "../../components/HexPositionComponent";
-import { HexCell } from "../../../hex/HexCell";
-import { HexSpatialIndex } from "./HexSpatialIndex";
+import { GridPositionComponent } from "../../components/GridPositionComponent";
+import { GridCell } from "../../../grid/GridCell";
+import { GridSpatialIndex } from "./GridSpatialIndex";
 
-interface TrackedHexPosition {
-  readonly cell: HexCell;
+interface TrackedGridPosition {
+  readonly cell: GridCell;
   readonly storyIndex: number;
 }
 
 /**
- * Keeps HexSpatialIndex synchronized with ECS HexPositionComponent values.
+ * Keeps GridSpatialIndex synchronized with ECS GridPositionComponent values.
  */
-export class HexSpatialIndexSystem implements System {
+export class GridSpatialIndexSystem implements System {
   private readonly entityManager: EntityManager;
-  private readonly spatialIndex: HexSpatialIndex;
-  private readonly trackedEntityCells: Map<string, TrackedHexPosition>;
+  private readonly spatialIndex: GridSpatialIndex;
+  private readonly trackedEntityCells: Map<string, TrackedGridPosition>;
 
-  public constructor(entityManager: EntityManager, spatialIndex: HexSpatialIndex) {
+  public constructor(entityManager: EntityManager, spatialIndex: GridSpatialIndex) {
     this.entityManager = entityManager;
     this.spatialIndex = spatialIndex;
-    this.trackedEntityCells = new Map<string, TrackedHexPosition>();
+    this.trackedEntityCells = new Map<string, TrackedGridPosition>();
   }
 
   public update(_deltaSeconds: number): void {
-    const entitiesWithHexPosition = this.entityManager.query(HexPositionComponent);
+    const entitiesWithGridPosition = this.entityManager.query(GridPositionComponent);
     const currentEntityIds = new Set<string>();
 
-    for (const entity of entitiesWithHexPosition) {
+    for (const entity of entitiesWithGridPosition) {
       const entityId = entity.getId();
       currentEntityIds.add(entityId);
 
-      const hexPosition = entity.getComponent(HexPositionComponent);
+      const gridPosition = entity.getComponent(GridPositionComponent);
       const previousPosition = this.trackedEntityCells.get(entityId);
-      const currentCell = hexPosition.currentCell;
-      const currentStoryIndex = hexPosition.currentStoryIndex;
+      const currentCell = gridPosition.currentCell;
+      const currentStoryIndex = gridPosition.currentStoryIndex;
 
       if (!previousPosition) {
         this.spatialIndex.addEntity(entityId, currentCell, currentStoryIndex);
         this.trackedEntityCells.set(entityId, {
-          cell: new HexCell(currentCell.q, currentCell.r),
+          cell: new GridCell(currentCell.x, currentCell.z),
           storyIndex: currentStoryIndex
         });
         continue;
@@ -54,7 +54,7 @@ export class HexSpatialIndexSystem implements System {
           currentStoryIndex
         );
         this.trackedEntityCells.set(entityId, {
-          cell: new HexCell(currentCell.q, currentCell.r),
+          cell: new GridCell(currentCell.x, currentCell.z),
           storyIndex: currentStoryIndex
         });
       }

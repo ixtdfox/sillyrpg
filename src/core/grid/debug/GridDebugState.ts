@@ -1,7 +1,7 @@
 /**
- * Holds mutable UI state for hex grid debug visibility.
+ * Holds mutable UI state for grid grid debug visibility.
  */
-export class HexGridDebugState {
+export class GridDebugState {
   private isDebugEnabled: boolean;
 
   public constructor(initialValue = false) {

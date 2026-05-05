@@ -1,6 +1,6 @@
 import type { Scene } from "@babylonjs/core";
 import { AdvancedDynamicTexture, Button, Control, Rectangle, StackPanel, TextBlock } from "@babylonjs/gui";
-import { HexGridDebugToggleControl } from "../../../hex/debug/HexGridDebugToggleControl";
+import { GridDebugToggleControl } from "../../../grid/debug/GridDebugToggleControl";
 import { PhoneDialogUi } from "./phone/PhoneDialogUi";
 
 /**
@@ -8,18 +8,18 @@ import { PhoneDialogUi } from "./phone/PhoneDialogUi";
  */
 export class InGameTopPanelUi {
   private readonly texture: AdvancedDynamicTexture;
-  private readonly hexGridDebugControl: HexGridDebugToggleControl;
+  private readonly gridDebugControl: GridDebugToggleControl;
   private readonly combatBanner: Rectangle;
   private readonly phoneDialogUi: PhoneDialogUi;
   private readonly phoneToggleButton: Button;
 
   /**
-   * Creates root top-panel HUD and mounts hex debug widget into it.
+   * Creates root top-panel HUD and mounts grid debug widget into it.
    *
    * @param scene - Active in-game scene.
-   * @param onHexGridToggleRequested - Callback for hex debug toggle clicks.
+   * @param onRectGridToggleRequested - Callback for grid debug toggle clicks.
    */
-  public constructor(scene: Scene, onHexGridToggleRequested: () => void) {
+  public constructor(scene: Scene, onRectGridToggleRequested: () => void) {
     this.texture = AdvancedDynamicTexture.CreateFullscreenUI("in-game-ui", true, scene);
 
     const topPanel = new Rectangle("in-game-top-panel");
@@ -38,8 +38,8 @@ export class InGameTopPanelUi {
     content.horizontalAlignment = Control.HORIZONTAL_ALIGNMENT_LEFT;
     topPanel.addControl(content);
 
-    this.hexGridDebugControl = new HexGridDebugToggleControl(onHexGridToggleRequested);
-    content.addControl(this.hexGridDebugControl.getControl());
+    this.gridDebugControl = new GridDebugToggleControl(onRectGridToggleRequested);
+    content.addControl(this.gridDebugControl.getControl());
 
     this.phoneToggleButton = Button.CreateSimpleButton("in-game-phone-toggle", "📱");
     this.phoneToggleButton.width = "52px";
@@ -78,10 +78,10 @@ export class InGameTopPanelUi {
   }
 
   /**
-   * Updates hex debug control visual state.
+   * Updates grid debug control visual state.
    */
-  public setHexGridDebugEnabled(isEnabled: boolean): void {
-    this.hexGridDebugControl.setDebugEnabled(isEnabled);
+  public setRectGridDebugEnabled(isEnabled: boolean): void {
+    this.gridDebugControl.setDebugEnabled(isEnabled);
   }
 
   public setCombatBannerVisible(isVisible: boolean): void {

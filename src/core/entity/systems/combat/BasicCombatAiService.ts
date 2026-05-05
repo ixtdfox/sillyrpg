@@ -2,16 +2,16 @@ import { Scene as BabylonScene } from "@babylonjs/core";
 import type { Entity } from "../../Entity";
 import type { EntityManager } from "../../EntityManager";
 import { CombatStatsComponent } from "../../components/CombatStatsComponent";
-import { HexPathMovementComponent } from "../../components/HexPathMovementComponent";
-import { HexPositionComponent } from "../../components/HexPositionComponent";
+import { GridPathMovementComponent } from "../../components/GridPathMovementComponent";
+import { GridPositionComponent } from "../../components/GridPositionComponent";
 import { RelationsComponent } from "../../components/RelationsComponent";
 import { VitalsComponent } from "../../components/VitalsComponent";
-import { HexCell } from "../../../hex/HexCell";
+import { GridCell } from "../../../grid/GridCell";
 import { MultiFloorPathfinder } from "../../../navigation/MultiFloorPathfinder";
 import { NavigationGraph, type MovementSegment, type NavigationNode } from "../../../navigation/NavigationGraph";
 import { getInGameSceneRuntimeContext, type InGameSceneRuntimeContext } from "../../../scene/in-game/InGameSceneRuntimeContext";
 import { CombatAttackTargetingService } from "./CombatAttackTargetingService";
-import { HexSpatialIndex } from "../hex/HexSpatialIndex";
+import { GridSpatialIndex } from "../grid/GridSpatialIndex";
 
 export type AiTurnStepResult = "in_progress" | "completed";
 type AiTurnPhase = "deciding" | "moving";
@@ -22,7 +22,7 @@ interface AiTurnContext {
 }
 
 interface ApproachTarget {
-  readonly cell: HexCell;
+  readonly cell: GridCell;
   readonly storyIndex: number;
 }
 
@@ -40,14 +40,14 @@ interface ApproachPathOption {
 export class BasicCombatAiService {
   private readonly entityManager: EntityManager;
   private readonly attackTargetingService: CombatAttackTargetingService;
-  private readonly spatialIndex: HexSpatialIndex;
+  private readonly spatialIndex: GridSpatialIndex;
   private readonly aiTurnContextByEntityId: Map<string, AiTurnContext>;
   private runtimeContext: InGameSceneRuntimeContext | null;
 
   public constructor(
     entityManager: EntityManager,
     attackTargetingService: CombatAttackTargetingService,
-    spatialIndex: HexSpatialIndex
+    spatialIndex: GridSpatialIndex
   ) {
     this.entityManager = entityManager;
     this.attackTargetingService = attackTargetingService;
@@ -107,7 +107,7 @@ export class BasicCombatAiService {
       return "completed";
     }
 
-    const movement = activeAi.tryGetComponent(HexPathMovementComponent);
+    const movement = activeAi.tryGetComponent(GridPathMovementComponent);
     if (!movement) {
       this.aiTurnContextByEntityId.delete(activeAiEntityId);
       return "completed";
@@ -128,28 +128,28 @@ export class BasicCombatAiService {
 
   private tryMoveTowardsTarget(activeAiEntityId: string, activeAi: Entity, target: Entity): boolean {
     const activeStats = activeAi.tryGetComponent(CombatStatsComponent);
-    const activeHexPosition = activeAi.tryGetComponent(HexPositionComponent);
-    const targetHexPosition = target.tryGetComponent(HexPositionComponent);
-    const movement = activeAi.tryGetComponent(HexPathMovementComponent);
+    const activeGridPosition = activeAi.tryGetComponent(GridPositionComponent);
+    const targetGridPosition = target.tryGetComponent(GridPositionComponent);
+    const movement = activeAi.tryGetComponent(GridPathMovementComponent);
 
-    if (!activeStats || !activeHexPosition || !targetHexPosition || !movement || activeStats.currentMp <= 0) {
+    if (!activeStats || !activeGridPosition || !targetGridPosition || !movement || activeStats.currentMp <= 0) {
       return false;
     }
 
     const approachTarget = this.resolveApproachTarget(
       activeAiEntityId,
-      activeHexPosition.currentCell,
-      activeHexPosition.currentStoryIndex,
-      targetHexPosition.currentCell,
-      targetHexPosition.currentStoryIndex,
+      activeGridPosition.currentCell,
+      activeGridPosition.currentStoryIndex,
+      targetGridPosition.currentCell,
+      targetGridPosition.currentStoryIndex,
       activeStats.currentMp
     );
     if (!approachTarget) {
       return false;
     }
 
-    activeHexPosition.targetCell = approachTarget.cell;
-    activeHexPosition.targetStoryIndex = approachTarget.storyIndex;
+    activeGridPosition.targetCell = approachTarget.cell;
+    activeGridPosition.targetStoryIndex = approachTarget.storyIndex;
     movement.resetPathState();
     return true;
   }
@@ -217,9 +217,9 @@ export class BasicCombatAiService {
 
   private findNearestHostileTarget(activeAi: Entity, participantIds: readonly string[]): Entity | null {
     const activeRelations = activeAi.tryGetComponent(RelationsComponent);
-    const activeHexPosition = activeAi.tryGetComponent(HexPositionComponent);
+    const activeGridPosition = activeAi.tryGetComponent(GridPositionComponent);
 
-    if (!activeRelations || !activeHexPosition) {
+    if (!activeRelations || !activeGridPosition) {
       return null;
     }
 
@@ -244,7 +244,7 @@ export class BasicCombatAiService {
         continue;
       }
 
-      if (!participant.hasComponent(HexPositionComponent)) {
+      if (!participant.hasComponent(GridPositionComponent)) {
         continue;
       }
 
@@ -256,10 +256,10 @@ export class BasicCombatAiService {
     }
 
     aliveHostiles.sort((first, second) => {
-      const firstCell = first.getComponent(HexPositionComponent).currentCell;
-      const secondCell = second.getComponent(HexPositionComponent).currentCell;
-      const firstDistance = activeHexPosition.currentCell.distance(firstCell);
-      const secondDistance = activeHexPosition.currentCell.distance(secondCell);
+      const firstCell = first.getComponent(GridPositionComponent).currentCell;
+      const secondCell = second.getComponent(GridPositionComponent).currentCell;
+      const firstDistance = activeGridPosition.currentCell.distance(firstCell);
+      const secondDistance = activeGridPosition.currentCell.distance(secondCell);
       return firstDistance - secondDistance;
     });
 
@@ -268,9 +268,9 @@ export class BasicCombatAiService {
 
   private resolveApproachTarget(
     activeAiEntityId: string,
-    activeCell: HexCell,
+    activeCell: GridCell,
     activeStoryIndex: number,
-    targetCell: HexCell,
+    targetCell: GridCell,
     targetStoryIndex: number,
     movementPoints: number
   ): ApproachTarget | null {
@@ -278,16 +278,16 @@ export class BasicCombatAiService {
       return null;
     }
 
-    const grid = this.runtimeContext.hexGridRuntime.getGrid();
-    const registry = this.runtimeContext.hexGridRuntime.getBuildingNavigationRegistry();
+    const grid = this.runtimeContext.gridRuntime.getGrid();
+    const registry = this.runtimeContext.gridRuntime.getBuildingNavigationRegistry();
     const graph = new NavigationGraph(
       grid,
       registry.getStairConnectors(),
-      this.runtimeContext.hexGridRuntime.getMergedStoryYByStory(),
-      (cell, storyIndex) => this.runtimeContext?.hexGridRuntime.isWalkableCell(cell, storyIndex) ?? false,
+      this.runtimeContext.gridRuntime.getMergedStoryYByStory(),
+      (cell, storyIndex) => this.runtimeContext?.gridRuntime.isWalkableCell(cell, storyIndex) ?? false,
       (fromCell, toCell, storyIndex) =>
-        this.runtimeContext?.hexGridRuntime.isNavigationEdgeBlocked(fromCell, toCell, storyIndex) ?? false,
-      (cell, storyIndex) => this.runtimeContext?.hexGridRuntime.getMovementCost(cell, storyIndex) ?? 1
+        this.runtimeContext?.gridRuntime.isNavigationEdgeBlocked(fromCell, toCell, storyIndex) ?? false,
+      (cell, storyIndex) => this.runtimeContext?.gridRuntime.getMovementCost(cell, storyIndex) ?? 1
     );
     const pathfinder = new MultiFloorPathfinder(graph, registry.getShowStairNavigationDebug());
     const isOccupiedByOtherEntity = (node: NavigationNode): boolean => {
@@ -301,7 +301,7 @@ export class BasicCombatAiService {
     const attackAdjacentTargets = grid
       .getNeighbors(targetCell)
       .filter((cell) => grid.contains(cell))
-      .filter((cell) => this.runtimeContext?.hexGridRuntime.isWalkableCell(cell, targetStoryIndex) ?? false)
+      .filter((cell) => this.runtimeContext?.gridRuntime.isWalkableCell(cell, targetStoryIndex) ?? false)
       .map((cell): ApproachTarget => ({ cell, storyIndex: targetStoryIndex }))
       .filter((candidate) => {
         if (candidate.cell.equals(activeCell) && candidate.storyIndex === activeStoryIndex) {
@@ -350,11 +350,11 @@ export class BasicCombatAiService {
     console.debug("[BasicCombatAiService] AI approach", {
       activeAiEntityId,
       fromStory: activeStoryIndex,
-      fromCell: `${activeCell.q}:${activeCell.r}`,
+      fromCell: `${activeCell.x}:${activeCell.z}`,
       targetStory: targetStoryIndex,
-      targetCell: `${targetCell.q}:${targetCell.r}`,
+      targetCell: `${targetCell.x}:${targetCell.z}`,
       selectedStory: selectedOption?.selectedTarget.storyIndex,
-      selectedCell: selectedOption ? `${selectedOption.selectedTarget.cell.q}:${selectedOption.selectedTarget.cell.r}` : null
+      selectedCell: selectedOption ? `${selectedOption.selectedTarget.cell.x}:${selectedOption.selectedTarget.cell.z}` : null
     });
 
     return selectedOption?.selectedTarget ?? null;
@@ -420,7 +420,7 @@ export class BasicCombatAiService {
     };
   }
 
-  private compareCompleteOptions(first: ApproachPathOption, second: ApproachPathOption, activeCell: HexCell): number {
+  private compareCompleteOptions(first: ApproachPathOption, second: ApproachPathOption, activeCell: GridCell): number {
     const costDelta = first.totalCost - second.totalCost;
     if (costDelta !== 0) {
       return costDelta;
@@ -429,7 +429,7 @@ export class BasicCombatAiService {
     return activeCell.distance(first.finalTarget.cell) - activeCell.distance(second.finalTarget.cell);
   }
 
-  private comparePartialOptions(first: ApproachPathOption, second: ApproachPathOption, targetCell: HexCell): number {
+  private comparePartialOptions(first: ApproachPathOption, second: ApproachPathOption, targetCell: GridCell): number {
     const progressDelta = second.selectedCost - first.selectedCost;
     if (progressDelta !== 0) {
       return progressDelta;
@@ -443,7 +443,7 @@ export class BasicCombatAiService {
     return first.totalCost - second.totalCost;
   }
 
-  private isOccupiedByOtherEntity(activeAiEntityId: string, cell: HexCell, storyIndex: number): boolean {
+  private isOccupiedByOtherEntity(activeAiEntityId: string, cell: GridCell, storyIndex: number): boolean {
     const occupants = this.spatialIndex.getEntitiesAt(cell, storyIndex);
     return occupants.some((occupantId) => occupantId !== activeAiEntityId);
   }

@@ -1,31 +1,31 @@
-import { HexCell } from "./HexCell";
-import { HexGrid } from "./HexGrid";
+import { GridCell } from "./GridCell";
+import { RectGrid } from "./RectGrid";
 
 /**
  * Optional rule used to reject traversal through blocked cells.
  */
-export type HexCellBlockedPredicate = (cell: HexCell) => boolean;
-export type HexEdgeBlockedPredicate = (fromCell: HexCell, toCell: HexCell) => boolean;
+export type GridCellBlockedPredicate = (cell: GridCell) => boolean;
+export type GridEdgeBlockedPredicate = (fromCell: GridCell, toCell: GridCell) => boolean;
 
 /**
- * Computes deterministic shortest paths across bounded hex grids.
+ * Computes deterministic shortest paths across bounded grid grids.
  */
-export class HexPathfinder {
-  private readonly grid: HexGrid;
-  private readonly isCellBlocked: HexCellBlockedPredicate;
-  private readonly isEdgeBlocked: HexEdgeBlockedPredicate;
+export class RectPathfinder {
+  private readonly grid: RectGrid;
+  private readonly isCellBlocked: GridCellBlockedPredicate;
+  private readonly isEdgeBlocked: GridEdgeBlockedPredicate;
 
   /**
    * Creates a new pathfinder for a specific grid.
    *
-   * @param grid - Logical hex grid.
+   * @param grid - Logical grid grid.
    * @param isCellBlocked - Optional blocked-cell predicate.
    * @param isEdgeBlocked - Optional blocked-edge predicate.
    */
   public constructor(
-    grid: HexGrid,
-    isCellBlocked: HexCellBlockedPredicate = () => false,
-    isEdgeBlocked: HexEdgeBlockedPredicate = () => false
+    grid: RectGrid,
+    isCellBlocked: GridCellBlockedPredicate = () => false,
+    isEdgeBlocked: GridEdgeBlockedPredicate = () => false
   ) {
     this.grid = grid;
     this.isCellBlocked = isCellBlocked;
@@ -37,7 +37,7 @@ export class HexPathfinder {
    *
    * @returns Inclusive cell list [start..goal], or null when unreachable/invalid.
    */
-  public findPath(start: HexCell, goal: HexCell): HexCell[] | null {
+  public findPath(start: GridCell, goal: GridCell): GridCell[] | null {
     if (!this.grid.contains(start) || !this.grid.contains(goal)) {
       return null;
     }
@@ -46,9 +46,9 @@ export class HexPathfinder {
       return [start];
     }
 
-    const queue: HexCell[] = [start];
+    const queue: GridCell[] = [start];
     const visited = new Set<string>([this.cellKey(start)]);
-    const parentByKey = new Map<string, HexCell>();
+    const parentByKey = new Map<string, GridCell>();
 
     while (queue.length > 0) {
       const current = queue.shift();
@@ -84,8 +84,8 @@ export class HexPathfinder {
     return null;
   }
 
-  private reconstructPath(start: HexCell, goal: HexCell, parentByKey: Map<string, HexCell>): HexCell[] {
-    const path: HexCell[] = [goal];
+  private reconstructPath(start: GridCell, goal: GridCell, parentByKey: Map<string, GridCell>): GridCell[] {
+    const path: GridCell[] = [goal];
     let current = goal;
 
     while (!current.equals(start)) {
@@ -102,7 +102,7 @@ export class HexPathfinder {
     return path;
   }
 
-  private cellKey(cell: HexCell): string {
-    return `${cell.q},${cell.r}`;
+  private cellKey(cell: GridCell): string {
+    return cell.key();
   }
 }

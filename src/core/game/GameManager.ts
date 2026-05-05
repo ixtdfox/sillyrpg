@@ -9,14 +9,14 @@ import { CharacterSpawnerSystem } from "../entity/systems/CharacterSpawnerSystem
 import { LocalPlayerSystem } from "../entity/systems/LocalPlayerSystem";
 import { LocalPlayerInputSystem } from "../entity/systems/LocalPlayerInputSystem";
 import { AnimationSystem } from "../entity/systems/AnimationSystem";
-import { HexSpatialIndexSystem } from "../entity/systems/hex/HexSpatialIndexSystem";
+import { GridSpatialIndexSystem } from "../entity/systems/grid/GridSpatialIndexSystem";
 import { VisionDetectionSystem } from "../entity/systems/VisionDetectionSystem";
 import { PatrolSystem } from "../entity/systems/PatrolSystem";
 import { PerceptionDebugOverlaySystem } from "../entity/systems/PerceptionDebugOverlaySystem";
-import { HexSpatialIndex } from "../entity/systems/hex/HexSpatialIndex";
+import { GridSpatialIndex } from "../entity/systems/grid/GridSpatialIndex";
 import { WorldModeController } from "./WorldModeController";
 import { TurnBasedCombatState } from "./TurnBasedCombatState";
-import { HexMovementCostResolver } from "../entity/systems/hex/HexMovementCostResolver";
+import { GridMovementCostResolver } from "../entity/systems/grid/GridMovementCostResolver";
 import { CombatParticipantResolver } from "../entity/systems/combat/CombatParticipantResolver";
 import { CombatEncounterCoordinator } from "../entity/systems/combat/CombatEncounterCoordinator";
 import { TurnBasedCombatSystem } from "../entity/systems/TurnBasedCombatSystem";
@@ -73,8 +73,8 @@ export class GameManager {
   /** ECS system that advances path-based movement. */
   private readonly movementSystem: MovementSystem;
 
-  /** ECS system that keeps the hex-cell broad-phase spatial index in sync. */
-  private readonly hexSpatialIndexSystem: HexSpatialIndexSystem;
+  /** ECS system that keeps the grid-cell broad-phase spatial index in sync. */
+  private readonly gridSpatialIndexSystem: GridSpatialIndexSystem;
 
   /** ECS system that assigns local patrol destinations to idle AI entities. */
   private readonly patrolSystem: PatrolSystem;
@@ -82,7 +82,7 @@ export class GameManager {
   /** ECS system that performs hostile vision detection. */
   private readonly visionDetectionSystem: VisionDetectionSystem;
 
-  /** ECS system that pushes perception debug data into the hex overlay. */
+  /** ECS system that pushes perception debug data into the grid overlay. */
   private readonly perceptionDebugOverlaySystem: PerceptionDebugOverlaySystem;
   /** ECS system that drives turn sequencing and encounter ending. */
   private readonly turnBasedCombatSystem: TurnBasedCombatSystem;
@@ -129,7 +129,7 @@ export class GameManager {
       this.worldModeController,
     );
     this.combatInputController = new CombatInputController();
-    const movementCostResolver = new HexMovementCostResolver();
+    const movementCostResolver = new GridMovementCostResolver();
     this.characterSpawnerSystem = new CharacterSpawnerSystem(
       this.entityManager,
     );
@@ -137,21 +137,21 @@ export class GameManager {
     this.buildingVisibilitySystem = new BuildingVisibilitySystem(
       this.entityManager,
     );
-    const hexSpatialIndex = new HexSpatialIndex();
+    const gridSpatialIndex = new GridSpatialIndex();
     const attackTargetingService = new CombatAttackTargetingService(
       this.entityManager,
     );
     this.basicCombatAiService = new BasicCombatAiService(
       this.entityManager,
       attackTargetingService,
-      hexSpatialIndex,
+      gridSpatialIndex,
     );
     this.localPlayerInputSystem = new LocalPlayerInputSystem(
       this.entityManager,
       this.worldModeController,
       this.turnBasedCombatState,
       this.combatInputController,
-      hexSpatialIndex,
+      gridSpatialIndex,
       attackTargetingService,
     );
     this.movementSystem = new MovementSystem(
@@ -159,15 +159,15 @@ export class GameManager {
       this.worldModeController,
       this.turnBasedCombatState,
       movementCostResolver,
-      hexSpatialIndex,
+      gridSpatialIndex,
     );
     this.patrolSystem = new PatrolSystem(
       this.entityManager,
       this.worldModeController,
     );
-    this.hexSpatialIndexSystem = new HexSpatialIndexSystem(
+    this.gridSpatialIndexSystem = new GridSpatialIndexSystem(
       this.entityManager,
-      hexSpatialIndex,
+      gridSpatialIndex,
     );
     const combatParticipantResolver = new CombatParticipantResolver(
       this.entityManager,
@@ -180,7 +180,7 @@ export class GameManager {
     );
     this.visionDetectionSystem = new VisionDetectionSystem(
       this.entityManager,
-      hexSpatialIndex,
+      gridSpatialIndex,
       combatEncounterCoordinator,
     );
     this.perceptionDebugOverlaySystem = new PerceptionDebugOverlaySystem(
@@ -199,12 +199,12 @@ export class GameManager {
       this.worldModeController,
       this.turnBasedCombatState,
       this.combatInputController,
-      hexSpatialIndex,
+      gridSpatialIndex,
       movementCostResolver,
     );
     this.hoveredCombatTargetSystem = new HoveredCombatTargetSystem(
       this.entityManager,
-      hexSpatialIndex,
+      gridSpatialIndex,
       this.worldModeController,
       this.turnBasedCombatState,
     );
@@ -227,7 +227,7 @@ export class GameManager {
       this.turnBasedCombatSystem,
       this.patrolSystem,
       this.movementSystem,
-      this.hexSpatialIndexSystem,
+      this.gridSpatialIndexSystem,
       this.combatMovementPreviewSystem,
       this.hoveredCombatTargetSystem,
       this.combatHoverHighlightSystem,

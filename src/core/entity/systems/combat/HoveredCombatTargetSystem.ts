@@ -3,26 +3,26 @@ import type { Entity } from "../../Entity";
 import type { EntityManager } from "../../EntityManager";
 import type { System } from "../../System";
 import { LocalPlayerComponent } from "../../components/LocalPlayerComponent";
-import { HexPositionComponent } from "../../components/HexPositionComponent";
+import { GridPositionComponent } from "../../components/GridPositionComponent";
 import { RelationsComponent } from "../../components/RelationsComponent";
 import { getInGameSceneRuntimeContext, type InGameSceneRuntimeContext } from "../../../scene/in-game/InGameSceneRuntimeContext";
 import { TurnBasedCombatState } from "../../../game/TurnBasedCombatState";
 import { WorldModeController } from "../../../game/WorldModeController";
-import { HexSpatialIndex } from "../hex/HexSpatialIndex";
+import { GridSpatialIndex } from "../grid/GridSpatialIndex";
 
 /**
  * Resolves currently hovered hostile entity id for combat HUD.
  */
 export class HoveredCombatTargetSystem implements System {
   private readonly entityManager: EntityManager;
-  private readonly spatialIndex: HexSpatialIndex;
+  private readonly spatialIndex: GridSpatialIndex;
   private readonly worldModeController: WorldModeController;
   private readonly combatState: TurnBasedCombatState;
   private runtimeContext: InGameSceneRuntimeContext | null;
 
   public constructor(
     entityManager: EntityManager,
-    spatialIndex: HexSpatialIndex,
+    spatialIndex: GridSpatialIndex,
     worldModeController: WorldModeController,
     combatState: TurnBasedCombatState
   ) {
@@ -50,9 +50,9 @@ export class HoveredCombatTargetSystem implements System {
       return;
     }
 
-    const localPlayerHexPosition = localPlayer.tryGetComponent(HexPositionComponent);
-    const pickedNavigationCell = this.runtimeContext.hexGridRuntime.getHoveredNavigationCell(
-      localPlayerHexPosition?.currentStoryIndex ?? 0
+    const localPlayerGridPosition = localPlayer.tryGetComponent(GridPositionComponent);
+    const pickedNavigationCell = this.runtimeContext.gridRuntime.getHoveredNavigationCell(
+      localPlayerGridPosition?.currentStoryIndex ?? 0
     );
     if (!pickedNavigationCell) {
       this.combatState.setHoveredHostileEntityId(null);

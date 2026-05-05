@@ -5,30 +5,30 @@ import type { System } from "../System";
 import { DetectableComponent } from "../components/DetectableComponent";
 import { DetectableKinds } from "../components/DetectableKinds";
 import { DetectionStateComponent } from "../components/DetectionStateComponent";
-import { HexPositionComponent } from "../components/HexPositionComponent";
+import { GridPositionComponent } from "../components/GridPositionComponent";
 import { IdentityComponent } from "../components/IdentityComponent";
 import { RelationsComponent } from "../components/RelationsComponent";
 import { TransformComponent } from "../components/TransformComponent";
 import { VisionComponent } from "../components/VisionComponent";
 import { VisionDebugComponent, type VisionDebugDetectedCell } from "../components/VisionDebugComponent";
-import { HexCell } from "../../hex/HexCell";
+import { GridCell } from "../../grid/GridCell";
 import { getInGameSceneRuntimeContext, type InGameSceneRuntimeContext } from "../../scene/in-game/InGameSceneRuntimeContext";
-import { HexSpatialIndex } from "./hex/HexSpatialIndex";
-import { RelationDebugClassifier } from "./hex/RelationDebugClassifier";
+import { GridSpatialIndex } from "./grid/GridSpatialIndex";
+import { RelationDebugClassifier } from "./grid/RelationDebugClassifier";
 import { CombatEncounterCoordinator } from "./combat/CombatEncounterCoordinator";
 
 /**
- * Detects hostile visible entities using a hex broad-phase and world-space cone narrow-phase.
+ * Detects hostile visible entities using a grid broad-phase and world-space cone narrow-phase.
  */
 export class VisionDetectionSystem implements System {
   private readonly entityManager: EntityManager;
-  private readonly spatialIndex: HexSpatialIndex;
+  private readonly spatialIndex: GridSpatialIndex;
   private readonly combatEncounterCoordinator: CombatEncounterCoordinator;
   private runtimeContext: InGameSceneRuntimeContext | null;
 
   public constructor(
     entityManager: EntityManager,
-    spatialIndex: HexSpatialIndex,
+    spatialIndex: GridSpatialIndex,
     combatEncounterCoordinator: CombatEncounterCoordinator
   ) {
     this.entityManager = entityManager;
@@ -48,7 +48,7 @@ export class VisionDetectionSystem implements System {
 
     const observers = this.entityManager.query(
       VisionComponent,
-      HexPositionComponent,
+      GridPositionComponent,
       RelationsComponent,
       IdentityComponent,
       DetectionStateComponent,
@@ -66,7 +66,7 @@ export class VisionDetectionSystem implements System {
     }
 
     const vision = observer.getComponent(VisionComponent);
-    const hexPosition = observer.getComponent(HexPositionComponent);
+    const gridPosition = observer.getComponent(GridPositionComponent);
     const relations = observer.getComponent(RelationsComponent);
     const transform = observer.getComponent(TransformComponent);
     const detectionState = observer.getComponent(DetectionStateComponent);
@@ -74,9 +74,9 @@ export class VisionDetectionSystem implements System {
     const visionDebug = observer.tryGetComponent(VisionDebugComponent);
 
     const forward = this.resolveForwardVector(vision, transform);
-    const grid = this.runtimeContext.hexGridRuntime.getGrid();
-    const candidateCells = grid.getHexCellsInVisionSector(
-      hexPosition.currentCell,
+    const grid = this.runtimeContext.gridRuntime.getGrid();
+    const candidateCells = grid.getGridCellsInVisionSector(
+      gridPosition.currentCell,
       forward,
       vision.rangeCells,
       vision.fovDegrees
@@ -187,29 +187,29 @@ export class VisionDetectionSystem implements System {
   }
 
   private getVisionRangeWorldUnits(observer: Entity, vision: VisionComponent): number {
-    const runtimeGrid = this.runtimeContext?.hexGridRuntime.getGrid();
-    const hexPosition = observer.getComponent(HexPositionComponent);
+    const runtimeGrid = this.runtimeContext?.gridRuntime.getGrid();
+    const gridPosition = observer.getComponent(GridPositionComponent);
 
     if (!runtimeGrid) {
       return Number.POSITIVE_INFINITY;
     }
 
-    const origin = runtimeGrid.cellToWorld(hexPosition.currentCell, 0);
-    const neighboringCell = new HexCell(hexPosition.currentCell.q + 1, hexPosition.currentCell.r);
+    const origin = runtimeGrid.cellToWorld(gridPosition.currentCell, 0);
+    const neighboringCell = new GridCell(gridPosition.currentCell.x + 1, gridPosition.currentCell.z);
     const neighborCenter = runtimeGrid.cellToWorld(neighboringCell, 0);
     const oneCellWorldDistance = neighborCenter.subtract(origin).length();
 
     return oneCellWorldDistance * vision.rangeCells + 0.001;
   }
 
-  private resolveEntityCell(entity: Entity): HexCell {
-    const hexPosition = entity.tryGetComponent(HexPositionComponent);
-    if (hexPosition) {
-      return hexPosition.currentCell;
+  private resolveEntityCell(entity: Entity): GridCell {
+    const gridPosition = entity.tryGetComponent(GridPositionComponent);
+    if (gridPosition) {
+      return gridPosition.currentCell;
     }
 
     const transform = entity.getComponent(TransformComponent);
-    return this.runtimeContext?.hexGridRuntime.getGrid().worldToCell(transform.value) ?? new HexCell(0, 0);
+    return this.runtimeContext?.gridRuntime.getGrid().worldToCell(transform.value) ?? new GridCell(0, 0);
   }
 }
 
@@ -223,7 +223,7 @@ function dedupeDebugDetectedCells(cells: readonly VisionDebugDetectedCell[]): Vi
   const byCellKey = new Map<string, VisionDebugDetectedCell>();
 
   for (const detectedCell of cells) {
-    const key = `${detectedCell.cell.q}:${detectedCell.cell.r}`;
+    const key = `${detectedCell.cell.x}:${detectedCell.cell.z}`;
     const existing = byCellKey.get(key);
     if (!existing || relationPriority[detectedCell.relation] >= relationPriority[existing.relation]) {
       byCellKey.set(key, detectedCell);

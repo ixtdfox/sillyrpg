@@ -2,8 +2,8 @@ import { TurnBasedCombatState } from "../../../game/TurnBasedCombatState";
 import { WorldModeController } from "../../../game/WorldModeController";
 import { CombatParticipantResolver } from "./CombatParticipantResolver";
 import type { EntityManager } from "../../EntityManager";
-import { HexPathMovementComponent } from "../../components/HexPathMovementComponent";
-import { HexPositionComponent } from "../../components/HexPositionComponent";
+import { GridPathMovementComponent } from "../../components/GridPathMovementComponent";
+import { GridPositionComponent } from "../../components/GridPositionComponent";
 import { PatrolComponent } from "../../components/PatrolComponent";
 
 /**
@@ -49,13 +49,13 @@ export class CombatEncounterCoordinator {
         continue;
       }
 
-      const hexPosition = entity.tryGetComponent(HexPositionComponent);
-      if (hexPosition) {
-        hexPosition.targetCell = null;
-        hexPosition.targetStoryIndex = null;
+      const gridPosition = entity.tryGetComponent(GridPositionComponent);
+      if (gridPosition) {
+        gridPosition.targetCell = null;
+        gridPosition.targetStoryIndex = null;
       }
 
-      entity.tryGetComponent(HexPathMovementComponent)?.resetPathState();
+      entity.tryGetComponent(GridPathMovementComponent)?.resetPathState();
 
       const patrol = entity.tryGetComponent(PatrolComponent);
       if (patrol) {

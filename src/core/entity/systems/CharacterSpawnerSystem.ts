@@ -4,7 +4,7 @@ import type { EntityManager } from "../EntityManager";
 import type { System } from "../System";
 import { AnimationComponent, type AnimationState } from "../components/AnimationComponent";
 import { ModelComponent } from "../components/ModelComponent";
-import { HexPositionComponent } from "../components/HexPositionComponent";
+import { GridPositionComponent } from "../components/GridPositionComponent";
 import { RenderableComponent } from "../components/RenderableComponent";
 import { SpawnComponent } from "../components/SpawnComponent";
 import { TransformComponent } from "../components/TransformComponent";
@@ -53,7 +53,7 @@ export class CharacterSpawnerSystem implements System {
 
     transform.value.copyFrom(spawn.position);
     transform.rotation.copyFrom(spawn.rotation);
-    this.initializeHexPosition(entity);
+    this.initializeGridPosition(entity);
 
     try {
       const instantiatedModel = await this.modelInstantiator.instantiate(
@@ -83,8 +83,8 @@ export class CharacterSpawnerSystem implements System {
     }
   }
 
-  private initializeHexPosition(entity: Entity): void {
-    if (!this.scene || entity.hasComponent(HexPositionComponent)) {
+  private initializeGridPosition(entity: Entity): void {
+    if (!this.scene || entity.hasComponent(GridPositionComponent)) {
       return;
     }
 
@@ -94,14 +94,14 @@ export class CharacterSpawnerSystem implements System {
     }
 
     const transform = entity.getComponent(TransformComponent);
-    const grid = runtimeContext.hexGridRuntime.getGrid();
+    const grid = runtimeContext.gridRuntime.getGrid();
     const startCell = grid.worldToCell(transform.value);
 
     if (!grid.contains(startCell)) {
       return;
     }
 
-    entity.addComponent(HexPositionComponent, new HexPositionComponent(startCell));
+    entity.addComponent(GridPositionComponent, new GridPositionComponent(startCell));
     const alignedPosition = grid.cellToWorld(startCell, transform.value.y);
     transform.value.copyFrom(alignedPosition);
   }

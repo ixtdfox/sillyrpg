@@ -1,7 +1,7 @@
 import type { Entity } from "../../Entity";
 import type { EntityManager } from "../../EntityManager";
 import { CombatStatsComponent } from "../../components/CombatStatsComponent";
-import { HexPositionComponent } from "../../components/HexPositionComponent";
+import { GridPositionComponent } from "../../components/GridPositionComponent";
 import { RelationsComponent } from "../../components/RelationsComponent";
 import { VitalsComponent } from "../../components/VitalsComponent";
 import { AnimationComponent } from "../../components/AnimationComponent";
@@ -41,15 +41,15 @@ export class CombatAttackTargetingService {
       return { success: false, reason: "Not enough AP for melee attack." };
     }
 
-    const attackerHexPosition = attacker.tryGetComponent(HexPositionComponent);
-    const targetHexPosition = target.tryGetComponent(HexPositionComponent);
-    const attackerCell = attackerHexPosition?.currentCell;
-    const targetCell = targetHexPosition?.currentCell;
-    if (!attackerCell || !targetCell || !attackerHexPosition || !targetHexPosition) {
-      return { success: false, reason: "Attacker or target has no hex position." };
+    const attackerGridPosition = attacker.tryGetComponent(GridPositionComponent);
+    const targetGridPosition = target.tryGetComponent(GridPositionComponent);
+    const attackerCell = attackerGridPosition?.currentCell;
+    const targetCell = targetGridPosition?.currentCell;
+    if (!attackerCell || !targetCell || !attackerGridPosition || !targetGridPosition) {
+      return { success: false, reason: "Attacker or target has no grid position." };
     }
 
-    if (attackerHexPosition.currentStoryIndex !== targetHexPosition.currentStoryIndex) {
+    if (attackerGridPosition.currentStoryIndex !== targetGridPosition.currentStoryIndex) {
       return { success: false, reason: "Target is on a different story." };
     }
 

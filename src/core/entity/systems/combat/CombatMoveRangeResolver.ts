@@ -1,29 +1,29 @@
-import { HexCell } from "../../../hex/HexCell";
-import { HexGrid } from "../../../hex/HexGrid";
-import { HexMovementCostResolver } from "../hex/HexMovementCostResolver";
+import { GridCell } from "../../../grid/GridCell";
+import { RectGrid } from "../../../grid/RectGrid";
+import { GridMovementCostResolver } from "../grid/GridMovementCostResolver";
 
 export interface CombatMoveRangeResolution {
-  readonly reachableCells: readonly HexCell[];
+  readonly reachableCells: readonly GridCell[];
   readonly costByCellKey: ReadonlyMap<string, number>;
 }
 
 /**
- * Resolves movement-reachable hex cells for the active combatant using MP budget.
+ * Resolves movement-reachable grid cells for the active combatant using MP budget.
  */
 export class CombatMoveRangeResolver {
-  private readonly movementCostResolver: HexMovementCostResolver;
+  private readonly movementCostResolver: GridMovementCostResolver;
 
-  public constructor(movementCostResolver: HexMovementCostResolver) {
+  public constructor(movementCostResolver: GridMovementCostResolver) {
     this.movementCostResolver = movementCostResolver;
   }
 
   public resolveReachableCells(
-    grid: HexGrid,
-    startCell: HexCell,
+    grid: RectGrid,
+    startCell: GridCell,
     movementPoints: number,
-    isCellBlocked: (cell: HexCell) => boolean,
+    isCellBlocked: (cell: GridCell) => boolean,
     storyIndex = 0,
-    isEdgeBlocked: (fromCell: HexCell, toCell: HexCell) => boolean = () => false
+    isEdgeBlocked: (fromCell: GridCell, toCell: GridCell) => boolean = () => false
   ): CombatMoveRangeResolution {
     if (movementPoints <= 0 || !grid.contains(startCell)) {
       return {
@@ -32,7 +32,7 @@ export class CombatMoveRangeResolver {
       };
     }
 
-    const queue: HexCell[] = [startCell];
+    const queue: GridCell[] = [startCell];
     const costByCellKey = new Map<string, number>([[cellKey(startCell), 0]]);
 
     while (queue.length > 0) {
@@ -77,7 +77,7 @@ export class CombatMoveRangeResolver {
       }
     }
 
-    const reachableCells: HexCell[] = [];
+    const reachableCells: GridCell[] = [];
     for (const [key, totalCost] of costByCellKey.entries()) {
       reachableCells.push(parseCellKey(key));
     }
@@ -89,11 +89,11 @@ export class CombatMoveRangeResolver {
   }
 }
 
-function cellKey(cell: HexCell): string {
-  return `${cell.q}:${cell.r}`;
+function cellKey(cell: GridCell): string {
+  return `${cell.x}:${cell.z}`;
 }
 
-function parseCellKey(key: string): HexCell {
+function parseCellKey(key: string): GridCell {
   const [qToken, rToken] = key.split(":");
-  return new HexCell(Number(qToken), Number(rToken));
+  return new GridCell(Number(qToken), Number(rToken));
 }
