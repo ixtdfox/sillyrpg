@@ -7,8 +7,8 @@ import { GridPositionComponent } from "../../components/GridPositionComponent";
 import { RelationsComponent } from "../../components/RelationsComponent";
 import { VitalsComponent } from "../../components/VitalsComponent";
 import { GridCell } from "../../../grid/GridCell";
-import { MultiFloorPathfinder } from "../../../navigation/MultiFloorPathfinder";
-import { NavigationGraph, type MovementSegment, type NavigationNode } from "../../../navigation/NavigationGraph";
+import type { MovementSegment, NavigationNode } from "../../../navigation/NavigationGraph";
+import { GridNavigationPathService, isRectNavDebugEnabled } from "../../../navigation/GridNavigationPathService";
 import { getInGameSceneRuntimeContext, type InGameSceneRuntimeContext } from "../../../scene/in-game/InGameSceneRuntimeContext";
 import { CombatAttackTargetingService } from "./CombatAttackTargetingService";
 import { GridSpatialIndex } from "../grid/GridSpatialIndex";
@@ -279,17 +279,7 @@ export class BasicCombatAiService {
     }
 
     const grid = this.runtimeContext.gridRuntime.getGrid();
-    const registry = this.runtimeContext.gridRuntime.getBuildingNavigationRegistry();
-    const graph = new NavigationGraph(
-      grid,
-      registry.getStairConnectors(),
-      this.runtimeContext.gridRuntime.getMergedStoryYByStory(),
-      (cell, storyIndex) => this.runtimeContext?.gridRuntime.isWalkableCell(cell, storyIndex) ?? false,
-      (fromCell, toCell, storyIndex) =>
-        this.runtimeContext?.gridRuntime.isNavigationEdgeBlocked(fromCell, toCell, storyIndex) ?? false,
-      (cell, storyIndex) => this.runtimeContext?.gridRuntime.getMovementCost(cell, storyIndex) ?? 1
-    );
-    const pathfinder = new MultiFloorPathfinder(graph, registry.getShowStairNavigationDebug());
+    const navigationPathService = GridNavigationPathService.fromGridRuntime(this.runtimeContext.gridRuntime);
     const isOccupiedByOtherEntity = (node: NavigationNode): boolean => {
       if (node.cell.equals(activeCell) && node.storyIndex === activeStoryIndex) {
         return false;
@@ -315,11 +305,13 @@ export class BasicCombatAiService {
     let bestPartialOption: ApproachPathOption | null = null;
 
     for (const attackTarget of attackAdjacentTargets) {
-      const path = pathfinder.findPath({
+      const path = navigationPathService.findPath({
         fromCell: activeCell,
         fromStoryIndex: activeStoryIndex,
         toCell: attackTarget.cell,
         toStoryIndex: attackTarget.storyIndex,
+        activeEntityId: activeAiEntityId,
+        movementPoints,
         occupied: isOccupiedByOtherEntity
       });
 
@@ -347,15 +339,18 @@ export class BasicCombatAiService {
     }
 
     const selectedOption = bestCompleteOption ?? bestPartialOption;
-    console.debug("[BasicCombatAiService] AI approach", {
-      activeAiEntityId,
-      fromStory: activeStoryIndex,
-      fromCell: `${activeCell.x}:${activeCell.z}`,
-      targetStory: targetStoryIndex,
-      targetCell: `${targetCell.x}:${targetCell.z}`,
-      selectedStory: selectedOption?.selectedTarget.storyIndex,
-      selectedCell: selectedOption ? `${selectedOption.selectedTarget.cell.x}:${selectedOption.selectedTarget.cell.z}` : null
-    });
+    if (isRectNavDebugEnabled()) {
+      console.debug("[BasicCombatAiService] AI approach", {
+        activeAiEntityId,
+        fromStory: activeStoryIndex,
+        fromCell: `${activeCell.x}:${activeCell.z}`,
+        targetStory: targetStoryIndex,
+        targetCell: `${targetCell.x}:${targetCell.z}`,
+        movementPoints,
+        selectedStory: selectedOption?.selectedTarget.storyIndex,
+        selectedCell: selectedOption ? `${selectedOption.selectedTarget.cell.x}:${selectedOption.selectedTarget.cell.z}` : null
+      });
+    }
 
     return selectedOption?.selectedTarget ?? null;
   }

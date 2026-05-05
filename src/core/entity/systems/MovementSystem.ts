@@ -12,8 +12,8 @@ import { TurnBasedCombatState } from "../../game/TurnBasedCombatState";
 import { GridMovementCostResolver } from "./grid/GridMovementCostResolver";
 import { GridSpatialIndex } from "./grid/GridSpatialIndex";
 import type { RectGrid } from "../../grid/RectGrid";
-import { MultiFloorPathfinder } from "../../navigation/MultiFloorPathfinder";
-import { NavigationGraph, type MovementSegment, type NavigationNode } from "../../navigation/NavigationGraph";
+import type { MovementSegment, NavigationNode } from "../../navigation/NavigationGraph";
+import { GridNavigationPathService, isRectNavDebugEnabled } from "../../navigation/GridNavigationPathService";
 
 /**
  * Executes path-based grid movement and synchronizes transform positions.
@@ -397,23 +397,14 @@ export class MovementSystem implements System {
       return null;
     }
 
-    const grid = this.runtimeContext.gridRuntime.getGrid();
-    const registry = this.runtimeContext.gridRuntime.getBuildingNavigationRegistry();
-    const graph = new NavigationGraph(
-      grid,
-      registry.getStairConnectors(),
-      this.runtimeContext.gridRuntime.getMergedStoryYByStory(),
-      (cell, storyIndex) => this.runtimeContext?.gridRuntime.isWalkableCell(cell, storyIndex) ?? false,
-      (fromCell, toCell, storyIndex) =>
-        this.runtimeContext?.gridRuntime.isNavigationEdgeBlocked(fromCell, toCell, storyIndex) ?? false,
-      (cell, storyIndex) => this.runtimeContext?.gridRuntime.getMovementCost(cell, storyIndex) ?? 1
-    );
-    const pathfinder = new MultiFloorPathfinder(graph, registry.getShowStairNavigationDebug());
-    const path = pathfinder.findPath({
+    const combatStats = this.entityManager.getEntity(entityId)?.tryGetComponent(CombatStatsComponent);
+    const path = GridNavigationPathService.fromGridRuntime(this.runtimeContext.gridRuntime).findPath({
       fromCell: gridPosition.currentCell,
       fromStoryIndex: gridPosition.currentStoryIndex,
       toCell: targetCell,
       toStoryIndex: targetStoryIndex,
+      activeEntityId: entityId,
+      movementPoints: this.worldModeController.isTurnBased() ? combatStats?.currentMp : undefined,
       occupied: (node) => this.isOccupiedByOtherEntity(entityId, gridPosition, node)
     });
     this.logPathDiagnostics(gridPosition.currentCell, gridPosition.currentStoryIndex, targetCell, targetStoryIndex, path);
@@ -472,14 +463,4 @@ export class MovementSystem implements System {
     const entitiesAtCell = this.spatialIndex.getEntitiesAt(node.cell, node.storyIndex);
     return entitiesAtCell.some((occupantId) => occupantId !== entityId);
   }
-}
-
-function isRectNavDebugEnabled(): boolean {
-  const g = globalThis as { readonly __RECT_NAV_DEBUG__?: unknown; readonly location?: { readonly search?: string } };
-  const raw = typeof g.__RECT_NAV_DEBUG__ === "string" ? g.__RECT_NAV_DEBUG__.toLowerCase() : "";
-  if (raw === "1" || raw === "true") {
-    return true;
-  }
-  const query = g.location?.search ?? "";
-  return query.includes("rectNavDebug=1") || query.includes("rectNavDebug=true");
 }

@@ -7,8 +7,10 @@
     "dev": "vite",
     "build": "tsc --noEmit && vite build",
     "preview": "vite preview",
-    "test:entity-manager": "tsc --module commonjs --target ES2020 --moduleResolution node --outDir .tmp-test tests/core/entity/EntityManager.test.ts src/core/entity/EntityManager.ts src/core/entity/Entity.ts src/core/entity/ComponentStore.ts src/core/entity/Component.ts && node -e \"require('fs').writeFileSync('.tmp-test/package.json', JSON.stringify({type:'commonjs'}))\" && node .tmp-test/tests/core/entity/EntityManager.test.js",
-    "test:navigation": "tsc --module commonjs --target ES2020 --moduleResolution node --esModuleInterop --skipLibCheck --outDir .tmp-test tests/core/navigation/NavigationBlockerRegistry.test.ts && node -e \"require('fs').writeFileSync('.tmp-test/package.json', JSON.stringify({type:'commonjs'}))\" && node .tmp-test/tests/core/navigation/NavigationBlockerRegistry.test.js"
+    "test": "npm run test:entity-manager && npm run test:navigation && npm run test:navigation-path",
+    "test:entity-manager": "tsc --module commonjs --target ES2020 --moduleResolution node --outDir /tmp/sillyrpg-tmp-test tests/core/entity/EntityManager.test.ts src/core/entity/EntityManager.ts src/core/entity/Entity.ts src/core/entity/ComponentStore.ts src/core/entity/Component.ts && node -e \"require('fs').writeFileSync('/tmp/sillyrpg-tmp-test/package.json', JSON.stringify({type:'commonjs'}))\" && NODE_PATH=./node_modules node /tmp/sillyrpg-tmp-test/tests/core/entity/EntityManager.test.js",
+    "test:navigation": "tsc --module commonjs --target ES2020 --moduleResolution node --esModuleInterop --skipLibCheck --outDir /tmp/sillyrpg-tmp-test tests/core/navigation/NavigationBlockerRegistry.test.ts && node -e \"require('fs').writeFileSync('/tmp/sillyrpg-tmp-test/package.json', JSON.stringify({type:'commonjs'}))\" && NODE_PATH=./node_modules node /tmp/sillyrpg-tmp-test/tests/core/navigation/NavigationBlockerRegistry.test.js",
+    "test:navigation-path": "tsc --module commonjs --target ES2020 --moduleResolution node --esModuleInterop --skipLibCheck --outDir /tmp/sillyrpg-tmp-test tests/core/navigation/GridNavigationPathService.test.ts && node -e \"require('fs').writeFileSync('/tmp/sillyrpg-tmp-test/package.json', JSON.stringify({type:'commonjs'}))\" && NODE_PATH=./node_modules node /tmp/sillyrpg-tmp-test/tests/core/navigation/GridNavigationPathService.test.js"
   },
   "dependencies": {
     "@babylonjs/core": "^7.40.0",

@@ -303,7 +303,9 @@ export class BuildingNavigationRegistry {
     readonly resolvedByNearest: boolean;
     readonly distance?: number;
   } | null {
-    const connectorById = input.stairId ? this.getStairConnectorById(input.stairId) : null;
+    const connectorById = input.stairId
+      ? this.resolveStairConnectorForInteraction(input.stairId, input.currentStoryIndex, input.pickedPoint)
+      : null;
     const nearest = input.pickedPoint
       ? this.findNearestStairConnectorToPoint({
           point: input.pickedPoint,
@@ -353,6 +355,27 @@ export class BuildingNavigationRegistry {
     return this.storyYByStory;
   }
 
+  private resolveStairConnectorForInteraction(
+    stairId: string,
+    currentStoryIndex: number,
+    pickedPoint: Vector3 | undefined
+  ): StairNavigationConnector | null {
+    const matchingConnectors = this.stairConnectors.filter((connector) => connector.stairId === stairId);
+    if (matchingConnectors.length === 0) {
+      return null;
+    }
+
+    const storyConnectors = matchingConnectors.filter((connector) => isStoryConnectedToConnector(connector, currentStoryIndex));
+    const candidates = storyConnectors.length > 0 ? storyConnectors : matchingConnectors;
+    if (!pickedPoint) {
+      return candidates[0] ?? null;
+    }
+
+    return [...candidates].sort((first, second) => {
+      return distanceToPolyline(pickedPoint, first.traversalPathWorld) - distanceToPolyline(pickedPoint, second.traversalPathWorld);
+    })[0] ?? null;
+  }
+
   public getShowStairNavigationDebug(): boolean {
     return this.showStairNavigationDebug;
   }
@@ -383,7 +406,7 @@ export class BuildingNavigationRegistry {
       return;
     }
 
-    const connector = this.getStairConnectorById(stairId);
+    const connector = this.resolveStairConnectorForInteraction(stairId, currentStoryIndex, undefined);
     if (!connector || !this.activeScene) {
       this.hoveredStairId = null;
       this.hideHoverAffordance();

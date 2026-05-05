@@ -16,6 +16,9 @@ import { CombatInputMode } from "../../game/CombatInputMode";
 import { GridSpatialIndex } from "./grid/GridSpatialIndex";
 import { CombatAttackTargetingService } from "./combat/CombatAttackTargetingService";
 import type { PickedNavigationTarget } from "../../grid/RectGroundPickerController";
+import { GridCell } from "../../grid/GridCell";
+import { GridNavigationPathService } from "../../navigation/GridNavigationPathService";
+import type { MovementSegment, NavigationNode } from "../../navigation/NavigationGraph";
 
 /**
  * Handles local-player click-to-move intent on the ground grid grid.
@@ -166,6 +169,13 @@ export class LocalPlayerInputSystem implements System {
       ? this.localPlayerEntity.getComponent(GridPathMovementComponent)
       : null;
 
+    if (
+      this.worldModeController.isTurnBased() &&
+      !this.canMoveToTargetInCombat(this.localPlayerEntity.getId(), gridPosition, clickedCell, clickedStoryIndex)
+    ) {
+      return;
+    }
+
     gridPosition.targetCell = clickedCell;
     gridPosition.targetStoryIndex = clickedStoryIndex;
     pathMovement?.resetPathState();
@@ -225,6 +235,21 @@ export class LocalPlayerInputSystem implements System {
       console.warn(
         `[LocalPlayerInputSystem] Stair '${stairTarget.connector.stairId}' target endpoint is not walkable: story=${stairTarget.targetStoryIndex} cell=${stairTarget.targetCell.x}:${stairTarget.targetCell.z}`
       );
+      return;
+    }
+
+    if (
+      this.worldModeController.isTurnBased() &&
+      this.localPlayerEntity &&
+      !this.canMoveToTargetInCombat(
+        this.localPlayerEntity.getId(),
+        gridPosition,
+        stairTarget.targetCell,
+        stairTarget.targetStoryIndex,
+        stairTarget.connector.stairId
+      )
+    ) {
+      return;
     }
 
     gridPosition.targetCell = stairTarget.targetCell;
@@ -258,6 +283,67 @@ export class LocalPlayerInputSystem implements System {
 
     const combatStats = this.localPlayerEntity.tryGetComponent(CombatStatsComponent);
     return Boolean(combatStats && combatStats.currentMp > 0);
+  }
+
+  private canMoveToTargetInCombat(
+    entityId: string,
+    gridPosition: GridPositionComponent,
+    targetCell: GridCell,
+    targetStoryIndex: number,
+    stairId?: string
+  ): boolean {
+    if (!this.runtimeContext || !this.localPlayerEntity) {
+      return false;
+    }
+
+    const combatStats = this.localPlayerEntity.tryGetComponent(CombatStatsComponent);
+    if (!combatStats || combatStats.currentMp <= 0) {
+      return false;
+    }
+
+    const navigationPathService = GridNavigationPathService.fromGridRuntime(this.runtimeContext.gridRuntime);
+    const path = navigationPathService.findPath({
+      fromCell: gridPosition.currentCell,
+      fromStoryIndex: gridPosition.currentStoryIndex,
+      toCell: targetCell,
+      toStoryIndex: targetStoryIndex,
+      activeEntityId: entityId,
+      movementPoints: combatStats.currentMp,
+      occupied: (node) => this.isOccupiedByOtherEntity(entityId, gridPosition, node)
+    });
+
+    if (!path || path.length === 0) {
+      console.debug(
+        `[LocalPlayerInputSystem] Combat move rejected: no path entity=${entityId} ` +
+        `from=${gridPosition.currentStoryIndex}:${gridPosition.currentCell.x}:${gridPosition.currentCell.z} ` +
+        `to=${targetStoryIndex}:${targetCell.x}:${targetCell.z}${stairId ? ` stair=${stairId}` : ""}`
+      );
+      return false;
+    }
+
+    const pathCost = this.getPathCost(path);
+    if (pathCost > combatStats.currentMp) {
+      console.debug(
+        `[LocalPlayerInputSystem] Combat move rejected: insufficient MP entity=${entityId} mp=${combatStats.currentMp} cost=${pathCost} ` +
+        `to=${targetStoryIndex}:${targetCell.x}:${targetCell.z}${stairId ? ` stair=${stairId}` : ""}`
+      );
+      return false;
+    }
+
+    return true;
+  }
+
+  private getPathCost(path: readonly MovementSegment[]): number {
+    return path.reduce((total, segment) => total + segment.cost, 0);
+  }
+
+  private isOccupiedByOtherEntity(entityId: string, gridPosition: GridPositionComponent, node: NavigationNode): boolean {
+    if (node.cell.equals(gridPosition.currentCell) && node.storyIndex === gridPosition.currentStoryIndex) {
+      return false;
+    }
+
+    const entitiesAtCell = this.spatialIndex.getEntitiesAt(node.cell, node.storyIndex);
+    return entitiesAtCell.some((occupantId) => occupantId !== entityId);
   }
 
   private tryHandleAttackClick(clickedCell: GridPositionComponent["currentCell"]): void {

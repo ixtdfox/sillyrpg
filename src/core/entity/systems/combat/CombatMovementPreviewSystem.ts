@@ -5,7 +5,6 @@ import type { System } from "../../System";
 import { CombatStatsComponent } from "../../components/CombatStatsComponent";
 import { GridPositionComponent } from "../../components/GridPositionComponent";
 import { LocalPlayerComponent } from "../../components/LocalPlayerComponent";
-import { RectPathfinder } from "../../../grid/RectPathfinder";
 import { getInGameSceneRuntimeContext, type InGameSceneRuntimeContext } from "../../../scene/in-game/InGameSceneRuntimeContext";
 import { CombatInputController } from "../../../game/CombatInputController";
 import { CombatInputMode } from "../../../game/CombatInputMode";
@@ -15,6 +14,8 @@ import { GridMovementCostResolver } from "../grid/GridMovementCostResolver";
 import { GridSpatialIndex } from "../grid/GridSpatialIndex";
 import { CombatMoveRangeResolver } from "./CombatMoveRangeResolver";
 import { GridCell } from "../../../grid/GridCell";
+import { GridNavigationPathService, isRectNavDebugEnabled } from "../../../navigation/GridNavigationPathService";
+import type { MovementSegment, NavigationNode } from "../../../navigation/NavigationGraph";
 
 /**
  * Renders combat move range and hovered move path previews through grid overlay runtime.
@@ -43,7 +44,7 @@ export class CombatMovementPreviewSystem implements System {
     this.combatInputController = combatInputController;
     this.spatialIndex = spatialIndex;
     this.movementCostResolver = movementCostResolver;
-    this.moveRangeResolver = new CombatMoveRangeResolver(this.movementCostResolver);
+    this.moveRangeResolver = new CombatMoveRangeResolver();
     this.runtimeContext = null;
   }
 
@@ -72,72 +73,55 @@ export class CombatMovementPreviewSystem implements System {
     const gridPosition = localPlayer.getComponent(GridPositionComponent);
     const combatStats = localPlayer.getComponent(CombatStatsComponent);
     const entityId = localPlayer.getId();
-    const grid = this.runtimeContext.gridRuntime.getGrid();
+    const navigationPathService = GridNavigationPathService.fromGridRuntime(this.runtimeContext.gridRuntime);
 
     const rangeResolution = this.moveRangeResolver.resolveReachableCells(
-      grid,
+      navigationPathService,
       gridPosition.currentCell,
       combatStats.currentMp,
-      (cell) => this.isBlockedCell(entityId, gridPosition.currentCell, gridPosition.currentStoryIndex, cell),
       gridPosition.currentStoryIndex,
-      (fromCell, toCell) =>
-        this.runtimeContext?.gridRuntime.isNavigationEdgeBlocked(fromCell, toCell, gridPosition.currentStoryIndex) ?? false
+      (node) => this.isBlockedNode(entityId, gridPosition.currentCell, gridPosition.currentStoryIndex, node),
+      entityId
     );
 
     this.runtimeContext.gridRuntime.setMoveRangeNavigationCells(
-      rangeResolution.reachableCells.map((cell) => ({ cell, storyIndex: gridPosition.currentStoryIndex }))
+      rangeResolution.reachableCells.map(({ cell, storyIndex }) => ({ cell, storyIndex }))
     );
 
     const pickedNavigationCell = this.runtimeContext.gridRuntime.getHoveredNavigationCell(gridPosition.currentStoryIndex);
     if (
       !pickedNavigationCell ||
-      pickedNavigationCell.storyIndex !== gridPosition.currentStoryIndex ||
       pickedNavigationCell.cell.equals(gridPosition.currentCell)
     ) {
       this.runtimeContext.gridRuntime.setMovePathNavigationCells([]);
       return;
     }
     const hoveredCell = pickedNavigationCell.cell;
+    const hoveredStoryIndex = pickedNavigationCell.storyIndex;
 
-    if (!rangeResolution.costByCellKey.has(cellKey(hoveredCell))) {
+    if (!rangeResolution.costByCellKey.has(navigationPathService.makeTargetKey(hoveredCell, hoveredStoryIndex))) {
       this.runtimeContext.gridRuntime.setMovePathNavigationCells([]);
       return;
     }
 
-    const pathfinder = new RectPathfinder(
-      grid,
-      (cell) => this.isBlockedCell(entityId, gridPosition.currentCell, gridPosition.currentStoryIndex, cell),
-      (fromCell, toCell) =>
-        this.runtimeContext?.gridRuntime.isNavigationEdgeBlocked(fromCell, toCell, gridPosition.currentStoryIndex) ?? false
-    );
-    const path = pathfinder.findPath(gridPosition.currentCell, hoveredCell);
-    if (!path || path.length < 2) {
+    const path = navigationPathService.findPath({
+      fromCell: gridPosition.currentCell,
+      fromStoryIndex: gridPosition.currentStoryIndex,
+      toCell: hoveredCell,
+      toStoryIndex: hoveredStoryIndex,
+      activeEntityId: entityId,
+      movementPoints: combatStats.currentMp,
+      occupied: (node) => this.isBlockedNode(entityId, gridPosition.currentCell, gridPosition.currentStoryIndex, node)
+    });
+    if (!path || path.length === 0 || this.getPathCost(path) > combatStats.currentMp) {
       this.runtimeContext.gridRuntime.setMovePathNavigationCells([]);
       return;
     }
 
-    const movePath: GridCell[] = [];
-    let totalCost = 0;
+    const movePath = this.toPreviewCells(path);
 
-    for (let index = 1; index < path.length; index += 1) {
-      const stepCost = this.movementCostResolver.getStepCost(path[index - 1], path[index], gridPosition.currentStoryIndex);
-      if (!Number.isFinite(stepCost) || stepCost <= 0) {
-        this.runtimeContext.gridRuntime.setMovePathNavigationCells([]);
-        return;
-      }
-
-      totalCost += stepCost;
-      if (totalCost > combatStats.currentMp) {
-        this.runtimeContext.gridRuntime.setMovePathNavigationCells([]);
-        return;
-      }
-
-      movePath.push(path[index]);
-    }
-
-    this.runtimeContext.gridRuntime.setMovePathNavigationCells(
-      movePath.map((cell) => ({ cell, storyIndex: gridPosition.currentStoryIndex }))
-    );
+    this.runtimeContext.gridRuntime.setMovePathNavigationCells(movePath);
+    this.logDebugMoveRange(entityId, gridPosition, combatStats.currentMp, rangeResolution);
   }
 
   private isMovePreviewActive(): boolean {
@@ -158,24 +142,62 @@ export class CombatMovementPreviewSystem implements System {
     return localPlayer ?? null;
   }
 
-  private isBlockedCell(entityId: string, startCell: GridCell, storyIndex: number, cell: GridCell): boolean {
-    if (cell.equals(startCell)) {
+  private isBlockedNode(entityId: string, startCell: GridCell, startStoryIndex: number, node: NavigationNode): boolean {
+    if (node.cell.equals(startCell) && node.storyIndex === startStoryIndex) {
       return false;
     }
 
-    if (!this.runtimeContext?.gridRuntime.isWalkableCell(cell, storyIndex)) {
+    if (!this.runtimeContext?.gridRuntime.isWalkableCell(node.cell, node.storyIndex)) {
       return true;
     }
 
-    const entitiesAtCell = this.spatialIndex.getEntitiesAt(cell, storyIndex);
+    const entitiesAtCell = this.spatialIndex.getEntitiesAt(node.cell, node.storyIndex);
     return entitiesAtCell.some((occupantEntityId) => occupantEntityId !== entityId);
+  }
+
+  private toPreviewCells(path: readonly MovementSegment[]): { readonly cell: GridCell; readonly storyIndex: number }[] {
+    return path.map((segment) => {
+      if (segment.kind === "walk") {
+        return {
+          cell: segment.cell,
+          storyIndex: segment.storyIndex
+        };
+      }
+
+      return {
+        cell: segment.toCell,
+        storyIndex: segment.toStoryIndex
+      };
+    });
+  }
+
+  private getPathCost(path: readonly MovementSegment[]): number {
+    return path.reduce((total, segment) => total + segment.cost, 0);
+  }
+
+  private logDebugMoveRange(
+    entityId: string,
+    gridPosition: GridPositionComponent,
+    movementPoints: number,
+    rangeResolution: ReturnType<CombatMoveRangeResolver["resolveReachableCells"]>
+  ): void {
+    if (!isRectNavDebugEnabled()) {
+      return;
+    }
+
+    const countsByStory = new Map<number, number>();
+    for (const reachableCell of rangeResolution.reachableCells) {
+      countsByStory.set(reachableCell.storyIndex, (countsByStory.get(reachableCell.storyIndex) ?? 0) + 1);
+    }
+
+    console.debug(
+      `[CombatMoveRange] entity=${entityId} current=${gridPosition.currentStoryIndex}:${gridPosition.currentCell.x}:${gridPosition.currentCell.z} ` +
+      `mp=${movementPoints} countByStory=${[...countsByStory.entries()].map(([story, count]) => `${story}:${count}`).join(",") || "none"} ` +
+      `consideredStairs=${rangeResolution.consideredStairConnector}`
+    );
   }
 
   private clearPreview(): void {
     this.runtimeContext?.gridRuntime.clearCombatMovementPreview();
   }
-}
-
-function cellKey(cell: GridCell): string {
-  return `${cell.x}:${cell.z}`;
 }

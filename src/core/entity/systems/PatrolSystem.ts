@@ -6,9 +6,9 @@ import { GridPathMovementComponent } from "../components/GridPathMovementCompone
 import { GridPositionComponent } from "../components/GridPositionComponent";
 import { PatrolComponent } from "../components/PatrolComponent";
 import { GridCell } from "../../grid/GridCell";
-import { RectPathfinder } from "../../grid/RectPathfinder";
 import { getInGameSceneRuntimeContext, type InGameSceneRuntimeContext } from "../../scene/in-game/InGameSceneRuntimeContext";
 import { WorldModeController } from "../../game/WorldModeController";
+import { GridNavigationPathService } from "../../navigation/GridNavigationPathService";
 
 /**
  * Assigns local random patrol targets for idle AI entities.
@@ -17,22 +17,19 @@ export class PatrolSystem implements System {
   private readonly entityManager: EntityManager;
   private readonly worldModeController: WorldModeController;
   private runtimeContext: InGameSceneRuntimeContext | null;
-  private pathfinder: RectPathfinder | null;
 
   public constructor(entityManager: EntityManager, worldModeController: WorldModeController) {
     this.entityManager = entityManager;
     this.worldModeController = worldModeController;
     this.runtimeContext = null;
-    this.pathfinder = null;
   }
 
   public setScene(scene: BabylonScene | null): void {
     this.runtimeContext = scene ? getInGameSceneRuntimeContext(scene) : null;
-    this.pathfinder = this.runtimeContext ? new RectPathfinder(this.runtimeContext.gridRuntime.getGrid()) : null;
   }
 
   public update(_deltaSeconds: number): void {
-    if (!this.runtimeContext || !this.pathfinder) {
+    if (!this.runtimeContext) {
       return;
     }
     if (this.worldModeController.isTurnBased()) {
@@ -70,11 +67,12 @@ export class PatrolSystem implements System {
   }
 
   private pickNextDestination(currentCell: GridCell, storyIndex: number, patrol: PatrolComponent): GridCell | null {
-    if (!this.runtimeContext || !this.pathfinder || !patrol.anchorCell) {
+    if (!this.runtimeContext || !patrol.anchorCell) {
       return null;
     }
 
     const grid = this.runtimeContext.gridRuntime.getGrid();
+    const navigationPathService = GridNavigationPathService.fromGridRuntime(this.runtimeContext.gridRuntime);
 
     for (let attempt = 0; attempt < patrol.maxCandidateAttempts; attempt += 1) {
       const dq = this.randomInt(-patrol.radiusCells, patrol.radiusCells);
@@ -97,13 +95,13 @@ export class PatrolSystem implements System {
         continue;
       }
 
-      const pathfinder = new RectPathfinder(
-        grid,
-        (cell) => !this.runtimeContext!.gridRuntime.isWalkableCell(cell, storyIndex),
-        (fromCell, toCell) => this.runtimeContext!.gridRuntime.isNavigationEdgeBlocked(fromCell, toCell, storyIndex)
-      );
-      const path = pathfinder.findPath(currentCell, candidate);
-      if (!path || path.length < 2) {
+      const path = navigationPathService.findPath({
+        fromCell: currentCell,
+        fromStoryIndex: storyIndex,
+        toCell: candidate,
+        toStoryIndex: storyIndex
+      });
+      if (!path || path.length === 0) {
         continue;
       }
 
