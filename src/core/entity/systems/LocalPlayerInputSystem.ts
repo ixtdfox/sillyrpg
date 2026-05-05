@@ -232,6 +232,17 @@ export class LocalPlayerInputSystem implements System {
       stairTarget.targetStoryIndex
     );
     if (!stairEndpointWalkable) {
+      if (this.worldModeController.isTurnBased()) {
+        this.logCombatStairMoveRejection({
+          stairId: stairTarget.connector.stairId,
+          reason: "endpoint_not_walkable",
+          mp: this.localPlayerEntity?.tryGetComponent(CombatStatsComponent)?.currentMp ?? 0,
+          fromStoryIndex: gridPosition.currentStoryIndex,
+          fromCell: gridPosition.currentCell,
+          toStoryIndex: stairTarget.targetStoryIndex,
+          toCell: stairTarget.targetCell
+        });
+      }
       console.warn(
         `[LocalPlayerInputSystem] Stair '${stairTarget.connector.stairId}' target endpoint is not walkable: story=${stairTarget.targetStoryIndex} cell=${stairTarget.targetCell.x}:${stairTarget.targetCell.z}`
       );
@@ -298,6 +309,51 @@ export class LocalPlayerInputSystem implements System {
 
     const combatStats = this.localPlayerEntity.tryGetComponent(CombatStatsComponent);
     if (!combatStats || combatStats.currentMp <= 0) {
+      if (stairId) {
+        this.logCombatStairMoveRejection({
+          stairId,
+          reason: "insufficient_mp",
+          mp: combatStats?.currentMp ?? 0,
+          fromStoryIndex: gridPosition.currentStoryIndex,
+          fromCell: gridPosition.currentCell,
+          toStoryIndex: targetStoryIndex,
+          toCell: targetCell
+        });
+      }
+      return false;
+    }
+
+    if (!this.runtimeContext.gridRuntime.isWalkableCell(targetCell, targetStoryIndex)) {
+      if (stairId) {
+        this.logCombatStairMoveRejection({
+          stairId,
+          reason: "endpoint_not_walkable",
+          mp: combatStats.currentMp,
+          fromStoryIndex: gridPosition.currentStoryIndex,
+          fromCell: gridPosition.currentCell,
+          toStoryIndex: targetStoryIndex,
+          toCell: targetCell
+        });
+      }
+      return false;
+    }
+
+    if (
+      stairId &&
+      this.isOccupiedByOtherEntity(entityId, gridPosition, {
+        cell: targetCell,
+        storyIndex: targetStoryIndex
+      })
+    ) {
+      this.logCombatStairMoveRejection({
+        stairId,
+        reason: "occupied",
+        mp: combatStats.currentMp,
+        fromStoryIndex: gridPosition.currentStoryIndex,
+        fromCell: gridPosition.currentCell,
+        toStoryIndex: targetStoryIndex,
+        toCell: targetCell
+      });
       return false;
     }
 
@@ -313,6 +369,17 @@ export class LocalPlayerInputSystem implements System {
     });
 
     if (!path || path.length === 0) {
+      if (stairId) {
+        this.logCombatStairMoveRejection({
+          stairId,
+          reason: "no_path",
+          mp: combatStats.currentMp,
+          fromStoryIndex: gridPosition.currentStoryIndex,
+          fromCell: gridPosition.currentCell,
+          toStoryIndex: targetStoryIndex,
+          toCell: targetCell
+        });
+      }
       console.debug(
         `[LocalPlayerInputSystem] Combat move rejected: no path entity=${entityId} ` +
         `from=${gridPosition.currentStoryIndex}:${gridPosition.currentCell.x}:${gridPosition.currentCell.z} ` +
@@ -323,6 +390,19 @@ export class LocalPlayerInputSystem implements System {
 
     const pathCost = this.getPathCost(path);
     if (pathCost > combatStats.currentMp) {
+      if (stairId) {
+        this.logCombatStairMoveRejection({
+          stairId,
+          reason: "insufficient_mp",
+          mp: combatStats.currentMp,
+          cost: pathCost,
+          fromStoryIndex: gridPosition.currentStoryIndex,
+          fromCell: gridPosition.currentCell,
+          toStoryIndex: targetStoryIndex,
+          toCell: targetCell,
+          path
+        });
+      }
       console.debug(
         `[LocalPlayerInputSystem] Combat move rejected: insufficient MP entity=${entityId} mp=${combatStats.currentMp} cost=${pathCost} ` +
         `to=${targetStoryIndex}:${targetCell.x}:${targetCell.z}${stairId ? ` stair=${stairId}` : ""}`
@@ -337,7 +417,30 @@ export class LocalPlayerInputSystem implements System {
     return path.reduce((total, segment) => total + segment.cost, 0);
   }
 
-  private isOccupiedByOtherEntity(entityId: string, gridPosition: GridPositionComponent, node: NavigationNode): boolean {
+  private logCombatStairMoveRejection(input: {
+    readonly stairId: string;
+    readonly reason: "no_path" | "insufficient_mp" | "endpoint_not_walkable" | "occupied";
+    readonly mp: number;
+    readonly cost?: number;
+    readonly fromStoryIndex: number;
+    readonly fromCell: GridCell;
+    readonly toStoryIndex: number;
+    readonly toCell: GridCell;
+    readonly path?: readonly MovementSegment[];
+  }): void {
+    console.warn(
+      `[CombatStairMove] rejected stair=${input.stairId} reason=${input.reason} mp=${input.mp} ` +
+      `cost=${input.cost ?? "n/a"} from=${input.fromStoryIndex}:${input.fromCell.x}:${input.fromCell.z} ` +
+      `to=${input.toStoryIndex}:${input.toCell.x}:${input.toCell.z} ` +
+      `segments=${input.path ? formatCombatStairMoveSegments(input.path) : "none"}`
+    );
+  }
+
+  private isOccupiedByOtherEntity(
+    entityId: string,
+    gridPosition: GridPositionComponent,
+    node: Pick<NavigationNode, "cell" | "storyIndex">
+  ): boolean {
     if (node.cell.equals(gridPosition.currentCell) && node.storyIndex === gridPosition.currentStoryIndex) {
       return false;
     }
@@ -429,4 +532,14 @@ function formatStairPathBounds(path: readonly { readonly x: number; readonly y: 
     maxZ = Math.max(maxZ, point.z);
   }
   return `x=[${minX.toFixed(2)},${maxX.toFixed(2)}] y=[${minY.toFixed(2)},${maxY.toFixed(2)}] z=[${minZ.toFixed(2)},${maxZ.toFixed(2)}]`;
+}
+
+function formatCombatStairMoveSegments(path: readonly MovementSegment[]): string {
+  return path.map((segment) => {
+    if (segment.kind === "walk") {
+      return `walk:${segment.storyIndex}:${segment.cell.x}:${segment.cell.z}:cost=${segment.cost}`;
+    }
+
+    return `stair:${segment.stairId}:${segment.fromStoryIndex}->${segment.toStoryIndex}:cost=${segment.cost}:points=${segment.traversalPath.length}`;
+  }).join("|");
 }

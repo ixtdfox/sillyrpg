@@ -3,7 +3,7 @@ import { GridCell } from "../../../src/core/grid/GridCell";
 import { RectGrid } from "../../../src/core/grid/RectGrid";
 import { BasicCombatAiService } from "../../../src/core/entity/systems/combat/BasicCombatAiService";
 import { GridNavigationPathService, type GridNavigationPathEnvironment } from "../../../src/core/navigation/GridNavigationPathService";
-import { BuildingNavigationRegistry } from "../../../src/core/navigation/BuildingNavigationRegistry";
+import { BuildingNavigationRegistry, normalizeStairTacticalCost } from "../../../src/core/navigation/BuildingNavigationRegistry";
 import type { StairNavigationConnector } from "../../../src/core/navigation/NavigationGraph";
 
 function makeGrid(): RectGrid {
@@ -209,6 +209,17 @@ function testStairInteractionSelectsConnectorForCurrentStory(): void {
   assert(target?.targetStoryIndex === 1, "Expected click on story 0 stair to target story 1");
 }
 
+function testLegacyPathLengthStairCostFallsBackToTacticalCost(): void {
+  const cost = normalizeStairTacticalCost(8, 2, {
+    id: "legacy-external-stair",
+    kind: "external",
+    from: { storyIndex: 0, cell: new GridCell(1, 0) },
+    to: { storyIndex: 1, cell: new GridCell(1, 0) }
+  });
+
+  assert(cost === 2, "Expected oversized legacy stair cost to fall back to tactical cost");
+}
+
 function edgeKey(storyIndex: number, a: GridCell, b: GridCell): string {
   const first = a.x < b.x || (a.x === b.x && a.z <= b.z) ? a : b;
   const second = first === a ? b : a;
@@ -228,6 +239,7 @@ function run(): void {
   testBlockedAndOpenDoorEdges();
   testBasicCombatAiCanChooseUpperStoryApproachTarget();
   testStairInteractionSelectsConnectorForCurrentStory();
+  testLegacyPathLengthStairCostFallsBackToTacticalCost();
 }
 
 run();

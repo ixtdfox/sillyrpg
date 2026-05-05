@@ -22,6 +22,10 @@ import {
   type GridNavigationStair
 } from "./GridNavigationContract";
 
+const DEFAULT_EXTERNAL_STAIR_COMBAT_COST = 2;
+const DEFAULT_INTERNAL_STAIR_COMBAT_COST = 2;
+const MAX_REASONABLE_ONE_STORY_STAIR_COMBAT_COST = 6;
+
 interface StairCheckpointRecord {
   readonly mesh: AbstractMesh;
   readonly metadata: StairCheckpointMetadata;
@@ -192,12 +196,22 @@ export class BuildingNavigationRegistry {
     const toCell = stair.to.cell;
     const traversalPathWorld = this.resolveContractStairPath(stair, grid, fromStoryY, toStoryY);
     const kind = stair.kind ?? "internal";
-    const cost = stair.cost ?? Math.max(kind === "external" ? 4 : 2, Math.abs(stair.to.storyIndex - stair.from.storyIndex) * 2);
+    const defaultCost = resolveDefaultStairCombatCost(kind, stair.from.storyIndex, stair.to.storyIndex);
+    const cost = normalizeStairTacticalCost(stair.cost, defaultCost, stair);
     const bidirectional = stair.bidirectional ?? true;
 
     if (!grid.contains(fromCell) || !grid.contains(toCell)) {
       console.warn(
         `[BuildingNavigationRegistry] contract stair '${stair.id}' endpoint outside grid bounds: from=${fromCell.x}:${fromCell.z}@${stair.from.storyIndex} to=${toCell.x}:${toCell.z}@${stair.to.storyIndex}`
+      );
+    }
+
+    if (isStairNavigationDebugEnabled(this.showStairNavigationDebug)) {
+      console.debug(
+        `[StairNav] connector stair=${stair.id} kind=${kind} ` +
+        `from=${stair.from.storyIndex}:${fromCell.x}:${fromCell.z} to=${stair.to.storyIndex}:${toCell.x}:${toCell.z} ` +
+        `cost=${cost} rawCost=${stair.cost ?? "n/a"} pathPoints=${traversalPathWorld.path.length} ` +
+        `synthetic=${traversalPathWorld.synthetic}`
       );
     }
 
@@ -751,6 +765,47 @@ export class BuildingNavigationRegistry {
 
 function isValidVector3(point: Vector3): boolean {
   return Number.isFinite(point.x) && Number.isFinite(point.y) && Number.isFinite(point.z);
+}
+
+function resolveDefaultStairCombatCost(kind: "internal" | "external", fromStoryIndex: number, toStoryIndex: number): number {
+  const storyDelta = Math.max(1, Math.abs(toStoryIndex - fromStoryIndex));
+  const adjacentStoryCost = kind === "external" ? DEFAULT_EXTERNAL_STAIR_COMBAT_COST : DEFAULT_INTERNAL_STAIR_COMBAT_COST;
+  return adjacentStoryCost * storyDelta;
+}
+
+export function normalizeStairTacticalCost(
+  rawCost: number | undefined,
+  defaultCost: number,
+  stair: Pick<GridNavigationStair, "id" | "kind" | "from" | "to">
+): number {
+  if (rawCost === undefined || !Number.isFinite(rawCost) || rawCost <= 0) {
+    return defaultCost;
+  }
+
+  const storyDelta = Math.max(1, Math.abs(stair.to.storyIndex - stair.from.storyIndex));
+  const maxReasonableCost = MAX_REASONABLE_ONE_STORY_STAIR_COMBAT_COST * storyDelta;
+  if (rawCost > maxReasonableCost) {
+    console.warn(
+      `[StairNav] stair=${stair.id} kind=${stair.kind ?? "internal"} rawCost=${rawCost} exceeds tactical limit ${maxReasonableCost}; ` +
+      `using default combat cost ${defaultCost}. Exporter may have used traversal path length as movement cost.`
+    );
+    return defaultCost;
+  }
+
+  return rawCost;
+}
+
+function isStairNavigationDebugEnabled(showStairNavigationDebug: boolean): boolean {
+  if (showStairNavigationDebug) {
+    return true;
+  }
+  const g = globalThis as { readonly __RECT_NAV_DEBUG__?: unknown; readonly location?: { readonly search?: string } };
+  const raw = typeof g.__RECT_NAV_DEBUG__ === "string" ? g.__RECT_NAV_DEBUG__.toLowerCase() : "";
+  if (raw === "1" || raw === "true") {
+    return true;
+  }
+  const query = g.location?.search ?? "";
+  return query.includes("rectNavDebug=1") || query.includes("rectNavDebug=true");
 }
 
 function isStoryConnectedToConnector(connector: StairNavigationConnector, storyIndex: number): boolean {

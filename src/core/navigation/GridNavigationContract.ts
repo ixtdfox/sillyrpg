@@ -530,7 +530,7 @@ function parseStairs(raw: unknown): GridNavigationStair[] {
     const to = parseStoryCell(record.to);
     const id = normalizeString(record.id) ?? "stair";
     const kind = normalizeStairKind(record.kind ?? record.stair_kind);
-    const cost = normalizePositiveNumber(record.cost);
+    const cost = normalizePositiveNumber(record.combat_cost ?? record.movement_cost ?? record.cost);
     const bidirectional = normalizeBoolean(record.bidirectional);
     const traversalPathWorld = parseStairPath(record.traversal_path_world ?? record.traversalPathWorld);
     return from && to ? [{ id, kind, cost, bidirectional, from, to, traversalPathWorld }] : [];
