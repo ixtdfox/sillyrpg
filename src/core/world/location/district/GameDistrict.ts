@@ -1,7 +1,7 @@
 import type { LangManager } from "../../../lang/LangManager";
 import type { District } from "./District";
-import type { DistrictDefinition } from "./DistrictDefinition";
-import type { DistrictModelData } from "./DistrictModelData";
+import type { DistrictDefinition, DistrictSceneCoord } from "./DistrictDefinition";
+import type { DistrictModelData, DistrictSceneData } from "./DistrictModelData";
 
 /**
  * Runtime district implementation loaded from JSON definitions.
@@ -28,7 +28,19 @@ export class GameDistrict implements District {
   public constructor(definition: DistrictDefinition, langManager: LangManager) {
     this.id = definition.id;
     this.titleKey = definition.title;
-    this.modelData = { model: definition.model };
+    this.modelData = {
+      chunkSize: { ...definition.chunkSize },
+      streaming: {
+        enabled: definition.streaming?.enabled ?? false,
+        loadMargin: definition.streaming?.loadMargin ?? 8,
+        unloadDistance: definition.streaming?.unloadDistance ?? 2
+      },
+      scenes: definition.scenes.map((scene) => ({
+        id: scene.id,
+        coord: [scene.coord[0], scene.coord[1]] as const,
+        model: scene.model
+      }))
+    };
     this.langManager = langManager;
   }
 
@@ -65,7 +77,33 @@ export class GameDistrict implements District {
    * @returns District scene configuration.
    */
   public getModelData(): DistrictModelData {
-    return { ...this.modelData };
+    return {
+      chunkSize: { ...this.modelData.chunkSize },
+      streaming: { ...this.modelData.streaming },
+      scenes: this.modelData.scenes.map((scene) => ({
+        id: scene.id,
+        coord: [scene.coord[0], scene.coord[1]] as const,
+        model: scene.model
+      }))
+    };
+  }
+
+  public getSceneByCoord(coord: DistrictSceneCoord): DistrictSceneData | undefined {
+    return this.modelData.scenes.find((scene) => scene.coord[0] === coord[0] && scene.coord[1] === coord[1]);
+  }
+
+  public getInitialScene(): DistrictSceneData {
+    const initialScene = this.getSceneByCoord([0, 0]);
+    if (initialScene) {
+      return initialScene;
+    }
+
+    const fallbackScene = this.modelData.scenes[0];
+    if (!fallbackScene) {
+      throw new Error(`District '${this.id}' does not contain any scenes.`);
+    }
+
+    return fallbackScene;
   }
 
   /**

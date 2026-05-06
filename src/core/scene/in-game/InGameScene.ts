@@ -13,6 +13,7 @@ import { RelationsComponent } from "../../entity/components/RelationsComponent";
 import { RectGridRuntime } from "../../grid/RectGridRuntime";
 import type { LangManager } from "../../lang/LangManager";
 import { LocationManager } from "../../world/location/LocationManager";
+import { DistrictSceneStreamingController } from "../../world/location/district/DistrictSceneStreamingController";
 import { InGameTopPanelUi } from "./ui/InGameTopPanelUi";
 import { attachInGameSceneRuntimeContext } from "./InGameSceneRuntimeContext";
 import type { Scene } from "../Scene";
@@ -100,6 +101,20 @@ export class InGameScene implements Scene {
       }
     );
     locationTriggerSystem.initialize();
+    const streamingController = new DistrictSceneStreamingController(
+      scene,
+      this.entityManager,
+      this.locationManager,
+      defaultDistrict,
+      () => {
+        this.tryRebuildRectGridRuntime(gridRuntime, scene);
+        const localPlayer = this.resolveLocalPlayer();
+        if (localPlayer) {
+          this.refreshPlayerGridPosition(localPlayer, gridRuntime, false);
+        }
+        locationTriggerSystem.refresh();
+      }
+    );
     const inGameTopPanelUi = new InGameTopPanelUi(scene, () => {
       const isEnabled = gridRuntime.toggleDebug();
       inGameTopPanelUi.setRectGridDebugEnabled(isEnabled);
@@ -107,12 +122,14 @@ export class InGameScene implements Scene {
     attachInGameSceneRuntimeContext(scene, { gridRuntime, locationManager: this.locationManager, topPanelUi: inGameTopPanelUi });
     inGameTopPanelUi.setRectGridDebugEnabled(gridRuntime.getIsDebugEnabled());
     const triggerObserver = scene.onBeforeRenderObservable.add(() => {
+      streamingController.update();
       locationTriggerSystem.update();
     });
 
     scene.onDisposeObservable.addOnce(() => {
       gridRuntime.dispose();
       inGameTopPanelUi.dispose();
+      streamingController.dispose();
       locationTriggerSystem.dispose();
       if (triggerObserver) {
         scene.onBeforeRenderObservable.remove(triggerObserver);
@@ -167,7 +184,7 @@ export class InGameScene implements Scene {
     }
   }
 
-  private refreshPlayerGridPosition(localPlayer: Entity, gridRuntime: RectGridRuntime): void {
+  private refreshPlayerGridPosition(localPlayer: Entity, gridRuntime: RectGridRuntime, alignToCell = true): void {
     const gridPosition = localPlayer.tryGetComponent(GridPositionComponent);
     const transform = localPlayer.getComponent(TransformComponent);
 
@@ -187,10 +204,12 @@ export class InGameScene implements Scene {
     gridPosition.currentStoryIndex = 0;
     gridPosition.targetCell = null;
     gridPosition.targetStoryIndex = null;
-    transform.value.copyFrom(grid.cellToWorld(cell, transform.value.y));
+    if (alignToCell) {
+      transform.value.copyFrom(grid.cellToWorld(cell, transform.value.y));
+    }
 
     const renderable = localPlayer.tryGetComponent(RenderableComponent);
-    if (renderable) {
+    if (renderable && alignToCell) {
       renderable.binding.position.copyFrom(transform.value);
     }
   }
@@ -207,5 +226,10 @@ export class InGameScene implements Scene {
         error
       );
     }
+  }
+
+  private resolveLocalPlayer(): Entity | null {
+    const candidates = this.entityManager.query(LocalPlayerComponent, TransformComponent);
+    return candidates[0] ?? null;
   }
 }

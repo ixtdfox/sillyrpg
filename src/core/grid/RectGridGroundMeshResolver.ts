@@ -8,6 +8,9 @@ export interface RectGridGroundSelection {
   /** Primary ground mesh used for bounds/origin setup. */
   readonly groundMesh: AbstractMesh;
 
+  /** All candidate ground meshes participating in grid bounds/picking. */
+  readonly groundMeshes: readonly AbstractMesh[];
+
   /** Predicate used by scene picking to accept valid ground hits. */
   readonly isGroundPick: (mesh: AbstractMesh) => boolean;
 }
@@ -44,7 +47,7 @@ export class RectGridGroundMeshResolver {
 
     const metadataMatches = meshes.filter((mesh) => (mesh.metadata as { isGround?: unknown } | null | undefined)?.isGround === true);
     if (metadataMatches.length > 0) {
-      return this.createSelection(this.selectLargestHorizontalMesh(metadataMatches), "metadata.isGround=true");
+      return this.createSelection(this.selectLargestHorizontalMesh(metadataMatches), metadataMatches, "metadata.isGround=true");
     }
 
     const exactNameMatches = meshes.filter((mesh) => {
@@ -52,7 +55,7 @@ export class RectGridGroundMeshResolver {
       return RectGridGroundMeshResolver.EXACT_GROUND_NAMES.includes(normalizedName);
     });
     if (exactNameMatches.length > 0) {
-      return this.createSelection(this.selectLargestHorizontalMesh(exactNameMatches), "exact-name-match");
+      return this.createSelection(this.selectLargestHorizontalMesh(exactNameMatches), exactNameMatches, "exact-name-match");
     }
 
     const keywordMatches = meshes.filter((mesh) => {
@@ -60,12 +63,12 @@ export class RectGridGroundMeshResolver {
       return RectGridGroundMeshResolver.KEYWORD_GROUND_NAMES.some((token) => normalizedName.includes(token));
     });
     if (keywordMatches.length > 0) {
-      return this.createSelection(this.selectLargestHorizontalMesh(keywordMatches), "keyword-name-match");
+      return this.createSelection(this.selectLargestHorizontalMesh(keywordMatches), keywordMatches, "keyword-name-match");
     }
 
     const fallback = this.selectLargestHorizontalMesh(meshes);
     if (fallback) {
-      return this.createSelection(fallback, "largest-horizontal-footprint-fallback");
+      return this.createSelection(fallback, meshes, "largest-horizontal-footprint-fallback");
     }
 
     const inspectedMeshes = meshes.map((mesh) => `'${mesh.name}'(id='${mesh.id}')`).join(", ");
@@ -74,15 +77,16 @@ export class RectGridGroundMeshResolver {
     );
   }
 
-  private createSelection(groundMesh: AbstractMesh, reason: string): RectGridGroundSelection {
+  private createSelection(groundMesh: AbstractMesh, groundMeshes: readonly AbstractMesh[], reason: string): RectGridGroundSelection {
     console.debug(
       `[RectGridGroundMeshResolver] Ground selected mesh='${groundMesh.name}' id='${groundMesh.id}' reason=${reason}.`
     );
 
     return {
       groundMesh,
+      groundMeshes,
       isGroundPick: (mesh: AbstractMesh): boolean =>
-        this.isMeshInGroundHierarchy(mesh, groundMesh) || this.isNavigationPickableSurface(mesh),
+        groundMeshes.some((candidate) => this.isMeshInGroundHierarchy(mesh, candidate)) || this.isNavigationPickableSurface(mesh),
     };
   }
 

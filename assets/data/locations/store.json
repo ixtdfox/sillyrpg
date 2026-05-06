@@ -6,7 +6,22 @@
       {
         "id": "port-main",
         "title": "district.port.main.title",
-        "model": "assets/scene_test.glb"
+        "chunkSize": {
+          "x": 40,
+          "z": 40
+        },
+        "streaming": {
+          "enabled": true,
+          "loadMargin": 8,
+          "unloadDistance": 2
+        },
+        "scenes": [
+          {
+            "id": "port-main-0-0",
+            "coord": [0, 0],
+            "model": "assets/scenes/port-main/0_0.glb"
+          }
+        ]
       }
     ]
   }

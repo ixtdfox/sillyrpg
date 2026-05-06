@@ -1,9 +1,18 @@
 import type { DistrictModelData } from "./DistrictModelData";
+import type { DistrictSceneCoord } from "./DistrictDefinition";
+import type { DistrictSceneData } from "./DistrictModelData";
 
 /**
  * Describes one playable district in a location.
  */
 export interface District {
+  /**
+   * Returns district unique id.
+   *
+   * @returns District id.
+   */
+  getId(): string;
+
   /**
    * Returns district localized title.
    *
@@ -24,6 +33,21 @@ export interface District {
    * @returns District scene data.
    */
   getModelData(): DistrictModelData;
+
+  /**
+   * Returns a district scene by chunk-space X/Z coordinate.
+   *
+   * @param coord - Chunk coordinate on the Babylon X/Z plane.
+   * @returns District scene data if present.
+   */
+  getSceneByCoord(coord: DistrictSceneCoord): DistrictSceneData | undefined;
+
+  /**
+   * Returns the initial scene chunk for district bootstrap.
+   *
+   * @returns Initial scene data, preferring coord [0, 0].
+   */
+  getInitialScene(): DistrictSceneData;
 
   /**
    * Returns runtime characters currently assigned to the district.

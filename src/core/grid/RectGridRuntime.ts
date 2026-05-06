@@ -257,21 +257,41 @@ export class RectGridRuntime {
    * Origin strategy: world X/Z origin is the shared editor/runtime contract.
    * Ground AABB only decides how many bounded cells are created.
    */
-  private createGridFromGround(groundMesh: AbstractMesh, settings: RectGridSettings): RectGrid {
-    const boundingBox = groundMesh.getBoundingInfo().boundingBox;
+  private createGridFromGround(groundMeshes: readonly AbstractMesh[], settings: RectGridSettings): RectGrid {
+    const sourceMeshes = groundMeshes.length > 0 ? groundMeshes : [];
+    const primaryGroundMesh = sourceMeshes[0];
+    if (!primaryGroundMesh) {
+      throw new Error("[RectGridRuntime] Cannot create grid without ground meshes.");
+    }
+
+    let minX = Number.POSITIVE_INFINITY;
+    let maxX = Number.NEGATIVE_INFINITY;
+    let minZ = Number.POSITIVE_INFINITY;
+    let maxZ = Number.NEGATIVE_INFINITY;
+    let minY = Number.POSITIVE_INFINITY;
+
+    for (const groundMesh of sourceMeshes) {
+      const boundingBox = groundMesh.getBoundingInfo().boundingBox;
+      minX = Math.min(minX, boundingBox.minimumWorld.x);
+      maxX = Math.max(maxX, boundingBox.maximumWorld.x);
+      minZ = Math.min(minZ, boundingBox.minimumWorld.z);
+      maxZ = Math.max(maxZ, boundingBox.maximumWorld.z);
+      minY = Math.min(minY, boundingBox.centerWorld.y);
+    }
+
     const origin = new Vector3(
       WORLD_GRID_ORIGIN_X,
-      boundingBox.centerWorld.y,
+      minY,
       WORLD_GRID_ORIGIN_Z
     );
 
     const bounds = RectGrid.deriveBoundsFromWorldRect(
       origin,
       settings.tileSize,
-      boundingBox.minimumWorld.x,
-      boundingBox.maximumWorld.x,
-      boundingBox.minimumWorld.z,
-      boundingBox.maximumWorld.z
+      minX,
+      maxX,
+      minZ,
+      maxZ
     );
 
     return new RectGrid(origin, settings.tileSize, bounds);
@@ -284,7 +304,10 @@ export class RectGridRuntime {
   ): { grid: RectGrid; overlay: RectGridOverlay; pickerController: RectGroundPickerController; groundMesh: AbstractMesh } {
     const groundSelection = new RectGridGroundMeshResolver().resolve(scene, preferredGroundMeshes);
     groundSelection.groundMesh.isPickable = true;
-    const grid = this.createGridFromGround(groundSelection.groundMesh, settings);
+    for (const groundMesh of groundSelection.groundMeshes) {
+      groundMesh.isPickable = true;
+    }
+    const grid = this.createGridFromGround(groundSelection.groundMeshes, settings);
     const overlay = new RectGridOverlay(scene, grid, settings.overlayVerticalOffset);
     const pickerController = new RectGroundPickerController(scene, groundSelection.isGroundPick, grid, overlay);
     return { grid, overlay, pickerController, groundMesh: groundSelection.groundMesh };

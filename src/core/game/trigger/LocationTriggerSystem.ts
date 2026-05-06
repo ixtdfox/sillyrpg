@@ -92,6 +92,10 @@ export class LocationTriggerSystem {
     this.triggerRegistry.clear();
   }
 
+  public refresh(): void {
+    this.refreshTriggers();
+  }
+
   private refreshTriggers(): void {
     this.triggerRegistry.registerFromNodes(this.locationManager.getActiveDistrictNodes());
   }
