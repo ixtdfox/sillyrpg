@@ -1,16 +1,19 @@
-import { normalizeSceneAssetPath } from "../core/model/SceneAssetPath";
+import { normalizeAssetPath } from "../core/model/SceneAssetPath";
 import type { LangManager } from "../core/lang/LangManager";
 import { LocationManager } from "../core/world/location/LocationManager";
-import type { EditorSceneOption } from "./types";
+import { EditorBuildingAssetRegistry } from "./assets/EditorBuildingAssetRegistry";
+import type { EditorBuildingAssetOption, EditorSceneOption } from "./types";
 
 /**
  * Discovers editor-visible scenes from the location data store.
  */
 export class EditorSceneRegistry {
   private readonly locationManager: LocationManager;
+  private readonly buildingAssetRegistry: EditorBuildingAssetRegistry;
 
   public constructor(langManager: LangManager) {
     this.locationManager = new LocationManager(langManager);
+    this.buildingAssetRegistry = new EditorBuildingAssetRegistry();
   }
 
   public async loadSceneOptions(): Promise<readonly EditorSceneOption[]> {
@@ -34,8 +37,8 @@ export class EditorSceneRegistry {
             districtId,
             districtLabel,
             sceneId: sceneData.id,
-            assetUrl: normalizeSceneAssetPath(sceneData.model),
-            rawAssetPath: sceneData.model,
+            descriptorUrl: normalizeAssetPath(sceneData.scene),
+            rawDescriptorPath: sceneData.scene,
             chunkCoord: sceneData.coord
           });
         }
@@ -43,5 +46,9 @@ export class EditorSceneRegistry {
     }
 
     return options;
+  }
+
+  public async loadBuildingOptions(): Promise<readonly EditorBuildingAssetOption[]> {
+    return this.buildingAssetRegistry.getBuildingOptions();
   }
 }

@@ -19,7 +19,7 @@
           {
             "id": "port-main-0-0",
             "coord": [0, 0],
-            "model": "assets/scenes/port-main/0_0.glb"
+            "scene": "assets/data/scenes/port-main/0_0.json"
           }
         ]
       }

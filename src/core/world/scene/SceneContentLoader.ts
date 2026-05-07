@@ -1,0 +1,388 @@
+import {
+  Color3,
+  MeshBuilder,
+  SceneLoader,
+  StandardMaterial,
+  TransformNode,
+  Vector3,
+  type AbstractMesh,
+  type AnimationGroup,
+  type IParticleSystem,
+  type Scene,
+  type Skeleton
+} from "@babylonjs/core";
+import "@babylonjs/loaders/glTF";
+import { normalizeAssetPath, resolveSceneAssetPath } from "../../model/SceneAssetPath";
+import { loadSceneDescriptor } from "./SceneDescriptorLoader";
+import type {
+  SceneDescriptor,
+  SceneObjectDescriptor,
+  SceneTerrainDescriptor,
+  SceneVector3Tuple
+} from "./SceneDescriptor";
+
+export interface SceneContentImportOptions {
+  readonly scene: Scene;
+  readonly sceneId: string;
+  readonly root: TransformNode;
+  readonly rootNamePrefix: string;
+  readonly descriptorPath?: string;
+  readonly descriptor?: SceneDescriptor;
+}
+
+export interface ImportedSceneAssetNodes {
+  readonly meshes: readonly AbstractMesh[];
+  readonly renderableMeshes: readonly AbstractMesh[];
+  readonly helperMeshes: readonly AbstractMesh[];
+  readonly transformNodes: readonly TransformNode[];
+  readonly skeletons: readonly Skeleton[];
+  readonly animationGroups: readonly AnimationGroup[];
+  readonly particleSystems: readonly IParticleSystem[];
+}
+
+export interface ImportedSceneObjectContent extends ImportedSceneAssetNodes {
+  readonly objectId: string;
+  readonly type: string;
+  readonly root: TransformNode;
+  readonly descriptor: SceneObjectDescriptor;
+}
+
+export interface ImportedSceneTerrainContent extends ImportedSceneAssetNodes {
+  readonly root: TransformNode;
+  readonly descriptor: SceneTerrainDescriptor;
+}
+
+export interface ImportedSceneContent extends ImportedSceneAssetNodes {
+  readonly root: TransformNode;
+  readonly sceneObjects: readonly ImportedSceneObjectContent[];
+  readonly terrainContent?: ImportedSceneTerrainContent | null;
+  readonly terrainRoot?: TransformNode;
+  readonly terrainMeshes: readonly AbstractMesh[];
+  readonly terrainDescriptor?: SceneTerrainDescriptor | null;
+  readonly summary: SceneContentSummary;
+}
+
+export interface SceneContentSummary {
+  readonly descriptorPath?: string;
+  readonly descriptorUrl?: string;
+  readonly terrainLabel: string;
+  readonly objectCount: number;
+}
+
+interface ImportedAssetNodesInternal extends ImportedSceneAssetNodes {}
+
+export async function importSceneContent(options: SceneContentImportOptions): Promise<ImportedSceneContent> {
+  const descriptorPath = options.descriptorPath;
+  const descriptorUrl = descriptorPath ? normalizeAssetPath(descriptorPath) : undefined;
+  const descriptor =
+    options.descriptor ?? (descriptorPath ? (await loadSceneDescriptor(descriptorPath)).descriptor : undefined);
+
+  if (!descriptor) {
+    throw new Error(`Scene '${options.sceneId}' is missing a descriptor.`);
+  }
+
+  const aggregate = createAggregate();
+  let importedTerrain: ImportedSceneTerrainContent | null = null;
+
+  if (descriptor.terrain) {
+    importedTerrain = await importSceneTerrainContent(options.scene, descriptor.terrain, options.root, options.rootNamePrefix);
+    appendAggregate(aggregate, importedTerrain);
+  }
+
+  const sceneObjects: ImportedSceneObjectContent[] = [];
+  for (const objectDescriptor of descriptor.objects) {
+    const importedObject = await importSceneObjectContent(
+      options.scene,
+      objectDescriptor,
+      options.root,
+      options.rootNamePrefix
+    );
+    sceneObjects.push(importedObject);
+    appendAggregate(aggregate, importedObject);
+  }
+
+  return {
+    root: options.root,
+    meshes: aggregate.meshes,
+    renderableMeshes: aggregate.renderableMeshes,
+    helperMeshes: aggregate.helperMeshes,
+    transformNodes: aggregate.transformNodes,
+    skeletons: aggregate.skeletons,
+    animationGroups: aggregate.animationGroups,
+    particleSystems: aggregate.particleSystems,
+    sceneObjects,
+    terrainContent: importedTerrain,
+    terrainRoot: importedTerrain?.root,
+    terrainMeshes: importedTerrain?.renderableMeshes ?? [],
+    terrainDescriptor: descriptor.terrain,
+    summary: {
+      descriptorPath,
+      descriptorUrl,
+      terrainLabel: describeTerrain(descriptor.terrain),
+      objectCount: descriptor.objects.length
+    }
+  };
+}
+
+export async function importSceneTerrainContent(
+  scene: Scene,
+  descriptor: SceneTerrainDescriptor,
+  parent: TransformNode,
+  rootNamePrefix: string
+): Promise<ImportedSceneTerrainContent> {
+  const terrainRoot = new TransformNode(`${rootNamePrefix}-terrain-root:${descriptor.id}`, scene);
+  terrainRoot.setParent(parent, false);
+  applyTransform(terrainRoot, descriptor);
+  terrainRoot.metadata = {
+    ...(terrainRoot.metadata as Record<string, unknown> | undefined),
+    editorTerrain: true,
+    editorSelectable: false
+  };
+
+  if (descriptor.kind === "plane") {
+    const ground = MeshBuilder.CreateGround(
+      `terrain:${descriptor.id}`,
+      { width: descriptor.size[0], height: descriptor.size[1] },
+      scene
+    );
+    ground.setParent(terrainRoot, false);
+    ground.metadata = {
+      ...(ground.metadata as Record<string, unknown> | undefined),
+      editorTerrain: true,
+      editorSelectable: false
+    };
+    ground.isPickable = true;
+
+    const material = new StandardMaterial(`terrain-material:${descriptor.id}`, scene);
+    material.diffuseColor = resolveColor3(descriptor.material?.color ?? "#8D9298");
+    material.specularColor = new Color3(0, 0, 0);
+    ground.material = material;
+
+    return {
+      root: terrainRoot,
+      descriptor,
+      meshes: [ground],
+      renderableMeshes: [ground],
+      helperMeshes: [],
+      transformNodes: [],
+      skeletons: [],
+      animationGroups: [],
+      particleSystems: []
+    };
+  }
+
+  const imported = await importSceneAsset(scene, descriptor.model, terrainRoot);
+  for (const mesh of imported.renderableMeshes) {
+    mesh.metadata = {
+      ...(mesh.metadata as Record<string, unknown> | undefined),
+      editorTerrain: true,
+      editorSelectable: false
+    };
+    mesh.isPickable = true;
+  }
+
+  return {
+    root: terrainRoot,
+    descriptor,
+    ...imported
+  };
+}
+
+export async function importSceneObjectContent(
+  scene: Scene,
+  descriptor: SceneObjectDescriptor,
+  parent: TransformNode,
+  rootNamePrefix: string
+): Promise<ImportedSceneObjectContent> {
+  const objectRoot = new TransformNode(`${rootNamePrefix}-scene-object-root:${descriptor.id}`, scene);
+  objectRoot.setParent(parent, false);
+  applyTransform(objectRoot, descriptor);
+  objectRoot.metadata = {
+    ...(objectRoot.metadata as Record<string, unknown> | undefined),
+    sceneObjectId: descriptor.id,
+    sceneObjectType: descriptor.type,
+    editorSelectable: true
+  };
+
+  const imported = await importSceneAsset(scene, descriptor.asset, objectRoot);
+
+  for (const transformNode of imported.transformNodes) {
+    transformNode.metadata = {
+      ...(transformNode.metadata as Record<string, unknown> | undefined),
+      sceneObjectId: descriptor.id,
+      sceneObjectType: descriptor.type,
+      editorSelectable: true
+    };
+  }
+
+  for (const mesh of imported.renderableMeshes) {
+    mesh.metadata = {
+      ...(mesh.metadata as Record<string, unknown> | undefined),
+      sceneObjectId: descriptor.id,
+      sceneObjectType: descriptor.type,
+      editorSelectable: true
+    };
+    mesh.isPickable = true;
+  }
+
+  return {
+    objectId: descriptor.id,
+    type: descriptor.type,
+    root: objectRoot,
+    descriptor,
+    ...imported
+  };
+}
+
+export function applyTransform(node: TransformNode, descriptor: {
+  readonly position?: SceneVector3Tuple;
+  readonly rotation?: SceneVector3Tuple;
+  readonly scale?: SceneVector3Tuple;
+}): void {
+  node.position = toVector3(descriptor.position, [0, 0, 0]);
+  node.rotation = toVector3(descriptor.rotation, [0, 0, 0]);
+  node.scaling = toVector3(descriptor.scale, [1, 1, 1]);
+}
+
+function createAggregate(): {
+  meshes: AbstractMesh[];
+  renderableMeshes: AbstractMesh[];
+  helperMeshes: AbstractMesh[];
+  transformNodes: TransformNode[];
+  skeletons: Skeleton[];
+  animationGroups: AnimationGroup[];
+  particleSystems: IParticleSystem[];
+} {
+  return {
+    meshes: [],
+    renderableMeshes: [],
+    helperMeshes: [],
+    transformNodes: [],
+    skeletons: [],
+    animationGroups: [],
+    particleSystems: []
+  };
+}
+
+function appendAggregate(
+  aggregate: {
+    meshes: AbstractMesh[];
+    renderableMeshes: AbstractMesh[];
+    helperMeshes: AbstractMesh[];
+    transformNodes: TransformNode[];
+    skeletons: Skeleton[];
+    animationGroups: AnimationGroup[];
+    particleSystems: IParticleSystem[];
+  },
+  imported: ImportedAssetNodesInternal
+): void {
+  aggregate.meshes.push(...imported.meshes);
+  aggregate.renderableMeshes.push(...imported.renderableMeshes);
+  aggregate.helperMeshes.push(...imported.helperMeshes);
+  aggregate.transformNodes.push(...imported.transformNodes);
+  aggregate.skeletons.push(...imported.skeletons);
+  aggregate.animationGroups.push(...imported.animationGroups);
+  aggregate.particleSystems.push(...imported.particleSystems);
+}
+
+async function importSceneAsset(scene: Scene, assetPath: string, parent: TransformNode): Promise<ImportedAssetNodesInternal> {
+  const { rootUrl, fileName } = resolveSceneAssetPath(assetPath);
+  const importResult = await SceneLoader.ImportMeshAsync(undefined, rootUrl, fileName, scene);
+
+  for (const transformNode of importResult.transformNodes) {
+    if (transformNode === parent || transformNode.parent) {
+      continue;
+    }
+
+    transformNode.setParent(parent, true);
+  }
+
+  for (const mesh of importResult.meshes) {
+    if (!mesh.parent) {
+      mesh.setParent(parent, true);
+    }
+  }
+
+  const helperMeshes: AbstractMesh[] = [];
+  const renderableMeshes: AbstractMesh[] = [];
+
+  for (const mesh of importResult.meshes) {
+    if (isMetadataHelperMesh(mesh)) {
+      mesh.metadata = {
+        ...(mesh.metadata as Record<string, unknown> | undefined),
+        editorHelper: true,
+        editorSelectable: false
+      };
+      mesh.isVisible = false;
+      mesh.isPickable = false;
+      helperMeshes.push(mesh);
+      continue;
+    }
+
+    renderableMeshes.push(mesh);
+  }
+
+  return {
+    meshes: importResult.meshes,
+    renderableMeshes,
+    helperMeshes,
+    transformNodes: importResult.transformNodes,
+    skeletons: importResult.skeletons,
+    animationGroups: importResult.animationGroups,
+    particleSystems: importResult.particleSystems
+  };
+}
+
+function isMetadataHelperMesh(mesh: AbstractMesh): boolean {
+  const name = mesh.name.toLowerCase();
+  const id = mesh.id.toLowerCase();
+  const metadata = (mesh.metadata ?? {}) as Record<string, unknown>;
+  const rawMetadata = (metadata.rawMetadata ?? {}) as Record<string, unknown>;
+
+  if (name.includes("metadata") || id.includes("metadata")) {
+    return true;
+  }
+
+  if (name.includes("navigationmetadata") || id.includes("navigationmetadata")) {
+    return true;
+  }
+
+  if (metadata.editorHelper === true || metadata.gameHelper === true || metadata.isMetadata === true) {
+    return true;
+  }
+
+  if (
+    rawMetadata.editor_helper === true ||
+    rawMetadata.game_helper === true ||
+    rawMetadata.metadata_carrier === true
+  ) {
+    return true;
+  }
+
+  return mesh.getTotalVertices() <= 0;
+}
+
+function toVector3(value: SceneVector3Tuple | undefined, fallback: SceneVector3Tuple): Vector3 {
+  const source = value ?? fallback;
+  return new Vector3(source[0], source[1], source[2]);
+}
+
+function describeTerrain(terrain: SceneTerrainDescriptor | null | undefined): string {
+  if (!terrain) {
+    return "none";
+  }
+
+  if (terrain.kind === "plane") {
+    return `plane ${terrain.size[0]}x${terrain.size[1]}`;
+  }
+
+  return terrain.model;
+}
+
+function resolveColor3(hexColor: string): Color3 {
+  try {
+    return Color3.FromHexString(hexColor);
+  } catch {
+    return Color3.FromHexString("#8D9298");
+  }
+}

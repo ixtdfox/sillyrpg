@@ -14,7 +14,7 @@ export interface DistrictStreamingDefinition {
 export interface DistrictSceneDefinition {
   readonly id: string;
   readonly coord: DistrictSceneCoord;
-  readonly model: string;
+  readonly scene: string;
 }
 
 /**

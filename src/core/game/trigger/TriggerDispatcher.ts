@@ -33,9 +33,8 @@ export class TriggerDispatcher {
     context: TriggerDispatchContext
   ): Promise<void> {
     console.debug(`[LocationTriggerSystem] Scene transition started target='${trigger.metadata.targetScene}'.`);
-
-    const spawnPosition = await context.locationManager.transitionToDistrictModel(context.scene, trigger.metadata.targetScene);
-    await context.handlePostTransition(spawnPosition, context.localPlayer);
-    console.debug(`[LocationTriggerSystem] Scene transition completed target='${trigger.metadata.targetScene}'.`);
+    throw new Error(
+      `Legacy trigger-based district model transitions are no longer supported for '${trigger.metadata.targetScene}'. Use descriptor-based district scene transitions instead.`
+    );
   }
 }

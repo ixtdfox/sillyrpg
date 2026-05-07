@@ -3,9 +3,7 @@ import {
   AnimationGroup,
   ArcRotateCamera,
   HemisphericLight,
-  MeshBuilder,
   Scene as BabylonScene,
-  SceneLoader,
   Skeleton,
   TransformNode,
   Vector3,
@@ -29,7 +27,7 @@ import type {
 import type { District } from "./district/District";
 import type { DistrictModelData, DistrictSceneData } from "./district/DistrictModelData";
 import { GameDistrict } from "./district/GameDistrict";
-import { resolveSceneAssetPath } from "../../model/SceneAssetPath";
+import { importSceneContent } from "../scene/SceneContentLoader";
 
 interface LoadedDistrictSceneContent {
   readonly sceneId: string;
@@ -40,6 +38,9 @@ interface LoadedDistrictSceneContent {
   readonly skeletons: Skeleton[];
   readonly animationGroups: AnimationGroup[];
   readonly particleSystems: IParticleSystem[];
+  readonly descriptorPath?: string;
+  readonly terrainModelPath?: string;
+  readonly objectCount: number;
 }
 
 /**
@@ -48,7 +49,6 @@ interface LoadedDistrictSceneContent {
 export class LocationManager {
   /** Relative JSON path containing location definitions. */
   private static readonly STORE_PATH = "/assets/data/locations/store.json";
-  private static readonly LEGACY_CHUNK_SIZE: DistrictChunkSize = { x: 40, z: 40 };
   private static readonly LEGACY_STREAMING: DistrictStreamingDefinition = {
     enabled: false,
     loadMargin: 8,
@@ -160,17 +160,16 @@ export class LocationManager {
   }
 
   /**
-   * Legacy transition entry-point used by trigger metadata with a direct model path.
+   * Legacy transition entry-point kept only to fail loudly if outdated trigger code reaches it.
    *
    * @param scene - Active Babylon scene.
    * @param modelPath - Relative path to district model file.
    * @returns Center point of the loaded district used as spawn fallback.
    */
-  public async transitionToDistrictModel(scene: BabylonScene, modelPath: string): Promise<Vector3> {
-    this.activeDistrict = null;
-    this.disposeActiveDistrictScenes();
-    await this.loadStandaloneDistrictModel(scene, modelPath);
-    return this.resolveActiveDistrictCenter();
+  public async transitionToDistrictModel(_scene: BabylonScene, modelPath: string): Promise<Vector3> {
+    throw new Error(
+      `Legacy district model transition '${modelPath}' is no longer supported. Use district scenes[].scene JSON descriptors instead.`
+    );
   }
 
   /**
@@ -192,10 +191,12 @@ export class LocationManager {
       return true;
     }
 
-    console.info(`[DistrictStreaming] chunkLoad start coord=${coordKey} model=${sceneData.model}`);
+    console.info(`[DistrictStreaming] chunkLoad start coord=${coordKey} descriptor=${sceneData.scene}`);
     const content = await this.importDistrictSceneChunk(scene, district.getModelData(), sceneData);
     this.activeDistrictScenes.set(coordKey, content);
-    console.info(`[DistrictStreaming] chunkLoad complete coord=${coordKey} meshes=${content.meshes.length}`);
+    console.info(
+      `[DistrictStreaming] chunkLoad complete coord=${coordKey} descriptor=${content.descriptorPath ?? "none"} terrain=${content.terrainModelPath ?? "none"} objects=${content.objectCount} meshes=${content.meshes.length}`
+    );
     return true;
   }
 
@@ -358,7 +359,6 @@ export class LocationManager {
 
   /**
    * Validates and converts unknown value into district definition.
-   * Legacy single-model districts are upgraded into one-scene definitions at [0, 0].
    *
    * @param value - Raw unknown value.
    * @returns Typed district definition.
@@ -373,13 +373,7 @@ export class LocationManager {
     const title = this.requireString(record.title, `District '${id}' title must be a string.`);
     const legacyModel = record.model;
     if (typeof legacyModel === "string") {
-      return {
-        id,
-        title,
-        chunkSize: { ...LocationManager.LEGACY_CHUNK_SIZE },
-        streaming: { ...LocationManager.LEGACY_STREAMING },
-        scenes: [{ id: `${id}-0-0`, coord: [0, 0], model: legacyModel }]
-      };
+      throw new Error(`District '${id}' uses legacy model loading. Use scenes[].scene JSON descriptor instead.`);
     }
 
     const chunkSize = this.parseChunkSize(record.chunkSize, id);
@@ -444,12 +438,14 @@ export class LocationManager {
 
     const record = value as Record<string, unknown>;
     const id = this.requireString(record.id, `District '${districtId}' scene at index ${index} must have a string id.`);
-    const model = this.requireString(
-      record.model,
-      `District '${districtId}' scene '${id}' must have a string model path.`
-    );
+    const model = this.optionalString(record.model, `District '${districtId}' scene '${id}' model must be a string path.`);
+    if (model) {
+      throw new Error(`District '${districtId}' scene '${id}' uses legacy model loading. Use scene: 'assets/data/scenes/...json'.`);
+    }
+    const scene = this.requireString(record.scene, `District '${districtId}' scene '${id}' scene must be a string path.`);
+
     const coord = this.parseDistrictSceneCoord(record.coord, districtId, id);
-    return { id, coord, model };
+    return { id, coord, scene };
   }
 
   private parseDistrictSceneCoord(value: unknown, districtId: string, sceneId: string): DistrictSceneCoord {
@@ -470,6 +466,18 @@ export class LocationManager {
   }
 
   private requireString(value: unknown, errorMessage: string): string {
+    if (typeof value !== "string") {
+      throw new Error(errorMessage);
+    }
+
+    return value;
+  }
+
+  private optionalString(value: unknown, errorMessage: string): string | undefined {
+    if (value === undefined) {
+      return undefined;
+    }
+
     if (typeof value !== "string") {
       throw new Error(errorMessage);
     }
@@ -542,21 +550,6 @@ export class LocationManager {
     }
   }
 
-  private async loadStandaloneDistrictModel(scene: BabylonScene, modelPath: string): Promise<void> {
-    const sceneData: DistrictSceneData = {
-      id: "legacy-transition-0-0",
-      coord: [0, 0],
-      model: modelPath
-    };
-    const modelData: DistrictModelData = {
-      chunkSize: { ...LocationManager.LEGACY_CHUNK_SIZE },
-      streaming: { ...LocationManager.LEGACY_STREAMING },
-      scenes: [sceneData]
-    };
-    const content = await this.importDistrictSceneChunk(scene, modelData, sceneData);
-    this.activeDistrictScenes.set(this.createCoordKey(sceneData.coord), content);
-  }
-
   private async importDistrictSceneChunk(
     scene: BabylonScene,
     districtModelData: DistrictModelData,
@@ -566,99 +559,27 @@ export class LocationManager {
     root.position.x = sceneData.coord[0] * districtModelData.chunkSize.x;
     root.position.z = sceneData.coord[1] * districtModelData.chunkSize.z;
 
-    const extension = this.getFileExtension(sceneData.model);
-    const hasLoader = SceneLoader.IsPluginForExtensionAvailable(extension);
-
-    if (!hasLoader) {
-      console.warn(`No Babylon loader plugin found for '${extension}'. Creating fallback district chunk geometry.`);
-      return this.createFallbackDistrictGeometry(scene, sceneData, root);
-    }
-
-    const { rootUrl, fileName } = resolveSceneAssetPath(sceneData.model);
-
-    try {
-      const importResult = await SceneLoader.ImportMeshAsync(undefined, rootUrl, fileName, scene);
-
-      // Chunks are authored local-to-chunk-origin. We offset the chunk root in world space here,
-      // so future Blender exports must avoid baking world-space chunk offsets into the GLB itself.
-      for (const transformNode of importResult.transformNodes) {
-        if (transformNode === root || transformNode.parent) {
-          continue;
-        }
-
-        transformNode.setParent(root, true);
-      }
-
-      for (const mesh of importResult.meshes) {
-        if (mesh.parent) {
-          continue;
-        }
-
-        mesh.setParent(root, true);
-      }
-
-      return {
-        sceneId: sceneData.id,
-        coord: sceneData.coord,
-        root,
-        meshes: importResult.meshes,
-        transformNodes: importResult.transformNodes,
-        skeletons: importResult.skeletons,
-        animationGroups: importResult.animationGroups,
-        particleSystems: importResult.particleSystems
-      };
-    } catch (error) {
-      console.warn(`Unable to load district model '${sceneData.model}'. Creating fallback district chunk geometry.`, error);
-      return this.createFallbackDistrictGeometry(scene, sceneData, root);
-    }
-  }
-
-  /**
-   * Creates a fallback district geometry to keep in-game scene functional.
-   *
-   * @param scene - Scene where placeholder meshes are created.
-   * @param sceneData - District chunk definition.
-   * @param root - Chunk root carrying world chunk offset.
-   * @returns Loaded content record compatible with imported chunks.
-   */
-  private createFallbackDistrictGeometry(
-    scene: BabylonScene,
-    sceneData: DistrictSceneData,
-    root: TransformNode
-  ): LoadedDistrictSceneContent {
-    const ground = MeshBuilder.CreateGround(`ground:${sceneData.id}`, { width: 40, height: 40 }, scene);
-    ground.metadata = { ...(ground.metadata as Record<string, unknown> | undefined), isGround: true };
-    ground.setParent(root, true);
-
-    const marker = MeshBuilder.CreateBox(`district-marker:${sceneData.id}`, { size: 2 }, scene);
-    marker.position = new Vector3(0, 1, 0);
-    marker.setParent(root, true);
+    const importedContent = await importSceneContent({
+      scene,
+      sceneId: sceneData.id,
+      root,
+      rootNamePrefix: "district",
+      descriptorPath: sceneData.scene
+    });
 
     return {
       sceneId: sceneData.id,
       coord: sceneData.coord,
       root,
-      meshes: [ground, marker],
-      transformNodes: [],
-      skeletons: [],
-      animationGroups: [],
-      particleSystems: []
+      meshes: [...importedContent.meshes],
+      transformNodes: [...importedContent.transformNodes],
+      skeletons: [...importedContent.skeletons],
+      animationGroups: [...importedContent.animationGroups],
+      particleSystems: [...importedContent.particleSystems],
+      descriptorPath: importedContent.summary.descriptorPath,
+      terrainModelPath:
+        importedContent.terrainDescriptor?.kind === "model" ? importedContent.terrainDescriptor.model : undefined,
+      objectCount: importedContent.summary.objectCount
     };
   }
-
-  /**
-   * Returns lowercase extension with leading dot from file path.
-   *
-   * @param filePath - Source file path.
-   * @returns Path extension including leading dot.
-   */
-  private getFileExtension(filePath: string): string {
-    const dotIndex = filePath.lastIndexOf(".");
-    if (dotIndex === -1) {
-      return "";
-    }
-
-    return filePath.slice(dotIndex).toLowerCase();
-  }
-
 }

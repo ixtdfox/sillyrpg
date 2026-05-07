@@ -38,7 +38,7 @@ export class GameDistrict implements District {
       scenes: definition.scenes.map((scene) => ({
         id: scene.id,
         coord: [scene.coord[0], scene.coord[1]] as const,
-        model: scene.model
+        scene: scene.scene
       }))
     };
     this.langManager = langManager;
@@ -83,7 +83,7 @@ export class GameDistrict implements District {
       scenes: this.modelData.scenes.map((scene) => ({
         id: scene.id,
         coord: [scene.coord[0], scene.coord[1]] as const,
-        model: scene.model
+        scene: scene.scene
       }))
     };
   }

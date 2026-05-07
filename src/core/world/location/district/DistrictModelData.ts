@@ -7,7 +7,7 @@ import type {
 export interface DistrictSceneData {
   readonly id: string;
   readonly coord: DistrictSceneCoord;
-  readonly model: string;
+  readonly scene: string;
 }
 
 /**
