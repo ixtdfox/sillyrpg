@@ -1,5 +1,6 @@
 import {
   ArcRotateCamera,
+  BoundingBox,
   Color4,
   Engine,
   HemisphericLight,
@@ -92,7 +93,9 @@ export class BuildingThumbnailService {
   private async renderThumbnail(modelPath: string): Promise<string | null> {
     const scene = new Scene(this.engine);
     scene.clearColor = new Color4(0.07, 0.09, 0.12, 1);
-    const camera = new ArcRotateCamera("building-thumb-camera", -Math.PI / 4, Math.PI / 3, 12, Vector3.Zero(), scene);
+    const camera = new ArcRotateCamera("building-thumb-camera", -Math.PI / 3, Math.PI / 2.8, 12, Vector3.Zero(), scene);
+    camera.lowerRadiusLimit = 2;
+    camera.upperRadiusLimit = 200;
     const light = new HemisphericLight("building-thumb-light", new Vector3(0.4, 1, 0.2), scene);
     light.intensity = 1.2;
 
@@ -107,37 +110,51 @@ export class BuildingThumbnailService {
           continue;
         }
 
-        transformNode.setParent(root, true);
+        transformNode.parent = root;
       }
 
       for (const mesh of importResult.meshes) {
         if (!mesh.parent) {
-          mesh.setParent(root, true);
+          mesh.parent = root;
         }
 
         if (this.isHelperMesh(mesh)) {
           mesh.isVisible = false;
+          mesh.isPickable = false;
         }
       }
 
-      const renderableMeshes = importResult.meshes.filter((mesh) => mesh.isVisible && mesh.getTotalVertices() > 0);
+      scene.transformNodes.forEach((node) => node.computeWorldMatrix(true));
+      scene.meshes.forEach((mesh) => {
+        mesh.computeWorldMatrix(true);
+        try {
+          mesh.refreshBoundingInfo({});
+        } catch {
+          // Ignore meshes without refresh support.
+        }
+      });
+
+      const renderableMeshes = importResult.meshes.filter((mesh) => this.isRenderableThumbnailMesh(mesh));
       if (renderableMeshes.length === 0) {
-        scene.dispose();
+        console.warn(`[EditorThumbnail] Preview unavailable for '${modelPath}': no renderable meshes after helper filtering.`);
         return null;
       }
 
       const bounds = this.resolveBounds(renderableMeshes);
       if (!bounds) {
-        scene.dispose();
+        console.warn(`[EditorThumbnail] Preview unavailable for '${modelPath}': could not resolve finite renderable bounds.`);
         return null;
       }
 
       const center = bounds.min.add(bounds.max).scale(0.5);
       const size = bounds.max.subtract(bounds.min);
       camera.target.copyFrom(center);
-      camera.radius = Math.max(size.length() * 1.35, 6);
+      camera.radius = Math.max(Math.max(size.x, size.y, size.z) * 2.2, 6);
       scene.activeCamera = camera;
 
+      await scene.whenReadyAsync();
+      scene.render();
+      await waitForAnimationFrame();
       scene.render();
       await waitForAnimationFrame();
       scene.render();
@@ -184,19 +201,69 @@ export class BuildingThumbnailService {
     const metadata = (mesh.metadata ?? {}) as Record<string, unknown>;
     const rawMetadata = (metadata.rawMetadata ?? {}) as Record<string, unknown>;
 
-    if (name.includes("metadata") || id.includes("metadata")) {
+    if (
+      name.includes("metadata") ||
+      id.includes("metadata") ||
+      name.includes("helper") ||
+      id.includes("helper") ||
+      name.includes("navigationmetadata") ||
+      id.includes("navigationmetadata")
+    ) {
       return true;
     }
 
-    if (metadata.editorHelper === true || metadata.gameHelper === true || metadata.isMetadata === true) {
+    if (
+      metadata.editorHelper === true ||
+      metadata.gameHelper === true ||
+      metadata.isMetadata === true ||
+      metadata.metadataCarrier === true
+    ) {
       return true;
     }
 
-    return (
+    if (
       rawMetadata.editor_helper === true ||
       rawMetadata.game_helper === true ||
       rawMetadata.metadata_carrier === true
-    );
+    ) {
+      return true;
+    }
+
+    const bounds = this.tryGetBounds(mesh);
+    if (!bounds) {
+      return true;
+    }
+
+    const min = bounds.minimumWorld;
+    const max = bounds.maximumWorld;
+    if (![min.x, min.y, min.z, max.x, max.y, max.z].every(Number.isFinite)) {
+      return true;
+    }
+
+    return max.y < -100 || min.y < -100;
+  }
+
+  private isRenderableThumbnailMesh(mesh: AbstractMesh): boolean {
+    if (!mesh.isEnabled(true) || !mesh.isVisible || mesh.getTotalVertices() <= 0 || this.isHelperMesh(mesh)) {
+      return false;
+    }
+
+    const bounds = this.tryGetBounds(mesh);
+    if (!bounds) {
+      return false;
+    }
+
+    const min = bounds.minimumWorld;
+    const max = bounds.maximumWorld;
+    return [min.x, min.y, min.z, max.x, max.y, max.z].every(Number.isFinite) && max.y >= -100 && min.y >= -100;
+  }
+
+  private tryGetBounds(mesh: AbstractMesh): BoundingBox | null {
+    try {
+      return mesh.getBoundingInfo().boundingBox;
+    } catch {
+      return null;
+    }
   }
 }
 

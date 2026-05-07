@@ -16,6 +16,7 @@ import { loadSceneDescriptor } from "../core/world/scene/SceneDescriptorLoader";
 import { BuildingThumbnailService } from "./assets/BuildingThumbnailService";
 import { EditorCameraController } from "./EditorCameraController";
 import { EditorGridOverlay } from "./EditorGridOverlay";
+import { snapEditorPlacement } from "./EditorPlacementSnapping";
 import { EditorSceneLoader } from "./EditorSceneLoader";
 import { EditorSceneRegistry } from "./EditorSceneRegistry";
 import { EditorSceneDocument } from "./state/EditorSceneDocument";
@@ -59,6 +60,7 @@ export class EditorScene implements Scene {
   private readonly highlightedMeshes: Mesh[];
   private movingObjectId: string | null;
   private activeMovePointerId: number | null;
+  private activeMoveOffset: Vector3 | null;
   private pendingClick: PendingClickState | null;
   private readonly onCanvasDragOver: (event: DragEvent) => void;
   private readonly onCanvasDrop: (event: DragEvent) => void;
@@ -95,6 +97,7 @@ export class EditorScene implements Scene {
     this.highlightedMeshes = [];
     this.movingObjectId = null;
     this.activeMovePointerId = null;
+    this.activeMoveOffset = null;
     this.pendingClick = null;
 
     this.onCanvasDragOver = (event) => {
@@ -206,6 +209,7 @@ export class EditorScene implements Scene {
       this.gridOverlay = null;
       this.ui?.dispose();
       this.ui = null;
+      this.activeMoveOffset = null;
       this.scene = null;
     });
 
@@ -336,7 +340,8 @@ export class EditorScene implements Scene {
     }
 
     const placementPoint = this.pickPlacementPoint(event.clientX, event.clientY) ?? Vector3.Zero();
-    const objectDescriptor = this.document.addObjectFromAsset(asset, placementPoint);
+    const snappedPosition = snapEditorPlacement(placementPoint, 0);
+    const objectDescriptor = this.document.addObjectFromAsset(asset, snappedPosition);
     await this.sceneLoader.addObject(objectDescriptor);
     this.gridOverlay.refreshFromMeshes(this.sceneLoader.getRenderableMeshes());
     this.selectedBuilding = asset;
@@ -355,8 +360,18 @@ export class EditorScene implements Scene {
       const objectId = this.pickSelectableObjectId(event.clientX, event.clientY);
       const selectedObjectId = this.selectionState.getSelectedObjectId();
       if (objectId && objectId === selectedObjectId) {
+        const objectDescriptor = this.document?.getObject(objectId);
+        const currentHit = this.pickPlacementPoint(event.clientX, event.clientY);
         this.movingObjectId = objectId;
         this.activeMovePointerId = event.pointerId;
+        this.activeMoveOffset =
+          objectDescriptor && currentHit
+            ? new Vector3(
+                objectDescriptor.position[0],
+                objectDescriptor.position[1],
+                objectDescriptor.position[2]
+              ).subtract(currentHit)
+            : Vector3.Zero();
         this.canvas.setPointerCapture(event.pointerId);
         event.preventDefault();
         return;
@@ -386,7 +401,8 @@ export class EditorScene implements Scene {
         return;
       }
 
-      const nextPosition = new Vector3(placementPoint.x, objectDescriptor.position[1], placementPoint.z);
+      const rawPosition = placementPoint.add(this.activeMoveOffset ?? Vector3.Zero());
+      const nextPosition = snapEditorPlacement(rawPosition, objectDescriptor.position[1]);
       this.document.updateObjectTransform(this.movingObjectId, { position: nextPosition });
       const nextDescriptor = this.document.getObject(this.movingObjectId);
       if (!nextDescriptor) {
@@ -394,7 +410,6 @@ export class EditorScene implements Scene {
       }
 
       this.sceneLoader.updateObjectTransform(this.movingObjectId, nextDescriptor);
-      this.gridOverlay.refreshFromMeshes(this.sceneLoader.getRenderableMeshes());
       this.refreshUi();
       event.preventDefault();
     }
@@ -407,6 +422,7 @@ export class EditorScene implements Scene {
       }
       this.activeMovePointerId = null;
       this.movingObjectId = null;
+      this.activeMoveOffset = null;
       this.statusMessage = "Object moved.";
       this.refreshUi();
       return;

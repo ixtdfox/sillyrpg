@@ -12,6 +12,9 @@ import { RectGridOverlay } from "../core/grid/RectGridOverlay";
 import { RECT_TILE_SIZE, WORLD_GRID_ORIGIN_X, WORLD_GRID_ORIGIN_Z } from "../core/grid/WorldGridConstants";
 import type { EditorBounds } from "./types";
 
+const EDITOR_GRID_MIN_CELL = -200;
+const EDITOR_GRID_MAX_CELL = 200;
+
 /**
  * Editor-owned world grid and optional axes helpers.
  */
@@ -35,10 +38,7 @@ export class EditorGridOverlay {
   }
 
   public refreshFromMeshes(meshes: readonly AbstractMesh[]): void {
-    this.overlay.dispose();
-    this.grid = this.createGrid(meshes);
-    this.overlay = new RectGridOverlay(this.scene, this.grid, 0.02);
-    this.overlay.setDebugVisible(this.gridVisible);
+    void meshes;
   }
 
   public setGridVisible(isVisible: boolean): void {
@@ -77,64 +77,15 @@ export class EditorGridOverlay {
   }
 
   private createGrid(meshes: readonly AbstractMesh[] | undefined): RectGrid {
+    void meshes;
     const origin = new Vector3(WORLD_GRID_ORIGIN_X, 0, WORLD_GRID_ORIGIN_Z);
-    const worldBounds = this.resolveWorldBounds(meshes);
-    const bounds = RectGrid.deriveBoundsFromWorldRect(
-      origin,
-      RECT_TILE_SIZE,
-      worldBounds.min.x,
-      worldBounds.max.x,
-      worldBounds.min.z,
-      worldBounds.max.z
-    );
-    return new RectGrid(origin, RECT_TILE_SIZE, bounds);
-  }
-
-  private resolveWorldBounds(meshes: readonly AbstractMesh[] | undefined): EditorBounds {
-    const sourceMeshes = (meshes ?? []).filter((mesh) => {
-      if (mesh.isDisposed() || !mesh.isEnabled()) {
-        return false;
-      }
-
-      const boundingBox = mesh.getBoundingInfo().boundingBox;
-      const min = boundingBox.minimumWorld;
-      const max = boundingBox.maximumWorld;
-      if (![min.x, min.y, min.z, max.x, max.y, max.z].every(Number.isFinite)) {
-        return false;
-      }
-
-      return max.y >= -100 && min.y >= -100;
-    });
-    if (sourceMeshes.length === 0) {
-      return {
-        min: new Vector3(-20, 0, -20),
-        max: new Vector3(20, 0, 20)
-      };
-    }
-
-    let minX = Number.POSITIVE_INFINITY;
-    let minY = Number.POSITIVE_INFINITY;
-    let minZ = Number.POSITIVE_INFINITY;
-    let maxX = Number.NEGATIVE_INFINITY;
-    let maxY = Number.NEGATIVE_INFINITY;
-    let maxZ = Number.NEGATIVE_INFINITY;
-
-    for (const mesh of sourceMeshes) {
-      const boundingBox = mesh.getBoundingInfo().boundingBox;
-      const min = boundingBox.minimumWorld;
-      const max = boundingBox.maximumWorld;
-      minX = Math.min(minX, min.x);
-      minY = Math.min(minY, min.y);
-      minZ = Math.min(minZ, min.z);
-      maxX = Math.max(maxX, max.x);
-      maxY = Math.max(maxY, max.y);
-      maxZ = Math.max(maxZ, max.z);
-    }
-
-    return {
-      min: new Vector3(minX, minY, minZ),
-      max: new Vector3(maxX, maxY, maxZ)
+    const bounds = {
+      minX: EDITOR_GRID_MIN_CELL,
+      maxX: EDITOR_GRID_MAX_CELL,
+      minZ: EDITOR_GRID_MIN_CELL,
+      maxZ: EDITOR_GRID_MAX_CELL
     };
+    return new RectGrid(origin, RECT_TILE_SIZE, bounds);
   }
 
   private createAxesMeshes(): readonly LinesMesh[] {

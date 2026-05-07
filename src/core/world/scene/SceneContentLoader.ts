@@ -70,6 +70,7 @@ export interface SceneContentSummary {
 }
 
 interface ImportedAssetNodesInternal extends ImportedSceneAssetNodes {}
+const DEBUG_EDITOR_SCENE_IMPORTS = false;
 
 export async function importSceneContent(options: SceneContentImportOptions): Promise<ImportedSceneContent> {
   const descriptorPath = options.descriptorPath;
@@ -225,6 +226,8 @@ export async function importSceneObjectContent(
     mesh.isPickable = true;
   }
 
+  debugLogImportedObjectTransform(descriptor.id, descriptor, objectRoot, imported.renderableMeshes);
+
   return {
     objectId: descriptor.id,
     type: descriptor.type,
@@ -289,19 +292,7 @@ async function importSceneAsset(scene: Scene, assetPath: string, parent: Transfo
   const { rootUrl, fileName } = resolveSceneAssetPath(assetPath);
   const importResult = await SceneLoader.ImportMeshAsync(undefined, rootUrl, fileName, scene);
 
-  for (const transformNode of importResult.transformNodes) {
-    if (transformNode === parent || transformNode.parent) {
-      continue;
-    }
-
-    transformNode.setParent(parent, true);
-  }
-
-  for (const mesh of importResult.meshes) {
-    if (!mesh.parent) {
-      mesh.setParent(parent, true);
-    }
-  }
+  adoptImportedSceneNodes(parent, importResult.transformNodes, importResult.meshes);
 
   const helperMeshes: AbstractMesh[] = [];
   const renderableMeshes: AbstractMesh[] = [];
@@ -331,6 +322,27 @@ async function importSceneAsset(scene: Scene, assetPath: string, parent: Transfo
     animationGroups: importResult.animationGroups,
     particleSystems: importResult.particleSystems
   };
+}
+
+export function adoptImportedSceneNodes(
+  parent: TransformNode,
+  transformNodes: readonly TransformNode[],
+  meshes: readonly AbstractMesh[]
+): void {
+  for (const transformNode of transformNodes) {
+    if (transformNode === parent || transformNode.parent) {
+      continue;
+    }
+
+    // Imported scene-object content must inherit the authored descriptor transform from its object root.
+    transformNode.parent = parent;
+  }
+
+  for (const mesh of meshes) {
+    if (!mesh.parent) {
+      mesh.parent = parent;
+    }
+  }
 }
 
 function isMetadataHelperMesh(mesh: AbstractMesh): boolean {
@@ -385,4 +397,56 @@ function resolveColor3(hexColor: string): Color3 {
   } catch {
     return Color3.FromHexString("#8D9298");
   }
+}
+
+export function debugLogImportedObjectTransform(
+  objectId: string,
+  descriptor: SceneObjectDescriptor,
+  root: TransformNode,
+  renderableMeshes: readonly AbstractMesh[]
+): void {
+  if (!DEBUG_EDITOR_SCENE_IMPORTS) {
+    return;
+  }
+
+  root.computeWorldMatrix(true);
+  const bounds = resolveRenderableBounds(renderableMeshes);
+  const boundsText = bounds
+    ? `bounds=(${bounds.min.x.toFixed(2)},${bounds.min.y.toFixed(2)},${bounds.min.z.toFixed(2)}) -> (${bounds.max.x.toFixed(2)},${bounds.max.y.toFixed(2)},${bounds.max.z.toFixed(2)})`
+    : "bounds=n/a";
+  console.debug(
+    `[EditorSceneImport] object=${objectId} descriptorPos=${descriptor.position.join(",")} descriptorRot=${descriptor.rotation.join(",")} rootWorld=${root.getAbsolutePosition().toString()} ${boundsText}`
+  );
+}
+
+function resolveRenderableBounds(meshes: readonly AbstractMesh[]): { min: Vector3; max: Vector3 } | null {
+  if (meshes.length === 0) {
+    return null;
+  }
+
+  let minX = Number.POSITIVE_INFINITY;
+  let minY = Number.POSITIVE_INFINITY;
+  let minZ = Number.POSITIVE_INFINITY;
+  let maxX = Number.NEGATIVE_INFINITY;
+  let maxY = Number.NEGATIVE_INFINITY;
+  let maxZ = Number.NEGATIVE_INFINITY;
+
+  for (const mesh of meshes) {
+    const bounds = mesh.getBoundingInfo().boundingBox;
+    minX = Math.min(minX, bounds.minimumWorld.x);
+    minY = Math.min(minY, bounds.minimumWorld.y);
+    minZ = Math.min(minZ, bounds.minimumWorld.z);
+    maxX = Math.max(maxX, bounds.maximumWorld.x);
+    maxY = Math.max(maxY, bounds.maximumWorld.y);
+    maxZ = Math.max(maxZ, bounds.maximumWorld.z);
+  }
+
+  if (![minX, minY, minZ, maxX, maxY, maxZ].every(Number.isFinite)) {
+    return null;
+  }
+
+  return {
+    min: new Vector3(minX, minY, minZ),
+    max: new Vector3(maxX, maxY, maxZ)
+  };
 }

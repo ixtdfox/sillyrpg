@@ -247,6 +247,8 @@ export class EditorUi {
     }
 
     if (!thumbnailUrl) {
+      thumb.style.backgroundImage = "";
+      thumb.classList.remove("editor-building-card__thumb--ready");
       thumb.innerHTML = "<span>Preview unavailable</span>";
       return;
     }
@@ -533,8 +535,10 @@ function buildEditorCss(): string {
       grid-template-columns: 112px 1fr;
       text-align: left;
       overflow: hidden;
+      min-height: 112px;
     }
     .editor-building-card__thumb {
+      width: 112px;
       min-height: 112px;
       display: grid;
       place-items: center;
@@ -542,8 +546,12 @@ function buildEditorCss(): string {
         radial-gradient(circle at 30% 30%, rgba(245, 199, 89, 0.14), transparent 50%),
         linear-gradient(180deg, rgba(34, 48, 63, 0.9), rgba(18, 24, 31, 0.96));
       color: #9cb0c4;
-      background-size: cover;
+      background-repeat: no-repeat;
+      background-size: contain;
       background-position: center;
+      padding: 10px;
+      text-align: center;
+      overflow: hidden;
     }
     .editor-building-card__thumb--ready span {
       display: none;
@@ -552,10 +560,15 @@ function buildEditorCss(): string {
       padding: 12px;
       display: grid;
       gap: 6px;
+      min-width: 0;
     }
     .editor-building-card__title {
       font-size: 15px;
       font-weight: 700;
+    }
+    .editor-building-card__meta {
+      max-height: 2.9em;
+      overflow: hidden;
     }
     .editor-cards-column {
       display: grid;

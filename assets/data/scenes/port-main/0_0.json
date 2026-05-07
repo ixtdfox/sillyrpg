@@ -2,7 +2,77 @@
   "schemaVersion": 2,
   "id": "port-main-0-0",
   "title": "Port Main / 0:0",
-  "chunkCoord": [0, 0],
-  "terrain": null,
-  "objects": []
+  "chunkCoord": [
+    0,
+    0
+  ],
+  "terrain": {
+    "id": "terrain-0",
+    "kind": "plane",
+    "size": [
+      40,
+      40
+    ],
+    "position": [
+      0,
+      0,
+      0
+    ],
+    "rotation": [
+      0,
+      0,
+      0
+    ],
+    "scale": [
+      1,
+      1,
+      1
+    ],
+    "material": {
+      "kind": "flat",
+      "color": "#8D9298"
+    }
+  },
+  "objects": [
+    {
+      "id": "building-silent-1-001",
+      "type": "building",
+      "asset": "assets/models/buildings/silent_1.glb",
+      "position": [
+        -4,
+        0,
+        -3
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ]
+    },
+    {
+      "id": "building-silent-3-001",
+      "type": "building",
+      "asset": "assets/models/buildings/silent_3.glb",
+      "position": [
+        16,
+        0,
+        -18
+      ],
+      "rotation": [
+        0,
+        1.5707963267948966,
+        0
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ]
+    }
+  ]
 }
