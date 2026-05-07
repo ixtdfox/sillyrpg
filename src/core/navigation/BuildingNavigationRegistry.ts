@@ -283,6 +283,13 @@ export class BuildingNavigationRegistry {
       | null = null;
 
     for (const connector of this.stairConnectors) {
+      if (
+        input.currentStoryIndex !== undefined &&
+        !isStoryConnectedToConnector(connector, input.currentStoryIndex)
+      ) {
+        continue;
+      }
+
       const direction = this.resolveDirectionForStory(connector, input.currentStoryIndex);
       if (!direction) {
         continue;
@@ -293,10 +300,7 @@ export class BuildingNavigationRegistry {
         continue;
       }
 
-      const storyPenalty = input.currentStoryIndex === undefined || isStoryConnectedToConnector(connector, input.currentStoryIndex)
-        ? 0
-        : 2.5;
-      const rank = distance + storyPenalty;
+      const rank = distance;
       if (!best || rank < best.rank) {
         best = { connector, distance, rank, direction };
       }
@@ -307,6 +311,8 @@ export class BuildingNavigationRegistry {
 
   public resolveStairInteractionTarget(input: {
     readonly stairId?: string;
+    readonly fromStory?: number;
+    readonly toStory?: number;
     readonly pickedPoint?: Vector3;
     readonly currentStoryIndex: number;
   }): {
@@ -317,6 +323,16 @@ export class BuildingNavigationRegistry {
     readonly resolvedByNearest: boolean;
     readonly distance?: number;
   } | null {
+    if (
+      (input.fromStory !== undefined && input.fromStory !== input.currentStoryIndex) &&
+      (input.toStory !== undefined && input.toStory !== input.currentStoryIndex)
+    ) {
+      console.warn(
+        `[BuildingNavigationRegistry] Ignoring stair pick metadata stairId='${input.stairId ?? "unknown"}' fromStory=${input.fromStory} toStory=${input.toStory} currentStory=${input.currentStoryIndex}.`
+      );
+      return null;
+    }
+
     const connectorById = input.stairId
       ? this.resolveStairConnectorForInteraction(input.stairId, input.currentStoryIndex, input.pickedPoint)
       : null;
@@ -353,16 +369,10 @@ export class BuildingNavigationRegistry {
       };
     }
 
-    const fallbackTarget = this.resolveNearestEndpointFallback(connector, input.pickedPoint);
     console.warn(
-      `[BuildingNavigationRegistry] Stair '${connector.stairId}' does not directly connect current story ${input.currentStoryIndex}; using nearest endpoint fallback.`
+      `[BuildingNavigationRegistry] Ignoring stair '${connector.stairId}' because it does not directly connect current story ${input.currentStoryIndex}.`
     );
-    return {
-      ...fallbackTarget,
-      connector,
-      resolvedByNearest: !connectorById,
-      distance: nearest?.distance
-    };
+    return null;
   }
 
   public getStoryYByStory(): ReadonlyMap<number, number> {
@@ -380,7 +390,11 @@ export class BuildingNavigationRegistry {
     }
 
     const storyConnectors = matchingConnectors.filter((connector) => isStoryConnectedToConnector(connector, currentStoryIndex));
-    const candidates = storyConnectors.length > 0 ? storyConnectors : matchingConnectors;
+    if (storyConnectors.length === 0) {
+      return null;
+    }
+
+    const candidates = storyConnectors;
     if (!pickedPoint) {
       return candidates[0] ?? null;
     }
@@ -706,7 +720,11 @@ export class BuildingNavigationRegistry {
     connector: StairNavigationConnector,
     currentStoryIndex: number | undefined
   ): "forward" | "reverse" | null {
-    if (currentStoryIndex === undefined || currentStoryIndex === connector.fromStoryIndex) {
+    if (currentStoryIndex === undefined) {
+      return "forward";
+    }
+
+    if (currentStoryIndex === connector.fromStoryIndex) {
       return "forward";
     }
 
@@ -714,43 +732,7 @@ export class BuildingNavigationRegistry {
       return connector.bidirectional ? "reverse" : null;
     }
 
-    return connector.bidirectional ? "forward" : null;
-  }
-
-  private resolveNearestEndpointFallback(
-    connector: StairNavigationConnector,
-    pickedPoint: Vector3 | undefined
-  ): {
-    readonly targetCell: GridCell;
-    readonly targetStoryIndex: number;
-    readonly direction: "forward" | "reverse";
-  } {
-    if (!pickedPoint) {
-      return {
-        targetCell: connector.fromCell,
-        targetStoryIndex: connector.fromStoryIndex,
-        direction: "forward"
-      };
-    }
-
-    const firstPoint = connector.traversalPathWorld[0];
-    const lastPoint = connector.traversalPathWorld[connector.traversalPathWorld.length - 1];
-    const fromDistance = firstPoint ? Vector3.DistanceSquared(pickedPoint, firstPoint) : Number.POSITIVE_INFINITY;
-    const toDistance = lastPoint ? Vector3.DistanceSquared(pickedPoint, lastPoint) : Number.POSITIVE_INFINITY;
-
-    if (fromDistance <= toDistance || !connector.bidirectional) {
-      return {
-        targetCell: connector.fromCell,
-        targetStoryIndex: connector.fromStoryIndex,
-        direction: "forward"
-      };
-    }
-
-    return {
-      targetCell: connector.toCell,
-      targetStoryIndex: connector.toStoryIndex,
-      direction: "reverse"
-    };
+    return null;
   }
 
   private logLoadedStairs(): void {

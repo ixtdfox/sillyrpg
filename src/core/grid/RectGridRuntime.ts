@@ -13,11 +13,49 @@ import type { StoryDoorGridEdge, StoryGridCell, StoryGridEdge } from "./RectGrid
 import { FloorNavigationSurfaceRegistry } from "../navigation/FloorNavigationSurfaceRegistry";
 import { NavigationObstacleRegistry, type NavigationCover } from "../navigation/NavigationObstacleRegistry";
 import { NavigationBlockerRegistry } from "../navigation/NavigationBlockerRegistry";
+import type { StairNavigationConnector } from "../navigation/NavigationGraph";
 import { WORLD_GRID_ORIGIN_X, WORLD_GRID_ORIGIN_Z } from "./WorldGridConstants";
 
 export interface GridDebugDetectedCell {
   readonly cell: GridCell;
   readonly color: Color4;
+}
+
+export function validateAndRepairStairEndpointCells(
+  connectors: readonly StairNavigationConnector[],
+  floorNavigationSurfaceRegistry: Pick<FloorNavigationSurfaceRegistry, "isWalkableCell">,
+  navigationBlockerRegistry: Pick<NavigationBlockerRegistry, "isCellBlocked" | "forceUnblockCell">
+): number {
+  let repairedEndpointCount = 0;
+  for (const connector of connectors) {
+    const fromWalkable = floorNavigationSurfaceRegistry.isWalkableCell(connector.fromCell, connector.fromStoryIndex);
+    const toWalkable = floorNavigationSurfaceRegistry.isWalkableCell(connector.toCell, connector.toStoryIndex);
+    const initialFromBlocked = navigationBlockerRegistry.isCellBlocked(connector.fromCell, connector.fromStoryIndex);
+    const initialToBlocked = navigationBlockerRegistry.isCellBlocked(connector.toCell, connector.toStoryIndex);
+    if (initialFromBlocked) {
+      repairedEndpointCount += 1;
+      console.warn(
+        `[RectNavStairValidation] repaired blocked stair endpoint id=${connector.stairId} endpoint=from cell=${connector.fromStoryIndex}:${connector.fromCell.x}:${connector.fromCell.z} reason=gameFallbackCleanup invalidMetadata=true`
+      );
+      navigationBlockerRegistry.forceUnblockCell(connector.fromCell, connector.fromStoryIndex, `stairEndpoint:${connector.stairId}:from`);
+    }
+    if (initialToBlocked) {
+      repairedEndpointCount += 1;
+      console.warn(
+        `[RectNavStairValidation] repaired blocked stair endpoint id=${connector.stairId} endpoint=to cell=${connector.toStoryIndex}:${connector.toCell.x}:${connector.toCell.z} reason=gameFallbackCleanup invalidMetadata=true`
+      );
+      navigationBlockerRegistry.forceUnblockCell(connector.toCell, connector.toStoryIndex, `stairEndpoint:${connector.stairId}:to`);
+    }
+    const fromBlocked = navigationBlockerRegistry.isCellBlocked(connector.fromCell, connector.fromStoryIndex);
+    const toBlocked = navigationBlockerRegistry.isCellBlocked(connector.toCell, connector.toStoryIndex);
+    console.info(
+      `[RectNavStairValidation] id=${connector.stairId} ` +
+      `from=${connector.fromStoryIndex}:${connector.fromCell.x}:${connector.fromCell.z} walkable=${fromWalkable} blocked=${fromBlocked} ` +
+      `to=${connector.toStoryIndex}:${connector.toCell.x}:${connector.toCell.z} walkable=${toWalkable} blocked=${toBlocked} ` +
+      `ok=${fromWalkable && !fromBlocked && toWalkable && !toBlocked}`
+    );
+  }
+  return repairedEndpointCount;
 }
 
 /**
@@ -242,6 +280,8 @@ export class RectGridRuntime {
 
     const resolvedTarget = this.buildingNavigationRegistry.resolveStairInteractionTarget({
       stairId: target.stairId,
+      fromStory: target.fromStory,
+      toStory: target.toStory,
       pickedPoint: target.pickedPoint,
       currentStoryIndex
     });
@@ -321,26 +361,11 @@ export class RectGridRuntime {
   }
 
   private validateStairEndpointCells(): void {
-    for (const connector of this.buildingNavigationRegistry.getStairConnectors()) {
-      const fromWalkable = this.floorNavigationSurfaceRegistry.isWalkableCell(connector.fromCell, connector.fromStoryIndex);
-      const toWalkable = this.floorNavigationSurfaceRegistry.isWalkableCell(connector.toCell, connector.toStoryIndex);
-      const initialFromBlocked = this.navigationBlockerRegistry.isCellBlocked(connector.fromCell, connector.fromStoryIndex);
-      const initialToBlocked = this.navigationBlockerRegistry.isCellBlocked(connector.toCell, connector.toStoryIndex);
-      if (initialFromBlocked) {
-        this.navigationBlockerRegistry.forceUnblockCell(connector.fromCell, connector.fromStoryIndex, `stairEndpoint:${connector.stairId}:from`);
-      }
-      if (initialToBlocked) {
-        this.navigationBlockerRegistry.forceUnblockCell(connector.toCell, connector.toStoryIndex, `stairEndpoint:${connector.stairId}:to`);
-      }
-      const fromBlocked = this.navigationBlockerRegistry.isCellBlocked(connector.fromCell, connector.fromStoryIndex);
-      const toBlocked = this.navigationBlockerRegistry.isCellBlocked(connector.toCell, connector.toStoryIndex);
-      console.info(
-        `[RectNavStairValidation] id=${connector.stairId} ` +
-        `from=${connector.fromStoryIndex}:${connector.fromCell.x}:${connector.fromCell.z} walkable=${fromWalkable} blocked=${fromBlocked} ` +
-        `to=${connector.toStoryIndex}:${connector.toCell.x}:${connector.toCell.z} walkable=${toWalkable} blocked=${toBlocked} ` +
-        `ok=${fromWalkable && !fromBlocked && toWalkable && !toBlocked}`
-      );
-    }
+    validateAndRepairStairEndpointCells(
+      this.buildingNavigationRegistry.getStairConnectors(),
+      this.floorNavigationSurfaceRegistry,
+      this.navigationBlockerRegistry
+    );
   }
 
   private rebuildNavigationMetadata(scene: Scene): void {

@@ -9,7 +9,7 @@ import {
   type GameNavKind
 } from "./BuildingNavigationMetadata";
 import { makeStoryCellKey } from "./FloorNavigationSurfaceRegistry";
-import { mapGridNavigationContractsToRuntime } from "./GridNavigationContract";
+import { mapGridNavigationContractsToRuntime, type GridNavigationStair } from "./GridNavigationContract";
 
 export interface NavigationBlockerRecord {
   readonly mesh: AbstractMesh;
@@ -114,12 +114,13 @@ export class NavigationBlockerRegistry {
         contractBlockedCellCount += story.blockedCells.length;
         contractStairCount += story.stairs.length;
         const walkableKeys = new Set(story.walkableCells.map((cell) => makeStoryCellKey(story.storyIndex, cell)));
-        const openDoorEndpointKeys = this.collectOpenDoorEndpointKeys(story.storyIndex, story.doorEdges);
+        const protectedEndpoints = this.collectProtectedEndpoints(story.storyIndex, story.doorEdges, story.stairs);
         for (const blockedCell of story.blockedCells) {
           const key = makeStoryCellKey(story.storyIndex, blockedCell.cell);
-          if (openDoorEndpointKeys.has(key)) {
-            console.warn(
-              `[RectNavDoorValidation] story=${story.storyIndex} door=unknown edge=unknown endpointBlocked=${blockedCell.cell.x}:${blockedCell.cell.z} reason=${blockedCell.reason ?? "unknown"} action=skippedBlockedCell`
+          const endpointLabels = protectedEndpoints.get(key);
+          if (endpointLabels) {
+            console.info(
+              `[RectNavEndpointCleanup] story=${story.storyIndex} cell=${blockedCell.cell.x}:${blockedCell.cell.z} reason=${blockedCell.reason ?? "unknown"} endpoint=${endpointLabels.join("|")} action=skippedBlockedCell`
             );
             continue;
           }
@@ -265,7 +266,6 @@ export class NavigationBlockerRegistry {
     }
     this.blockedCellReasonByStoryKey.delete(key);
     this.blockersByCellKey.delete(key);
-    console.warn(`[NavigationBlockerRegistry] force-unblocked cell=${storyIndex}:${cell.x}:${cell.z} reason=${reason}`);
   }
 
   public isEdgeBlocked(fromCell: GridCell, toCell: GridCell, storyIndex: number): boolean {
@@ -419,6 +419,50 @@ export class NavigationBlockerRegistry {
       result.add(makeStoryCellKey(storyIndex, edge.b));
     }
     return result;
+  }
+
+  private collectStairEndpointKeys(storyIndex: number, stairs: readonly GridNavigationStair[]): Map<string, string[]> {
+    const result = new Map<string, string[]>();
+    for (const stair of stairs) {
+      if (stair.from.storyIndex === storyIndex) {
+        this.addProtectedEndpointLabel(result, storyIndex, stair.from.cell, `stair:${stair.id}:from`);
+      }
+      if (stair.to.storyIndex === storyIndex) {
+        this.addProtectedEndpointLabel(result, storyIndex, stair.to.cell, `stair:${stair.id}:to`);
+      }
+    }
+    return result;
+  }
+
+  private collectProtectedEndpoints(
+    storyIndex: number,
+    doorEdges: readonly { readonly a: GridCell; readonly b: GridCell; readonly doorId?: string; readonly isOpen: boolean }[],
+    stairs: readonly GridNavigationStair[]
+  ): Map<string, string[]> {
+    const result = this.collectStairEndpointKeys(storyIndex, stairs);
+    for (const edge of doorEdges) {
+      if (!edge.isOpen) {
+        continue;
+      }
+      const label = `door:${edge.doorId ?? "unknown"}`;
+      this.addProtectedEndpointLabel(result, storyIndex, edge.a, label);
+      this.addProtectedEndpointLabel(result, storyIndex, edge.b, label);
+    }
+    return result;
+  }
+
+  private addProtectedEndpointLabel(
+    map: Map<string, string[]>,
+    storyIndex: number,
+    cell: GridCell,
+    label: string
+  ): void {
+    const key = makeStoryCellKey(storyIndex, cell);
+    const labels = map.get(key) ?? [];
+    if (!labels.includes(label)) {
+      labels.push(label);
+      map.set(key, labels);
+    }
   }
 
   private getBlockedEndpointForDoor(storyIndex: number, a: GridCell, b: GridCell): GridCell | null {

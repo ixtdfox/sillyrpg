@@ -20,6 +20,8 @@ export type PickedNavigationTarget =
   | {
       readonly kind: "stair";
       readonly stairId?: string;
+      readonly fromStory?: number;
+      readonly toStory?: number;
       readonly pickedPoint: Vector3;
       readonly pickedMeshName?: string;
     };
@@ -169,9 +171,15 @@ export class RectGroundPickerController {
       const pickedMesh = pickResult.pickedMesh ?? null;
       const stairPickMetadata = pickedMesh ? parseStairPickMetadata(pickedMesh) : null;
       if (stairPickMetadata?.isStairLike) {
+        if (!isStairPickConnectedToStory(stairPickMetadata, this.fallbackStoryIndex)) {
+          continue;
+        }
+
         const stairTarget: Extract<PickedNavigationTarget, { kind: "stair" }> = {
           kind: "stair",
           stairId: stairPickMetadata.stairId,
+          fromStory: stairPickMetadata.fromStory,
+          toStory: stairPickMetadata.toStory,
           pickedPoint: pickResult.pickedPoint.clone(),
           pickedMeshName: pickedMesh?.name
         };
@@ -269,4 +277,18 @@ export class RectGroundPickerController {
 
     return ray.origin.add(ray.direction.scale(t));
   }
+}
+
+function isStairPickConnectedToStory(
+  metadata: { readonly fromStory?: number; readonly toStory?: number },
+  currentStoryIndex: number
+): boolean {
+  const hasFrom = metadata.fromStory !== undefined;
+  const hasTo = metadata.toStory !== undefined;
+
+  if (!hasFrom && !hasTo) {
+    return true;
+  }
+
+  return metadata.fromStory === currentStoryIndex || metadata.toStory === currentStoryIndex;
 }

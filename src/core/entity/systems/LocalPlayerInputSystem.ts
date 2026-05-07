@@ -193,6 +193,8 @@ export class LocalPlayerInputSystem implements System {
     const registry = this.runtimeContext.gridRuntime.getBuildingNavigationRegistry();
     const stairTarget = registry.resolveStairInteractionTarget({
       stairId: pickedTarget.stairId,
+      fromStory: pickedTarget.fromStory,
+      toStory: pickedTarget.toStory,
       pickedPoint: pickedTarget.pickedPoint,
       currentStoryIndex: gridPosition.currentStoryIndex
     });
