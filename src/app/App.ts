@@ -1,6 +1,8 @@
 import { Engine } from "@babylonjs/core";
 import { GameManager } from "../core/game/GameManager";
+import { GameState } from "../core/game/GameState";
 import { LangManager } from "../core/lang/LangManager";
+import { EditorScene } from "../editor";
 
 /**
  * Bootstraps Babylon runtime for SillyRPG.
@@ -34,7 +36,10 @@ export class App {
     this.canvas = element;
     this.engine = new Engine(this.canvas, true);
     this.langManager = new LangManager();
-    this.gameManager = new GameManager(this.engine, this.canvas, this.langManager);
+    this.gameManager = new GameManager(this.engine, this.canvas, this.langManager, {
+      [GameState.EDITOR]: ({ engine, canvas, langManager, requestStateChange }) =>
+        new EditorScene(engine, canvas, langManager, () => requestStateChange(GameState.MAIN_MENU))
+    });
   }
 
   /**

@@ -3,6 +3,7 @@ export const ui = {
   subtitle: "MainMenu",
   mainMenuLabel: "MAIN MENU",
   newGame: "New Game",
+  levelEditor: "Level Editor",
   continueGame: "Continue",
   loadGame: "Load Game",
   settings: "Settings",
@@ -12,5 +13,18 @@ export const ui = {
   langRus: "RUS",
   "location.port.title": "Port",
   "district.port.main.title": "Port District",
-  "inGame.label": "In Game"
+  "inGame.label": "In Game",
+  "editor.title": "Level Editor",
+  "editor.backToMenu": "Back to Menu",
+  "editor.sceneSelector": "Scenes",
+  "editor.loadedScene": "Loaded Scene",
+  "editor.noSceneLoaded": "No scene loaded",
+  "editor.loading": "Loading",
+  "editor.ready": "Ready",
+  "editor.error": "Error",
+  "editor.frameScene": "Frame Scene",
+  "editor.reloadScene": "Reload Scene",
+  "editor.showGrid": "Show Grid",
+  "editor.showAxes": "Show Axes",
+  "editor.emptyRegistry": "No scenes found in location data"
 } as const;

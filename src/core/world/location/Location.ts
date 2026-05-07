@@ -5,6 +5,13 @@ import type { District } from "./district/District";
  */
 export interface Location {
   /**
+   * Returns unique location id.
+   *
+   * @returns Stable location id.
+   */
+  getId(): string;
+
+  /**
    * Returns localized location title.
    *
    * @returns Localized location title.

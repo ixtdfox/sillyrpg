@@ -29,6 +29,7 @@ import type {
 import type { District } from "./district/District";
 import type { DistrictModelData, DistrictSceneData } from "./district/DistrictModelData";
 import { GameDistrict } from "./district/GameDistrict";
+import { resolveSceneAssetPath } from "../../model/SceneAssetPath";
 
 interface LoadedDistrictSceneContent {
   readonly sceneId: string;
@@ -573,7 +574,7 @@ export class LocationManager {
       return this.createFallbackDistrictGeometry(scene, sceneData, root);
     }
 
-    const { rootUrl, fileName } = this.resolveModelPath(sceneData.model);
+    const { rootUrl, fileName } = resolveSceneAssetPath(sceneData.model);
 
     try {
       const importResult = await SceneLoader.ImportMeshAsync(undefined, rootUrl, fileName, scene);
@@ -660,42 +661,4 @@ export class LocationManager {
     return filePath.slice(dotIndex).toLowerCase();
   }
 
-  /**
-   * Resolves model path into root URL and filename parts.
-   *
-   * @param modelPath - Relative model path.
-   * @returns Object containing root URL and file name.
-   */
-  private resolveModelPath(modelPath: string): { rootUrl: string; fileName: string } {
-    const trimmedPath = modelPath.trim();
-    const normalizedPath = this.normalizeModelPath(trimmedPath);
-    const lastSlashIndex = normalizedPath.lastIndexOf("/");
-
-    return {
-      rootUrl: normalizedPath.slice(0, lastSlashIndex + 1),
-      fileName: normalizedPath.slice(lastSlashIndex + 1)
-    };
-  }
-
-  /**
-   * Normalizes incoming model path into a root-relative URL path.
-   *
-   * @param modelPath - Raw model path from configuration or trigger metadata.
-   * @returns Root-relative path consumable by Babylon loaders.
-   */
-  private normalizeModelPath(modelPath: string): string {
-    if (modelPath.startsWith("/")) {
-      return modelPath;
-    }
-
-    if (modelPath.startsWith("assets/")) {
-      return `/${modelPath}`;
-    }
-
-    if (modelPath.includes("/")) {
-      return `/${modelPath}`;
-    }
-
-    return `/assets/${modelPath}`;
-  }
 }

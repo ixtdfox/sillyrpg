@@ -3,6 +3,7 @@ export const ui = {
   subtitle: "ГлавноеМеню",
   mainMenuLabel: "ГЛАВНОЕ МЕНЮ",
   newGame: "Новая игра",
+  levelEditor: "Редактор уровней",
   continueGame: "Продолжить",
   loadGame: "Загрузить игру",
   settings: "Настройки",
@@ -12,5 +13,18 @@ export const ui = {
   langRus: "РУС",
   "location.port.title": "Порт",
   "district.port.main.title": "Портовый район",
-  "inGame.label": "В игре"
+  "inGame.label": "В игре",
+  "editor.title": "Редактор уровней",
+  "editor.backToMenu": "В меню",
+  "editor.sceneSelector": "Сцены",
+  "editor.loadedScene": "Загруженная сцена",
+  "editor.noSceneLoaded": "Сцена не загружена",
+  "editor.loading": "Загрузка",
+  "editor.ready": "Готово",
+  "editor.error": "Ошибка",
+  "editor.frameScene": "Кадрировать сцену",
+  "editor.reloadScene": "Перезагрузить сцену",
+  "editor.showGrid": "Показать сетку",
+  "editor.showAxes": "Показать оси",
+  "editor.emptyRegistry": "В данных локаций не найдено сцен"
 } as const;

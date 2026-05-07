@@ -34,6 +34,15 @@ import { BasicCombatAiService } from "../entity/systems/combat/BasicCombatAiServ
 import { CombatMovementPreviewSystem } from "../entity/systems/combat/CombatMovementPreviewSystem";
 import { CombatHoverHighlightSystem } from "../entity/systems/combat/CombatHoverHighlightSystem";
 
+export interface GameSceneFactoryDeps {
+  readonly engine: Engine;
+  readonly canvas: HTMLCanvasElement;
+  readonly langManager: LangManager;
+  readonly requestStateChange: (state: GameState) => void;
+}
+
+export type GameSceneFactory = (deps: GameSceneFactoryDeps) => Scene;
+
 /**
  * Owns game flow state and active scene lifecycle.
  * It creates scenes based on the current state and exposes the rendered scene
@@ -107,6 +116,8 @@ export class GameManager {
 
   /** Active Babylon scene rendered each frame. */
   private currentBabylonScene: BabylonScene | null;
+  /** Optional scene factories owned by composition layer instead of core. */
+  private readonly externalSceneFactories: Partial<Record<GameState, GameSceneFactory>>;
 
   /**
    * Creates a new game manager with explicit runtime dependencies.
@@ -119,6 +130,7 @@ export class GameManager {
     engine: Engine,
     canvas: HTMLCanvasElement,
     langManager: LangManager,
+    externalSceneFactories: Partial<Record<GameState, GameSceneFactory>> = {},
   ) {
     this.engine = engine;
     this.canvas = canvas;
@@ -243,6 +255,7 @@ export class GameManager {
     this.currentState = GameState.MAIN_MENU;
     this.currentSceneController = null;
     this.currentBabylonScene = null;
+    this.externalSceneFactories = externalSceneFactories;
   }
 
   /**
@@ -260,6 +273,10 @@ export class GameManager {
    * @param deltaSeconds - Frame delta time in seconds.
    */
   public update(deltaSeconds: number): void {
+    if (this.currentState !== GameState.IN_GAME) {
+      return;
+    }
+
     for (const system of this.systems) {
       system.update(deltaSeconds);
     }
@@ -302,20 +319,21 @@ export class GameManager {
     this.currentBabylonScene = await this.currentSceneController.createScene();
     this.turnBasedCombatState.endCombat();
     this.combatInputController.reset();
-    this.characterSpawnerSystem.setScene(this.currentBabylonScene);
-    this.basicCombatAiService.setScene(this.currentBabylonScene);
-    this.localPlayerInputSystem.setScene(this.currentBabylonScene);
-    this.movementSystem.setScene(this.currentBabylonScene);
-    this.patrolSystem.setScene(this.currentBabylonScene);
-    this.visionDetectionSystem.setScene(this.currentBabylonScene);
-    this.perceptionDebugOverlaySystem.setScene(this.currentBabylonScene);
-    this.hoveredCombatTargetSystem.setScene(this.currentBabylonScene);
-    this.combatMovementPreviewSystem.setScene(this.currentBabylonScene);
-    this.combatHoverHighlightSystem.setScene(this.currentBabylonScene);
-    this.combatHudSystem.setScene(this.currentBabylonScene);
-    this.combatBannerSystem.setScene(this.currentBabylonScene);
-    this.localPlayerSystem.setScene(this.currentBabylonScene);
-    this.buildingVisibilitySystem.setScene(this.currentBabylonScene);
+    const gameplayScene = state === GameState.IN_GAME ? this.currentBabylonScene : null;
+    this.characterSpawnerSystem.setScene(gameplayScene);
+    this.basicCombatAiService.setScene(gameplayScene);
+    this.localPlayerInputSystem.setScene(gameplayScene);
+    this.movementSystem.setScene(gameplayScene);
+    this.patrolSystem.setScene(gameplayScene);
+    this.visionDetectionSystem.setScene(gameplayScene);
+    this.perceptionDebugOverlaySystem.setScene(gameplayScene);
+    this.hoveredCombatTargetSystem.setScene(gameplayScene);
+    this.combatMovementPreviewSystem.setScene(gameplayScene);
+    this.combatHoverHighlightSystem.setScene(gameplayScene);
+    this.combatHudSystem.setScene(gameplayScene);
+    this.combatBannerSystem.setScene(gameplayScene);
+    this.localPlayerSystem.setScene(gameplayScene);
+    this.buildingVisibilitySystem.setScene(gameplayScene);
   }
 
   /**
@@ -325,6 +343,18 @@ export class GameManager {
    * @returns Scene controller implementation.
    */
   private buildSceneController(state: GameState): Scene {
+    const externalFactory = this.externalSceneFactories[state];
+    if (externalFactory) {
+      return externalFactory({
+        engine: this.engine,
+        canvas: this.canvas,
+        langManager: this.langManager,
+        requestStateChange: (nextState) => {
+          void this.setState(nextState);
+        }
+      });
+    }
+
     switch (state) {
       case GameState.MAIN_MENU:
         return new MainMenuScene(
