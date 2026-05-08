@@ -6,6 +6,46 @@ export interface SceneFlatTerrainMaterialDescriptor {
   readonly color?: string;
 }
 
+export interface SceneTerrainMaterialBandDescriptor {
+  readonly id: string;
+  readonly label: string;
+  readonly minHeight: number;
+  readonly maxHeight: number;
+  readonly color: string;
+}
+
+export interface SceneGeneratedTerrainMaterialDescriptor {
+  readonly kind: "heightBands" | "flat";
+  readonly color?: string;
+  readonly bands?: readonly SceneTerrainMaterialBandDescriptor[];
+}
+
+export interface SceneTerrainGeneratorDescriptor {
+  readonly preset: string;
+  readonly strategy?: string;
+  readonly seed: number;
+  readonly height: {
+    readonly base: number;
+    readonly amplitude: number;
+    readonly frequency: number;
+    readonly octaves: number;
+    readonly persistence: number;
+    readonly lacunarity: number;
+  };
+  readonly falloff?: {
+    readonly enabled: boolean;
+    readonly mode: "none" | "island" | "centerPlateau" | "edgeFade";
+    readonly radius: number;
+    readonly strength: number;
+  };
+  readonly shaping?: {
+    readonly flattenCenter?: boolean;
+    readonly centerRadius?: number;
+    readonly terraceSteps?: number;
+    readonly smoothPasses?: number;
+  };
+}
+
 export interface ScenePlaneTerrainDescriptor {
   readonly id: string;
   readonly kind: "plane";
@@ -25,7 +65,22 @@ export interface SceneModelTerrainDescriptor {
   readonly scale?: SceneVector3Tuple;
 }
 
-export type SceneTerrainDescriptor = ScenePlaneTerrainDescriptor | SceneModelTerrainDescriptor;
+export interface SceneGeneratedTerrainDescriptor {
+  readonly id: string;
+  readonly kind: "generated";
+  readonly size: SceneVector2Tuple;
+  readonly resolution: SceneVector2Tuple;
+  readonly position?: SceneVector3Tuple;
+  readonly rotation?: SceneVector3Tuple;
+  readonly scale?: SceneVector3Tuple;
+  readonly generator: SceneTerrainGeneratorDescriptor;
+  readonly material?: SceneGeneratedTerrainMaterialDescriptor;
+}
+
+export type SceneTerrainDescriptor =
+  | ScenePlaneTerrainDescriptor
+  | SceneModelTerrainDescriptor
+  | SceneGeneratedTerrainDescriptor;
 
 export interface SceneObjectDescriptor {
   readonly id: string;
@@ -126,7 +181,11 @@ function parseTerrainDescriptor(value: unknown, sourceLabel: string): SceneTerra
     };
   }
 
-  throw new Error(`${sourceLabel}.kind must be 'plane' or 'model'.`);
+  if (kind === "generated") {
+    return parseGeneratedTerrainDescriptor(record, sourceLabel, id);
+  }
+
+  throw new Error(`${sourceLabel}.kind must be 'plane', 'model', or 'generated'.`);
 }
 
 function parseFlatMaterial(value: unknown, sourceLabel: string): SceneFlatTerrainMaterialDescriptor | undefined {
@@ -160,6 +219,133 @@ function parseObjectDescriptors(value: unknown, sourceLabel: string): readonly S
   }
 
   return value.map((item, index) => parseObjectDescriptor(item, `${sourceLabel}[${index}]`));
+}
+
+function parseGeneratedTerrainDescriptor(
+  record: Record<string, unknown>,
+  sourceLabel: string,
+  id: string
+): SceneGeneratedTerrainDescriptor {
+  return {
+    id,
+    kind: "generated",
+    size: parseTerrainSizeTuple(record.size, `${sourceLabel}.size`),
+    resolution: parseTerrainResolutionTuple(record.resolution, `${sourceLabel}.resolution`),
+    position: parseVector3Tuple(record.position, `${sourceLabel}.position`),
+    rotation: parseVector3Tuple(record.rotation, `${sourceLabel}.rotation`),
+    scale: parseVector3Tuple(record.scale, `${sourceLabel}.scale`),
+    generator: parseTerrainGeneratorDescriptor(record.generator, `${sourceLabel}.generator`),
+    material: parseGeneratedTerrainMaterial(record.material, `${sourceLabel}.material`)
+  };
+}
+
+function parseTerrainGeneratorDescriptor(value: unknown, sourceLabel: string): SceneTerrainGeneratorDescriptor {
+  const record = requireRecord(value, `${sourceLabel} must be an object.`);
+  const height = requireRecord(record.height, `${sourceLabel}.height must be an object.`);
+  const falloffRecord = optionalRecord(record.falloff, `${sourceLabel}.falloff must be an object if provided.`);
+  const shapingRecord = optionalRecord(record.shaping, `${sourceLabel}.shaping must be an object if provided.`);
+
+  return {
+    preset: requireString(record.preset, `${sourceLabel}.preset must be a string.`),
+    strategy: optionalString(record.strategy, `${sourceLabel}.strategy must be a string if provided.`),
+    seed: parseFiniteInteger(record.seed, `${sourceLabel}.seed must be a finite integer.`),
+    height: {
+      base: parseFiniteNumber(height.base, `${sourceLabel}.height.base must be a finite number.`),
+      amplitude: parseFiniteNumberInRange(height.amplitude, `${sourceLabel}.height.amplitude`, 0, 1000),
+      frequency: parseFiniteNumberInRange(height.frequency, `${sourceLabel}.height.frequency`, 0.0001, 100),
+      octaves: parseFiniteIntegerInRange(height.octaves, `${sourceLabel}.height.octaves`, 1, 8),
+      persistence: parseFiniteNumberInRange(height.persistence, `${sourceLabel}.height.persistence`, 0, 1),
+      lacunarity: parseFiniteNumberInRange(height.lacunarity, `${sourceLabel}.height.lacunarity`, 1, 8)
+    },
+    falloff: falloffRecord
+      ? {
+          enabled: parseBoolean(falloffRecord.enabled, `${sourceLabel}.falloff.enabled must be a boolean.`),
+          mode: parseTerrainFalloffMode(falloffRecord.mode, `${sourceLabel}.falloff.mode`),
+          radius: parseFiniteNumberInRange(falloffRecord.radius, `${sourceLabel}.falloff.radius`, 0, 1),
+          strength: parseFiniteNumberInRange(falloffRecord.strength, `${sourceLabel}.falloff.strength`, 0, 1)
+        }
+      : undefined,
+    shaping: shapingRecord
+      ? {
+          flattenCenter: optionalBoolean(
+            shapingRecord.flattenCenter,
+            `${sourceLabel}.shaping.flattenCenter must be a boolean if provided.`
+          ),
+          centerRadius:
+            shapingRecord.centerRadius === undefined
+              ? undefined
+              : parseFiniteNumberInRange(
+                  shapingRecord.centerRadius,
+                  `${sourceLabel}.shaping.centerRadius`,
+                  0,
+                  1
+                ),
+          terraceSteps:
+            shapingRecord.terraceSteps === undefined
+              ? undefined
+              : parseFiniteIntegerInRange(shapingRecord.terraceSteps, `${sourceLabel}.shaping.terraceSteps`, 0, 64),
+          smoothPasses:
+            shapingRecord.smoothPasses === undefined
+              ? undefined
+              : parseFiniteIntegerInRange(shapingRecord.smoothPasses, `${sourceLabel}.shaping.smoothPasses`, 0, 12)
+        }
+      : undefined
+  };
+}
+
+function parseGeneratedTerrainMaterial(
+  value: unknown,
+  sourceLabel: string
+): SceneGeneratedTerrainMaterialDescriptor | undefined {
+  if (value === undefined) {
+    return undefined;
+  }
+
+  const record = requireRecord(value, `${sourceLabel} must be an object.`);
+  const kind = requireString(record.kind, `${sourceLabel}.kind must be a string.`);
+
+  if (kind === "flat") {
+    return {
+      kind: "flat",
+      color: optionalString(record.color, `${sourceLabel}.color must be a string if provided.`)
+    };
+  }
+
+  if (kind === "heightBands") {
+    return {
+      kind: "heightBands",
+      color: optionalString(record.color, `${sourceLabel}.color must be a string if provided.`),
+      bands: parseTerrainMaterialBands(record.bands, `${sourceLabel}.bands`)
+    };
+  }
+
+  throw new Error(`${sourceLabel}.kind must be 'flat' or 'heightBands'.`);
+}
+
+function parseTerrainMaterialBands(
+  value: unknown,
+  sourceLabel: string
+): readonly SceneTerrainMaterialBandDescriptor[] {
+  if (!Array.isArray(value) || value.length === 0) {
+    throw new Error(`${sourceLabel} must be a non-empty array.`);
+  }
+
+  return value.map((item, index) => {
+    const record = requireRecord(item, `${sourceLabel}[${index}] must be an object.`);
+    const minHeight = parseFiniteNumber(record.minHeight, `${sourceLabel}[${index}].minHeight must be a finite number.`);
+    const maxHeight = parseFiniteNumber(record.maxHeight, `${sourceLabel}[${index}].maxHeight must be a finite number.`);
+    if (maxHeight < minHeight) {
+      throw new Error(`${sourceLabel}[${index}] maxHeight must be greater than or equal to minHeight.`);
+    }
+
+    return {
+      id: requireString(record.id, `${sourceLabel}[${index}].id must be a string.`),
+      label: requireString(record.label, `${sourceLabel}[${index}].label must be a string.`),
+      minHeight,
+      maxHeight,
+      color: requireString(record.color, `${sourceLabel}[${index}].color must be a string.`)
+    };
+  });
 }
 
 function parseObjectDescriptor(value: unknown, sourceLabel: string): SceneObjectDescriptor {
@@ -221,6 +407,31 @@ function parseVector2Tuple(value: unknown, sourceLabel: string): SceneVector2Tup
   return [x, z] as const;
 }
 
+function parseTerrainSizeTuple(value: unknown, sourceLabel: string): SceneVector2Tuple {
+  const result = parseVector2Tuple(value, sourceLabel);
+  if (result[0] <= 0 || result[1] <= 0) {
+    throw new Error(`${sourceLabel} must contain positive numbers.`);
+  }
+
+  return result;
+}
+
+function parseTerrainResolutionTuple(value: unknown, sourceLabel: string): SceneVector2Tuple {
+  if (!Array.isArray(value) || value.length !== 2) {
+    throw new Error(`${sourceLabel} must be a [x, z] tuple.`);
+  }
+
+  const [x, z] = value;
+  const parsedX = parseFiniteIntegerInRange(x, `${sourceLabel}[0]`, 3, 257);
+  const parsedZ = parseFiniteIntegerInRange(z, `${sourceLabel}[1]`, 3, 257);
+
+  if (parsedX % 2 === 0 || parsedZ % 2 === 0) {
+    throw new Error(`${sourceLabel} must use odd integer values such as 33, 65, 129, or 257.`);
+  }
+
+  return [parsedX, parsedZ] as const;
+}
+
 function parseVector3Tuple(value: unknown, sourceLabel: string): SceneVector3Tuple | undefined {
   if (value === undefined) {
     return undefined;
@@ -256,4 +467,83 @@ function optionalString(value: unknown, errorMessage: string): string | undefine
   }
 
   return value;
+}
+
+function requireRecord(value: unknown, errorMessage: string): Record<string, unknown> {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    throw new Error(errorMessage);
+  }
+
+  return value as Record<string, unknown>;
+}
+
+function optionalRecord(value: unknown, errorMessage: string): Record<string, unknown> | undefined {
+  if (value === undefined) {
+    return undefined;
+  }
+
+  return requireRecord(value, errorMessage);
+}
+
+function parseFiniteNumber(value: unknown, errorMessage: string): number {
+  if (typeof value !== "number" || !Number.isFinite(value)) {
+    throw new Error(errorMessage);
+  }
+
+  return value;
+}
+
+function parseFiniteInteger(value: unknown, errorMessage: string): number {
+  const parsed = parseFiniteNumber(value, errorMessage);
+  if (!Number.isInteger(parsed)) {
+    throw new Error(errorMessage);
+  }
+
+  return parsed;
+}
+
+function parseFiniteNumberInRange(value: unknown, sourceLabel: string, min: number, max: number): number {
+  const parsed = parseFiniteNumber(value, `${sourceLabel} must be a finite number.`);
+  if (parsed < min || parsed > max) {
+    throw new Error(`${sourceLabel} must be between ${min} and ${max}.`);
+  }
+
+  return parsed;
+}
+
+function parseFiniteIntegerInRange(value: unknown, sourceLabel: string, min: number, max: number): number {
+  const parsed = parseFiniteInteger(value, `${sourceLabel} must be a finite integer.`);
+  if (parsed < min || parsed > max) {
+    throw new Error(`${sourceLabel} must be between ${min} and ${max}.`);
+  }
+
+  return parsed;
+}
+
+function parseBoolean(value: unknown, errorMessage: string): boolean {
+  if (typeof value !== "boolean") {
+    throw new Error(errorMessage);
+  }
+
+  return value;
+}
+
+function optionalBoolean(value: unknown, errorMessage: string): boolean | undefined {
+  if (value === undefined) {
+    return undefined;
+  }
+
+  return parseBoolean(value, errorMessage);
+}
+
+function parseTerrainFalloffMode(
+  value: unknown,
+  sourceLabel: string
+): "none" | "island" | "centerPlateau" | "edgeFade" {
+  const parsed = requireString(value, `${sourceLabel} must be a string.`);
+  if (parsed !== "none" && parsed !== "island" && parsed !== "centerPlateau" && parsed !== "edgeFade") {
+    throw new Error(`${sourceLabel} must be 'none', 'island', 'centerPlateau', or 'edgeFade'.`);
+  }
+
+  return parsed;
 }

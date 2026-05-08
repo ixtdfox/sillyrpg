@@ -8,10 +8,14 @@
   ],
   "terrain": {
     "id": "terrain-0",
-    "kind": "plane",
+    "kind": "generated",
     "size": [
-      40,
-      40
+      400,
+      400
+    ],
+    "resolution": [
+      65,
+      65
     ],
     "position": [
       0,
@@ -28,9 +32,64 @@
       1,
       1
     ],
+    "generator": {
+      "preset": "island-plateau",
+      "strategy": "islandPlateau",
+      "seed": 303771477,
+      "height": {
+        "base": 0.15,
+        "amplitude": 24,
+        "frequency": 0.028,
+        "octaves": 5,
+        "persistence": 0.52,
+        "lacunarity": 2.2
+      },
+      "falloff": {
+        "enabled": true,
+        "mode": "island",
+        "radius": 0.62,
+        "strength": 0.92
+      },
+      "shaping": {
+        "flattenCenter": true,
+        "centerRadius": 0.3,
+        "terraceSteps": 0,
+        "smoothPasses": 1
+      }
+    },
     "material": {
-      "kind": "flat",
-      "color": "#8D9298"
+      "kind": "heightBands",
+      "color": "#7E8770",
+      "bands": [
+        {
+          "id": "shore",
+          "label": "Shore",
+          "minHeight": -160,
+          "maxHeight": 0,
+          "color": "#4D6970"
+        },
+        {
+          "id": "low",
+          "label": "Low",
+          "minHeight": 0,
+          "maxHeight": 14,
+          "color": "#73805A"
+        },
+        {
+          "id": "high",
+          "label": "High",
+          "minHeight": 14,
+          "maxHeight": 40,
+          "color": "#8A846F"
+        },
+        {
+          "id": "peak",
+          "label": "Peak",
+          "minHeight": 40,
+          "maxHeight": 180,
+          "color": "#D0D2D0"
+        }
+      ]
     }
   },
   "objects": [
@@ -61,7 +120,7 @@
       "position": [
         16,
         0,
-        -18
+        -10
       ],
       "rotation": [
         0,

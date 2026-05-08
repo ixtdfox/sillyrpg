@@ -23,6 +23,7 @@ import { EditorSceneDocument } from "./state/EditorSceneDocument";
 import { saveSceneDescriptor, exportSceneDescriptorJson } from "./state/EditorScenePersistence";
 import { EditorSelectionState } from "./state/EditorSelectionState";
 import type { EditorTransformMode } from "./state/EditorTransformMode";
+import { EditorTerrainController } from "./terrain/EditorTerrainController";
 import { EditorUi } from "./ui/EditorUi";
 import type { EditorBounds, EditorBuildingAssetOption, EditorSceneOption } from "./types";
 import type { Scene } from "../core/scene/Scene";
@@ -48,6 +49,7 @@ export class EditorScene implements Scene {
   private sceneLoader: EditorSceneLoader | null;
   private highlightLayer: HighlightLayer | null;
   private thumbnailService: BuildingThumbnailService | null;
+  private terrainController: EditorTerrainController | null;
   private readonly selectionState: EditorSelectionState;
   private document: EditorSceneDocument | null;
   private selectedScene: EditorSceneOption | null;
@@ -85,6 +87,7 @@ export class EditorScene implements Scene {
     this.sceneLoader = null;
     this.highlightLayer = null;
     this.thumbnailService = null;
+    this.terrainController = null;
     this.selectionState = new EditorSelectionState();
     this.document = null;
     this.selectedScene = null;
@@ -136,6 +139,19 @@ export class EditorScene implements Scene {
       }
     });
     this.sceneLoader = new EditorSceneLoader(scene);
+    this.terrainController = new EditorTerrainController({
+      onChanged: () => {
+        this.refreshUi();
+      },
+      onTerrainApplied: () => {
+        this.gridOverlay?.refreshFromMeshes(this.sceneLoader?.getRenderableMeshes() ?? []);
+        this.refreshUi();
+      },
+      onStatusMessageChanged: (message) => {
+        this.statusMessage = message;
+        this.refreshUi();
+      }
+    });
     this.highlightLayer = new HighlightLayer("editor-selection-highlight", scene);
     this.thumbnailService = new BuildingThumbnailService();
     this.ui = new EditorUi(this.langManager.getUi(), {
@@ -163,6 +179,18 @@ export class EditorScene implements Scene {
       },
       onAddTerrain: () => {
         void this.handleAddTerrain();
+      },
+      terrainPanel: {
+        onChangeTerrainDraft: (draft) => {
+          this.terrainController?.updateDraft(draft);
+        },
+        onSelectTerrainPreset: (presetId) => {
+          this.terrainController?.selectPreset(presetId);
+        },
+        onGenerateTerrain: () => this.terrainController?.generateNow() ?? Promise.resolve(),
+        onRandomizeSeed: () => this.terrainController?.randomizeSeed() ?? Promise.resolve(),
+        onFlattenTerrain: () => this.terrainController?.flatten() ?? Promise.resolve(),
+        onResetTerrainPreset: (presetId) => this.terrainController?.resetPreset(presetId) ?? Promise.resolve()
       },
       onSetTransformMode: (mode) => {
         this.transformMode = mode;
@@ -203,6 +231,8 @@ export class EditorScene implements Scene {
       this.thumbnailService = null;
       this.sceneLoader?.dispose();
       this.sceneLoader = null;
+      this.terrainController?.dispose();
+      this.terrainController = null;
       this.cameraController?.dispose();
       this.cameraController = null;
       this.gridOverlay?.dispose();
@@ -292,6 +322,7 @@ export class EditorScene implements Scene {
       const loadedDescriptor = await loadSceneDescriptor(option.rawDescriptorPath);
       this.document = new EditorSceneDocument(option.rawDescriptorPath, loadedDescriptor.descriptor);
       await this.sceneLoader.load(option, this.document.descriptor);
+      this.terrainController?.bind(this.document, this.sceneLoader);
       this.clearSelection();
       this.gridOverlay.refreshFromMeshes(this.sceneLoader.getRenderableMeshes());
       this.statusMessage = "";
@@ -301,6 +332,7 @@ export class EditorScene implements Scene {
     } catch (error) {
       this.statusMessage = error instanceof Error ? error.message : String(error);
       this.sceneLoader.clear();
+      this.terrainController?.bind(null, null);
       this.document = null;
     } finally {
       this.isLoading = false;
@@ -309,21 +341,10 @@ export class EditorScene implements Scene {
   }
 
   private async handleAddTerrain(): Promise<void> {
-    if (!this.document || !this.sceneLoader || !this.gridOverlay) {
+    if (!this.ui) {
       return;
     }
-
-    if (this.document.descriptor.terrain) {
-      this.statusMessage = "Terrain already exists.";
-      this.refreshUi();
-      return;
-    }
-
-    const terrain = this.document.addPlaneTerrain([40, 40]);
-    await this.sceneLoader.setTerrain(terrain);
-    this.gridOverlay.refreshFromMeshes(this.sceneLoader.getRenderableMeshes());
-    this.statusMessage = "Plane terrain created.";
-    this.refreshUi();
+    this.ui.setActiveTab("terrain");
   }
 
   private async handleCanvasDrop(event: DragEvent): Promise<void> {
@@ -573,6 +594,17 @@ export class EditorScene implements Scene {
       dirty,
       message
     });
+    this.ui?.setTerrainPanel(
+      this.terrainController?.getViewModel() ?? {
+        enabled: false,
+        descriptor: null,
+        presets: [],
+        stats: null,
+        dirty: false,
+        draftDirty: false,
+        appliedSummary: "none"
+      }
+    );
     this.ui?.setSelectedObject(this.selectionState.getSelectedObjectId() ? this.document?.getObject(this.selectionState.getSelectedObjectId()!) ?? null : null);
     this.ui?.setTransformMode(this.transformMode);
   }
@@ -585,6 +617,10 @@ export class EditorScene implements Scene {
 
     if (terrain.kind === "plane") {
       return `plane ${terrain.size[0]} x ${terrain.size[1]}`;
+    }
+
+    if (terrain.kind === "generated") {
+      return `generated ${terrain.generator.preset} ${terrain.resolution[0]} x ${terrain.resolution[1]}`;
     }
 
     return terrain.model;

@@ -1,7 +1,12 @@
 import type { SceneObjectDescriptor } from "../../core/world/scene/SceneDescriptor";
+import type {
+  TerrainGeneratorPanelCallbacks,
+  TerrainGeneratorPanelViewModel
+} from "../terrain/EditorTerrainTypes";
 import type { EditorBrowserTab, EditorBuildingAssetOption, EditorSceneOption } from "../types";
 import type { EditorTransformMode } from "../state/EditorTransformMode";
 import { editorIconSvg, type EditorIconName } from "./EditorIcons";
+import { TerrainGeneratorPanel } from "./TerrainGeneratorPanel";
 
 interface EditorUiCallbacks {
   readonly onBackToMenu: () => void;
@@ -13,6 +18,7 @@ interface EditorUiCallbacks {
   readonly onSelectScene: (sceneId: string) => void;
   readonly onSelectBuilding: (buildingId: string) => void;
   readonly onAddTerrain: () => void;
+  readonly terrainPanel: TerrainGeneratorPanelCallbacks;
   readonly onSetTransformMode: (mode: EditorTransformMode) => void;
   readonly onRotateSelected: (direction: -1 | 1) => void;
   readonly onDeleteSelected: () => void;
@@ -51,6 +57,8 @@ export class EditorUi {
   private readonly styleElement: HTMLStyleElement;
   private readonly sceneList: HTMLDivElement;
   private readonly buildingGrid: HTMLDivElement;
+  private readonly terrainPanelHost: HTMLDivElement;
+  private readonly terrainPanel: TerrainGeneratorPanel;
   private readonly inspector: HTMLDivElement;
   private readonly sceneInfo: HTMLDivElement;
   private readonly messageBadge: HTMLDivElement;
@@ -255,8 +263,8 @@ export class EditorUi {
     );
     this.addTerrainButton = this.createIconButton({
       className: "editor-tool-button",
-      label: "Add Terrain",
-      tooltip: "Add a plane terrain to the scene",
+      label: "Terrain",
+      tooltip: "Open the terrain generator",
       icon: "terrain",
       compact: true,
       onClick: callbacks.onAddTerrain
@@ -283,6 +291,10 @@ export class EditorUi {
     this.sceneList.className = "editor-scrollpanel";
     sidePanel.appendChild(this.sceneList);
 
+    this.terrainPanel = new TerrainGeneratorPanel(callbacks.terrainPanel);
+    this.terrainPanelHost = this.terrainPanel.getElement();
+    sidePanel.appendChild(this.terrainPanelHost);
+
     this.buildingGrid = document.createElement("div");
     this.buildingGrid.className = "editor-buildings editor-scrollpanel";
     sidePanel.appendChild(this.buildingGrid);
@@ -298,7 +310,7 @@ export class EditorUi {
     this.tabs = {
       scenes: {
         button: this.createTabButton(
-          this.strings["editor.sceneSelector"] ?? "Scenes",
+          this.strings["editor.sceneSelector"] ?? "Scene",
           "scene",
           "Browse scene descriptors",
           () => {
@@ -308,9 +320,16 @@ export class EditorUi {
         ),
         panel: this.sceneList
       },
+      terrain: {
+        button: this.createTabButton("Terrain", "terrain", "Generate and preview terrain", () => {
+          this.setActiveTab("terrain");
+          callbacks.onSelectTab("terrain");
+        }),
+        panel: this.terrainPanelHost
+      },
       buildings: {
         button: this.createTabButton(
-          this.strings["editor.buildingSelector"] ?? "Buildings",
+          "Build",
           "building",
           "Browse placeable buildings",
           () => {
@@ -321,7 +340,7 @@ export class EditorUi {
         panel: this.buildingGrid
       },
       inspector: {
-        button: this.createTabButton("Inspector", "inspector", "Inspect the selected object", () => {
+        button: this.createTabButton("Inspect", "inspector", "Inspect the selected object", () => {
           this.setActiveTab("inspector");
           callbacks.onSelectTab("inspector");
         }),
@@ -330,6 +349,7 @@ export class EditorUi {
     };
 
     tabRow.appendChild(this.tabs.scenes.button);
+    tabRow.appendChild(this.tabs.terrain.button);
     tabRow.appendChild(this.tabs.buildings.button);
     tabRow.appendChild(this.tabs.inspector.button);
 
@@ -354,6 +374,15 @@ export class EditorUi {
       message: ""
     });
     this.setSelectedObject(null);
+    this.setTerrainPanel({
+      enabled: false,
+      descriptor: null,
+      presets: [],
+      stats: null,
+      dirty: false,
+      draftDirty: false,
+      appliedSummary: "none"
+    });
     this.setTransformMode("select");
   }
 
@@ -480,7 +509,11 @@ export class EditorUi {
     this.dirtyBadge.textContent = viewModel.dirty ? "Unsaved changes" : "Saved";
     this.dirtyBadge.classList.toggle("is-dirty", viewModel.dirty);
     this.messageBadge.textContent = viewModel.message || "Selection only for browser cards; drag into viewport to place.";
-    this.addTerrainButton.disabled = viewModel.terrainStatus !== "none";
+    this.addTerrainButton.disabled = false;
+  }
+
+  public setTerrainPanel(viewModel: TerrainGeneratorPanelViewModel): void {
+    this.terrainPanel.setViewModel(viewModel);
   }
 
   public setSelectedObject(object: SceneObjectDescriptor | null): void {
@@ -686,6 +719,7 @@ function buildEditorCss(): string {
       flex-direction: column;
       width: 390px;
       height: 100%;
+      min-width: 0;
       padding: 14px;
       gap: 12px;
       border-radius: 24px;
@@ -693,6 +727,7 @@ function buildEditorCss(): string {
       border: 1px solid rgba(115, 140, 165, 0.2);
       box-shadow: 0 18px 48px rgba(0, 0, 0, 0.32);
       backdrop-filter: blur(16px);
+      overflow: hidden;
     }
     .editor-toolbar-button,
     .editor-tool-button,
@@ -760,6 +795,12 @@ function buildEditorCss(): string {
     .editor-button__label {
       white-space: nowrap;
     }
+    .editor-tab .editor-button__label {
+      min-width: 0;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
     .editor-button__label--compact {
       text-align: center;
       white-space: normal;
@@ -767,13 +808,16 @@ function buildEditorCss(): string {
     }
     .editor-tabs {
       display: grid;
-      grid-template-columns: repeat(3, 1fr);
+      grid-template-columns: repeat(4, minmax(0, 1fr));
       gap: 8px;
+      min-width: 0;
     }
     .editor-tab {
       justify-content: center;
       font-size: 12px;
       font-weight: 700;
+      min-width: 0;
+      overflow: hidden;
     }
     .editor-scrollpanel {
       min-height: 0;
@@ -879,6 +923,139 @@ function buildEditorCss(): string {
       text-transform: uppercase;
       letter-spacing: 0.08em;
       color: #f6cf72;
+    }
+    .editor-terrain {
+      display: grid;
+      align-content: start;
+      gap: 10px;
+    }
+    .editor-terrain__actions {
+      display: grid;
+      gap: 10px;
+    }
+    .editor-terrain__button-row {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 8px;
+    }
+    .editor-terrain__status-row {
+      display: grid;
+      gap: 8px;
+    }
+    .editor-terrain__status-badge {
+      padding: 8px 10px;
+      border-radius: 10px;
+      border: 1px solid rgba(115, 140, 165, 0.18);
+      background: rgba(11, 17, 24, 0.78);
+      color: #b8c9d9;
+      font-size: 11px;
+      line-height: 1.35;
+    }
+    .editor-terrain__status-badge.is-dirty {
+      color: #f6cf72;
+      border-color: rgba(246, 207, 114, 0.3);
+    }
+    .editor-mini-button {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      min-height: 34px;
+      padding: 8px 10px;
+      border-radius: 12px;
+      border: 1px solid rgba(115, 140, 165, 0.22);
+      background: rgba(15, 23, 33, 0.88);
+      color: #e9f0f6;
+      cursor: pointer;
+      transition: border-color 120ms ease, transform 120ms ease, background 120ms ease;
+    }
+    .editor-mini-button:hover {
+      border-color: rgba(111, 180, 235, 0.42);
+      background: rgba(20, 31, 44, 0.92);
+      transform: translateY(-1px);
+    }
+    .editor-terrain__grid {
+      display: grid;
+      gap: 10px;
+    }
+    .editor-field {
+      display: grid;
+      gap: 6px;
+    }
+    .editor-field__label {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 11px;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: #97aec4;
+    }
+    .editor-input {
+      width: 100%;
+      min-height: 34px;
+      padding: 8px 10px;
+      border-radius: 10px;
+      border: 1px solid rgba(115, 140, 165, 0.2);
+      background: rgba(7, 12, 18, 0.9);
+      color: #f3f5f7;
+      font: inherit;
+      box-sizing: border-box;
+    }
+    .editor-input--range {
+      padding: 0;
+      min-height: 28px;
+    }
+    .editor-range {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) 84px;
+      gap: 8px;
+      align-items: center;
+    }
+    .editor-input--number {
+      text-align: right;
+    }
+    .editor-toggle {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      min-height: 34px;
+      font-size: 12px;
+      color: #d5e0ea;
+    }
+    .editor-toggle input {
+      accent-color: #65b0ff;
+    }
+    .editor-terrain__details {
+      overflow: hidden;
+    }
+    .editor-terrain__summary {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      cursor: pointer;
+      list-style: none;
+      font-size: 12px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: #f6cf72;
+    }
+    .editor-terrain__summary::-webkit-details-marker {
+      display: none;
+    }
+    .editor-code-block {
+      margin: 12px 0 0;
+      padding: 12px;
+      border-radius: 12px;
+      border: 1px solid rgba(115, 140, 165, 0.14);
+      background: rgba(4, 8, 12, 0.92);
+      color: #a9bfd2;
+      font-size: 11px;
+      line-height: 1.45;
+      overflow: auto;
+      white-space: pre-wrap;
+      word-break: break-word;
     }
     .editor-footer {
       display: grid;

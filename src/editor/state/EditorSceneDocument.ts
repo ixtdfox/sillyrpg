@@ -44,6 +44,18 @@ export class EditorSceneDocument {
     return terrain;
   }
 
+  public setTerrain(terrain: SceneTerrainDescriptor | null): void {
+    this.descriptor = {
+      ...this.descriptor,
+      terrain
+    };
+    this.dirty = true;
+  }
+
+  public updateTerrain(terrain: SceneTerrainDescriptor): void {
+    this.setTerrain(terrain);
+  }
+
   public addObjectFromAsset(asset: EditorBuildingAssetOption, position: Vector3): SceneObjectDescriptor {
     const nextObject: SceneObjectDescriptor = {
       id: this.createNextObjectId(asset.id),

@@ -19,7 +19,11 @@ export type EditorIconName =
   | "inspector"
   | "undo"
   | "redo"
-  | "back";
+  | "back"
+  | "random"
+  | "flatten"
+  | "palette"
+  | "chevronDown";
 
 const ICON_PATHS: Record<EditorIconName, string> = {
   select:
@@ -63,10 +67,17 @@ const ICON_PATHS: Record<EditorIconName, string> = {
   redo:
     '<path d="M15 7h5v5" /><path d="M20 12a8 8 0 1 0-2.3 5.7" />',
   back:
-    '<path d="M10 6l-6 6 6 6" /><path d="M4 12h16" />'
+    '<path d="M10 6l-6 6 6 6" /><path d="M4 12h16" />',
+  random:
+    '<path d="M16 4h4v4" /><path d="M4 18h4v-4" /><path d="M20 4l-6 6" /><path d="M4 6h5l4 4" /><path d="M11 14l-2 2H4" /><path d="M14 14l6 6" />',
+  flatten:
+    '<path d="M4 16h16" /><path d="M6 12l3-2 3 1 4-3 2 2" /><path d="M4 19h16" />',
+  palette:
+    '<path d="M12 4a8 8 0 1 0 0 16h1a2 2 0 0 0 0-4h-1a2 2 0 0 1 0-4h5a3 3 0 0 0 3-3 5 5 0 0 0-8-5z" /><circle cx="7.5" cy="11.5" r="1" /><circle cx="10" cy="8.5" r="1" /><circle cx="14" cy="8.5" r="1" />',
+  chevronDown:
+    '<path d="M6 9l6 6 6-6" />'
 };
 
 export function editorIconSvg(name: EditorIconName, size = 20): string {
   return `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">${ICON_PATHS[name]}</svg>`;
 }
-

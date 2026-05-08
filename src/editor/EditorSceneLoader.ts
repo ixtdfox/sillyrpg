@@ -122,13 +122,9 @@ export class EditorSceneLoader {
 
   public async setTerrain(descriptor: SceneTerrainDescriptor): Promise<EditorTerrainInstance> {
     const content = this.requireCurrentContent();
-    if (this.terrainInstance) {
-      this.disposeTerrainInstance(this.terrainInstance);
-    }
-
+    const previousTerrain = this.terrainInstance;
     const importedTerrain = await importSceneTerrainContent(this.scene, descriptor, content.root, "editor");
     const instance = this.toEditorTerrainInstance(importedTerrain);
-    const previousTerrain = this.terrainInstance;
     const previousTerrainMeshes = previousTerrain?.meshes ?? [];
     const previousTerrainRenderableMeshes = previousTerrain?.renderableMeshes ?? [];
     const previousTerrainHelperMeshes = previousTerrain?.helperMeshes ?? [];
@@ -136,6 +132,11 @@ export class EditorSceneLoader {
     const previousTerrainSkeletons = previousTerrain?.skeletons ?? [];
     const previousTerrainAnimationGroups = previousTerrain?.animationGroups ?? [];
     const previousTerrainParticleSystems = previousTerrain?.particleSystems ?? [];
+
+    if (previousTerrain) {
+      this.disposeTerrainInstance(previousTerrain);
+    }
+
     this.terrainInstance = instance;
     this.currentContent = {
       ...content,
@@ -148,7 +149,11 @@ export class EditorSceneLoader {
         ...content.helperMeshes.filter((mesh) => !previousTerrainHelperMeshes.includes(mesh)),
         ...instance.helperMeshes
       ],
-      transformNodes: [...content.transformNodes.filter((node) => !previousTerrainNodes.includes(node)), ...instance.transformNodes],
+      transformNodes: [
+        ...content.transformNodes.filter((node) => !previousTerrainNodes.includes(node)),
+        instance.root,
+        ...instance.transformNodes
+      ],
       skeletons: [...content.skeletons.filter((node) => !previousTerrainSkeletons.includes(node)), ...instance.skeletons],
       animationGroups: [
         ...content.animationGroups.filter((node) => !previousTerrainAnimationGroups.includes(node)),
@@ -161,7 +166,12 @@ export class EditorSceneLoader {
       terrain: instance,
       summary: {
         ...content.summary,
-        terrainLabel: descriptor.kind === "plane" ? `plane ${descriptor.size[0]}x${descriptor.size[1]}` : descriptor.model
+        terrainLabel:
+          descriptor.kind === "plane"
+            ? `plane ${descriptor.size[0]}x${descriptor.size[1]}`
+            : descriptor.kind === "generated"
+              ? `generated ${descriptor.generator.preset} ${descriptor.resolution[0]}x${descriptor.resolution[1]}`
+              : descriptor.model
       }
     };
     this.refreshWorldMatrices();

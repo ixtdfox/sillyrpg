@@ -13,9 +13,12 @@ import {
 } from "@babylonjs/core";
 import "@babylonjs/loaders/glTF";
 import { normalizeAssetPath, resolveSceneAssetPath } from "../../model/SceneAssetPath";
+import { TerrainGenerator } from "../terrain/TerrainGenerator";
+import { TerrainMeshBuilder } from "../terrain/TerrainMeshBuilder";
 import { loadSceneDescriptor } from "./SceneDescriptorLoader";
 import type {
   SceneDescriptor,
+  SceneGeneratedTerrainDescriptor,
   SceneObjectDescriptor,
   SceneTerrainDescriptor,
   SceneVector3Tuple
@@ -71,6 +74,8 @@ export interface SceneContentSummary {
 
 interface ImportedAssetNodesInternal extends ImportedSceneAssetNodes {}
 const DEBUG_EDITOR_SCENE_IMPORTS = false;
+const GENERATED_TERRAIN_GENERATOR = new TerrainGenerator();
+const GENERATED_TERRAIN_MESH_BUILDER = new TerrainMeshBuilder();
 
 export async function importSceneContent(options: SceneContentImportOptions): Promise<ImportedSceneContent> {
   const descriptorPath = options.descriptorPath;
@@ -172,6 +177,10 @@ export async function importSceneTerrainContent(
     };
   }
 
+  if (descriptor.kind === "generated") {
+    return importGeneratedTerrainContent(scene, descriptor, terrainRoot);
+  }
+
   const imported = await importSceneAsset(scene, descriptor.model, terrainRoot);
   for (const mesh of imported.renderableMeshes) {
     mesh.metadata = {
@@ -186,6 +195,28 @@ export async function importSceneTerrainContent(
     root: terrainRoot,
     descriptor,
     ...imported
+  };
+}
+
+function importGeneratedTerrainContent(
+  scene: Scene,
+  descriptor: SceneGeneratedTerrainDescriptor,
+  terrainRoot: TransformNode
+): ImportedSceneTerrainContent {
+  const heightField = GENERATED_TERRAIN_GENERATOR.generate(descriptor);
+  const mesh = GENERATED_TERRAIN_MESH_BUILDER.build(scene, descriptor, heightField);
+  mesh.setParent(terrainRoot, false);
+
+  return {
+    root: terrainRoot,
+    descriptor,
+    meshes: [mesh],
+    renderableMeshes: [mesh],
+    helperMeshes: [],
+    transformNodes: [],
+    skeletons: [],
+    animationGroups: [],
+    particleSystems: []
   };
 }
 
@@ -386,6 +417,10 @@ function describeTerrain(terrain: SceneTerrainDescriptor | null | undefined): st
 
   if (terrain.kind === "plane") {
     return `plane ${terrain.size[0]}x${terrain.size[1]}`;
+  }
+
+  if (terrain.kind === "generated") {
+    return `generated ${terrain.generator.preset} ${terrain.resolution[0]}x${terrain.resolution[1]}`;
   }
 
   return terrain.model;

@@ -1,5 +1,6 @@
 import { MeshBuilder, NullEngine, Scene, TransformNode, Vector3 } from "@babylonjs/core";
-import { adoptImportedSceneNodes } from "../../../src/core/world/scene/SceneContentLoader";
+import { adoptImportedSceneNodes, importSceneTerrainContent } from "../../../src/core/world/scene/SceneContentLoader";
+import { createGeneratedTerrainDescriptorFromPreset } from "../../../src/core/world/terrain/TerrainGeneratorPresets";
 
 function assert(condition: boolean, message: string): void {
   if (!condition) {
@@ -48,9 +49,25 @@ function testAdoptImportedSceneNodesPreservesLocalImportedTransforms(): void {
   engine.dispose();
 }
 
-function run(): void {
+async function run(): Promise<void> {
   testAdoptImportedSceneNodesPreservesLocalImportedTransforms();
+  await testGeneratedTerrainContentCreatesPickableMesh();
 }
 
-run();
-console.log("SceneContentLoader transform parenting tests passed");
+async function testGeneratedTerrainContentCreatesPickableMesh(): Promise<void> {
+  const engine = new NullEngine();
+  const scene = new Scene(engine);
+  const parent = new TransformNode("parent", scene);
+  const descriptor = createGeneratedTerrainDescriptorFromPreset({ presetId: "urban-pad", seed: 55 });
+  const result = await importSceneTerrainContent(scene, descriptor, parent, "test");
+  assert(result.renderableMeshes.length === 1, "Generated terrain should create one renderable mesh.");
+  const mesh = result.renderableMeshes[0];
+  assert(mesh?.isPickable === true, "Generated terrain mesh should be pickable.");
+  assert(mesh?.metadata?.editorTerrain === true, "Generated terrain mesh should carry editorTerrain metadata.");
+  scene.dispose();
+  engine.dispose();
+}
+
+Promise.resolve(run()).then(() => {
+  console.log("SceneContentLoader tests passed");
+});
