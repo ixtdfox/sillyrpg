@@ -156,19 +156,10 @@ export class CombatMovementPreviewSystem implements System {
   }
 
   private toPreviewCells(path: readonly MovementSegment[]): { readonly cell: GridCell; readonly storyIndex: number }[] {
-    return path.map((segment) => {
-      if (segment.kind === "walk") {
-        return {
-          cell: segment.cell,
-          storyIndex: segment.storyIndex
-        };
-      }
-
-      return {
-        cell: segment.toCell,
-        storyIndex: segment.toStoryIndex
-      };
-    });
+    return path.map((segment) => ({
+      cell: segment.toCell,
+      storyIndex: segment.toStoryIndex
+    }));
   }
 
   private getPathCost(path: readonly MovementSegment[]): number {

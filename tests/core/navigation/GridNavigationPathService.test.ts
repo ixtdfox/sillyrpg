@@ -45,7 +45,13 @@ function makeEnvironment(input: {
     isWalkableCell: (cell) => grid.contains(cell),
     isNavigationEdgeBlocked: (fromCell, toCell, storyIndex) =>
       blockedEdges.has(edgeKey(storyIndex, fromCell, toCell)),
-    getMovementCost: () => 1
+    getMovementCost: () => 1,
+    surfaceHeightResolver: {
+      resolveGroundedPosition: (input: {
+        readonly position: Vector3;
+        readonly storyIndex: number;
+      }) => new Vector3(input.position.x, environment.storyYByStory.get(input.storyIndex) ?? input.position.y, input.position.z)
+    }
   };
 
   return {
@@ -66,6 +72,21 @@ function testReachableCellsIncludeUpperStoryThroughStair(): void {
     result.reachableCells.some((entry) => entry.storyIndex === 1 && entry.cell.equals(new GridCell(2, 0))),
     "Expected story 1 target cell to be reachable through stair"
   );
+}
+
+function testWalkEdgeBuildsSingleGroundedPoint(): void {
+  const { service } = makeEnvironment();
+  const path = service.findPath({
+    fromCell: new GridCell(0, 0),
+    fromStoryIndex: 0,
+    toCell: new GridCell(1, 0),
+    toStoryIndex: 0
+  });
+
+  assert(Boolean(path), "Expected walk path to resolve");
+  assert(path?.length === 1, "Expected adjacent walk path to contain one segment");
+  assert(path?.[0].points.length === 1, "Expected walk segment to contain one route point");
+  assert(path?.[0].toCell.equals(new GridCell(1, 0)) === true, "Expected walk segment to target requested cell");
 }
 
 function testMovementPointsCanExcludeStairTraversal(): void {
@@ -140,7 +161,8 @@ function testBasicCombatAiCanChooseUpperStoryApproachTarget(): void {
     getMergedStoryYByStory: () => environment.storyYByStory,
     isWalkableCell: environment.isWalkableCell,
     isNavigationEdgeBlocked: environment.isNavigationEdgeBlocked,
-    getMovementCost: environment.getMovementCost
+    getMovementCost: environment.getMovementCost,
+    getSurfaceHeightResolver: () => environment.surfaceHeightResolver
   };
   const aiService = new BasicCombatAiService({} as never, {} as never, {
     getEntitiesAt: () => []
@@ -168,6 +190,25 @@ function testBasicCombatAiCanChooseUpperStoryApproachTarget(): void {
   assert(Boolean(selected), "Expected AI to choose an approach target");
   assert(selected?.storyIndex === 1, "Expected AI approach target on player story");
   assert(selected?.cell.equals(new GridCell(1, 0)), "Expected AI to choose attack-adjacent stair endpoint");
+}
+
+function testStairEdgeBuildsNormalizedPolyline(): void {
+  const { service } = makeEnvironment();
+  const path = service.findPath({
+    fromCell: new GridCell(0, 0),
+    fromStoryIndex: 0,
+    toCell: new GridCell(2, 0),
+    toStoryIndex: 1
+  });
+
+  const stairSegment = path?.find((segment) => segment.kind === "stair");
+  assert(Boolean(stairSegment), "Expected stair segment in multi-story path");
+  assert((stairSegment?.points.length ?? 0) >= makeStair().traversalPathWorld.length, "Expected stair segment to preserve traversal polyline");
+  assert(stairSegment?.metadata?.stairId === "test-stair", "Expected stair metadata to preserve stair id");
+  assert(stairSegment?.fromCell.equals(new GridCell(1, 0)) === true, "Expected stair segment to start at stair entry cell");
+  assert(stairSegment?.toCell.equals(new GridCell(1, 0)) === true, "Expected stair segment to end at stair exit cell");
+  assert(stairSegment?.fromStoryIndex === 0, "Expected stair segment from story 0");
+  assert(stairSegment?.toStoryIndex === 1, "Expected stair segment to story 1");
 }
 
 function testStairInteractionSelectsConnectorForCurrentStory(): void {
@@ -233,11 +274,13 @@ function assert(condition: boolean, message: string): void {
 }
 
 function run(): void {
+  testWalkEdgeBuildsSingleGroundedPoint();
   testReachableCellsIncludeUpperStoryThroughStair();
   testMovementPointsCanExcludeStairTraversal();
   testOccupiedTargetExcludedButStartAllowed();
   testBlockedAndOpenDoorEdges();
   testBasicCombatAiCanChooseUpperStoryApproachTarget();
+  testStairEdgeBuildsNormalizedPolyline();
   testStairInteractionSelectsConnectorForCurrentStory();
   testLegacyPathLengthStairCostFallsBackToTacticalCost();
 }

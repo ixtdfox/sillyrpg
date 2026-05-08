@@ -402,13 +402,6 @@ export class BasicCombatAiService {
   }
 
   private getSegmentTarget(segment: MovementSegment): ApproachTarget {
-    if (segment.kind === "walk") {
-      return {
-        cell: segment.cell,
-        storyIndex: segment.storyIndex
-      };
-    }
-
     return {
       cell: segment.toCell,
       storyIndex: segment.toStoryIndex

@@ -133,13 +133,10 @@ export class MovementSystem implements System {
     }
 
     pathMovement.pathSegments = limitedPath;
-    pathMovement.pathCells = [
-      gridPosition.currentCell,
-      ...limitedPath.filter((segment) => segment.kind === "walk").map((segment) => segment.cell)
-    ];
+    pathMovement.pathCells = [gridPosition.currentCell, ...limitedPath.map((segment) => segment.toCell)];
     pathMovement.nextStepIndex = 1;
     pathMovement.currentSegmentIndex = 0;
-    pathMovement.currentStairPointIndex = 0;
+    pathMovement.currentPointIndex = 0;
     pathMovement.activeTargetCell = gridPosition.targetCell;
     pathMovement.activeTargetStoryIndex = targetStoryIndex;
     pathMovement.isMoving = true;
@@ -174,29 +171,18 @@ export class MovementSystem implements System {
       return;
     }
 
-    if (segment.kind === "walk") {
-      this.advanceTowardWorldPoint(
-        transform,
-        pathMovement,
-        segment.worldPosition,
-        deltaSeconds,
-        () => this.completeWalkSegment(entityId, transform, gridPosition, pathMovement, segment)
-      );
-      return;
-    }
-
-    const nextStairPoint = segment.traversalPath[pathMovement.currentStairPointIndex];
-    if (!nextStairPoint) {
-      this.completeStairSegment(entityId, gridPosition, pathMovement, segment);
+    const routePoint = segment.points[pathMovement.currentPointIndex];
+    if (!routePoint) {
+      this.completeRouteSegment(entityId, transform, gridPosition, pathMovement, segment);
       return;
     }
 
     this.advanceTowardWorldPoint(
       transform,
       pathMovement,
-      nextStairPoint,
+      routePoint.position,
       deltaSeconds,
-      () => this.completeStairPoint(entityId, gridPosition, pathMovement, segment)
+      () => this.completeRoutePoint(entityId, transform, gridPosition, pathMovement, segment)
     );
   }
 
@@ -250,51 +236,45 @@ export class MovementSystem implements System {
     return Math.atan2(Math.sin(angle), Math.cos(angle));
   }
 
-  private completeWalkSegment(
+  private completeRoutePoint(
     entityId: string,
     transform: TransformComponent,
     gridPosition: GridPositionComponent,
     pathMovement: GridPathMovementComponent,
-    segment: Extract<MovementSegment, { kind: "walk" }>
+    segment: MovementSegment
+  ): void {
+    pathMovement.currentPointIndex += 1;
+    if (pathMovement.currentPointIndex >= segment.points.length) {
+      this.completeRouteSegment(entityId, transform, gridPosition, pathMovement, segment);
+    }
+  }
+
+  private completeRouteSegment(
+    entityId: string,
+    transform: TransformComponent,
+    gridPosition: GridPositionComponent,
+    pathMovement: GridPathMovementComponent,
+    segment: MovementSegment
   ): void {
     const previousCell = gridPosition.currentCell;
     const previousStoryIndex = gridPosition.currentStoryIndex;
-    transform.value.copyFrom(segment.worldPosition);
-    gridPosition.currentCell = segment.cell;
-    gridPosition.currentStoryIndex = segment.storyIndex;
-    pathMovement.nextStepIndex += 1;
-    pathMovement.currentSegmentIndex += 1;
-    this.consumeMovementPoints(entityId, segment.cost, previousCell, segment.cell, previousStoryIndex, segment.storyIndex);
-
-    if (pathMovement.currentSegmentIndex >= pathMovement.pathSegments.length) {
-      this.finishMovement(gridPosition, pathMovement);
+    const finalPoint = segment.points[segment.points.length - 1];
+    if (finalPoint) {
+      transform.value.copyFrom(finalPoint.position);
     }
-  }
-
-  private completeStairPoint(
-    entityId: string,
-    gridPosition: GridPositionComponent,
-    pathMovement: GridPathMovementComponent,
-    segment: Extract<MovementSegment, { kind: "stair" }>
-  ): void {
-    pathMovement.currentStairPointIndex += 1;
-
-    if (pathMovement.currentStairPointIndex >= segment.traversalPath.length) {
-      this.completeStairSegment(entityId, gridPosition, pathMovement, segment);
-    }
-  }
-
-  private completeStairSegment(
-    entityId: string,
-    gridPosition: GridPositionComponent,
-    pathMovement: GridPathMovementComponent,
-    segment: Extract<MovementSegment, { kind: "stair" }>
-  ): void {
     gridPosition.currentCell = segment.toCell;
     gridPosition.currentStoryIndex = segment.toStoryIndex;
-    pathMovement.currentStairPointIndex = 0;
+    pathMovement.nextStepIndex += 1;
+    pathMovement.currentPointIndex = 0;
     pathMovement.currentSegmentIndex += 1;
-    this.consumeMovementPoints(entityId, segment.cost);
+    this.consumeMovementPoints(
+      entityId,
+      segment.cost,
+      previousCell,
+      segment.toCell,
+      previousStoryIndex,
+      segment.toStoryIndex
+    );
 
     if (pathMovement.currentSegmentIndex >= pathMovement.pathSegments.length) {
       this.finishMovement(gridPosition, pathMovement);
@@ -430,20 +410,17 @@ export class MovementSystem implements System {
     let crossedBlockedEdge = false;
     const steps: string[] = [`${cursorStory}:${cursorCell.x}:${cursorCell.z}`];
     for (const segment of path) {
-      if (segment.kind === "walk") {
-        const blocked = this.runtimeContext.gridRuntime.isNavigationEdgeBlocked(cursorCell, segment.cell, cursorStory);
-        if (blocked) {
-          crossedBlockedEdge = true;
-        }
-        cursorCell = segment.cell;
-        cursorStory = segment.storyIndex;
-        steps.push(`${cursorStory}:${cursorCell.x}:${cursorCell.z}[walk,blocked=${blocked}]`);
-        continue;
+      const blocked = segment.fromStoryIndex === segment.toStoryIndex
+        ? this.runtimeContext.gridRuntime.isNavigationEdgeBlocked(cursorCell, segment.toCell, cursorStory)
+        : false;
+      if (blocked) {
+        crossedBlockedEdge = true;
       }
-
       cursorCell = segment.toCell;
       cursorStory = segment.toStoryIndex;
-      steps.push(`${cursorStory}:${cursorCell.x}:${cursorCell.z}[stair:${segment.stairId}]`);
+      steps.push(
+        `${cursorStory}:${cursorCell.x}:${cursorCell.z}[${segment.kind},from=${segment.fromStoryIndex}:${segment.fromCell.x}:${segment.fromCell.z},blocked=${blocked},stair=${segment.metadata?.stairId ?? "n/a"}]`
+      );
     }
 
     console.debug(

@@ -14,6 +14,8 @@ import { FloorNavigationSurfaceRegistry } from "../navigation/FloorNavigationSur
 import { NavigationObstacleRegistry, type NavigationCover } from "../navigation/NavigationObstacleRegistry";
 import { NavigationBlockerRegistry } from "../navigation/NavigationBlockerRegistry";
 import type { StairNavigationConnector } from "../navigation/NavigationGraph";
+import { SurfaceHeightResolver } from "../world/surface/SurfaceHeightResolver";
+import { TerrainSurfaceRegistry } from "../world/terrain/TerrainSurfaceRegistry";
 import { WORLD_GRID_ORIGIN_X, WORLD_GRID_ORIGIN_Z } from "./WorldGridConstants";
 
 export interface GridDebugDetectedCell {
@@ -71,6 +73,8 @@ export class RectGridRuntime {
   private readonly floorNavigationSurfaceRegistry: FloorNavigationSurfaceRegistry;
   private readonly navigationObstacleRegistry: NavigationObstacleRegistry;
   private readonly navigationBlockerRegistry: NavigationBlockerRegistry;
+  private readonly terrainSurfaceRegistry: TerrainSurfaceRegistry;
+  private readonly surfaceHeightResolver: SurfaceHeightResolver;
   private groundMesh: AbstractMesh;
 
   /**
@@ -91,6 +95,9 @@ export class RectGridRuntime {
     this.floorNavigationSurfaceRegistry = new FloorNavigationSurfaceRegistry();
     this.navigationObstacleRegistry = new NavigationObstacleRegistry();
     this.navigationBlockerRegistry = new NavigationBlockerRegistry();
+    this.terrainSurfaceRegistry = new TerrainSurfaceRegistry();
+    this.surfaceHeightResolver = new SurfaceHeightResolver(this, this.terrainSurfaceRegistry);
+    this.terrainSurfaceRegistry.rebuildFromMeshes(preferredGroundMeshes);
     this.floorNavigationSurfaceRegistry.rebuild(scene, this.grid, { forcedGroundMesh: this.groundMesh });
     this.buildingNavigationRegistry.rebuild(scene, this.grid);
     this.addForcedStairEndpointCells();
@@ -177,6 +184,7 @@ export class RectGridRuntime {
     this.groundMesh = runtime.groundMesh;
     this.overlay.setDebugVisible(this.debugState.getIsDebugEnabled());
     this.pickerController = runtime.pickerController;
+    this.terrainSurfaceRegistry.rebuildFromMeshes(preferredGroundMeshes);
     this.floorNavigationSurfaceRegistry.rebuild(scene, this.grid, { forcedGroundMesh: this.groundMesh });
     this.buildingNavigationRegistry.rebuild(scene, this.grid);
     this.addForcedStairEndpointCells();
@@ -223,6 +231,14 @@ export class RectGridRuntime {
 
   public getNavigationBlockerRegistry(): NavigationBlockerRegistry {
     return this.navigationBlockerRegistry;
+  }
+
+  public getTerrainSurfaceRegistry(): TerrainSurfaceRegistry {
+    return this.terrainSurfaceRegistry;
+  }
+
+  public getSurfaceHeightResolver(): SurfaceHeightResolver {
+    return this.surfaceHeightResolver;
   }
 
   public isNavigationCellBlocked(cell: GridCell, storyIndex: number): boolean {

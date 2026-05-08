@@ -53,6 +53,15 @@
         "data": { "speed": 3.5 }
       },
       {
+        "type": "groundAttachment",
+        "data": {
+          "footOffset": 0,
+          "mode": "snap",
+          "maxSnapDistance": 8,
+          "allowDuringMovement": true
+        }
+      },
+      {
         "type": "detectable",
         "data": { "kind": "player" }
       },
@@ -126,6 +135,15 @@
       {
         "type": "gridPathMovement",
         "data": { "speed": 2.5 }
+      },
+      {
+        "type": "groundAttachment",
+        "data": {
+          "footOffset": 0,
+          "mode": "snap",
+          "maxSnapDistance": 8,
+          "allowDuringMovement": true
+        }
       },
       {
         "type": "vision",

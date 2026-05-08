@@ -21,23 +21,26 @@ export interface NavigationEdge {
   readonly stairId?: string;
 }
 
-export type MovementSegment =
-  | {
-      readonly kind: "walk";
-      readonly cell: GridCell;
-      readonly storyIndex: number;
-      readonly worldPosition: Vector3;
-      readonly cost: number;
-    }
-  | {
-      readonly kind: "stair";
-      readonly stairId: string;
-      readonly fromStoryIndex: number;
-      readonly toStoryIndex: number;
-      readonly toCell: GridCell;
-      readonly traversalPath: Vector3[];
-      readonly cost: number;
-    };
+export interface MovementRoutePoint {
+  readonly position: Vector3;
+  readonly cell: GridCell;
+  readonly storyIndex: number;
+}
+
+export interface MovementRouteSegment {
+  readonly kind: NavigationEdgeKind;
+  readonly fromCell: GridCell;
+  readonly fromStoryIndex: number;
+  readonly toCell: GridCell;
+  readonly toStoryIndex: number;
+  readonly points: readonly MovementRoutePoint[];
+  readonly cost: number;
+  readonly metadata?: {
+    readonly stairId?: string;
+  };
+}
+
+export type MovementSegment = MovementRouteSegment;
 
 export interface StairNavigationConnector {
   readonly stairId: string;
@@ -162,6 +165,10 @@ export class NavigationGraph {
 
   public getStoryY(storyIndex: number): number {
     return this.storyYByStory.get(storyIndex) ?? this.grid.getOrigin().y;
+  }
+
+  public getGrid(): RectGrid {
+    return this.grid;
   }
 
   private registerStairEdge(connector: StairNavigationConnector, reverse: boolean): void {

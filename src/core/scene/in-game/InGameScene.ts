@@ -4,6 +4,7 @@ import type { EntityManager } from "../../entity/EntityManager";
 import { EntityPrefabFactory } from "../../entity/EntityPrefabFactory";
 import type { Entity } from "../../entity/Entity";
 import { GridPathMovementComponent } from "../../entity/components/GridPathMovementComponent";
+import { GroundAttachmentComponent } from "../../entity/components/GroundAttachmentComponent";
 import { GridPositionComponent } from "../../entity/components/GridPositionComponent";
 import { LocalPlayerComponent } from "../../entity/components/LocalPlayerComponent";
 import { RenderableComponent } from "../../entity/components/RenderableComponent";
@@ -119,7 +120,13 @@ export class InGameScene implements Scene {
       const isEnabled = gridRuntime.toggleDebug();
       inGameTopPanelUi.setRectGridDebugEnabled(isEnabled);
     });
-    attachInGameSceneRuntimeContext(scene, { gridRuntime, locationManager: this.locationManager, topPanelUi: inGameTopPanelUi });
+    attachInGameSceneRuntimeContext(scene, {
+      gridRuntime,
+      locationManager: this.locationManager,
+      topPanelUi: inGameTopPanelUi,
+      terrainSurfaceRegistry: gridRuntime.getTerrainSurfaceRegistry(),
+      surfaceHeightResolver: gridRuntime.getSurfaceHeightResolver()
+    });
     inGameTopPanelUi.setRectGridDebugEnabled(gridRuntime.getIsDebugEnabled());
     const triggerObserver = scene.onBeforeRenderObservable.add(() => {
       streamingController.update();
@@ -205,7 +212,15 @@ export class InGameScene implements Scene {
     gridPosition.targetCell = null;
     gridPosition.targetStoryIndex = null;
     if (alignToCell) {
-      transform.value.copyFrom(grid.cellToWorld(cell, transform.value.y));
+      const groundAttachment = localPlayer.tryGetComponent(GroundAttachmentComponent);
+      const basePosition = grid.cellToWorld(cell, transform.value.y);
+      transform.value.copyFrom(gridRuntime.getSurfaceHeightResolver().resolveGroundedPosition({
+        position: basePosition,
+        cell,
+        storyIndex: gridPosition.currentStoryIndex,
+        fallbackY: transform.value.y,
+        footOffset: groundAttachment?.footOffset ?? 0
+      }));
     }
 
     const renderable = localPlayer.tryGetComponent(RenderableComponent);

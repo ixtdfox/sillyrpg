@@ -3,6 +3,7 @@ import type { Entity } from "../Entity";
 import type { EntityManager } from "../EntityManager";
 import type { System } from "../System";
 import { AnimationComponent, type AnimationState } from "../components/AnimationComponent";
+import { GroundAttachmentComponent } from "../components/GroundAttachmentComponent";
 import { ModelComponent } from "../components/ModelComponent";
 import { GridPositionComponent } from "../components/GridPositionComponent";
 import { RenderableComponent } from "../components/RenderableComponent";
@@ -101,9 +102,18 @@ export class CharacterSpawnerSystem implements System {
       return;
     }
 
-    entity.addComponent(GridPositionComponent, new GridPositionComponent(startCell));
-    const alignedPosition = grid.cellToWorld(startCell, transform.value.y);
-    transform.value.copyFrom(alignedPosition);
+    const gridPosition = new GridPositionComponent(startCell);
+    entity.addComponent(GridPositionComponent, gridPosition);
+    const basePosition = grid.cellToWorld(startCell, transform.value.y);
+    const groundAttachment = entity.tryGetComponent(GroundAttachmentComponent);
+    const groundedPosition = runtimeContext.surfaceHeightResolver.resolveGroundedPosition({
+      position: basePosition,
+      cell: startCell,
+      storyIndex: gridPosition.currentStoryIndex,
+      fallbackY: transform.value.y,
+      footOffset: groundAttachment?.footOffset ?? 0
+    });
+    transform.value.copyFrom(groundedPosition);
   }
 
   private initializeAnimationComponents(

@@ -1,7 +1,6 @@
 import { GridCell } from "../grid/GridCell";
 import {
   makeNavigationNodeId,
-  type MovementSegment,
   type NavigationEdge,
   type NavigationGraph,
   type NavigationNode
@@ -16,14 +15,14 @@ export class MultiFloorPathfinder {
     this.debugEnabled = debugEnabled;
   }
 
-  public findPath(input: {
+  public findPathEdges(input: {
     fromCell: GridCell;
     fromStoryIndex: number;
     toCell: GridCell;
     toStoryIndex: number;
     blocked?: (node: NavigationNode) => boolean;
     occupied?: (node: NavigationNode) => boolean;
-  }): MovementSegment[] | null {
+  }): NavigationEdge[] | null {
     const start = this.graph.getNodeForCell(input.fromStoryIndex, input.fromCell);
     const goal = this.graph.getNodeForCell(input.toStoryIndex, input.toCell);
     if (!start || !goal) {
@@ -43,12 +42,22 @@ export class MultiFloorPathfinder {
       return null;
     }
 
-    const segments = this.toMovementSegments(pathEdges);
     if (this.debugEnabled && start.storyIndex !== goal.storyIndex) {
-      this.logPath(start, goal, segments);
+      this.logPath(start, goal, pathEdges);
     }
 
-    return segments;
+    return pathEdges;
+  }
+
+  public findPath(input: {
+    fromCell: GridCell;
+    fromStoryIndex: number;
+    toCell: GridCell;
+    toStoryIndex: number;
+    blocked?: (node: NavigationNode) => boolean;
+    occupied?: (node: NavigationNode) => boolean;
+  }): NavigationEdge[] | null {
+    return this.findPathEdges(input);
   }
 
   private findEdgePath(
@@ -98,45 +107,6 @@ export class MultiFloorPathfinder {
     return null;
   }
 
-  private toMovementSegments(edges: readonly NavigationEdge[]): MovementSegment[] {
-    const segments: MovementSegment[] = [];
-
-    for (const edge of edges) {
-      const targetNode = this.graph.getNode(edge.toNodeId);
-      const sourceNode = this.graph.getNode(edge.fromNodeId);
-      if (!targetNode || !sourceNode) {
-        continue;
-      }
-
-      if (edge.kind === "walk") {
-        segments.push({
-          kind: "walk",
-          cell: targetNode.cell,
-          storyIndex: targetNode.storyIndex,
-          worldPosition: targetNode.worldPosition.clone(),
-          cost: edge.cost
-        });
-        continue;
-      }
-
-      if (!edge.traversalPath || !edge.stairId) {
-        continue;
-      }
-
-      segments.push({
-        kind: "stair",
-        stairId: edge.stairId,
-        fromStoryIndex: sourceNode.storyIndex,
-        toStoryIndex: targetNode.storyIndex,
-        toCell: targetNode.cell,
-        traversalPath: edge.traversalPath.map((point) => point.clone()),
-        cost: edge.cost
-      });
-    }
-
-    return segments;
-  }
-
   private reconstructEdges(startNodeId: string, goalNodeId: string, cameFrom: ReadonlyMap<string, NavigationEdge>): NavigationEdge[] {
     const edges: NavigationEdge[] = [];
     let currentNodeId = goalNodeId;
@@ -176,19 +146,24 @@ export class MultiFloorPathfinder {
     return 0;
   }
 
-  private logPath(start: NavigationNode, goal: NavigationNode, segments: readonly MovementSegment[]): void {
+  private logPath(start: NavigationNode, goal: NavigationNode, edges: readonly NavigationEdge[]): void {
     console.debug(
       [
         "MultiFloorPathfinder:",
         `from story ${start.storyIndex} cell ${start.cell.x}:${start.cell.z}`,
         `to story ${goal.storyIndex} cell ${goal.cell.x}:${goal.cell.z}`,
         "path:",
-        ...segments.map((segment) => {
-          if (segment.kind === "walk") {
-            return `walk ${segment.storyIndex}:${segment.cell.x}:${segment.cell.z}`;
+        ...edges.map((edge) => {
+          const targetNode = this.graph.getNode(edge.toNodeId);
+          if (!targetNode) {
+            return `missing ${edge.id}`;
           }
 
-          return `stair ${segment.stairId} ${segment.fromStoryIndex} -> ${segment.toStoryIndex} checkpoints=${segment.traversalPath.length}`;
+          if (edge.kind === "walk") {
+            return `walk ${targetNode.storyIndex}:${targetNode.cell.x}:${targetNode.cell.z}`;
+          }
+
+          return `${edge.kind} ${edge.stairId ?? "unknown"} ${edge.fromNodeId} -> ${edge.toNodeId} checkpoints=${edge.traversalPath?.length ?? 0}`;
         })
       ].join("\n")
     );

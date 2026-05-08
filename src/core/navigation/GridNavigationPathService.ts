@@ -2,12 +2,14 @@ import { GridCell } from "../grid/GridCell";
 import type { RectGrid } from "../grid/RectGrid";
 import type { RectGridRuntime } from "../grid/RectGridRuntime";
 import { MultiFloorPathfinder, makeMovementTargetKey } from "./MultiFloorPathfinder";
+import { NavigationRouteBuilder } from "./NavigationRouteBuilder";
 import {
   NavigationGraph,
   type MovementSegment,
   type NavigationNode,
   type StairNavigationConnector
 } from "./NavigationGraph";
+import type { SurfaceHeightResolver } from "../world/surface/SurfaceHeightResolver";
 
 export interface GridNavigationPathEnvironment {
   readonly grid: RectGrid;
@@ -16,6 +18,7 @@ export interface GridNavigationPathEnvironment {
   readonly isWalkableCell: (cell: GridCell, storyIndex: number) => boolean;
   readonly isNavigationEdgeBlocked: (fromCell: GridCell, toCell: GridCell, storyIndex: number) => boolean;
   readonly getMovementCost: (cell: GridCell, storyIndex: number) => number;
+  readonly surfaceHeightResolver: Pick<SurfaceHeightResolver, "resolveGroundedPosition">;
   readonly debugEnabled?: boolean;
 }
 
@@ -48,6 +51,7 @@ export class GridNavigationPathService {
   private readonly environment: GridNavigationPathEnvironment;
   private readonly graph: NavigationGraph;
   private readonly pathfinder: MultiFloorPathfinder;
+  private readonly routeBuilder: NavigationRouteBuilder;
 
   public constructor(environment: GridNavigationPathEnvironment) {
     this.environment = environment;
@@ -60,6 +64,7 @@ export class GridNavigationPathService {
       environment.getMovementCost
     );
     this.pathfinder = new MultiFloorPathfinder(this.graph, environment.debugEnabled === true);
+    this.routeBuilder = new NavigationRouteBuilder(this.graph, environment.surfaceHeightResolver);
   }
 
   public static fromGridRuntime(gridRuntime: RectGridRuntime): GridNavigationPathService {
@@ -72,18 +77,20 @@ export class GridNavigationPathService {
       isNavigationEdgeBlocked: (fromCell, toCell, storyIndex) =>
         gridRuntime.isNavigationEdgeBlocked(fromCell, toCell, storyIndex),
       getMovementCost: (cell, storyIndex) => gridRuntime.getMovementCost(cell, storyIndex),
+      surfaceHeightResolver: gridRuntime.getSurfaceHeightResolver(),
       debugEnabled: registry.getShowStairNavigationDebug()
     });
   }
 
   public findPath(input: GridNavigationPathRequest): MovementSegment[] | null {
-    const path = this.pathfinder.findPath({
+    const edgePath = this.pathfinder.findPathEdges({
       fromCell: input.fromCell,
       fromStoryIndex: input.fromStoryIndex,
       toCell: input.toCell,
       toStoryIndex: input.toStoryIndex,
       occupied: (node) => this.isBlockedForRequest(input, node)
     });
+    const path = edgePath ? this.routeBuilder.build(edgePath) : null;
 
     if (this.isDebugEnabled()) {
       this.logPathDiagnostics(input, path);
@@ -273,10 +280,6 @@ export function isRectNavDebugEnabled(): boolean {
 
 function formatSegments(segments: readonly MovementSegment[]): string {
   return segments.map((segment) => {
-    if (segment.kind === "walk") {
-      return `walk story:${segment.storyIndex} cell=${segment.cell.x}:${segment.cell.z} cost=${segment.cost}`;
-    }
-
-    return `stair ${segment.stairId} ${segment.fromStoryIndex}->${segment.toStoryIndex} points=${segment.traversalPath.length} cost=${segment.cost}`;
+    return `${segment.kind} ${segment.fromStoryIndex}:${segment.fromCell.x}:${segment.fromCell.z}->${segment.toStoryIndex}:${segment.toCell.x}:${segment.toCell.z} points=${segment.points.length} stair=${segment.metadata?.stairId ?? "n/a"} cost=${segment.cost}`;
   }).join(" | ");
 }

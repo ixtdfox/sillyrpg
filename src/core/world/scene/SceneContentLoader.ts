@@ -14,6 +14,7 @@ import {
 import "@babylonjs/loaders/glTF";
 import { normalizeAssetPath, resolveSceneAssetPath } from "../../model/SceneAssetPath";
 import { TerrainGenerator } from "../terrain/TerrainGenerator";
+import type { TerrainHeightField } from "../terrain/TerrainHeightField";
 import { TerrainMeshBuilder } from "../terrain/TerrainMeshBuilder";
 import { loadSceneDescriptor } from "./SceneDescriptorLoader";
 import type {
@@ -53,6 +54,7 @@ export interface ImportedSceneObjectContent extends ImportedSceneAssetNodes {
 export interface ImportedSceneTerrainContent extends ImportedSceneAssetNodes {
   readonly root: TransformNode;
   readonly descriptor: SceneTerrainDescriptor;
+  readonly heightField?: TerrainHeightField;
 }
 
 export interface ImportedSceneContent extends ImportedSceneAssetNodes {
@@ -167,6 +169,7 @@ export async function importSceneTerrainContent(
     return {
       root: terrainRoot,
       descriptor,
+      heightField: undefined,
       meshes: [ground],
       renderableMeshes: [ground],
       helperMeshes: [],
@@ -194,6 +197,7 @@ export async function importSceneTerrainContent(
   return {
     root: terrainRoot,
     descriptor,
+    heightField: undefined,
     ...imported
   };
 }
@@ -206,10 +210,16 @@ function importGeneratedTerrainContent(
   const heightField = GENERATED_TERRAIN_GENERATOR.generate(descriptor);
   const mesh = GENERATED_TERRAIN_MESH_BUILDER.build(scene, descriptor, heightField);
   mesh.setParent(terrainRoot, false);
+  mesh.metadata = {
+    ...(mesh.metadata as Record<string, unknown> | undefined),
+    generatedTerrainDescriptor: descriptor,
+    generatedTerrainHeightField: heightField
+  };
 
   return {
     root: terrainRoot,
     descriptor,
+    heightField,
     meshes: [mesh],
     renderableMeshes: [mesh],
     helperMeshes: [],

@@ -13,6 +13,7 @@ import { GridSpatialIndexSystem } from "../entity/systems/grid/GridSpatialIndexS
 import { VisionDetectionSystem } from "../entity/systems/VisionDetectionSystem";
 import { PatrolSystem } from "../entity/systems/PatrolSystem";
 import { PerceptionDebugOverlaySystem } from "../entity/systems/PerceptionDebugOverlaySystem";
+import { GroundAttachmentSystem } from "../entity/systems/GroundAttachmentSystem";
 import { GridSpatialIndex } from "../entity/systems/grid/GridSpatialIndex";
 import { WorldModeController } from "./WorldModeController";
 import { TurnBasedCombatState } from "./TurnBasedCombatState";
@@ -81,6 +82,8 @@ export class GameManager {
   private readonly localPlayerInputSystem: LocalPlayerInputSystem;
   /** ECS system that advances path-based movement. */
   private readonly movementSystem: MovementSystem;
+  /** ECS system that snaps grounded entities onto terrain/floor surfaces. */
+  private readonly groundAttachmentSystem: GroundAttachmentSystem;
 
   /** ECS system that keeps the grid-cell broad-phase spatial index in sync. */
   private readonly gridSpatialIndexSystem: GridSpatialIndexSystem;
@@ -173,6 +176,7 @@ export class GameManager {
       movementCostResolver,
       gridSpatialIndex,
     );
+    this.groundAttachmentSystem = new GroundAttachmentSystem(this.entityManager);
     this.patrolSystem = new PatrolSystem(
       this.entityManager,
       this.worldModeController,
@@ -239,6 +243,7 @@ export class GameManager {
       this.turnBasedCombatSystem,
       this.patrolSystem,
       this.movementSystem,
+      this.groundAttachmentSystem,
       this.gridSpatialIndexSystem,
       this.combatMovementPreviewSystem,
       this.hoveredCombatTargetSystem,
@@ -324,6 +329,7 @@ export class GameManager {
     this.basicCombatAiService.setScene(gameplayScene);
     this.localPlayerInputSystem.setScene(gameplayScene);
     this.movementSystem.setScene(gameplayScene);
+    this.groundAttachmentSystem.setScene(gameplayScene);
     this.patrolSystem.setScene(gameplayScene);
     this.visionDetectionSystem.setScene(gameplayScene);
     this.perceptionDebugOverlaySystem.setScene(gameplayScene);

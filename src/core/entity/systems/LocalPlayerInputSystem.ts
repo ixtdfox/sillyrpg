@@ -537,11 +537,7 @@ function formatStairPathBounds(path: readonly { readonly x: number; readonly y: 
 }
 
 function formatCombatStairMoveSegments(path: readonly MovementSegment[]): string {
-  return path.map((segment) => {
-    if (segment.kind === "walk") {
-      return `walk:${segment.storyIndex}:${segment.cell.x}:${segment.cell.z}:cost=${segment.cost}`;
-    }
-
-    return `stair:${segment.stairId}:${segment.fromStoryIndex}->${segment.toStoryIndex}:cost=${segment.cost}:points=${segment.traversalPath.length}`;
-  }).join("|");
+  return path.map((segment) =>
+    `${segment.kind}:${segment.fromStoryIndex}:${segment.fromCell.x}:${segment.fromCell.z}->${segment.toStoryIndex}:${segment.toCell.x}:${segment.toCell.z}:cost=${segment.cost}:points=${segment.points.length}:stair=${segment.metadata?.stairId ?? "n/a"}`
+  ).join("|");
 }

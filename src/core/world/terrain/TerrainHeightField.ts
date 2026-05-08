@@ -52,6 +52,49 @@ export class TerrainHeightField {
     return this.heights[this.getIndex(ix, iz)] ?? 0;
   }
 
+  public containsLocalPoint(x: number, z: number): boolean {
+    const halfWidth = this.width * 0.5;
+    const halfDepth = this.depth * 0.5;
+    return x >= -halfWidth && x <= halfWidth && z >= -halfDepth && z <= halfDepth;
+  }
+
+  public sampleBilinearLocal(x: number, z: number): number | null {
+    if (!this.containsLocalPoint(x, z)) {
+      return null;
+    }
+
+    if (this.resolutionX <= 0 || this.resolutionZ <= 0) {
+      return null;
+    }
+
+    if (this.resolutionX === 1 && this.resolutionZ === 1) {
+      return this.getHeight(0, 0);
+    }
+
+    const u = this.width === 0 ? 0 : (x / this.width) + 0.5;
+    const v = this.depth === 0 ? 0 : 0.5 - (z / this.depth);
+
+    const xCoord = clamp(u, 0, 1) * Math.max(0, this.resolutionX - 1);
+    const zCoord = clamp(v, 0, 1) * Math.max(0, this.resolutionZ - 1);
+
+    const x0 = clampIndex(Math.floor(xCoord), this.resolutionX);
+    const x1 = clampIndex(Math.ceil(xCoord), this.resolutionX);
+    const z0 = clampIndex(Math.floor(zCoord), this.resolutionZ);
+    const z1 = clampIndex(Math.ceil(zCoord), this.resolutionZ);
+
+    const tx = x1 === x0 ? 0 : xCoord - x0;
+    const tz = z1 === z0 ? 0 : zCoord - z0;
+
+    const h00 = this.getHeight(x0, z0);
+    const h10 = this.getHeight(x1, z0);
+    const h01 = this.getHeight(x0, z1);
+    const h11 = this.getHeight(x1, z1);
+
+    const top = lerp(h00, h10, tx);
+    const bottom = lerp(h01, h11, tx);
+    return lerp(top, bottom, tz);
+  }
+
   public cloneHeights(): Float32Array {
     return this.heights.slice();
   }
@@ -75,4 +118,16 @@ export class TerrainHeightField {
   private getIndex(ix: number, iz: number): number {
     return iz * this.resolutionX + ix;
   }
+}
+
+function clamp(value: number, min: number, max: number): number {
+  return Math.min(max, Math.max(min, value));
+}
+
+function clampIndex(value: number, resolution: number): number {
+  return clamp(value, 0, Math.max(0, resolution - 1));
+}
+
+function lerp(a: number, b: number, t: number): number {
+  return a + ((b - a) * t);
 }

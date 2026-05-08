@@ -7,6 +7,7 @@ import { AIComponent } from "./components/AIComponent";
 import { CombatStatsComponent } from "./components/CombatStatsComponent";
 import { DetectableComponent } from "./components/DetectableComponent";
 import { DetectionStateComponent } from "./components/DetectionStateComponent";
+import { GroundAttachmentComponent, type GroundAttachmentMode } from "./components/GroundAttachmentComponent";
 import { GridPathMovementComponent } from "./components/GridPathMovementComponent";
 import { IdentityComponent } from "./components/IdentityComponent";
 import { LocalPlayerComponent } from "./components/LocalPlayerComponent";
@@ -74,6 +75,14 @@ interface GridPathMovementData {
   speed: number;
 }
 
+interface GroundAttachmentData {
+  enabled?: boolean;
+  footOffset?: number;
+  mode?: GroundAttachmentMode;
+  maxSnapDistance?: number;
+  allowDuringMovement?: boolean;
+}
+
 interface DetectableData {
   kind: string;
   isVisible?: boolean;
@@ -110,6 +119,7 @@ export interface ComponentOverrideMap {
   ai?: Record<string, never>;
   localPlayer?: Record<string, never>;
   gridPathMovement?: Partial<GridPathMovementData>;
+  groundAttachment?: Partial<GroundAttachmentData>;
   vision?: Partial<VisionData>;
   detectionState?: Record<string, never>;
   patrol?: Partial<PatrolData>;
@@ -453,6 +463,13 @@ export class EntityPrefabFactory {
         }
       ],
       [
+        "groundAttachment",
+        (definition, context) => {
+          const data = this.parseGroundAttachmentData(definition.data, context.prefabId);
+          return { ctor: GroundAttachmentComponent, instance: new GroundAttachmentComponent(data) };
+        }
+      ],
+      [
         "vision",
         (definition, context) => {
           const data = this.parseVisionData(definition.data, context.prefabId);
@@ -578,6 +595,34 @@ export class EntityPrefabFactory {
     const parsed = this.assertRecord(data, prefabId, "gridPathMovement", "data") as Partial<GridPathMovementData>;
     this.assertNumber(parsed.speed, prefabId, "gridPathMovement", "speed");
     return { speed: parsed.speed };
+  }
+
+  private parseGroundAttachmentData(data: unknown, prefabId: string): GroundAttachmentData {
+    const parsed = this.assertRecord(data, prefabId, "groundAttachment", "data") as Partial<GroundAttachmentData>;
+
+    if (typeof parsed.enabled !== "undefined" && typeof parsed.enabled !== "boolean") {
+      throw new Error(`Invalid component payload: prefab id=${prefabId}, component type=groundAttachment, field=enabled`);
+    }
+    if (typeof parsed.footOffset !== "undefined") {
+      this.assertNumber(parsed.footOffset, prefabId, "groundAttachment", "footOffset");
+    }
+    if (typeof parsed.mode !== "undefined" && parsed.mode !== "snap" && parsed.mode !== "smooth") {
+      throw new Error(`Invalid component payload: prefab id=${prefabId}, component type=groundAttachment, field=mode`);
+    }
+    if (typeof parsed.maxSnapDistance !== "undefined") {
+      this.assertNumber(parsed.maxSnapDistance, prefabId, "groundAttachment", "maxSnapDistance");
+    }
+    if (typeof parsed.allowDuringMovement !== "undefined" && typeof parsed.allowDuringMovement !== "boolean") {
+      throw new Error(`Invalid component payload: prefab id=${prefabId}, component type=groundAttachment, field=allowDuringMovement`);
+    }
+
+    return {
+      enabled: parsed.enabled,
+      footOffset: parsed.footOffset,
+      mode: parsed.mode,
+      maxSnapDistance: parsed.maxSnapDistance,
+      allowDuringMovement: parsed.allowDuringMovement
+    };
   }
 
   private parseDetectableData(data: unknown, prefabId: string): DetectableData {

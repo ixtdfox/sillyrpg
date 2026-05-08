@@ -28,8 +28,8 @@ export class GridPathMovementComponent implements Component {
   /** Index of the current movement segment. */
   public currentSegmentIndex: number;
 
-  /** Index of the next stair checkpoint inside the current stair segment. */
-  public currentStairPointIndex: number;
+  /** Index of the next route point inside the current movement segment. */
+  public currentPointIndex: number;
 
   /** Destination cell for the active precomputed path. */
   public activeTargetCell: GridCell | null;
@@ -53,7 +53,7 @@ export class GridPathMovementComponent implements Component {
     this.nextStepIndex = 0;
     this.pathSegments = [];
     this.currentSegmentIndex = 0;
-    this.currentStairPointIndex = 0;
+    this.currentPointIndex = 0;
     this.activeTargetCell = null;
     this.activeTargetStoryIndex = null;
     this.isMoving = false;
@@ -67,7 +67,7 @@ export class GridPathMovementComponent implements Component {
     this.nextStepIndex = 0;
     this.pathSegments = [];
     this.currentSegmentIndex = 0;
-    this.currentStairPointIndex = 0;
+    this.currentPointIndex = 0;
     this.activeTargetCell = null;
     this.activeTargetStoryIndex = null;
     this.isMoving = false;

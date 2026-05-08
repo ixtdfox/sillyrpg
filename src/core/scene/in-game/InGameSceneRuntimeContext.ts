@@ -1,6 +1,8 @@
 import type { Scene as BabylonScene } from "@babylonjs/core";
 import type { RectGridRuntime } from "../../grid/RectGridRuntime";
 import type { LocationManager } from "../../world/location/LocationManager";
+import type { SurfaceHeightResolver } from "../../world/surface/SurfaceHeightResolver";
+import type { TerrainSurfaceRegistry } from "../../world/terrain/TerrainSurfaceRegistry";
 import type { InGameTopPanelUi } from "./ui/InGameTopPanelUi";
 
 /**
@@ -10,6 +12,8 @@ export interface InGameSceneRuntimeContext {
   readonly gridRuntime: RectGridRuntime;
   readonly locationManager: LocationManager;
   readonly topPanelUi: InGameTopPanelUi;
+  readonly terrainSurfaceRegistry: TerrainSurfaceRegistry;
+  readonly surfaceHeightResolver: SurfaceHeightResolver;
 }
 
 /**
