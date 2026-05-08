@@ -99,7 +99,7 @@
       "asset": "assets/models/buildings/silent_1.glb",
       "position": [
         -3,
-        0,
+        2,
         -2
       ],
       "rotation": [
@@ -118,9 +118,9 @@
       "type": "building",
       "asset": "assets/models/buildings/silent_3.glb",
       "position": [
-        16,
-        0,
-        -10
+        17,
+        2,
+        -12
       ],
       "rotation": [
         0,

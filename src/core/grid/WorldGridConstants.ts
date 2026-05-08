@@ -25,4 +25,6 @@ export const RECT_TILE_SIZE = WORLD_TILE_SIZE;
  * move the grid contract.
  */
 export const WORLD_GRID_ORIGIN_X = 0;
+export const WORLD_GRID_ORIGIN_Y = 0;
 export const WORLD_GRID_ORIGIN_Z = 0;
+export const WORLD_VERTICAL_TILE_SIZE = WORLD_TILE_SIZE;

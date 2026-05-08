@@ -1,4 +1,5 @@
 import { TerrainGenerator } from "../../../src/core/world/terrain/TerrainGenerator";
+import { WORLD_GRID_ORIGIN_Y, WORLD_VERTICAL_TILE_SIZE } from "../../../src/core/grid/WorldGridConstants";
 import { createGeneratedTerrainDescriptorFromPreset } from "../../../src/core/world/terrain/TerrainGeneratorPresets";
 
 function assert(condition: boolean, message: string): void {
@@ -102,6 +103,23 @@ function testUnknownStrategyFallsBackDeterministically(): void {
   }
 }
 
+function testGeneratedHeightsAreQuantizedToVerticalGrid(): void {
+  const generator = new TerrainGenerator();
+  const field = generator.generate(
+    createGeneratedTerrainDescriptorFromPreset({
+      presetId: "rocky-ridges",
+      seed: 404,
+      size: [400, 400],
+      resolution: [65, 65]
+    })
+  );
+
+  for (let index = 0; index < field.heights.length; index += 1) {
+    const normalized = ((field.heights[index] ?? 0) - WORLD_GRID_ORIGIN_Y) / WORLD_VERTICAL_TILE_SIZE;
+    assertClose(normalized, Math.round(normalized), `Height ${index} should be snapped to the vertical grid`);
+  }
+}
+
 function run(): void {
   testSameSeedProducesSameHeights();
   testDifferentSeedChangesTerrain();
@@ -110,6 +128,7 @@ function run(): void {
   testRockyRidgesHaveLargeRange();
   testMountainsHaveVeryLargeRange();
   testUnknownStrategyFallsBackDeterministically();
+  testGeneratedHeightsAreQuantizedToVerticalGrid();
 }
 
 run();

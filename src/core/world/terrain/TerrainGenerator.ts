@@ -5,6 +5,7 @@ import type { TerrainHeightModifier } from "./TerrainHeightModifier";
 import { TerrainHeightField } from "./TerrainHeightField";
 import { TerrainCenterFlattenModifier } from "./modifiers/TerrainCenterFlattenModifier";
 import { TerrainFalloffModifier } from "./modifiers/TerrainFalloffModifier";
+import { TerrainHeightQuantizeModifier } from "./modifiers/TerrainHeightQuantizeModifier";
 import { TerrainSmoothModifier } from "./modifiers/TerrainSmoothModifier";
 import { TerrainTerraceModifier } from "./modifiers/TerrainTerraceModifier";
 import { FlatTerrainStrategy } from "./strategies/FlatTerrainStrategy";
@@ -31,7 +32,8 @@ export class TerrainGenerator {
       new TerrainFalloffModifier(),
       new TerrainCenterFlattenModifier(),
       new TerrainTerraceModifier(),
-      new TerrainSmoothModifier()
+      new TerrainSmoothModifier(),
+      new TerrainHeightQuantizeModifier()
     ]
   ) {
     this.strategyRegistry = strategyRegistry;

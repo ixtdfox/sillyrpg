@@ -16,10 +16,12 @@ import { loadSceneDescriptor } from "../core/world/scene/SceneDescriptorLoader";
 import { BuildingThumbnailService } from "./assets/BuildingThumbnailService";
 import { EditorCameraController } from "./EditorCameraController";
 import { EditorGridOverlay } from "./EditorGridOverlay";
+import { EditorObjectMoveController } from "./EditorObjectMoveController";
 import { snapEditorPlacement } from "./EditorPlacementSnapping";
 import { EditorSceneLoader } from "./EditorSceneLoader";
 import { EditorSceneRegistry } from "./EditorSceneRegistry";
 import { EditorSceneDocument } from "./state/EditorSceneDocument";
+import type { EditorMoveAxisMode } from "./state/EditorMoveAxisMode";
 import { saveSceneDescriptor, exportSceneDescriptorJson } from "./state/EditorScenePersistence";
 import { EditorSelectionState } from "./state/EditorSelectionState";
 import type { EditorTransformMode } from "./state/EditorTransformMode";
@@ -57,12 +59,11 @@ export class EditorScene implements Scene {
   private sceneOptions: readonly EditorSceneOption[];
   private buildingOptions: readonly EditorBuildingAssetOption[];
   private transformMode: EditorTransformMode;
+  private moveAxisMode: EditorMoveAxisMode;
   private isLoading: boolean;
   private statusMessage: string;
   private readonly highlightedMeshes: Mesh[];
-  private movingObjectId: string | null;
-  private activeMovePointerId: number | null;
-  private activeMoveOffset: Vector3 | null;
+  private readonly objectMoveController: EditorObjectMoveController;
   private pendingClick: PendingClickState | null;
   private readonly onCanvasDragOver: (event: DragEvent) => void;
   private readonly onCanvasDrop: (event: DragEvent) => void;
@@ -95,12 +96,11 @@ export class EditorScene implements Scene {
     this.sceneOptions = [];
     this.buildingOptions = [];
     this.transformMode = "select";
+    this.moveAxisMode = "xz";
     this.isLoading = false;
     this.statusMessage = "";
     this.highlightedMeshes = [];
-    this.movingObjectId = null;
-    this.activeMovePointerId = null;
-    this.activeMoveOffset = null;
+    this.objectMoveController = new EditorObjectMoveController();
     this.pendingClick = null;
 
     this.onCanvasDragOver = (event) => {
@@ -194,7 +194,13 @@ export class EditorScene implements Scene {
       },
       onSetTransformMode: (mode) => {
         this.transformMode = mode;
-        this.ui?.setTransformMode(mode);
+        this.statusMessage = mode === "move" ? getMoveAxisDescription(this.moveAxisMode) : "Selection mode active.";
+        this.refreshUi();
+      },
+      onSetMoveAxisMode: (mode) => {
+        this.moveAxisMode = mode;
+        this.statusMessage = getMoveAxisDescription(mode);
+        this.refreshUi();
       },
       onRotateSelected: (direction) => {
         this.rotateSelectedObject(direction);
@@ -212,6 +218,7 @@ export class EditorScene implements Scene {
 
     this.ui.setGridVisible(true);
     this.ui.setAxesVisible(true);
+    this.ui.setMoveAxisMode(this.moveAxisMode);
 
     this.canvas.addEventListener("dragover", this.onCanvasDragOver);
     this.canvas.addEventListener("drop", this.onCanvasDrop);
@@ -239,7 +246,7 @@ export class EditorScene implements Scene {
       this.gridOverlay = null;
       this.ui?.dispose();
       this.ui = null;
-      this.activeMoveOffset = null;
+      this.objectMoveController.cancelMove();
       this.scene = null;
     });
 
@@ -323,6 +330,7 @@ export class EditorScene implements Scene {
       this.document = new EditorSceneDocument(option.rawDescriptorPath, loadedDescriptor.descriptor);
       await this.sceneLoader.load(option, this.document.descriptor);
       this.terrainController?.bind(this.document, this.sceneLoader);
+      this.objectMoveController.cancelMove();
       this.clearSelection();
       this.gridOverlay.refreshFromMeshes(this.sceneLoader.getRenderableMeshes());
       this.statusMessage = "";
@@ -383,19 +391,25 @@ export class EditorScene implements Scene {
       if (objectId && objectId === selectedObjectId) {
         const objectDescriptor = this.document?.getObject(objectId);
         const currentHit = this.pickPlacementPoint(event.clientX, event.clientY);
-        this.movingObjectId = objectId;
-        this.activeMovePointerId = event.pointerId;
-        this.activeMoveOffset =
-          objectDescriptor && currentHit
-            ? new Vector3(
-                objectDescriptor.position[0],
-                objectDescriptor.position[1],
-                objectDescriptor.position[2]
-              ).subtract(currentHit)
-            : Vector3.Zero();
-        this.canvas.setPointerCapture(event.pointerId);
-        event.preventDefault();
-        return;
+        if (objectDescriptor) {
+          const didStartMove = this.objectMoveController.beginMove({
+            pointerId: event.pointerId,
+            clientY: event.clientY,
+            objectId,
+            objectPosition: new Vector3(
+              objectDescriptor.position[0],
+              objectDescriptor.position[1],
+              objectDescriptor.position[2]
+            ),
+            axisMode: this.moveAxisMode,
+            placementPoint: currentHit
+          });
+          if (didStartMove) {
+            this.canvas.setPointerCapture(event.pointerId);
+            event.preventDefault();
+            return;
+          }
+        }
       }
     }
 
@@ -411,39 +425,49 @@ export class EditorScene implements Scene {
       return;
     }
 
-    if (this.movingObjectId && this.activeMovePointerId === event.pointerId) {
-      const objectDescriptor = this.document.getObject(this.movingObjectId);
+    if (this.objectMoveController.isMovingPointer(event.pointerId)) {
+      const movingObjectId = this.objectMoveController.getActiveObjectId();
+      if (!movingObjectId) {
+        return;
+      }
+
+      const objectDescriptor = this.document.getObject(movingObjectId);
       if (!objectDescriptor) {
         return;
       }
 
-      const placementPoint = this.pickPlacementPoint(event.clientX, event.clientY);
-      if (!placementPoint) {
+      const nextMove = this.objectMoveController.updateMove({
+        pointerId: event.pointerId,
+        clientY: event.clientY,
+        currentPosition: new Vector3(
+          objectDescriptor.position[0],
+          objectDescriptor.position[1],
+          objectDescriptor.position[2]
+        ),
+        placementPoint: this.moveAxisMode === "y" ? null : this.pickPlacementPoint(event.clientX, event.clientY)
+      });
+      if (!nextMove) {
         return;
       }
 
-      const rawPosition = placementPoint.add(this.activeMoveOffset ?? Vector3.Zero());
-      const nextPosition = snapEditorPlacement(rawPosition, objectDescriptor.position[1]);
-      this.document.updateObjectTransform(this.movingObjectId, { position: nextPosition });
-      const nextDescriptor = this.document.getObject(this.movingObjectId);
+      this.document.updateObjectTransform(nextMove.objectId, { position: nextMove.nextPosition });
+      const nextDescriptor = this.document.getObject(nextMove.objectId);
       if (!nextDescriptor) {
         return;
       }
 
-      this.sceneLoader.updateObjectTransform(this.movingObjectId, nextDescriptor);
+      this.sceneLoader.updateObjectTransform(nextMove.objectId, nextDescriptor);
       this.refreshUi();
       event.preventDefault();
     }
   }
 
   private handleCanvasPointerUp(event: PointerEvent): void {
-    if (this.movingObjectId && this.activeMovePointerId === event.pointerId) {
+    if (this.objectMoveController.isMovingPointer(event.pointerId)) {
       if (this.canvas.hasPointerCapture(event.pointerId)) {
         this.canvas.releasePointerCapture(event.pointerId);
       }
-      this.activeMovePointerId = null;
-      this.movingObjectId = null;
-      this.activeMoveOffset = null;
+      this.objectMoveController.cancelMove(event.pointerId);
       this.statusMessage = "Object moved.";
       this.refreshUi();
       return;
@@ -607,6 +631,7 @@ export class EditorScene implements Scene {
     );
     this.ui?.setSelectedObject(this.selectionState.getSelectedObjectId() ? this.document?.getObject(this.selectionState.getSelectedObjectId()!) ?? null : null);
     this.ui?.setTransformMode(this.transformMode);
+    this.ui?.setMoveAxisMode(this.moveAxisMode);
   }
 
   private describeTerrainStatus(): string {
@@ -757,6 +782,19 @@ export class EditorScene implements Scene {
     const segments = descriptorPath.split("/");
     return segments[segments.length - 1] ?? "scene.json";
   }
+}
+
+function getMoveAxisDescription(mode: EditorMoveAxisMode): string {
+  if (mode === "x") {
+    return "Move X: drag selected object horizontally on X only. Snaps to 1m grid.";
+  }
+  if (mode === "z") {
+    return "Move Z: drag selected object horizontally on Z only. Snaps to 1m grid.";
+  }
+  if (mode === "y") {
+    return "Move Y: drag up or down to move selected object vertically. Snaps to 1m grid.";
+  }
+  return "Move X/Z: drag selected object on the ground plane. Snaps to 1m grid.";
 }
 
 function normalizeQuarterTurn(value: number): number {

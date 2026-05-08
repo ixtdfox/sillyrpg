@@ -90,12 +90,16 @@ export class TerrainGeneratorPanel {
 
       ${this.renderNumberSection("Height Noise", [
         this.numberField("seed", "Seed", descriptor.generator.seed, 0, 2147483647, 1),
-        this.rangeField("amplitude", "Amplitude", descriptor.generator.height.amplitude, 0, 200, 0.5),
+        this.rangeField("amplitude", "Amplitude", descriptor.generator.height.amplitude, 0, 200, 1),
         this.rangeField("frequency", "Noise frequency", descriptor.generator.height.frequency, 0.005, 0.12, 0.001),
         this.rangeField("octaves", "Octaves", descriptor.generator.height.octaves, 1, 8, 1),
         this.rangeField("persistence", "Persistence", descriptor.generator.height.persistence, 0, 1, 0.01),
         this.rangeField("lacunarity", "Lacunarity", descriptor.generator.height.lacunarity, 1, 4, 0.05)
       ])}
+
+      <div class="editor-card editor-card--compact">
+        <div class="editor-card__line">Heights snap to 1.00m vertical grid.</div>
+      </div>
 
       ${this.renderNumberSection("Shape / Falloff", [
         this.toggleField("falloffEnabled", "Falloff", descriptor.generator.falloff?.enabled ?? false),

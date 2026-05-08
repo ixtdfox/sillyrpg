@@ -4,6 +4,7 @@ import type {
   TerrainGeneratorPanelViewModel
 } from "../terrain/EditorTerrainTypes";
 import type { EditorBrowserTab, EditorBuildingAssetOption, EditorSceneOption } from "../types";
+import type { EditorMoveAxisMode } from "../state/EditorMoveAxisMode";
 import type { EditorTransformMode } from "../state/EditorTransformMode";
 import { editorIconSvg, type EditorIconName } from "./EditorIcons";
 import { TerrainGeneratorPanel } from "./TerrainGeneratorPanel";
@@ -20,6 +21,7 @@ interface EditorUiCallbacks {
   readonly onAddTerrain: () => void;
   readonly terrainPanel: TerrainGeneratorPanelCallbacks;
   readonly onSetTransformMode: (mode: EditorTransformMode) => void;
+  readonly onSetMoveAxisMode: (mode: EditorMoveAxisMode) => void;
   readonly onRotateSelected: (direction: -1 | 1) => void;
   readonly onDeleteSelected: () => void;
   readonly onSaveScene: () => void;
@@ -68,6 +70,8 @@ export class EditorUi {
   private readonly addTerrainButton: HTMLButtonElement;
   private readonly selectToolButton: HTMLButtonElement;
   private readonly moveToolButton: HTMLButtonElement;
+  private readonly moveAxisStrip: HTMLDivElement;
+  private readonly moveAxisButtons: Record<EditorMoveAxisMode, HTMLButtonElement>;
   private readonly sceneButtons: Map<string, HTMLButtonElement>;
   private readonly buildingCards: Map<string, HTMLButtonElement>;
   private readonly tabs: Record<EditorBrowserTab, TabButtonState>;
@@ -231,6 +235,19 @@ export class EditorUi {
     });
     toolRail.appendChild(this.moveToolButton);
 
+    this.moveAxisStrip = document.createElement("div");
+    this.moveAxisStrip.className = "editor-move-axis-strip";
+    this.moveAxisButtons = {
+      xz: this.createMoveAxisButton("XZ", "Move on X/Z plane", () => callbacks.onSetMoveAxisMode("xz")),
+      x: this.createMoveAxisButton("X", "Move on X axis", () => callbacks.onSetMoveAxisMode("x")),
+      z: this.createMoveAxisButton("Z", "Move on Z axis", () => callbacks.onSetMoveAxisMode("z")),
+      y: this.createMoveAxisButton("Y", "Move on Y axis", () => callbacks.onSetMoveAxisMode("y"))
+    };
+    for (const mode of ["xz", "x", "z", "y"] as const) {
+      this.moveAxisStrip.appendChild(this.moveAxisButtons[mode]);
+    }
+    toolRail.appendChild(this.moveAxisStrip);
+
     toolRail.appendChild(
       this.createIconButton({
         className: "editor-tool-button",
@@ -275,7 +292,7 @@ export class EditorUi {
     viewportHint.className = "editor-viewport-hint";
     viewportHint.innerHTML = `
       <div>Drag building cards into the viewport to place them.</div>
-      <div>Use <strong>Move</strong> to drag selected objects on the X/Z plane.</div>
+      <div>Use <strong>Move</strong> to drag selected objects on snapped X/Z or Y axes.</div>
     `;
     leftColumn.appendChild(viewportHint);
 
@@ -384,6 +401,7 @@ export class EditorUi {
       appliedSummary: "none"
     });
     this.setTransformMode("select");
+    this.setMoveAxisMode("xz");
   }
 
   public setSceneOptions(options: readonly EditorSceneOption[], selectedId: string | null): void {
@@ -531,9 +549,16 @@ export class EditorUi {
       <div class="editor-card__line">id: ${escapeHtml(object.id)}</div>
       <div class="editor-card__line">type: ${escapeHtml(object.type)}</div>
       <div class="editor-card__line">asset: ${escapeHtml(object.asset)}</div>
-      <div class="editor-card__line">position: ${formatVector3(object.position)}</div>
-      <div class="editor-card__line">rotation: 0°, ${rotationDegrees}°, 0°</div>
-      <div class="editor-card__line">scale: ${formatVector3(object.scale)}</div>
+      <div class="editor-card__section-label">Position</div>
+      <div class="editor-card__line">X: ${formatScalar(object.position[0])}</div>
+      <div class="editor-card__line">Y: ${formatScalar(object.position[1])}</div>
+      <div class="editor-card__line">Z: ${formatScalar(object.position[2])}</div>
+      <div class="editor-card__section-label">Rotation</div>
+      <div class="editor-card__line">Y: ${rotationDegrees}°</div>
+      <div class="editor-card__section-label">Scale</div>
+      <div class="editor-card__line">X: ${formatScalar(object.scale[0])}</div>
+      <div class="editor-card__line">Y: ${formatScalar(object.scale[1])}</div>
+      <div class="editor-card__line">Z: ${formatScalar(object.scale[2])}</div>
     `;
   }
 
@@ -558,6 +583,13 @@ export class EditorUi {
   public setTransformMode(mode: EditorTransformMode): void {
     this.selectToolButton.classList.toggle("is-active", mode === "select");
     this.moveToolButton.classList.toggle("is-active", mode === "move");
+    this.moveAxisStrip.classList.toggle("is-visible", mode === "move");
+  }
+
+  public setMoveAxisMode(mode: EditorMoveAxisMode): void {
+    for (const [axisMode, button] of Object.entries(this.moveAxisButtons) as [EditorMoveAxisMode, HTMLButtonElement][]) {
+      button.classList.toggle("is-active", axisMode === mode);
+    }
   }
 
   public dispose(): void {
@@ -593,6 +625,17 @@ export class EditorUi {
     return button;
   }
 
+  private createMoveAxisButton(label: string, tooltip: string, onClick: () => void): HTMLButtonElement {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = "editor-move-axis-button";
+    button.title = tooltip;
+    button.setAttribute("aria-label", tooltip);
+    button.textContent = label;
+    button.addEventListener("click", onClick);
+    return button;
+  }
+
   private createEmptyState(text: string): HTMLDivElement {
     const emptyState = document.createElement("div");
     emptyState.className = "editor-empty";
@@ -610,8 +653,8 @@ export class EditorUi {
   }
 }
 
-function formatVector3(value: readonly [number, number, number]): string {
-  return `${value[0].toFixed(2)}, ${value[1].toFixed(2)}, ${value[2].toFixed(2)}`;
+function formatScalar(value: number): string {
+  return Number.isInteger(value) ? `${value}` : value.toFixed(2);
 }
 
 function normalizeQuarterTurnDegrees(radians: number): number {
@@ -806,6 +849,36 @@ function buildEditorCss(): string {
       white-space: normal;
       line-height: 1.2;
     }
+    .editor-move-axis-strip {
+      display: none;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 6px;
+    }
+    .editor-move-axis-strip.is-visible {
+      display: grid;
+    }
+    .editor-move-axis-button {
+      min-width: 0;
+      min-height: 32px;
+      border-radius: 10px;
+      border: 1px solid rgba(145, 171, 196, 0.18);
+      background: rgba(12, 18, 26, 0.9);
+      color: #edf2f7;
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      cursor: pointer;
+      transition: transform 120ms ease, border-color 120ms ease, background 120ms ease, box-shadow 120ms ease;
+    }
+    .editor-move-axis-button:hover {
+      transform: translateY(-1px);
+      border-color: rgba(240, 197, 95, 0.45);
+    }
+    .editor-move-axis-button.is-active {
+      background: linear-gradient(180deg, rgba(55, 85, 112, 0.96), rgba(27, 43, 60, 0.96));
+      border-color: rgba(247, 201, 72, 0.58);
+      box-shadow: 0 0 0 1px rgba(247, 201, 72, 0.2);
+    }
     .editor-tabs {
       display: grid;
       grid-template-columns: repeat(4, minmax(0, 1fr));
@@ -864,6 +937,14 @@ function buildEditorCss(): string {
       color: #aebdcb;
       line-height: 1.45;
       word-break: break-word;
+    }
+    .editor-card__section-label {
+      margin-top: 8px;
+      font-size: 11px;
+      font-weight: 700;
+      color: #d4dee8;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
     }
     .editor-building-card {
       display: grid;
