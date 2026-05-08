@@ -3,11 +3,13 @@ import type {
   TerrainGeneratorPanelCallbacks,
   TerrainGeneratorPanelViewModel
 } from "../terrain/EditorTerrainTypes";
+import type { TerrainToolsPanelCallbacks, TerrainToolsPanelViewModel } from "../terrain/tools/EditorTerrainToolState";
 import type { EditorBrowserTab, EditorBuildingAssetOption, EditorSceneOption } from "../types";
 import type { EditorMoveAxisMode } from "../state/EditorMoveAxisMode";
 import type { EditorTransformMode } from "../state/EditorTransformMode";
 import { editorIconSvg, type EditorIconName } from "./EditorIcons";
 import { TerrainGeneratorPanel } from "./TerrainGeneratorPanel";
+import { TerrainToolsPanel } from "./TerrainToolsPanel";
 
 interface EditorUiCallbacks {
   readonly onBackToMenu: () => void;
@@ -20,6 +22,7 @@ interface EditorUiCallbacks {
   readonly onSelectBuilding: (buildingId: string) => void;
   readonly onAddTerrain: () => void;
   readonly terrainPanel: TerrainGeneratorPanelCallbacks;
+  readonly terrainToolsPanel: TerrainToolsPanelCallbacks;
   readonly onSetTransformMode: (mode: EditorTransformMode) => void;
   readonly onSetMoveAxisMode: (mode: EditorMoveAxisMode) => void;
   readonly onRotateSelected: (direction: -1 | 1) => void;
@@ -61,6 +64,7 @@ export class EditorUi {
   private readonly buildingGrid: HTMLDivElement;
   private readonly terrainPanelHost: HTMLDivElement;
   private readonly terrainPanel: TerrainGeneratorPanel;
+  private readonly terrainToolsPanel: TerrainToolsPanel;
   private readonly inspector: HTMLDivElement;
   private readonly sceneInfo: HTMLDivElement;
   private readonly messageBadge: HTMLDivElement;
@@ -308,8 +312,12 @@ export class EditorUi {
     this.sceneList.className = "editor-scrollpanel";
     sidePanel.appendChild(this.sceneList);
 
+    this.terrainPanelHost = document.createElement("div");
+    this.terrainPanelHost.className = "editor-scrollpanel editor-terrain-stack";
     this.terrainPanel = new TerrainGeneratorPanel(callbacks.terrainPanel);
-    this.terrainPanelHost = this.terrainPanel.getElement();
+    this.terrainToolsPanel = new TerrainToolsPanel(callbacks.terrainToolsPanel);
+    this.terrainPanelHost.appendChild(this.terrainPanel.getElement());
+    this.terrainPanelHost.appendChild(this.terrainToolsPanel.getElement());
     sidePanel.appendChild(this.terrainPanelHost);
 
     this.buildingGrid = document.createElement("div");
@@ -399,6 +407,22 @@ export class EditorUi {
       dirty: false,
       draftDirty: false,
       appliedSummary: "none"
+    });
+    this.setTerrainToolsPanel({
+      enabled: false,
+      hasTerrain: false,
+      activeTool: "raise",
+      brush: {
+        shape: "circle",
+        radius: 4,
+        strength: 10,
+        falloff: 0.65
+      },
+      targetHeight: 0,
+      snapHeightStep: 1,
+      edited: false,
+      stats: null,
+      message: ""
     });
     this.setTransformMode("select");
     this.setMoveAxisMode("xz");
@@ -532,6 +556,10 @@ export class EditorUi {
 
   public setTerrainPanel(viewModel: TerrainGeneratorPanelViewModel): void {
     this.terrainPanel.setViewModel(viewModel);
+  }
+
+  public setTerrainToolsPanel(viewModel: TerrainToolsPanelViewModel): void {
+    this.terrainToolsPanel.setViewModel(viewModel);
   }
 
   public setSelectedObject(object: SceneObjectDescriptor | null): void {
@@ -1010,6 +1038,11 @@ function buildEditorCss(): string {
       align-content: start;
       gap: 10px;
     }
+    .editor-terrain-stack {
+      display: grid;
+      align-content: start;
+      gap: 10px;
+    }
     .editor-terrain__actions {
       display: grid;
       gap: 10px;
@@ -1054,6 +1087,17 @@ function buildEditorCss(): string {
       border-color: rgba(111, 180, 235, 0.42);
       background: rgba(20, 31, 44, 0.92);
       transform: translateY(-1px);
+    }
+    .editor-mini-button.is-active,
+    .editor-mini-button--tool.is-active {
+      background: linear-gradient(180deg, rgba(55, 85, 112, 0.96), rgba(27, 43, 60, 0.96));
+      border-color: rgba(247, 201, 72, 0.58);
+      box-shadow: 0 0 0 1px rgba(247, 201, 72, 0.2);
+    }
+    .editor-tool-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 8px;
     }
     .editor-terrain__grid {
       display: grid;

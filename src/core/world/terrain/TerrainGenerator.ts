@@ -1,4 +1,5 @@
 import type { SceneGeneratedTerrainDescriptor } from "../scene/SceneDescriptor";
+import { deserializeTerrainHeightField } from "./editing/TerrainHeightSerialization";
 import { TerrainGenerationContext } from "./TerrainGenerationContext";
 import { TerrainGenerationStrategyRegistry } from "./TerrainGenerationStrategyRegistry";
 import type { TerrainHeightModifier } from "./TerrainHeightModifier";
@@ -41,6 +42,11 @@ export class TerrainGenerator {
   }
 
   public generate(descriptor: SceneGeneratedTerrainDescriptor): TerrainHeightField {
+    const editedHeightField = deserializeTerrainHeightField(descriptor);
+    if (editedHeightField) {
+      return editedHeightField;
+    }
+
     const strategyId = this.strategyRegistry.resolveStrategyId(descriptor.generator);
     const normalizedDescriptor = {
       ...descriptor,

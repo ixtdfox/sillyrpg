@@ -10,7 +10,7 @@ export class TerrainGeneratorPanel {
   public constructor(callbacks: TerrainGeneratorPanelCallbacks) {
     this.callbacks = callbacks;
     this.root = document.createElement("div");
-    this.root.className = "editor-terrain editor-scrollpanel";
+    this.root.className = "editor-terrain";
     this.viewModel = {
       enabled: false,
       descriptor: null,

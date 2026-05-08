@@ -23,7 +23,16 @@ export type EditorIconName =
   | "random"
   | "flatten"
   | "palette"
-  | "chevronDown";
+  | "chevronDown"
+  | "terrainRaise"
+  | "terrainLower"
+  | "terrainSmooth"
+  | "terrainFlatten"
+  | "terrainFlattenToHeight"
+  | "terrainBrushCircle"
+  | "terrainBrushSquare"
+  | "terrainFlattenAll"
+  | "terrainClearEdits";
 
 const ICON_PATHS: Record<EditorIconName, string> = {
   select:
@@ -75,7 +84,25 @@ const ICON_PATHS: Record<EditorIconName, string> = {
   palette:
     '<path d="M12 4a8 8 0 1 0 0 16h1a2 2 0 0 0 0-4h-1a2 2 0 0 1 0-4h5a3 3 0 0 0 3-3 5 5 0 0 0-8-5z" /><circle cx="7.5" cy="11.5" r="1" /><circle cx="10" cy="8.5" r="1" /><circle cx="14" cy="8.5" r="1" />',
   chevronDown:
-    '<path d="M6 9l6 6 6-6" />'
+    '<path d="M6 9l6 6 6-6" />',
+  terrainRaise:
+    '<path d="M4 17l4-4 3 2 5-6 4 8" /><path d="M12 6v7" /><path d="M9.5 8.5L12 6l2.5 2.5" />',
+  terrainLower:
+    '<path d="M4 17l4-4 3 2 5-6 4 8" /><path d="M12 6v7" /><path d="M9.5 10.5L12 13l2.5-2.5" />',
+  terrainSmooth:
+    '<path d="M4 15c2-2 4-2 6 0s4 2 6 0 4-2 4-2" /><path d="M4 18h16" />',
+  terrainFlatten:
+    '<path d="M4 16l4-3 3 1 4-3 5 2" /><path d="M4 19h16" /><path d="M10 8h8" />',
+  terrainFlattenToHeight:
+    '<path d="M5 18h14" /><path d="M7 6v12" /><path d="M7 9h3" /><path d="M10 12h7" />',
+  terrainBrushCircle:
+    '<circle cx="12" cy="12" r="6" /><circle cx="12" cy="12" r="1.2" />',
+  terrainBrushSquare:
+    '<path d="M6 6h12v12H6z" /><circle cx="12" cy="12" r="1.2" />',
+  terrainFlattenAll:
+    '<path d="M4 18h16" /><path d="M4 13h16" /><path d="M6 9h12" />',
+  terrainClearEdits:
+    '<path d="M4 17l4-4 3 2 5-6 4 8" /><path d="M7 7l10 10" /><path d="M17 7L7 17" />'
 };
 
 export function editorIconSvg(name: EditorIconName, size = 20): string {

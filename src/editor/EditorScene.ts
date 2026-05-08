@@ -26,8 +26,9 @@ import { saveSceneDescriptor, exportSceneDescriptorJson } from "./state/EditorSc
 import { EditorSelectionState } from "./state/EditorSelectionState";
 import type { EditorTransformMode } from "./state/EditorTransformMode";
 import { EditorTerrainController } from "./terrain/EditorTerrainController";
+import { EditorTerrainToolController } from "./terrain/tools/EditorTerrainToolController";
 import { EditorUi } from "./ui/EditorUi";
-import type { EditorBounds, EditorBuildingAssetOption, EditorSceneOption } from "./types";
+import type { EditorBounds, EditorBrowserTab, EditorBuildingAssetOption, EditorSceneOption } from "./types";
 import type { Scene } from "../core/scene/Scene";
 
 interface PendingClickState {
@@ -52,12 +53,14 @@ export class EditorScene implements Scene {
   private highlightLayer: HighlightLayer | null;
   private thumbnailService: BuildingThumbnailService | null;
   private terrainController: EditorTerrainController | null;
+  private terrainToolController: EditorTerrainToolController | null;
   private readonly selectionState: EditorSelectionState;
   private document: EditorSceneDocument | null;
   private selectedScene: EditorSceneOption | null;
   private selectedBuilding: EditorBuildingAssetOption | null;
   private sceneOptions: readonly EditorSceneOption[];
   private buildingOptions: readonly EditorBuildingAssetOption[];
+  private activeBrowserTab: EditorBrowserTab;
   private transformMode: EditorTransformMode;
   private moveAxisMode: EditorMoveAxisMode;
   private isLoading: boolean;
@@ -89,12 +92,14 @@ export class EditorScene implements Scene {
     this.highlightLayer = null;
     this.thumbnailService = null;
     this.terrainController = null;
+    this.terrainToolController = null;
     this.selectionState = new EditorSelectionState();
     this.document = null;
     this.selectedScene = null;
     this.selectedBuilding = null;
     this.sceneOptions = [];
     this.buildingOptions = [];
+    this.activeBrowserTab = "buildings";
     this.transformMode = "select";
     this.moveAxisMode = "xz";
     this.isLoading = false;
@@ -145,9 +150,21 @@ export class EditorScene implements Scene {
       },
       onTerrainApplied: () => {
         this.gridOverlay?.refreshFromMeshes(this.sceneLoader?.getRenderableMeshes() ?? []);
+        this.terrainToolController?.synchronizeFromTerrain(this.document?.descriptor.terrain ?? null);
         this.refreshUi();
       },
       onStatusMessageChanged: (message) => {
+        this.statusMessage = message;
+        this.refreshUi();
+      }
+    });
+    this.terrainToolController = new EditorTerrainToolController(scene, this.canvas, {
+      onChanged: () => {
+        this.refreshUi();
+      },
+      onTerrainApplied: (terrain, message) => {
+        this.gridOverlay?.refreshFromMeshes(this.sceneLoader?.getRenderableMeshes() ?? []);
+        this.terrainController?.synchronizeAppliedTerrain(terrain, message);
         this.statusMessage = message;
         this.refreshUi();
       }
@@ -169,7 +186,8 @@ export class EditorScene implements Scene {
         this.toggleAxesVisibility();
       },
       onSelectTab: (tab) => {
-        void tab;
+        this.activeBrowserTab = tab;
+        this.terrainToolController?.setTerrainTabActive(tab === "terrain");
       },
       onSelectScene: (sceneId) => {
         void this.handleSceneSelection(sceneId);
@@ -191,6 +209,19 @@ export class EditorScene implements Scene {
         onRandomizeSeed: () => this.terrainController?.randomizeSeed() ?? Promise.resolve(),
         onFlattenTerrain: () => this.terrainController?.flatten() ?? Promise.resolve(),
         onResetTerrainPreset: (presetId) => this.terrainController?.resetPreset(presetId) ?? Promise.resolve()
+      },
+      terrainToolsPanel: {
+        onSelectTerrainTool: (tool) => {
+          this.terrainToolController?.selectTool(tool);
+        },
+        onChangeBrushSettings: (settings) => {
+          this.terrainToolController?.updateBrushSettings(settings);
+        },
+        onChangeTargetHeight: (height) => {
+          this.terrainToolController?.updateTargetHeight(height);
+        },
+        onFlattenAllTerrain: () => this.terrainToolController?.flattenAll() ?? Promise.resolve(),
+        onClearTerrainEdits: () => this.terrainToolController?.clearEdits() ?? Promise.resolve()
       },
       onSetTransformMode: (mode) => {
         this.transformMode = mode;
@@ -240,6 +271,8 @@ export class EditorScene implements Scene {
       this.sceneLoader = null;
       this.terrainController?.dispose();
       this.terrainController = null;
+      this.terrainToolController?.dispose();
+      this.terrainToolController = null;
       this.cameraController?.dispose();
       this.cameraController = null;
       this.gridOverlay?.dispose();
@@ -330,6 +363,8 @@ export class EditorScene implements Scene {
       this.document = new EditorSceneDocument(option.rawDescriptorPath, loadedDescriptor.descriptor);
       await this.sceneLoader.load(option, this.document.descriptor);
       this.terrainController?.bind(this.document, this.sceneLoader);
+      this.terrainToolController?.bind(this.document, this.sceneLoader);
+      this.terrainToolController?.setTerrainTabActive(this.activeBrowserTab === "terrain");
       this.objectMoveController.cancelMove();
       this.clearSelection();
       this.gridOverlay.refreshFromMeshes(this.sceneLoader.getRenderableMeshes());
@@ -341,6 +376,7 @@ export class EditorScene implements Scene {
       this.statusMessage = error instanceof Error ? error.message : String(error);
       this.sceneLoader.clear();
       this.terrainController?.bind(null, null);
+      this.terrainToolController?.bind(null, null);
       this.document = null;
     } finally {
       this.isLoading = false;
@@ -352,6 +388,8 @@ export class EditorScene implements Scene {
     if (!this.ui) {
       return;
     }
+    this.activeBrowserTab = "terrain";
+    this.terrainToolController?.setTerrainTabActive(true);
     this.ui.setActiveTab("terrain");
   }
 
@@ -382,6 +420,12 @@ export class EditorScene implements Scene {
 
   private handleCanvasPointerDown(event: PointerEvent): void {
     if (event.button !== 0 || event.altKey) {
+      return;
+    }
+
+    if (this.terrainToolController?.handlePointerDown(event)) {
+      this.canvas.setPointerCapture(event.pointerId);
+      event.preventDefault();
       return;
     }
 
@@ -425,6 +469,11 @@ export class EditorScene implements Scene {
       return;
     }
 
+    if (this.terrainToolController?.handlePointerMove(event)) {
+      event.preventDefault();
+      return;
+    }
+
     if (this.objectMoveController.isMovingPointer(event.pointerId)) {
       const movingObjectId = this.objectMoveController.getActiveObjectId();
       if (!movingObjectId) {
@@ -463,6 +512,14 @@ export class EditorScene implements Scene {
   }
 
   private handleCanvasPointerUp(event: PointerEvent): void {
+    if (this.terrainToolController?.handlePointerUp(event)) {
+      if (this.canvas.hasPointerCapture(event.pointerId)) {
+        this.canvas.releasePointerCapture(event.pointerId);
+      }
+      event.preventDefault();
+      return;
+    }
+
     if (this.objectMoveController.isMovingPointer(event.pointerId)) {
       if (this.canvas.hasPointerCapture(event.pointerId)) {
         this.canvas.releasePointerCapture(event.pointerId);
@@ -629,6 +686,24 @@ export class EditorScene implements Scene {
         appliedSummary: "none"
       }
     );
+    this.ui?.setTerrainToolsPanel(
+      this.terrainToolController?.getViewModel() ?? {
+        enabled: false,
+        hasTerrain: false,
+        activeTool: "raise",
+        brush: {
+          shape: "circle",
+          radius: 4,
+          strength: 10,
+          falloff: 0.65
+        },
+        targetHeight: 0,
+        snapHeightStep: 1,
+        edited: false,
+        stats: null,
+        message: ""
+      }
+    );
     this.ui?.setSelectedObject(this.selectionState.getSelectedObjectId() ? this.document?.getObject(this.selectionState.getSelectedObjectId()!) ?? null : null);
     this.ui?.setTransformMode(this.transformMode);
     this.ui?.setMoveAxisMode(this.moveAxisMode);
@@ -645,7 +720,7 @@ export class EditorScene implements Scene {
     }
 
     if (terrain.kind === "generated") {
-      return `generated ${terrain.generator.preset} ${terrain.resolution[0]} x ${terrain.resolution[1]}`;
+      return `generated ${terrain.generator.preset} ${terrain.resolution[0]} x ${terrain.resolution[1]}${terrain.editedHeightMap ? " edited" : ""}`;
     }
 
     return terrain.model;

@@ -420,7 +420,7 @@ function describeTerrain(terrain: SceneTerrainDescriptor | null | undefined): st
   }
 
   if (terrain.kind === "generated") {
-    return `generated ${terrain.generator.preset} ${terrain.resolution[0]}x${terrain.resolution[1]}`;
+    return `generated ${terrain.generator.preset} ${terrain.resolution[0]}x${terrain.resolution[1]}${terrain.editedHeightMap ? " edited" : ""}`;
   }
 
   return terrain.model;

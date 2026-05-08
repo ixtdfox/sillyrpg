@@ -170,7 +170,7 @@ export class EditorSceneLoader {
           descriptor.kind === "plane"
             ? `plane ${descriptor.size[0]}x${descriptor.size[1]}`
             : descriptor.kind === "generated"
-              ? `generated ${descriptor.generator.preset} ${descriptor.resolution[0]}x${descriptor.resolution[1]}`
+              ? `generated ${descriptor.generator.preset} ${descriptor.resolution[0]}x${descriptor.resolution[1]}${descriptor.editedHeightMap ? " edited" : ""}`
               : descriptor.model
       }
     };

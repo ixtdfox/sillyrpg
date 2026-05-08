@@ -52,6 +52,7 @@ function testAdoptImportedSceneNodesPreservesLocalImportedTransforms(): void {
 async function run(): Promise<void> {
   testAdoptImportedSceneNodesPreservesLocalImportedTransforms();
   await testGeneratedTerrainContentCreatesPickableMesh();
+  await testGeneratedTerrainContentUsesEditedHeightMap();
 }
 
 async function testGeneratedTerrainContentCreatesPickableMesh(): Promise<void> {
@@ -64,6 +65,26 @@ async function testGeneratedTerrainContentCreatesPickableMesh(): Promise<void> {
   const mesh = result.renderableMeshes[0];
   assert(mesh?.isPickable === true, "Generated terrain mesh should be pickable.");
   assert(mesh?.metadata?.editorTerrain === true, "Generated terrain mesh should carry editorTerrain metadata.");
+  scene.dispose();
+  engine.dispose();
+}
+
+async function testGeneratedTerrainContentUsesEditedHeightMap(): Promise<void> {
+  const engine = new NullEngine();
+  const scene = new Scene(engine);
+  const parent = new TransformNode("parent", scene);
+  const descriptor = {
+    ...createGeneratedTerrainDescriptorFromPreset({ presetId: "urban-pad", seed: 55, size: [8, 8], resolution: [9, 9] }),
+    editedHeightMap: {
+      encoding: "array" as const,
+      resolution: [9, 9] as const,
+      heights: Array.from({ length: 81 }, (_, index) => (index === 40 ? 5 : 0))
+    }
+  };
+  const result = await importSceneTerrainContent(scene, descriptor, parent, "test");
+  const mesh = result.renderableMeshes[0];
+  const bounds = mesh?.getBoundingInfo().boundingBox;
+  assert((bounds?.maximumWorld.y ?? 0) >= 5, "Edited heightmap should affect generated terrain mesh height.");
   scene.dispose();
   engine.dispose();
 }

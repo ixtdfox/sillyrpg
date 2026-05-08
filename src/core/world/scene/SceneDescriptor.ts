@@ -20,6 +20,12 @@ export interface SceneGeneratedTerrainMaterialDescriptor {
   readonly bands?: readonly SceneTerrainMaterialBandDescriptor[];
 }
 
+export interface SceneGeneratedTerrainEditedHeightMap {
+  readonly encoding: "array";
+  readonly resolution: SceneVector2Tuple;
+  readonly heights: readonly number[];
+}
+
 export interface SceneTerrainGeneratorDescriptor {
   readonly preset: string;
   readonly strategy?: string;
@@ -75,6 +81,7 @@ export interface SceneGeneratedTerrainDescriptor {
   readonly scale?: SceneVector3Tuple;
   readonly generator: SceneTerrainGeneratorDescriptor;
   readonly material?: SceneGeneratedTerrainMaterialDescriptor;
+  readonly editedHeightMap?: SceneGeneratedTerrainEditedHeightMap;
 }
 
 export type SceneTerrainDescriptor =
@@ -226,16 +233,60 @@ function parseGeneratedTerrainDescriptor(
   sourceLabel: string,
   id: string
 ): SceneGeneratedTerrainDescriptor {
+  const resolution = parseTerrainResolutionTuple(record.resolution, `${sourceLabel}.resolution`);
   return {
     id,
     kind: "generated",
     size: parseTerrainSizeTuple(record.size, `${sourceLabel}.size`),
-    resolution: parseTerrainResolutionTuple(record.resolution, `${sourceLabel}.resolution`),
+    resolution,
     position: parseVector3Tuple(record.position, `${sourceLabel}.position`),
     rotation: parseVector3Tuple(record.rotation, `${sourceLabel}.rotation`),
     scale: parseVector3Tuple(record.scale, `${sourceLabel}.scale`),
     generator: parseTerrainGeneratorDescriptor(record.generator, `${sourceLabel}.generator`),
-    material: parseGeneratedTerrainMaterial(record.material, `${sourceLabel}.material`)
+    material: parseGeneratedTerrainMaterial(record.material, `${sourceLabel}.material`),
+    editedHeightMap: parseGeneratedTerrainEditedHeightMap(record.editedHeightMap, resolution, `${sourceLabel}.editedHeightMap`)
+  };
+}
+
+function parseGeneratedTerrainEditedHeightMap(
+  value: unknown,
+  expectedResolution: SceneVector2Tuple,
+  sourceLabel: string
+): SceneGeneratedTerrainEditedHeightMap | undefined {
+  if (value === undefined) {
+    return undefined;
+  }
+
+  const record = requireRecord(value, `${sourceLabel} must be an object.`);
+  const encoding = requireString(record.encoding, `${sourceLabel}.encoding must be a string.`);
+  if (encoding !== "array") {
+    throw new Error(`${sourceLabel}.encoding must be 'array'.`);
+  }
+
+  const resolution = parseTerrainResolutionTuple(record.resolution, `${sourceLabel}.resolution`);
+  if (resolution[0] !== expectedResolution[0] || resolution[1] !== expectedResolution[1]) {
+    throw new Error(
+      `${sourceLabel}.resolution must match terrain resolution ${expectedResolution[0]} x ${expectedResolution[1]}.`
+    );
+  }
+
+  if (!Array.isArray(record.heights)) {
+    throw new Error(`${sourceLabel}.heights must be an array.`);
+  }
+
+  const expectedLength = resolution[0] * resolution[1];
+  if (record.heights.length !== expectedLength) {
+    throw new Error(`${sourceLabel}.heights must contain ${expectedLength} entries.`);
+  }
+
+  const heights = record.heights.map((entry, index) =>
+    parseFiniteNumber(entry, `${sourceLabel}.heights[${index}] must be a finite number.`)
+  );
+
+  return {
+    encoding: "array",
+    resolution,
+    heights
   };
 }
 

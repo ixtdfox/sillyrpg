@@ -50,12 +50,16 @@ export class EditorTerrainController {
   public bind(document: EditorSceneDocument | null, sceneLoader: EditorSceneLoader | null): void {
     this.document = document;
     this.sceneLoader = sceneLoader;
-    this.appliedTerrain = document?.descriptor.terrain ?? null;
-    this.draft = document ? this.createDraftFromTerrain(document.descriptor.terrain) : null;
+    this.synchronizeAppliedTerrain(document?.descriptor.terrain ?? null, document ? "Adjust the draft, then click Generate to apply it." : "");
+  }
+
+  public synchronizeAppliedTerrain(terrain: SceneTerrainDescriptor | null | undefined, message = this.message): void {
+    this.appliedTerrain = terrain ?? null;
+    this.draft = this.document ? this.createDraftFromTerrain(terrain) : null;
     this.stats = this.draft ? this.computeStats(this.draft) : null;
     this.appliedSummary = describeTerrain(this.appliedTerrain);
     this.draftDirty = this.resolveDraftDirty();
-    this.message = this.draft ? "Adjust the draft, then click Generate to apply it." : "";
+    this.message = message;
     this.callbacks.onStatusMessageChanged(this.message);
     this.callbacks.onChanged();
   }
@@ -80,7 +84,10 @@ export class EditorTerrainController {
   }
 
   public updateDraft(nextDraft: SceneGeneratedTerrainDescriptor): void {
-    this.draft = this.normalizeDraft(nextDraft);
+    this.draft = this.normalizeDraft({
+      ...nextDraft,
+      editedHeightMap: undefined
+    });
     this.stats = this.computeStats(this.draft);
     this.draftDirty = this.resolveDraftDirty();
     this.message = this.draftDirty ? "Terrain draft updated. Click Generate to apply changes." : "Draft matches the applied terrain.";
@@ -94,12 +101,17 @@ export class EditorTerrainController {
     }
 
     try {
-      this.stats = this.computeStats(this.draft);
+      const descriptorToApply = this.normalizeDraft({
+        ...this.draft,
+        editedHeightMap: undefined
+      });
+      this.stats = this.computeStats(descriptorToApply);
       const stats = this.stats;
-      await this.sceneLoader.setTerrain(this.draft);
-      const appliedDescriptor = cloneGeneratedTerrainDescriptor(this.draft);
+      await this.sceneLoader.setTerrain(descriptorToApply);
+      const appliedDescriptor = cloneGeneratedTerrainDescriptor(descriptorToApply);
       this.document.setTerrain(appliedDescriptor);
       this.appliedTerrain = appliedDescriptor;
+      this.draft = cloneGeneratedTerrainDescriptor(appliedDescriptor);
       this.appliedSummary = describeTerrain(appliedDescriptor);
       this.draftDirty = false;
       this.message = stats

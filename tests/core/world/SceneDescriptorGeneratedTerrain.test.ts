@@ -197,12 +197,94 @@ function testParserAllowsUnknownStrategyString(): void {
   );
 }
 
+function testParserAcceptsEditedHeightMap(): void {
+  const descriptor = parseSceneDescriptor(
+    {
+      schemaVersion: 2,
+      id: "edited-heightmap-scene",
+      terrain: {
+        id: "terrain-0",
+        kind: "generated",
+        size: [40, 40],
+        resolution: [65, 65],
+        generator: {
+          preset: "urban-pad",
+          seed: 1,
+          height: {
+            base: 0,
+            amplitude: 1,
+            frequency: 0.1,
+            octaves: 3,
+            persistence: 0.4,
+            lacunarity: 2
+          }
+        },
+        editedHeightMap: {
+          encoding: "array",
+          resolution: [65, 65],
+          heights: Array.from({ length: 65 * 65 }, (_, index) => (index % 3) - 1)
+        }
+      },
+      objects: []
+    },
+    "edited heightmap"
+  );
+
+  assert(
+    descriptor.terrain?.kind === "generated" && descriptor.terrain.editedHeightMap?.heights.length === 65 * 65,
+    "Expected edited heightmap to parse."
+  );
+}
+
+function testParserRejectsMismatchedEditedHeightMapResolution(): void {
+  let threw = false;
+  try {
+    parseSceneDescriptor(
+      {
+        schemaVersion: 2,
+        id: "bad-edited-heightmap-scene",
+        terrain: {
+          id: "terrain-0",
+          kind: "generated",
+          size: [40, 40],
+          resolution: [65, 65],
+          generator: {
+            preset: "urban-pad",
+            seed: 1,
+            height: {
+              base: 0,
+              amplitude: 1,
+              frequency: 0.1,
+              octaves: 3,
+              persistence: 0.4,
+              lacunarity: 2
+            }
+          },
+          editedHeightMap: {
+            encoding: "array",
+            resolution: [33, 33],
+            heights: Array.from({ length: 33 * 33 }, () => 0)
+          }
+        },
+        objects: []
+      },
+      "mismatched edited heightmap"
+    );
+  } catch (error) {
+    threw = (error as Error).message.includes("must match terrain resolution");
+  }
+
+  assert(threw, "Expected mismatched edited heightmap resolution to throw.");
+}
+
 function run(): void {
   testParserAcceptsGeneratedTerrain();
   testParserRejectsInvalidResolution();
   testParserRejectsNaNGeneratorParams();
   testParserAcceptsKnownStrategy();
   testParserAllowsUnknownStrategyString();
+  testParserAcceptsEditedHeightMap();
+  testParserRejectsMismatchedEditedHeightMapResolution();
 }
 
 run();
