@@ -1,6 +1,7 @@
 import type { SceneObjectDescriptor } from "../../core/world/scene/SceneDescriptor";
 import type { EditorBrowserTab, EditorBuildingAssetOption, EditorSceneOption } from "../types";
 import type { EditorTransformMode } from "../state/EditorTransformMode";
+import { editorIconSvg, type EditorIconName } from "./EditorIcons";
 
 interface EditorUiCallbacks {
   readonly onBackToMenu: () => void;
@@ -28,6 +29,21 @@ interface ScenePanelViewModel {
   readonly message: string;
 }
 
+interface IconButtonOptions {
+  readonly className: string;
+  readonly label: string;
+  readonly tooltip?: string;
+  readonly icon: EditorIconName;
+  readonly iconSize?: number;
+  readonly compact?: boolean;
+  readonly onClick: () => void;
+}
+
+interface TabButtonState {
+  readonly button: HTMLButtonElement;
+  readonly panel: HTMLElement;
+}
+
 export class EditorUi {
   private readonly strings: Record<string, string>;
   private readonly callbacks: EditorUiCallbacks;
@@ -44,10 +60,9 @@ export class EditorUi {
   private readonly addTerrainButton: HTMLButtonElement;
   private readonly selectToolButton: HTMLButtonElement;
   private readonly moveToolButton: HTMLButtonElement;
-  private readonly scenesTabButton: HTMLButtonElement;
-  private readonly buildingsTabButton: HTMLButtonElement;
   private readonly sceneButtons: Map<string, HTMLButtonElement>;
   private readonly buildingCards: Map<string, HTMLButtonElement>;
+  private readonly tabs: Record<EditorBrowserTab, TabButtonState>;
 
   public constructor(strings: Record<string, string>, callbacks: EditorUiCallbacks) {
     this.strings = strings;
@@ -69,7 +84,7 @@ export class EditorUi {
     const titleBlock = document.createElement("div");
     titleBlock.className = "editor-toolbar__title";
     titleBlock.innerHTML = `
-      <div class="editor-kicker">${this.strings["editor.title"] ?? "Level Editor"}</div>
+      <div class="editor-kicker">${escapeHtml(this.strings["editor.title"] ?? "Level Editor")}</div>
       <div class="editor-subtitle">JSON scene workflow</div>
     `;
     toolbar.appendChild(titleBlock);
@@ -78,28 +93,175 @@ export class EditorUi {
     toolbarButtons.className = "editor-toolbar__buttons";
     toolbar.appendChild(toolbarButtons);
 
-    toolbarButtons.appendChild(this.createToolbarButton("Frame", callbacks.onFrameScene));
-    toolbarButtons.appendChild(this.createToolbarButton("Reload", callbacks.onReloadScene));
-    this.addTerrainButton = this.createToolbarButton("Add terrain", callbacks.onAddTerrain);
-    toolbarButtons.appendChild(this.addTerrainButton);
-    this.selectToolButton = this.createToolbarButton("Select", () => callbacks.onSetTransformMode("select"));
-    this.moveToolButton = this.createToolbarButton("Move", () => callbacks.onSetTransformMode("move"));
-    toolbarButtons.appendChild(this.selectToolButton);
-    toolbarButtons.appendChild(this.moveToolButton);
-    toolbarButtons.appendChild(this.createToolbarButton("Rotate -90°", () => callbacks.onRotateSelected(-1)));
-    toolbarButtons.appendChild(this.createToolbarButton("Rotate +90°", () => callbacks.onRotateSelected(1)));
-    toolbarButtons.appendChild(this.createToolbarButton("Delete", callbacks.onDeleteSelected));
-    toolbarButtons.appendChild(this.createToolbarButton("Save Scene", callbacks.onSaveScene));
-    toolbarButtons.appendChild(this.createToolbarButton("Export JSON", callbacks.onExportScene));
-    this.gridButton = this.createToolbarButton("Grid: On", callbacks.onToggleGrid);
-    this.axesButton = this.createToolbarButton("Axes: On", callbacks.onToggleAxes);
+    toolbarButtons.appendChild(
+      this.createIconButton({
+        className: "editor-toolbar-button",
+        label: "Save Scene",
+        tooltip: "Save scene descriptor",
+        icon: "save",
+        onClick: callbacks.onSaveScene
+      })
+    );
+    toolbarButtons.appendChild(
+      this.createIconButton({
+        className: "editor-toolbar-button",
+        label: "Export JSON",
+        tooltip: "Export current scene JSON",
+        icon: "export",
+        onClick: callbacks.onExportScene
+      })
+    );
+    toolbarButtons.appendChild(
+      this.createIconButton({
+        className: "editor-toolbar-button",
+        label: "Reload Scene",
+        tooltip: "Reload current scene from disk",
+        icon: "reload",
+        onClick: callbacks.onReloadScene
+      })
+    );
+    toolbarButtons.appendChild(
+      this.createIconButton({
+        className: "editor-toolbar-button",
+        label: "Undo",
+        tooltip: "Undo is not implemented yet",
+        icon: "undo",
+        onClick: () => void 0
+      })
+    );
+    toolbarButtons.appendChild(
+      this.createIconButton({
+        className: "editor-toolbar-button",
+        label: "Redo",
+        tooltip: "Redo is not implemented yet",
+        icon: "redo",
+        onClick: () => void 0
+      })
+    );
+    toolbarButtons.appendChild(
+      this.createIconButton({
+        className: "editor-toolbar-button",
+        label: "Frame Scene",
+        tooltip: "Frame loaded scene",
+        icon: "frame",
+        onClick: callbacks.onFrameScene
+      })
+    );
+    this.gridButton = this.createIconButton({
+      className: "editor-toolbar-button",
+      label: "Grid On",
+      tooltip: "Toggle grid overlay",
+      icon: "grid",
+      onClick: callbacks.onToggleGrid
+    });
     toolbarButtons.appendChild(this.gridButton);
+    this.axesButton = this.createIconButton({
+      className: "editor-toolbar-button",
+      label: "Axes On",
+      tooltip: "Toggle world axes",
+      icon: "axes",
+      onClick: callbacks.onToggleAxes
+    });
     toolbarButtons.appendChild(this.axesButton);
-    toolbarButtons.appendChild(this.createToolbarButton(this.strings["editor.backToMenuShort"] ?? "Back", callbacks.onBackToMenu));
+    toolbarButtons.appendChild(
+      this.createIconButton({
+        className: "editor-toolbar-button",
+        label: "Camera",
+        tooltip: "Camera tools placeholder",
+        icon: "camera",
+        onClick: () => void 0
+      })
+    );
+    toolbarButtons.appendChild(
+      this.createIconButton({
+        className: "editor-toolbar-button",
+        label: "Settings",
+        tooltip: "Editor settings placeholder",
+        icon: "settings",
+        onClick: () => void 0
+      })
+    );
+    toolbarButtons.appendChild(
+      this.createIconButton({
+        className: "editor-toolbar-button",
+        label: this.strings["editor.backToMenuShort"] ?? "Back",
+        tooltip: "Return to main menu",
+        icon: "back",
+        onClick: callbacks.onBackToMenu
+      })
+    );
 
     const main = document.createElement("div");
     main.className = "editor-main";
     this.root.appendChild(main);
+
+    const leftColumn = document.createElement("div");
+    leftColumn.className = "editor-left-column";
+    main.appendChild(leftColumn);
+
+    const toolRail = document.createElement("div");
+    toolRail.className = "editor-tool-rail";
+    leftColumn.appendChild(toolRail);
+
+    this.selectToolButton = this.createIconButton({
+      className: "editor-tool-button",
+      label: "Select",
+      tooltip: "Select object",
+      icon: "select",
+      compact: true,
+      onClick: () => callbacks.onSetTransformMode("select")
+    });
+    toolRail.appendChild(this.selectToolButton);
+
+    this.moveToolButton = this.createIconButton({
+      className: "editor-tool-button",
+      label: "Move",
+      tooltip: "Move selected object",
+      icon: "move",
+      compact: true,
+      onClick: () => callbacks.onSetTransformMode("move")
+    });
+    toolRail.appendChild(this.moveToolButton);
+
+    toolRail.appendChild(
+      this.createIconButton({
+        className: "editor-tool-button",
+        label: "Rotate -90",
+        tooltip: "Rotate selected object -90 degrees",
+        icon: "rotateLeft",
+        compact: true,
+        onClick: () => callbacks.onRotateSelected(-1)
+      })
+    );
+    toolRail.appendChild(
+      this.createIconButton({
+        className: "editor-tool-button",
+        label: "Rotate +90",
+        tooltip: "Rotate selected object +90 degrees",
+        icon: "rotateRight",
+        compact: true,
+        onClick: () => callbacks.onRotateSelected(1)
+      })
+    );
+    toolRail.appendChild(
+      this.createIconButton({
+        className: "editor-tool-button",
+        label: "Delete",
+        tooltip: "Delete selected object",
+        icon: "delete",
+        compact: true,
+        onClick: callbacks.onDeleteSelected
+      })
+    );
+    this.addTerrainButton = this.createIconButton({
+      className: "editor-tool-button",
+      label: "Add Terrain",
+      tooltip: "Add a plane terrain to the scene",
+      icon: "terrain",
+      compact: true,
+      onClick: callbacks.onAddTerrain
+    });
+    toolRail.appendChild(this.addTerrainButton);
 
     const viewportHint = document.createElement("div");
     viewportHint.className = "editor-viewport-hint";
@@ -107,7 +269,7 @@ export class EditorUi {
       <div>Drag building cards into the viewport to place them.</div>
       <div>Use <strong>Move</strong> to drag selected objects on the X/Z plane.</div>
     `;
-    main.appendChild(viewportHint);
+    leftColumn.appendChild(viewportHint);
 
     const sidePanel = document.createElement("aside");
     sidePanel.className = "editor-sidepanel";
@@ -117,17 +279,6 @@ export class EditorUi {
     tabRow.className = "editor-tabs";
     sidePanel.appendChild(tabRow);
 
-    this.scenesTabButton = this.createTabButton(this.strings["editor.sceneSelector"] ?? "Scenes", () => {
-      this.setActiveTab("scenes");
-      callbacks.onSelectTab("scenes");
-    });
-    this.buildingsTabButton = this.createTabButton(this.strings["editor.buildingSelector"] ?? "Buildings", () => {
-      this.setActiveTab("buildings");
-      callbacks.onSelectTab("buildings");
-    });
-    tabRow.appendChild(this.scenesTabButton);
-    tabRow.appendChild(this.buildingsTabButton);
-
     this.sceneList = document.createElement("div");
     this.sceneList.className = "editor-scrollpanel";
     sidePanel.appendChild(this.sceneList);
@@ -136,17 +287,51 @@ export class EditorUi {
     this.buildingGrid.className = "editor-buildings editor-scrollpanel";
     sidePanel.appendChild(this.buildingGrid);
 
-    const cardsColumn = document.createElement("div");
-    cardsColumn.className = "editor-cards-column";
-    sidePanel.appendChild(cardsColumn);
+    this.inspector = document.createElement("div");
+    this.inspector.className = "editor-card editor-card--compact editor-scrollpanel";
+    sidePanel.appendChild(this.inspector);
 
     this.sceneInfo = document.createElement("div");
-    this.sceneInfo.className = "editor-card editor-card--compact";
-    cardsColumn.appendChild(this.sceneInfo);
+    this.sceneInfo.className = "editor-card editor-card--compact editor-scrollpanel";
+    sidePanel.appendChild(this.sceneInfo);
 
-    this.inspector = document.createElement("div");
-    this.inspector.className = "editor-card editor-card--compact";
-    cardsColumn.appendChild(this.inspector);
+    this.tabs = {
+      scenes: {
+        button: this.createTabButton(
+          this.strings["editor.sceneSelector"] ?? "Scenes",
+          "scene",
+          "Browse scene descriptors",
+          () => {
+            this.setActiveTab("scenes");
+            callbacks.onSelectTab("scenes");
+          }
+        ),
+        panel: this.sceneList
+      },
+      buildings: {
+        button: this.createTabButton(
+          this.strings["editor.buildingSelector"] ?? "Buildings",
+          "building",
+          "Browse placeable buildings",
+          () => {
+            this.setActiveTab("buildings");
+            callbacks.onSelectTab("buildings");
+          }
+        ),
+        panel: this.buildingGrid
+      },
+      inspector: {
+        button: this.createTabButton("Inspector", "inspector", "Inspect the selected object", () => {
+          this.setActiveTab("inspector");
+          callbacks.onSelectTab("inspector");
+        }),
+        panel: this.inspector
+      }
+    };
+
+    tabRow.appendChild(this.tabs.scenes.button);
+    tabRow.appendChild(this.tabs.buildings.button);
+    tabRow.appendChild(this.tabs.inspector.button);
 
     const footer = document.createElement("div");
     footer.className = "editor-footer";
@@ -159,7 +344,7 @@ export class EditorUi {
     sidePanel.appendChild(footer);
 
     document.body.appendChild(this.root);
-    this.setActiveTab("scenes");
+    this.setActiveTab("buildings");
     this.setScenePanel({
       sceneLabel: "No scene loaded",
       descriptorPath: "",
@@ -176,6 +361,8 @@ export class EditorUi {
     this.sceneButtons.clear();
     this.sceneList.replaceChildren();
 
+    this.sceneList.appendChild(this.sceneInfo);
+
     if (options.length === 0) {
       this.sceneList.appendChild(this.createEmptyState("No scenes found in location data."));
       return;
@@ -185,6 +372,8 @@ export class EditorUi {
       const button = document.createElement("button");
       button.type = "button";
       button.className = "editor-list-item";
+      button.title = `Open ${option.label}`;
+      button.setAttribute("aria-label", `Open scene ${option.label}`);
       button.innerHTML = `
         <div class="editor-list-item__title">${escapeHtml(option.label)}</div>
         <div class="editor-list-item__meta">${escapeHtml(option.rawDescriptorPath)}</div>
@@ -201,6 +390,14 @@ export class EditorUi {
     this.buildingCards.clear();
     this.buildingGrid.replaceChildren();
 
+    const browserHeader = document.createElement("div");
+    browserHeader.className = "editor-browser-toolbar";
+    browserHeader.innerHTML = `
+      <div class="editor-browser-toolbar__search" aria-hidden="true">${editorIconSvg("search", 18)}</div>
+      <div class="editor-browser-toolbar__title">Building Browser</div>
+    `;
+    this.buildingGrid.appendChild(browserHeader);
+
     if (options.length === 0) {
       this.buildingGrid.appendChild(
         this.createEmptyState("No building models found. Export .glb or .gltf files into assets/models/buildings and reload the editor.")
@@ -213,6 +410,8 @@ export class EditorUi {
       card.type = "button";
       card.className = "editor-building-card";
       card.draggable = true;
+      card.title = `Place ${option.title}`;
+      card.setAttribute("aria-label", `Place building ${option.title}`);
       card.innerHTML = `
         <div class="editor-building-card__thumb" data-thumb="${escapeHtml(option.id)}">
           <span>Preview</span>
@@ -272,7 +471,7 @@ export class EditorUi {
 
   public setScenePanel(viewModel: ScenePanelViewModel): void {
     this.sceneInfo.innerHTML = `
-      <div class="editor-card__title">Scene</div>
+      <div class="editor-card__title">${editorIconSvg("scene", 18)}<span>Scene</span></div>
       <div class="editor-card__line"><strong>${escapeHtml(viewModel.sceneLabel)}</strong></div>
       <div class="editor-card__line">Descriptor: ${escapeHtml(viewModel.descriptorPath || "none")}</div>
       <div class="editor-card__line">Terrain: ${escapeHtml(viewModel.terrainStatus)}</div>
@@ -287,7 +486,7 @@ export class EditorUi {
   public setSelectedObject(object: SceneObjectDescriptor | null): void {
     if (!object) {
       this.inspector.innerHTML = `
-        <div class="editor-card__title">Inspector</div>
+        <div class="editor-card__title">${editorIconSvg("inspector", 18)}<span>Inspector</span></div>
         <div class="editor-card__line">No object selected. Drag a building from the browser into the viewport.</div>
       `;
       return;
@@ -295,7 +494,7 @@ export class EditorUi {
 
     const rotationDegrees = normalizeQuarterTurnDegrees(object.rotation[1]);
     this.inspector.innerHTML = `
-      <div class="editor-card__title">Object</div>
+      <div class="editor-card__title">${editorIconSvg("inspector", 18)}<span>Inspector</span></div>
       <div class="editor-card__line">id: ${escapeHtml(object.id)}</div>
       <div class="editor-card__line">type: ${escapeHtml(object.type)}</div>
       <div class="editor-card__line">asset: ${escapeHtml(object.asset)}</div>
@@ -306,19 +505,21 @@ export class EditorUi {
   }
 
   public setActiveTab(tab: EditorBrowserTab): void {
-    const scenesActive = tab === "scenes";
-    this.sceneList.style.display = scenesActive ? "grid" : "none";
-    this.buildingGrid.style.display = scenesActive ? "none" : "grid";
-    this.scenesTabButton.classList.toggle("is-active", scenesActive);
-    this.buildingsTabButton.classList.toggle("is-active", !scenesActive);
+    for (const [tabName, state] of Object.entries(this.tabs) as [EditorBrowserTab, TabButtonState][]) {
+      const isActive = tabName === tab;
+      state.button.classList.toggle("is-active", isActive);
+      state.panel.style.display = isActive ? "grid" : "none";
+    }
   }
 
   public setGridVisible(isVisible: boolean): void {
-    this.gridButton.textContent = `Grid: ${isVisible ? "On" : "Off"}`;
+    this.setButtonLabel(this.gridButton, `Grid ${isVisible ? "On" : "Off"}`, `Toggle grid overlay. Grid is ${isVisible ? "on" : "off"}.`);
+    this.gridButton.classList.toggle("is-active", isVisible);
   }
 
   public setAxesVisible(isVisible: boolean): void {
-    this.axesButton.textContent = `Axes: ${isVisible ? "On" : "Off"}`;
+    this.setButtonLabel(this.axesButton, `Axes ${isVisible ? "On" : "Off"}`, `Toggle world axes. Axes are ${isVisible ? "on" : "off"}.`);
+    this.axesButton.classList.toggle("is-active", isVisible);
   }
 
   public setTransformMode(mode: EditorTransformMode): void {
@@ -331,21 +532,31 @@ export class EditorUi {
     this.styleElement.remove();
   }
 
-  private createToolbarButton(label: string, onClick: () => void): HTMLButtonElement {
+  private createIconButton(options: IconButtonOptions): HTMLButtonElement {
     const button = document.createElement("button");
     button.type = "button";
-    button.className = "editor-toolbar-button";
-    button.textContent = label;
-    button.addEventListener("click", onClick);
+    button.className = options.className;
+    button.title = options.tooltip ?? options.label;
+    button.setAttribute("aria-label", options.label);
+    button.innerHTML = `
+      <span class="editor-button__icon" aria-hidden="true">${editorIconSvg(options.icon, options.iconSize ?? 20)}</span>
+      <span class="editor-button__label${options.compact ? " editor-button__label--compact" : ""}">${escapeHtml(options.label)}</span>
+    `;
+    button.addEventListener("click", options.onClick);
     return button;
   }
 
-  private createTabButton(label: string, onClick: () => void): HTMLButtonElement {
-    const button = document.createElement("button");
-    button.type = "button";
-    button.className = "editor-tab";
-    button.textContent = label;
-    button.addEventListener("click", onClick);
+  private createTabButton(label: string, icon: EditorIconName, tooltip: string, onClick: () => void): HTMLButtonElement {
+    const button = this.createIconButton({
+      className: "editor-tab",
+      label,
+      tooltip,
+      icon,
+      compact: false,
+      iconSize: 18,
+      onClick
+    });
+    button.setAttribute("role", "tab");
     return button;
   }
 
@@ -354,6 +565,15 @@ export class EditorUi {
     emptyState.className = "editor-empty";
     emptyState.textContent = text;
     return emptyState;
+  }
+
+  private setButtonLabel(button: HTMLButtonElement, label: string, tooltip: string): void {
+    button.title = tooltip;
+    button.setAttribute("aria-label", label);
+    const labelNode = button.querySelector<HTMLElement>(".editor-button__label");
+    if (labelNode) {
+      labelNode.textContent = label;
+    }
   }
 }
 
@@ -421,53 +641,37 @@ function buildEditorCss(): string {
       gap: 10px;
       max-width: calc(100vw - 360px);
     }
-    .editor-toolbar-button,
-    .editor-tab,
-    .editor-list-item,
-    .editor-building-card {
-      border: 1px solid rgba(145, 171, 196, 0.18);
-      background: rgba(12, 18, 26, 0.9);
-      color: #edf2f7;
-      border-radius: 14px;
-      cursor: pointer;
-      transition: transform 120ms ease, border-color 120ms ease, background 120ms ease;
-    }
-    .editor-toolbar-button:hover,
-    .editor-tab:hover,
-    .editor-list-item:hover,
-    .editor-building-card:hover {
-      transform: translateY(-1px);
-      border-color: rgba(240, 197, 95, 0.45);
-    }
-    .editor-toolbar-button {
-      padding: 11px 14px;
-      font-size: 13px;
-      backdrop-filter: blur(12px);
-    }
-    .editor-toolbar-button.is-active,
-    .editor-tab.is-active,
-    .editor-list-item.is-selected,
-    .editor-building-card.is-selected {
-      background: linear-gradient(180deg, rgba(55, 85, 112, 0.96), rgba(27, 43, 60, 0.96));
-      border-color: rgba(247, 201, 72, 0.58);
-      box-shadow: 0 0 0 1px rgba(247, 201, 72, 0.2);
-    }
-    .editor-toolbar-button:disabled {
-      opacity: 0.5;
-      cursor: default;
-      transform: none;
-    }
     .editor-main {
       display: flex;
       justify-content: space-between;
-      align-items: flex-start;
+      align-items: stretch;
       height: calc(100vh - 110px);
       padding: 18px;
       gap: 18px;
     }
+    .editor-left-column {
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      min-width: 96px;
+      gap: 16px;
+    }
+    .editor-tool-rail,
+    .editor-sidepanel {
+      pointer-events: auto;
+    }
+    .editor-tool-rail {
+      display: grid;
+      gap: 10px;
+      padding: 12px;
+      width: 92px;
+      border-radius: 24px;
+      background: linear-gradient(180deg, rgba(14, 22, 30, 0.96), rgba(10, 14, 20, 0.96));
+      border: 1px solid rgba(115, 140, 165, 0.2);
+      box-shadow: 0 18px 48px rgba(0, 0, 0, 0.32);
+      backdrop-filter: blur(16px);
+    }
     .editor-viewport-hint {
-      margin-top: auto;
-      margin-bottom: 0;
       max-width: 360px;
       padding: 14px 16px;
       border-radius: 16px;
@@ -478,7 +682,6 @@ function buildEditorCss(): string {
       backdrop-filter: blur(10px);
     }
     .editor-sidepanel {
-      pointer-events: auto;
       display: flex;
       flex-direction: column;
       width: 390px;
@@ -486,32 +689,120 @@ function buildEditorCss(): string {
       padding: 14px;
       gap: 12px;
       border-radius: 24px;
-      background:
-        linear-gradient(180deg, rgba(14, 22, 30, 0.96), rgba(10, 14, 20, 0.96));
+      background: linear-gradient(180deg, rgba(14, 22, 30, 0.96), rgba(10, 14, 20, 0.96));
       border: 1px solid rgba(115, 140, 165, 0.2);
       box-shadow: 0 18px 48px rgba(0, 0, 0, 0.32);
       backdrop-filter: blur(16px);
     }
+    .editor-toolbar-button,
+    .editor-tool-button,
+    .editor-tab,
+    .editor-list-item,
+    .editor-building-card {
+      border: 1px solid rgba(145, 171, 196, 0.18);
+      background: rgba(12, 18, 26, 0.9);
+      color: #edf2f7;
+      border-radius: 14px;
+      cursor: pointer;
+      transition: transform 120ms ease, border-color 120ms ease, background 120ms ease, box-shadow 120ms ease;
+    }
+    .editor-toolbar-button:hover,
+    .editor-tool-button:hover,
+    .editor-tab:hover,
+    .editor-list-item:hover,
+    .editor-building-card:hover {
+      transform: translateY(-1px);
+      border-color: rgba(240, 197, 95, 0.45);
+    }
+    .editor-toolbar-button.is-active,
+    .editor-tool-button.is-active,
+    .editor-tab.is-active,
+    .editor-list-item.is-selected,
+    .editor-building-card.is-selected {
+      background: linear-gradient(180deg, rgba(55, 85, 112, 0.96), rgba(27, 43, 60, 0.96));
+      border-color: rgba(247, 201, 72, 0.58);
+      box-shadow: 0 0 0 1px rgba(247, 201, 72, 0.2);
+    }
+    .editor-toolbar-button:disabled,
+    .editor-tool-button:disabled {
+      opacity: 0.5;
+      cursor: default;
+      transform: none;
+    }
+    .editor-toolbar-button,
+    .editor-tab {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      min-height: 44px;
+      padding: 11px 14px;
+      font-size: 13px;
+      backdrop-filter: blur(12px);
+    }
+    .editor-tool-button {
+      display: grid;
+      justify-items: center;
+      gap: 8px;
+      padding: 12px 8px;
+      min-height: 74px;
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+    }
+    .editor-button__icon {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 20px;
+      height: 20px;
+      flex: 0 0 auto;
+    }
+    .editor-button__label {
+      white-space: nowrap;
+    }
+    .editor-button__label--compact {
+      text-align: center;
+      white-space: normal;
+      line-height: 1.2;
+    }
     .editor-tabs {
       display: grid;
-      grid-template-columns: 1fr 1fr;
+      grid-template-columns: repeat(3, 1fr);
       gap: 8px;
     }
     .editor-tab {
-      padding: 12px 10px;
-      font-size: 14px;
+      justify-content: center;
+      font-size: 12px;
       font-weight: 700;
     }
     .editor-scrollpanel {
       min-height: 0;
       overflow: auto;
-      display: grid;
       gap: 10px;
       padding-right: 4px;
     }
     .editor-buildings {
-      grid-template-columns: 1fr;
       align-content: start;
+    }
+    .editor-browser-toolbar {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 10px 12px;
+      border-radius: 14px;
+      background: rgba(9, 14, 20, 0.86);
+      border: 1px solid rgba(115, 140, 165, 0.16);
+      color: #b8c7d6;
+    }
+    .editor-browser-toolbar__search {
+      display: inline-flex;
+      color: #8ea5bb;
+    }
+    .editor-browser-toolbar__title {
+      font-size: 12px;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
     }
     .editor-list-item {
       text-align: left;
@@ -570,17 +861,18 @@ function buildEditorCss(): string {
       max-height: 2.9em;
       overflow: hidden;
     }
-    .editor-cards-column {
-      display: grid;
-      gap: 12px;
-    }
     .editor-card {
       border-radius: 18px;
       padding: 14px 15px;
       background: rgba(9, 14, 20, 0.86);
       border: 1px solid rgba(115, 140, 165, 0.16);
+      display: grid;
+      align-content: start;
     }
     .editor-card__title {
+      display: flex;
+      align-items: center;
+      gap: 8px;
       font-size: 13px;
       font-weight: 800;
       margin-bottom: 10px;
@@ -617,8 +909,23 @@ function buildEditorCss(): string {
       line-height: 1.5;
     }
     @media (max-width: 1100px) {
+      .editor-toolbar {
+        flex-direction: column;
+      }
       .editor-main {
         flex-direction: column;
+      }
+      .editor-left-column {
+        flex-direction: row;
+        min-width: 0;
+      }
+      .editor-tool-rail {
+        grid-template-columns: repeat(6, minmax(74px, 1fr));
+        width: 100%;
+      }
+      .editor-viewport-hint {
+        max-width: none;
+        flex: 1 1 auto;
       }
       .editor-sidepanel {
         width: calc(100vw - 36px);
