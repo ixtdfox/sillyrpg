@@ -12,7 +12,7 @@ import type {
   SceneTerrainDescriptor
 } from "../core/world/scene/SceneDescriptor";
 
-export type EditorBrowserTab = "scenes" | "terrain" | "buildings" | "inspector";
+export type EditorBrowserTab = "scenes" | "terrain" | "lighting" | "buildings" | "inspector";
 
 export interface EditorSceneOption {
   readonly id: string;

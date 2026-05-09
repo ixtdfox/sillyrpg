@@ -1,3 +1,6 @@
+import { parseSceneLightingDescriptor } from "../../lighting/LightingConfigParser";
+import type { SceneLightingDescriptor } from "../../lighting/LightingTypes";
+
 export type SceneVector2Tuple = readonly [number, number];
 export type SceneVector3Tuple = readonly [number, number, number];
 
@@ -103,6 +106,7 @@ export interface SceneDescriptor {
   readonly id: string;
   readonly title?: string;
   readonly chunkCoord?: readonly [number, number];
+  readonly lighting?: SceneLightingDescriptor;
   readonly terrain?: SceneTerrainDescriptor | null;
   readonly objects: readonly SceneObjectDescriptor[];
 }
@@ -124,6 +128,7 @@ export function parseSceneDescriptor(payload: unknown, sourceLabel: string): Sce
   const id = requireString(record.id, `${sourceLabel} id must be a string.`);
   const title = optionalString(record.title, `${sourceLabel} title must be a string if provided.`);
   const chunkCoord = parseChunkCoord(record.chunkCoord, `${sourceLabel} chunkCoord`);
+  const lighting = parseSceneLightingDescriptor(record.lighting, `${sourceLabel} lighting`);
   const terrain = parseTerrainDescriptor(record.terrain, `${sourceLabel} terrain`);
   const objects = parseObjectDescriptors(record.objects, `${sourceLabel} objects`);
 
@@ -132,6 +137,7 @@ export function parseSceneDescriptor(payload: unknown, sourceLabel: string): Sce
     id,
     title,
     chunkCoord,
+    lighting,
     terrain,
     objects
   };

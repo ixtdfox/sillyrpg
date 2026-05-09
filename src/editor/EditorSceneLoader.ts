@@ -1,4 +1,5 @@
 import { Scene, TransformNode, Vector3, type AbstractMesh } from "@babylonjs/core";
+import type { ShadowMeshBatch } from "../core/lighting/SceneShadowRegistry";
 import {
   applyTransform,
   importSceneContent,
@@ -45,6 +46,35 @@ export class EditorSceneLoader {
 
   public getRenderableMeshes(): readonly AbstractMesh[] {
     return this.currentContent?.renderableMeshes ?? [];
+  }
+
+  public getTerrainRenderableMeshes(): readonly AbstractMesh[] {
+    return this.terrainInstance?.renderableMeshes ?? [];
+  }
+
+  public getSceneObjectRenderableMeshes(): readonly AbstractMesh[] {
+    return Array.from(this.objectInstances.values()).flatMap((instance) => instance.renderableMeshes);
+  }
+
+  public getShadowMeshBatches(): readonly ShadowMeshBatch[] {
+    const batches: ShadowMeshBatch[] = [];
+    if (this.terrainInstance) {
+      batches.push({
+        ownerId: "editor:terrain",
+        source: "terrain",
+        meshes: this.terrainInstance.renderableMeshes
+      });
+    }
+
+    for (const instance of this.objectInstances.values()) {
+      batches.push({
+        ownerId: `editor:object:${instance.objectId}`,
+        source: "sceneObject",
+        meshes: instance.renderableMeshes
+      });
+    }
+
+    return batches;
   }
 
   public async load(option: EditorSceneOption, descriptor: SceneDescriptor): Promise<EditorLoadedSceneContent> {

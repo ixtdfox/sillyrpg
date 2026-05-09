@@ -11,16 +11,19 @@ import { SpawnComponent } from "../components/SpawnComponent";
 import { TransformComponent } from "../components/TransformComponent";
 import { ModelInstantiator } from "../../model/instantiation/ModelInstantiator";
 import { getInGameSceneRuntimeContext } from "../../scene/in-game/InGameSceneRuntimeContext";
+import { RenderableMeshResolver } from "../../rendering/RenderableMeshResolver";
 
 export class CharacterSpawnerSystem implements System {
   private readonly entityManager: EntityManager;
   private readonly modelInstantiator: ModelInstantiator;
+  private readonly renderableMeshResolver: RenderableMeshResolver;
   private readonly pendingSpawns: Set<string>;
   private scene: BabylonScene | null;
 
   public constructor(entityManager: EntityManager, modelInstantiator: ModelInstantiator = new ModelInstantiator()) {
     this.entityManager = entityManager;
     this.modelInstantiator = modelInstantiator;
+    this.renderableMeshResolver = new RenderableMeshResolver();
     this.pendingSpawns = new Set<string>();
     this.scene = null;
   }
@@ -66,8 +69,10 @@ export class CharacterSpawnerSystem implements System {
       const { rootNode, animationGroupsByName } = instantiatedModel;
       rootNode.position.copyFrom(transform.value);
       rootNode.rotation.copyFrom(transform.rotation);
-      entity.addComponent(RenderableComponent, new RenderableComponent(rootNode));
+      const renderable = new RenderableComponent(rootNode);
+      entity.addComponent(RenderableComponent, renderable);
       this.initializeAnimationComponents(entity, animationGroupsByName);
+      this.registerEntityShadows(entity, renderable, scene);
     } catch (error) {
       console.error(
         `Failed to spawn entity '${entity.getId()}' from model '${model.definition.assetPath}'.`,
@@ -77,11 +82,31 @@ export class CharacterSpawnerSystem implements System {
       const fallback = MeshBuilder.CreateBox(`entity-${entity.getId()}-fallback`, { size: 1.5 }, scene);
       fallback.position.copyFrom(transform.value);
       fallback.rotation.copyFrom(transform.rotation);
-      entity.addComponent(RenderableComponent, new RenderableComponent(fallback));
+      const renderable = new RenderableComponent(fallback);
+      entity.addComponent(RenderableComponent, renderable);
+      this.registerEntityShadows(entity, renderable, scene);
     } finally {
       entity.removeComponent(SpawnComponent);
       this.pendingSpawns.delete(entity.getId());
     }
+  }
+
+  private registerEntityShadows(entity: Entity, renderable: RenderableComponent, scene: BabylonScene): void {
+    const runtimeContext = getInGameSceneRuntimeContext(scene);
+    if (!runtimeContext?.shadowRegistry) {
+      return;
+    }
+
+    const meshes = this.renderableMeshResolver.resolve(renderable.binding);
+    if (meshes.length === 0) {
+      return;
+    }
+
+    runtimeContext.shadowRegistry.registerBatch({
+      ownerId: `entity:${entity.getId()}`,
+      source: "character",
+      meshes
+    });
   }
 
   private initializeGridPosition(entity: Entity): void {

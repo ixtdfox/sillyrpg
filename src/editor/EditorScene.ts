@@ -1,8 +1,6 @@
 import {
   Color3,
-  Color4,
   Engine,
-  HemisphericLight,
   HighlightLayer,
   Matrix,
   Mesh,
@@ -11,6 +9,8 @@ import {
   Vector3,
   type AbstractMesh
 } from "@babylonjs/core";
+import { SceneLightingController } from "../core/lighting/SceneLightingController";
+import { SceneShadowRegistry } from "../core/lighting/SceneShadowRegistry";
 import type { LangManager } from "../core/lang/LangManager";
 import { loadSceneDescriptor } from "../core/world/scene/SceneDescriptorLoader";
 import { BuildingThumbnailService } from "./assets/BuildingThumbnailService";
@@ -18,6 +18,7 @@ import { EditorCameraController } from "./EditorCameraController";
 import { EditorGridOverlay } from "./EditorGridOverlay";
 import { EditorObjectMoveController } from "./EditorObjectMoveController";
 import { snapEditorPlacement } from "./EditorPlacementSnapping";
+import { EditorLightingController } from "./lighting/EditorLightingController";
 import { EditorSceneLoader } from "./EditorSceneLoader";
 import { EditorSceneRegistry } from "./EditorSceneRegistry";
 import { EditorSceneDocument } from "./state/EditorSceneDocument";
@@ -52,6 +53,7 @@ export class EditorScene implements Scene {
   private sceneLoader: EditorSceneLoader | null;
   private highlightLayer: HighlightLayer | null;
   private thumbnailService: BuildingThumbnailService | null;
+  private editorLightingController: EditorLightingController | null;
   private terrainController: EditorTerrainController | null;
   private terrainToolController: EditorTerrainToolController | null;
   private readonly selectionState: EditorSelectionState;
@@ -91,6 +93,7 @@ export class EditorScene implements Scene {
     this.sceneLoader = null;
     this.highlightLayer = null;
     this.thumbnailService = null;
+    this.editorLightingController = null;
     this.terrainController = null;
     this.terrainToolController = null;
     this.selectionState = new EditorSelectionState();
@@ -129,12 +132,6 @@ export class EditorScene implements Scene {
 
   public async createScene(): Promise<BabylonScene> {
     const scene = new BabylonScene(this.engine);
-    scene.clearColor = new Color4(0.08, 0.1, 0.13, 1);
-
-    const keyLight = new HemisphericLight("editor-key-light", new Vector3(0.35, 1, 0.22), scene);
-    keyLight.intensity = 1.05;
-    const fillLight = new HemisphericLight("editor-fill-light", new Vector3(-0.45, 0.6, -0.2), scene);
-    fillLight.intensity = 0.42;
 
     this.scene = scene;
     this.gridOverlay = new EditorGridOverlay(scene);
@@ -144,12 +141,22 @@ export class EditorScene implements Scene {
       }
     });
     this.sceneLoader = new EditorSceneLoader(scene);
+    this.editorLightingController = new EditorLightingController(new SceneShadowRegistry(new SceneLightingController(scene)), {
+      onChanged: () => {
+        this.refreshUi();
+      },
+      onStatusMessageChanged: (message) => {
+        this.statusMessage = message;
+        this.refreshUi();
+      }
+    });
     this.terrainController = new EditorTerrainController({
       onChanged: () => {
         this.refreshUi();
       },
       onTerrainApplied: () => {
         this.gridOverlay?.refreshFromMeshes(this.sceneLoader?.getRenderableMeshes() ?? []);
+        this.editorLightingController?.synchronizeSceneMeshes();
         this.terrainToolController?.synchronizeFromTerrain(this.document?.descriptor.terrain ?? null);
         this.refreshUi();
       },
@@ -164,6 +171,7 @@ export class EditorScene implements Scene {
       },
       onTerrainApplied: (terrain, message) => {
         this.gridOverlay?.refreshFromMeshes(this.sceneLoader?.getRenderableMeshes() ?? []);
+        this.editorLightingController?.synchronizeSceneMeshes();
         this.terrainController?.synchronizeAppliedTerrain(terrain, message);
         this.statusMessage = message;
         this.refreshUi();
@@ -223,6 +231,26 @@ export class EditorScene implements Scene {
         onFlattenAllTerrain: () => this.terrainToolController?.flattenAll() ?? Promise.resolve(),
         onClearTerrainEdits: () => this.terrainToolController?.clearEdits() ?? Promise.resolve()
       },
+      lightingPanel: {
+        onSelectPreset: (presetId) => {
+          this.editorLightingController?.selectPreset(presetId);
+        },
+        onChangeClearColor: (value) => {
+          this.editorLightingController?.updateClearColor(value);
+        },
+        onChangeAmbient: (patch) => {
+          this.editorLightingController?.updateAmbient(patch);
+        },
+        onChangeSun: (patch) => {
+          this.editorLightingController?.updateSun(patch);
+        },
+        onChangeShadows: (patch) => {
+          this.editorLightingController?.updateShadows(patch);
+        },
+        onResetToPreset: () => {
+          this.editorLightingController?.resetToPreset();
+        }
+      },
       onSetTransformMode: (mode) => {
         this.transformMode = mode;
         this.statusMessage = mode === "move" ? getMoveAxisDescription(this.moveAxisMode) : "Selection mode active.";
@@ -267,6 +295,8 @@ export class EditorScene implements Scene {
       this.highlightLayer = null;
       this.thumbnailService?.dispose();
       this.thumbnailService = null;
+      this.editorLightingController?.dispose();
+      this.editorLightingController = null;
       this.sceneLoader?.dispose();
       this.sceneLoader = null;
       this.terrainController?.dispose();
@@ -364,6 +394,7 @@ export class EditorScene implements Scene {
       await this.sceneLoader.load(option, this.document.descriptor);
       this.terrainController?.bind(this.document, this.sceneLoader);
       this.terrainToolController?.bind(this.document, this.sceneLoader);
+      this.editorLightingController?.bind(this.document, this.sceneLoader);
       this.terrainToolController?.setTerrainTabActive(this.activeBrowserTab === "terrain");
       this.objectMoveController.cancelMove();
       this.clearSelection();
@@ -377,6 +408,7 @@ export class EditorScene implements Scene {
       this.sceneLoader.clear();
       this.terrainController?.bind(null, null);
       this.terrainToolController?.bind(null, null);
+      this.editorLightingController?.bind(null, null);
       this.document = null;
     } finally {
       this.isLoading = false;
@@ -411,6 +443,7 @@ export class EditorScene implements Scene {
     const objectDescriptor = this.document.addObjectFromAsset(asset, snappedPosition);
     await this.sceneLoader.addObject(objectDescriptor);
     this.gridOverlay.refreshFromMeshes(this.sceneLoader.getRenderableMeshes());
+    this.editorLightingController?.synchronizeSceneMeshes();
     this.selectedBuilding = asset;
     this.ui?.updateSelectedBuilding(asset.id);
     this.setSelectedObject(objectDescriptor.id);
@@ -627,6 +660,7 @@ export class EditorScene implements Scene {
     this.sceneLoader.removeObject(objectId);
     this.clearSelection();
     this.gridOverlay.refreshFromMeshes(this.sceneLoader.getRenderableMeshes());
+    this.editorLightingController?.synchronizeSceneMeshes();
     this.statusMessage = "Object deleted.";
     this.refreshUi();
   }
@@ -701,6 +735,15 @@ export class EditorScene implements Scene {
         snapHeightStep: 1,
         edited: false,
         stats: null,
+        message: ""
+      }
+    );
+    this.ui?.setLightingPanel(
+      this.editorLightingController?.getViewModel() ?? {
+        enabled: false,
+        descriptor: null,
+        presetOptions: [],
+        dirty: false,
         message: ""
       }
     );

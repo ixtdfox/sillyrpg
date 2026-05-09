@@ -1,9 +1,10 @@
-import { Color3, HighlightLayer, Scene as BabylonScene, AbstractMesh, Mesh } from "@babylonjs/core";
+import { Color3, HighlightLayer, Scene as BabylonScene, Mesh } from "@babylonjs/core";
 import type { EntityManager } from "../../EntityManager";
 import type { System } from "../../System";
 import { RenderableComponent } from "../../components/RenderableComponent";
 import { TurnBasedCombatState } from "../../../game/TurnBasedCombatState";
 import { WorldModeController } from "../../../game/WorldModeController";
+import { RenderableMeshResolver } from "../../../rendering/RenderableMeshResolver";
 
 /**
  * Applies red highlight to currently hovered hostile combat target mesh.
@@ -18,6 +19,7 @@ export class CombatHoverHighlightSystem implements System {
   private highlightLayer: HighlightLayer | null;
   private highlightedEntityId: string | null;
   private highlightedMeshes: Mesh[];
+  private readonly renderableMeshResolver: RenderableMeshResolver;
 
   public constructor(
     entityManager: EntityManager,
@@ -31,6 +33,7 @@ export class CombatHoverHighlightSystem implements System {
     this.highlightLayer = null;
     this.highlightedEntityId = null;
     this.highlightedMeshes = [];
+    this.renderableMeshResolver = new RenderableMeshResolver();
   }
 
   public setScene(scene: BabylonScene | null): void {
@@ -87,18 +90,7 @@ export class CombatHoverHighlightSystem implements System {
   }
 
   private resolveEntityMeshes(renderable: RenderableComponent): Mesh[] {
-    const binding = renderable.binding as unknown as {
-      getChildMeshes?: () => AbstractMesh[];
-    };
-
-    const childMeshes = binding.getChildMeshes?.() ?? [];
-    const uniqueMeshes = new Set<Mesh>(childMeshes.filter((mesh): mesh is Mesh => mesh instanceof Mesh));
-
-    if (renderable.binding instanceof Mesh) {
-      uniqueMeshes.add(renderable.binding);
-    }
-
-    return Array.from(uniqueMeshes);
+    return this.renderableMeshResolver.resolve(renderable.binding).filter((mesh): mesh is Mesh => mesh instanceof Mesh);
   }
 
   private clearHighlight(): void {

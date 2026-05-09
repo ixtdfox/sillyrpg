@@ -6,7 +6,7 @@ export class TerrainMaterialBuilder {
   public build(scene: Scene, mesh: Mesh, descriptor: SceneGeneratedTerrainDescriptor, heightField: TerrainHeightField): StandardMaterial {
     const material = new StandardMaterial(`terrain-material:${descriptor.id}`, scene);
     material.specularColor = new Color3(0, 0, 0);
-    material.ambientColor = new Color3(0.06, 0.06, 0.06);
+    material.ambientColor = new Color3(0.12, 0.12, 0.12);
 
     if (descriptor.material?.kind === "heightBands" && descriptor.material.bands?.length) {
       mesh.setVerticesData(VertexBuffer.ColorKind, this.buildBandColors(heightField, descriptor.material.bands), true);

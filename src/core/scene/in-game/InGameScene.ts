@@ -1,4 +1,4 @@
-import { Color4, Engine, Scene as BabylonScene, Vector3 } from "@babylonjs/core";
+import { Engine, Scene as BabylonScene, Vector3 } from "@babylonjs/core";
 import { CharacterFactory } from "../../character/CharacterFactory";
 import type { EntityManager } from "../../entity/EntityManager";
 import { EntityPrefabFactory } from "../../entity/EntityPrefabFactory";
@@ -19,6 +19,8 @@ import { InGameTopPanelUi } from "./ui/InGameTopPanelUi";
 import { attachInGameSceneRuntimeContext } from "./InGameSceneRuntimeContext";
 import type { Scene } from "../Scene";
 import { LocationTriggerSystem } from "../../game/trigger/LocationTriggerSystem";
+import { SceneLightingController } from "../../lighting/SceneLightingController";
+import { SceneShadowRegistry } from "../../lighting/SceneShadowRegistry";
 
 /**
  * Implements the in-game scene that loads a default world location district.
@@ -61,7 +63,8 @@ export class InGameScene implements Scene {
    */
   public async createScene(): Promise<BabylonScene> {
     const scene = new BabylonScene(this.engine);
-    scene.clearColor = new Color4(0.04, 0.06, 0.1, 1.0);
+    const lightingController = new SceneLightingController(scene);
+    const shadowRegistry = new SceneShadowRegistry(lightingController);
 
     await this.locationManager.loadLocations();
     const defaultLocation = this.locationManager.createDefaultLocation();
@@ -71,7 +74,10 @@ export class InGameScene implements Scene {
       throw new Error("Default location has no districts.");
     }
 
-    await this.locationManager.createDistrictScene(scene, defaultDistrict);
+    const districtScene = await this.locationManager.createDistrictScene(scene, defaultDistrict);
+    // The initial chunk owns scene-wide lighting for now; streaming chunks do not auto-change it.
+    shadowRegistry.setLighting(districtScene.lightingDescriptor);
+    shadowRegistry.registerBatches(this.locationManager.getShadowMeshBatches());
 
     const playerCharacter = await this.characterFactory.createPlayer(new Vector3(-8, 0, -8));
     const golemCharacter = await this.characterFactory.createGolem(new Vector3(8, 0, 8), new Vector3(0, -Math.PI * 0.75, 0));
@@ -113,6 +119,7 @@ export class InGameScene implements Scene {
         if (localPlayer) {
           this.refreshPlayerGridPosition(localPlayer, gridRuntime, false);
         }
+        shadowRegistry.registerBatches(this.locationManager.getShadowMeshBatches());
         locationTriggerSystem.refresh();
       }
     );
@@ -125,7 +132,8 @@ export class InGameScene implements Scene {
       locationManager: this.locationManager,
       topPanelUi: inGameTopPanelUi,
       terrainSurfaceRegistry: gridRuntime.getTerrainSurfaceRegistry(),
-      surfaceHeightResolver: gridRuntime.getSurfaceHeightResolver()
+      surfaceHeightResolver: gridRuntime.getSurfaceHeightResolver(),
+      shadowRegistry
     });
     inGameTopPanelUi.setRectGridDebugEnabled(gridRuntime.getIsDebugEnabled());
     const triggerObserver = scene.onBeforeRenderObservable.add(() => {
@@ -134,6 +142,8 @@ export class InGameScene implements Scene {
     });
 
     scene.onDisposeObservable.addOnce(() => {
+      shadowRegistry.dispose();
+      lightingController.dispose();
       gridRuntime.dispose();
       inGameTopPanelUi.dispose();
       streamingController.dispose();

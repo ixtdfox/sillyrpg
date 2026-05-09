@@ -1,4 +1,5 @@
 import type { SceneObjectDescriptor } from "../../core/world/scene/SceneDescriptor";
+import type { LightingPanelCallbacks, LightingPanelViewModel } from "../lighting/EditorLightingTypes";
 import type {
   TerrainGeneratorPanelCallbacks,
   TerrainGeneratorPanelViewModel
@@ -8,6 +9,7 @@ import type { EditorBrowserTab, EditorBuildingAssetOption, EditorSceneOption } f
 import type { EditorMoveAxisMode } from "../state/EditorMoveAxisMode";
 import type { EditorTransformMode } from "../state/EditorTransformMode";
 import { editorIconSvg, type EditorIconName } from "./EditorIcons";
+import { LightingPanel } from "./LightingPanel";
 import { TerrainGeneratorPanel } from "./TerrainGeneratorPanel";
 import { TerrainToolsPanel } from "./TerrainToolsPanel";
 
@@ -23,6 +25,7 @@ interface EditorUiCallbacks {
   readonly onAddTerrain: () => void;
   readonly terrainPanel: TerrainGeneratorPanelCallbacks;
   readonly terrainToolsPanel: TerrainToolsPanelCallbacks;
+  readonly lightingPanel: LightingPanelCallbacks;
   readonly onSetTransformMode: (mode: EditorTransformMode) => void;
   readonly onSetMoveAxisMode: (mode: EditorMoveAxisMode) => void;
   readonly onRotateSelected: (direction: -1 | 1) => void;
@@ -65,6 +68,8 @@ export class EditorUi {
   private readonly terrainPanelHost: HTMLDivElement;
   private readonly terrainPanel: TerrainGeneratorPanel;
   private readonly terrainToolsPanel: TerrainToolsPanel;
+  private readonly lightingPanelHost: HTMLDivElement;
+  private readonly lightingPanel: LightingPanel;
   private readonly inspector: HTMLDivElement;
   private readonly sceneInfo: HTMLDivElement;
   private readonly messageBadge: HTMLDivElement;
@@ -320,6 +325,12 @@ export class EditorUi {
     this.terrainPanelHost.appendChild(this.terrainToolsPanel.getElement());
     sidePanel.appendChild(this.terrainPanelHost);
 
+    this.lightingPanelHost = document.createElement("div");
+    this.lightingPanelHost.className = "editor-scrollpanel editor-lighting-stack";
+    this.lightingPanel = new LightingPanel(callbacks.lightingPanel);
+    this.lightingPanelHost.appendChild(this.lightingPanel.getElement());
+    sidePanel.appendChild(this.lightingPanelHost);
+
     this.buildingGrid = document.createElement("div");
     this.buildingGrid.className = "editor-buildings editor-scrollpanel";
     sidePanel.appendChild(this.buildingGrid);
@@ -352,6 +363,13 @@ export class EditorUi {
         }),
         panel: this.terrainPanelHost
       },
+      lighting: {
+        button: this.createTabButton("Light", "palette", "Edit scene lighting and shadows", () => {
+          this.setActiveTab("lighting");
+          callbacks.onSelectTab("lighting");
+        }),
+        panel: this.lightingPanelHost
+      },
       buildings: {
         button: this.createTabButton(
           "Build",
@@ -375,6 +393,7 @@ export class EditorUi {
 
     tabRow.appendChild(this.tabs.scenes.button);
     tabRow.appendChild(this.tabs.terrain.button);
+    tabRow.appendChild(this.tabs.lighting.button);
     tabRow.appendChild(this.tabs.buildings.button);
     tabRow.appendChild(this.tabs.inspector.button);
 
@@ -422,6 +441,13 @@ export class EditorUi {
       snapHeightStep: 1,
       edited: false,
       stats: null,
+      message: ""
+    });
+    this.setLightingPanel({
+      enabled: false,
+      descriptor: null,
+      presetOptions: [],
+      dirty: false,
       message: ""
     });
     this.setTransformMode("select");
@@ -560,6 +586,10 @@ export class EditorUi {
 
   public setTerrainToolsPanel(viewModel: TerrainToolsPanelViewModel): void {
     this.terrainToolsPanel.setViewModel(viewModel);
+  }
+
+  public setLightingPanel(viewModel: LightingPanelViewModel): void {
+    this.lightingPanel.setViewModel(viewModel);
   }
 
   public setSelectedObject(object: SceneObjectDescriptor | null): void {
@@ -909,7 +939,7 @@ function buildEditorCss(): string {
     }
     .editor-tabs {
       display: grid;
-      grid-template-columns: repeat(4, minmax(0, 1fr));
+      grid-template-columns: repeat(5, minmax(0, 1fr));
       gap: 8px;
       min-width: 0;
     }
@@ -1042,6 +1072,21 @@ function buildEditorCss(): string {
       display: grid;
       align-content: start;
       gap: 10px;
+    }
+    .editor-lighting,
+    .editor-lighting-stack {
+      display: grid;
+      align-content: start;
+      gap: 10px;
+    }
+    .editor-lighting__grid {
+      display: grid;
+      gap: 10px;
+    }
+    .editor-vector-inputs {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 8px;
     }
     .editor-terrain__actions {
       display: grid;

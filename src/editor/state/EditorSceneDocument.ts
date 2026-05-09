@@ -1,5 +1,7 @@
 import type { Vector3 } from "@babylonjs/core";
 import type { EditorBuildingAssetOption } from "../types";
+import { cloneSceneLightingDescriptor } from "../../core/lighting/LightingPreset";
+import type { SceneLightingDescriptor } from "../../core/lighting/LightingTypes";
 import {
   cloneSceneDescriptor,
   type SceneDescriptor,
@@ -54,6 +56,14 @@ export class EditorSceneDocument {
 
   public updateTerrain(terrain: SceneTerrainDescriptor): void {
     this.setTerrain(terrain);
+  }
+
+  public updateLighting(lighting: SceneLightingDescriptor): void {
+    this.descriptor = {
+      ...this.descriptor,
+      lighting: cloneSceneLightingDescriptor(lighting)
+    };
+    this.dirty = true;
   }
 
   public addObjectFromAsset(asset: EditorBuildingAssetOption, position: Vector3): SceneObjectDescriptor {

@@ -1,4 +1,5 @@
 import type { Scene as BabylonScene } from "@babylonjs/core";
+import type { SceneShadowRegistry } from "../../lighting/SceneShadowRegistry";
 import type { RectGridRuntime } from "../../grid/RectGridRuntime";
 import type { LocationManager } from "../../world/location/LocationManager";
 import type { SurfaceHeightResolver } from "../../world/surface/SurfaceHeightResolver";
@@ -14,6 +15,7 @@ export interface InGameSceneRuntimeContext {
   readonly topPanelUi: InGameTopPanelUi;
   readonly terrainSurfaceRegistry: TerrainSurfaceRegistry;
   readonly surfaceHeightResolver: SurfaceHeightResolver;
+  readonly shadowRegistry?: SceneShadowRegistry;
 }
 
 /**
