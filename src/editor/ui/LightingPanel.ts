@@ -24,6 +24,7 @@ export class LightingPanel {
     this.viewModel = {
       enabled: false,
       descriptor: null,
+      shadowDiagnostics: null,
       presetOptions: [],
       dirty: false,
       message: ""
@@ -149,14 +150,18 @@ export class LightingPanel {
             <span class="editor-field__label">Map size</span>
             <select class="editor-input" data-lighting-field="shadows.mapSize">${mapSizeOptions}</select>
           </label>
-          ${this.rangeField("shadows.darkness", "Darkness", shadows.darkness ?? 0.35, 0, 1, 0.01)}
-          ${this.toggleField("shadows.useBlurExponentialShadowMap", "Blur ESM", shadows.useBlurExponentialShadowMap ?? true)}
-          ${this.toggleField("shadows.usePercentageCloserFiltering", "PCF", shadows.usePercentageCloserFiltering ?? false)}
-          ${this.rangeField("shadows.blurKernel", "Blur kernel", shadows.blurKernel ?? 16, 0, 128, 1)}
-          ${this.rangeField("shadows.bias", "Bias", shadows.bias ?? 0.00005, 0, 0.01, 0.00001)}
+          ${this.rangeField("shadows.darkness", "Darkness", shadows.darkness ?? 0.45, 0, 1, 0.01)}
+          ${this.selectField("shadows.filter", "Filter", resolveShadowFilterMode(shadows), [
+            ["none", "None"],
+            ["pcf", "PCF"],
+            ["esm", "ESM"],
+            ["blurEsm", "Blur ESM"]
+          ])}
+          ${this.rangeField("shadows.blurKernel", "Blur kernel", shadows.blurKernel ?? 0, 0, 128, 1)}
+          ${this.rangeField("shadows.bias", "Bias", shadows.bias ?? 0.0005, 0, 0.01, 0.00001)}
           ${this.rangeField("shadows.normalBias", "Normal bias", shadows.normalBias ?? 0.02, 0, 0.25, 0.001)}
-          ${this.rangeField("shadows.depthScale", "Depth scale", shadows.depthScale ?? 80, 1, 200, 1)}
-          ${this.rangeField("shadows.lambda", "CSM lambda", shadows.lambda ?? 0.5, 0, 1, 0.01)}
+          ${this.rangeField("shadows.depthScale", "Depth scale", shadows.depthScale ?? 60, 1, 200, 1)}
+          ${this.rangeField("shadows.lambda", "CSM lambda", shadows.lambda ?? 0.65, 0, 1, 0.01)}
           ${this.selectField("shadows.casterMode", "Caster mode", shadows.casterMode ?? "all", [
             ["all", "All"],
             ["metadata", "Metadata"],
@@ -172,7 +177,39 @@ export class LightingPanel {
           ${this.toggleField("shadows.includeCharacters", "Include characters", shadows.includeCharacters ?? true)}
           ${this.toggleField("shadows.includeTerrain", "Terrain casts", shadows.includeTerrain ?? false)}
         </div>
+        ${shadows.enabled === true ? this.renderShadowDiagnostics() : ""}
       </section>
+    `;
+  }
+
+  private renderShadowDiagnostics(): string {
+    const diagnostics = this.viewModel.shadowDiagnostics;
+    if (!diagnostics) {
+      return "";
+    }
+
+    const batchRows = diagnostics.batches
+      .map((batch) => {
+        return `
+          <div class="editor-lighting__debug-row">
+            <span>${escapeHtml(batch.ownerId)}</span>
+            <span>${escapeHtml(batch.source)}</span>
+            <span>${batch.casterMeshes}/${batch.receiverMeshes}/${batch.skippedMeshes}</span>
+          </div>
+        `;
+      })
+      .join("");
+
+    return `
+      <div class="editor-lighting__debug">
+        <div class="editor-card__section-label">Shadow diagnostics</div>
+        <div class="editor-card__line">Generator: ${diagnostics.hasGenerator ? diagnostics.generatorKind : "none"}</div>
+        <div class="editor-card__line">Casters: ${diagnostics.casterCount} Receivers: ${diagnostics.receiverCount}</div>
+        <div class="editor-lighting__debug-row editor-lighting__debug-row--header">
+          <span>Owner</span><span>Source</span><span>C/R/S</span>
+        </div>
+        ${batchRows || `<div class="editor-card__line">No shadow batches registered.</div>`}
+      </div>
     `;
   }
 
@@ -251,16 +288,6 @@ export class LightingPanel {
       return;
     }
 
-    if (field === "shadows.useBlurExponentialShadowMap" && input instanceof HTMLInputElement) {
-      this.callbacks.onChangeShadows({ useBlurExponentialShadowMap: input.checked });
-      return;
-    }
-
-    if (field === "shadows.usePercentageCloserFiltering" && input instanceof HTMLInputElement) {
-      this.callbacks.onChangeShadows({ usePercentageCloserFiltering: input.checked });
-      return;
-    }
-
     if (field === "shadows.includeSceneObjects" && input instanceof HTMLInputElement) {
       this.callbacks.onChangeShadows({ includeSceneObjects: input.checked });
       return;
@@ -287,6 +314,17 @@ export class LightingPanel {
     if (field === "shadows.generator" && input instanceof HTMLSelectElement) {
       if (input.value === "standard" || input.value === "cascaded") {
         this.callbacks.onChangeShadows({ generator: input.value });
+      }
+      return;
+    }
+
+    if (field === "shadows.filter" && input instanceof HTMLSelectElement) {
+      if (input.value === "none" || input.value === "pcf" || input.value === "esm" || input.value === "blurEsm") {
+        this.callbacks.onChangeShadows({
+          filter: input.value,
+          usePercentageCloserFiltering: input.value === "pcf",
+          useBlurExponentialShadowMap: input.value === "blurEsm"
+        });
       }
       return;
     }
@@ -455,17 +493,17 @@ export class LightingPanel {
       case "sun.intensity":
         return sun.intensity ?? 1.05;
       case "shadows.darkness":
-        return shadows.darkness ?? 0.35;
+        return shadows.darkness ?? 0.45;
       case "shadows.blurKernel":
-        return shadows.blurKernel ?? 16;
+        return shadows.blurKernel ?? 0;
       case "shadows.bias":
-        return shadows.bias ?? 0.00005;
+        return shadows.bias ?? 0.0005;
       case "shadows.normalBias":
         return shadows.normalBias ?? 0.02;
       case "shadows.depthScale":
-        return shadows.depthScale ?? 80;
+        return shadows.depthScale ?? 60;
       case "shadows.lambda":
-        return shadows.lambda ?? 0.5;
+        return shadows.lambda ?? 0.65;
       default:
         return 0;
     }
@@ -613,6 +651,22 @@ function parseNumberInput(input: HTMLInputElement, fallback: number, forceValid:
 
 function isLightingPresetId(value: string): value is LightingPresetId {
   return value === "day" || value === "overcast" || value === "dusk" || value === "night";
+}
+
+function resolveShadowFilterMode(shadows: ShadowLightingDescriptor): "none" | "pcf" | "esm" | "blurEsm" {
+  if (shadows.filter === "none" || shadows.filter === "pcf" || shadows.filter === "esm" || shadows.filter === "blurEsm") {
+    return shadows.filter;
+  }
+
+  if (shadows.usePercentageCloserFiltering === true) {
+    return "pcf";
+  }
+
+  if (shadows.useBlurExponentialShadowMap === true) {
+    return "blurEsm";
+  }
+
+  return "none";
 }
 
 function escapeHtml(value: string): string {

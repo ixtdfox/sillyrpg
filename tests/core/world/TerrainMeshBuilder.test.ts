@@ -1,6 +1,7 @@
 import { NullEngine, Scene } from "@babylonjs/core";
 import { TerrainHeightField } from "../../../src/core/world/terrain/TerrainHeightField";
 import { TerrainMeshBuilder } from "../../../src/core/world/terrain/TerrainMeshBuilder";
+import { TerrainNormalBuilder } from "../../../src/core/world/terrain/TerrainNormalBuilder";
 
 function assert(condition: boolean, message: string): void {
   if (!condition) {
@@ -34,6 +35,48 @@ function testFlatTerrainNormalsPointUp(): void {
   }
   const averageY = sumY / (geometry.normals.length / 3);
   assert(averageY > 0.99, `Expected upward normals for flat terrain, received average Y ${averageY}.`);
+}
+
+function testNormalsArrayMatchesPositionsArray(): void {
+  const field = createRaisedCenterHeightField();
+  const builder = new TerrainMeshBuilder();
+  const geometry = builder.buildVertexData(field);
+
+  assert(geometry.normals.length === geometry.positions.length, "Expected one normal vector per position vector.");
+}
+
+function testNonFlatTerrainNormalsAreValidAndDirectional(): void {
+  const field = createRaisedCenterHeightField();
+  const builder = new TerrainMeshBuilder();
+  const geometry = builder.buildVertexData(field);
+  const diagnostics = new TerrainNormalBuilder().diagnose(geometry.normals);
+
+  assert(diagnostics.invalidNormals === 0, "Expected generated terrain normals to be finite.");
+  assert(diagnostics.zeroLengthNormals === 0, "Expected generated terrain normals to be non-zero.");
+  assert(diagnostics.minY < 0.99, "Expected sloped terrain normals to differ from flat upward normals.");
+}
+
+function testNormalsRecomputeAfterEditedHeightFieldRebuild(): void {
+  const flat = TerrainHeightField.createFilled(4, 4, 3, 3, 0);
+  const edited = createRaisedCenterHeightField();
+  const builder = new TerrainMeshBuilder();
+  const flatGeometry = builder.buildVertexData(flat);
+  const editedGeometry = builder.buildVertexData(edited);
+
+  assert(
+    JSON.stringify(flatGeometry.normals) !== JSON.stringify(editedGeometry.normals),
+    "Expected terrain normals to change when edited heights are rebuilt."
+  );
+}
+
+function testFlatNormalModeDuplicatesVerticesForFacetedNormals(): void {
+  const field = createRaisedCenterHeightField();
+  const builder = new TerrainMeshBuilder();
+  const geometry = builder.buildVertexData(field, "flat");
+
+  assert(geometry.positions.length === field.getTriangleCount() * 3 * 3, "Expected flat normal mode to duplicate vertices per face.");
+  assert(geometry.normals.length === geometry.positions.length, "Expected flat normal mode normals to match duplicated positions.");
+  assert(geometry.vertexHeights.length === field.getTriangleCount() * 3, "Expected flat normal mode height samples per duplicated vertex.");
 }
 
 function testFlatTerrainMeshBoundsStayOnGroundPlane(): void {
@@ -82,8 +125,26 @@ function testFlatTerrainMeshBoundsStayOnGroundPlane(): void {
 function run(): void {
   testVertexDataMatchesBabylonGroundOrientation();
   testFlatTerrainNormalsPointUp();
+  testNormalsArrayMatchesPositionsArray();
+  testNonFlatTerrainNormalsAreValidAndDirectional();
+  testNormalsRecomputeAfterEditedHeightFieldRebuild();
+  testFlatNormalModeDuplicatesVerticesForFacetedNormals();
   testFlatTerrainMeshBoundsStayOnGroundPlane();
 }
 
 run();
 console.log("TerrainMeshBuilder tests passed");
+
+function createRaisedCenterHeightField(): TerrainHeightField {
+  return new TerrainHeightField(
+    4,
+    4,
+    3,
+    3,
+    new Float32Array([
+      0, 0, 0,
+      0, 2, 0,
+      0, 0, 0
+    ])
+  );
+}

@@ -9,7 +9,7 @@ import {
 } from "@babylonjs/core";
 import { LightingRig } from "./LightingRig";
 import type { SceneShadowGenerator } from "./LightingRig";
-import type { LightingVector3Tuple, SceneLightingDescriptor } from "./LightingTypes";
+import type { LightingVector3Tuple, SceneLightingDescriptor, ShadowFilterMode } from "./LightingTypes";
 
 const AMBIENT_LIGHT_NAME = "global-ambient-light";
 const SUN_LIGHT_NAME = "global-sun-light";
@@ -78,18 +78,42 @@ export class LightingRigFactory {
       return;
     }
 
-    const usePcf = shadows.usePercentageCloserFiltering ?? false;
-    generator.darkness = this.clampNumber(shadows.darkness, 0.35, 0, 1);
-    generator.usePercentageCloserFiltering = usePcf;
-    generator.useBlurExponentialShadowMap = !usePcf && (shadows.useBlurExponentialShadowMap ?? true);
-    generator.blurKernel = this.clampNumber(shadows.blurKernel, 16, 0, 128);
-    generator.bias = this.clampNumber(shadows.bias, 0.00005, 0, 0.1);
+    const filter = this.resolveShadowFilterMode(shadows);
+    generator.darkness = this.clampNumber(shadows.darkness, 0.45, 0, 1);
+    generator.usePercentageCloserFiltering = false;
+    generator.useExponentialShadowMap = false;
+    generator.useBlurExponentialShadowMap = false;
+    if (filter === "pcf") {
+      generator.usePercentageCloserFiltering = true;
+    } else if (filter === "esm") {
+      generator.useExponentialShadowMap = true;
+    } else if (filter === "blurEsm") {
+      generator.useBlurExponentialShadowMap = true;
+    }
+    generator.blurKernel = this.clampNumber(shadows.blurKernel, 0, 0, 128);
+    generator.bias = this.clampNumber(shadows.bias, 0.0005, 0, 0.1);
     generator.normalBias = this.clampNumber(shadows.normalBias, 0.02, 0, 10);
-    generator.depthScale = this.clampNumber(shadows.depthScale, 80, 1, 1000);
+    generator.depthScale = this.clampNumber(shadows.depthScale, 60, 1, 1000);
 
     if (generator instanceof CascadedShadowGenerator) {
-      generator.lambda = this.clampNumber(shadows.lambda, 0.5, 0, 1);
+      generator.lambda = this.clampNumber(shadows.lambda, 0.65, 0, 1);
     }
+  }
+
+  private resolveShadowFilterMode(shadows: NonNullable<SceneLightingDescriptor["shadows"]>): ShadowFilterMode {
+    if (shadows.filter === "none" || shadows.filter === "pcf" || shadows.filter === "esm" || shadows.filter === "blurEsm") {
+      return shadows.filter;
+    }
+
+    if (shadows.usePercentageCloserFiltering === true) {
+      return "pcf";
+    }
+
+    if (shadows.useBlurExponentialShadowMap === true) {
+      return "blurEsm";
+    }
+
+    return "none";
   }
 
   private toVector3(value: LightingVector3Tuple | undefined, fallback: LightingVector3Tuple): Vector3 {

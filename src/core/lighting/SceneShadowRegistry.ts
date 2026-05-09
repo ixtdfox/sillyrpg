@@ -11,6 +11,22 @@ export interface ShadowMeshBatch {
   readonly meshes: readonly AbstractMesh[];
 }
 
+export interface ShadowDiagnostics {
+  readonly enabled: boolean;
+  readonly hasGenerator: boolean;
+  readonly generatorKind: "standard" | "cascaded" | "none";
+  readonly casterCount: number;
+  readonly receiverCount: number;
+  readonly batches: readonly {
+    readonly ownerId: string;
+    readonly source: ShadowMeshSource;
+    readonly totalMeshes: number;
+    readonly casterMeshes: number;
+    readonly receiverMeshes: number;
+    readonly skippedMeshes: number;
+  }[];
+}
+
 export class SceneShadowRegistry {
   private lighting: SceneLightingDescriptor | null = null;
   private readonly batchesByOwnerId = new Map<string, ShadowMeshBatch>();
@@ -75,6 +91,56 @@ export class SceneShadowRegistry {
 
     this.batchesByOwnerId.delete(ownerId);
     this.synchronize();
+  }
+
+  public getDiagnostics(): ShadowDiagnostics {
+    const lighting = this.lighting;
+    const enabled = lighting?.shadows?.enabled === true;
+    const hasGenerator = this.lightingController.hasShadows();
+    let casterCount = 0;
+    let receiverCount = 0;
+    const batches: Array<ShadowDiagnostics["batches"][number]> = [];
+
+    for (const batch of this.batchesByOwnerId.values()) {
+      const context = lighting && enabled ? { lighting, source: batch.source } : null;
+      let casterMeshes = 0;
+      let receiverMeshes = 0;
+      let skippedMeshes = 0;
+
+      for (const mesh of batch.meshes) {
+        const canCast = context ? this.policy.canCast(mesh, context) : false;
+        const canReceive = context ? this.policy.canReceive(mesh, context) : false;
+        if (canCast) {
+          casterMeshes += 1;
+        }
+        if (canReceive) {
+          receiverMeshes += 1;
+        }
+        if (!canCast && !canReceive) {
+          skippedMeshes += 1;
+        }
+      }
+
+      casterCount += casterMeshes;
+      receiverCount += receiverMeshes;
+      batches.push({
+        ownerId: batch.ownerId,
+        source: batch.source,
+        totalMeshes: batch.meshes.length,
+        casterMeshes,
+        receiverMeshes,
+        skippedMeshes
+      });
+    }
+
+    return {
+      enabled,
+      hasGenerator,
+      generatorKind: this.lightingController.getShadowGeneratorKind(),
+      casterCount,
+      receiverCount,
+      batches
+    };
   }
 
   public synchronize(): void {

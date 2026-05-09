@@ -446,6 +446,7 @@ export class EditorUi {
     this.setLightingPanel({
       enabled: false,
       descriptor: null,
+      shadowDiagnostics: null,
       presetOptions: [],
       dirty: false,
       message: ""
@@ -1082,6 +1083,29 @@ function buildEditorCss(): string {
     .editor-lighting__grid {
       display: grid;
       gap: 10px;
+    }
+    .editor-lighting__debug {
+      display: grid;
+      gap: 6px;
+      margin-top: 12px;
+      padding-top: 10px;
+      border-top: 1px solid rgba(115, 140, 165, 0.16);
+    }
+    .editor-lighting__debug-row {
+      display: grid;
+      grid-template-columns: minmax(0, 1.4fr) minmax(0, 0.8fr) minmax(64px, 0.5fr);
+      gap: 8px;
+      font-size: 11px;
+      color: #cbd6e2;
+    }
+    .editor-lighting__debug-row span {
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .editor-lighting__debug-row--header {
+      color: #97aec4;
+      text-transform: uppercase;
     }
     .editor-vector-inputs {
       display: grid;

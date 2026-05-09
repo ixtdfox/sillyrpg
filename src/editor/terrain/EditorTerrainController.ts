@@ -229,11 +229,13 @@ export class EditorTerrainController {
         ? {
             kind: "heightBands" as const,
             color: descriptor.material.color ?? presetMaterial?.color ?? "#8D9298",
+            emissive: descriptor.material.emissive !== undefined ? descriptor.material.emissive : presetMaterial?.emissive,
             bands: descriptor.material.bands ?? presetMaterial?.bands
           }
         : {
             kind: "flat" as const,
-            color: descriptor.material?.color ?? presetMaterial?.color ?? "#8D9298"
+            color: descriptor.material?.color ?? presetMaterial?.color ?? "#8D9298",
+            emissive: descriptor.material?.emissive !== undefined ? descriptor.material.emissive : presetMaterial?.emissive
           };
     return {
       ...cloneGeneratedTerrainDescriptor(descriptor),

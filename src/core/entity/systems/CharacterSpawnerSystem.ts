@@ -11,19 +11,23 @@ import { SpawnComponent } from "../components/SpawnComponent";
 import { TransformComponent } from "../components/TransformComponent";
 import { ModelInstantiator } from "../../model/instantiation/ModelInstantiator";
 import { getInGameSceneRuntimeContext } from "../../scene/in-game/InGameSceneRuntimeContext";
-import { RenderableMeshResolver } from "../../rendering/RenderableMeshResolver";
+import { CharacterShadowRegistrar } from "./CharacterShadowRegistrar";
 
 export class CharacterSpawnerSystem implements System {
   private readonly entityManager: EntityManager;
   private readonly modelInstantiator: ModelInstantiator;
-  private readonly renderableMeshResolver: RenderableMeshResolver;
+  private readonly shadowRegistrar: CharacterShadowRegistrar;
   private readonly pendingSpawns: Set<string>;
   private scene: BabylonScene | null;
 
-  public constructor(entityManager: EntityManager, modelInstantiator: ModelInstantiator = new ModelInstantiator()) {
+  public constructor(
+    entityManager: EntityManager,
+    modelInstantiator: ModelInstantiator = new ModelInstantiator(),
+    shadowRegistrar: CharacterShadowRegistrar = new CharacterShadowRegistrar()
+  ) {
     this.entityManager = entityManager;
     this.modelInstantiator = modelInstantiator;
-    this.renderableMeshResolver = new RenderableMeshResolver();
+    this.shadowRegistrar = shadowRegistrar;
     this.pendingSpawns = new Set<string>();
     this.scene = null;
   }
@@ -97,16 +101,7 @@ export class CharacterSpawnerSystem implements System {
       return;
     }
 
-    const meshes = this.renderableMeshResolver.resolve(renderable.binding);
-    if (meshes.length === 0) {
-      return;
-    }
-
-    runtimeContext.shadowRegistry.registerBatch({
-      ownerId: `entity:${entity.getId()}`,
-      source: "character",
-      meshes
-    });
+    this.shadowRegistrar.register(entity.getId(), renderable.binding, runtimeContext.shadowRegistry);
   }
 
   private initializeGridPosition(entity: Entity): void {

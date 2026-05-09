@@ -2,24 +2,31 @@ import { Mesh, VertexData, type Scene } from "@babylonjs/core";
 import type { SceneGeneratedTerrainDescriptor } from "../scene/SceneDescriptor";
 import type { TerrainHeightField } from "./TerrainHeightField";
 import { TerrainMaterialBuilder } from "./TerrainMaterialBuilder";
+import { TerrainNormalBuilder, type TerrainNormalMode } from "./TerrainNormalBuilder";
 
 export interface TerrainVertexDataBuildResult {
   readonly positions: number[];
   readonly indices: number[];
   readonly uvs: number[];
   readonly normals: number[];
+  readonly vertexHeights: number[];
 }
 
 export class TerrainMeshBuilder {
   private readonly materialBuilder: TerrainMaterialBuilder;
+  private readonly normalBuilder: TerrainNormalBuilder;
 
-  public constructor(materialBuilder = new TerrainMaterialBuilder()) {
+  public constructor(
+    materialBuilder = new TerrainMaterialBuilder(),
+    normalBuilder = new TerrainNormalBuilder()
+  ) {
     this.materialBuilder = materialBuilder;
+    this.normalBuilder = normalBuilder;
   }
 
   public build(scene: Scene, descriptor: SceneGeneratedTerrainDescriptor, heightField: TerrainHeightField): Mesh {
     const mesh = new Mesh(`terrain:${descriptor.id}`, scene);
-    const geometry = this.buildVertexData(heightField);
+    const geometry = this.buildVertexData(heightField, descriptor.normalMode);
     const vertexData = new VertexData();
     vertexData.positions = geometry.positions;
     vertexData.indices = geometry.indices;
@@ -35,16 +42,19 @@ export class TerrainMeshBuilder {
     };
     mesh.isPickable = true;
     mesh.receiveShadows = true;
-    mesh.material = this.materialBuilder.build(scene, mesh, descriptor, heightField);
+    mesh.material = this.materialBuilder.build(scene, mesh, descriptor, heightField, geometry.vertexHeights);
     mesh.refreshBoundingInfo();
     return mesh;
   }
 
-  public buildVertexData(heightField: TerrainHeightField): TerrainVertexDataBuildResult {
+  public buildVertexData(
+    heightField: TerrainHeightField,
+    normalMode: TerrainNormalMode = "smooth"
+  ): TerrainVertexDataBuildResult {
     const positions: number[] = [];
     const indices: number[] = [];
     const uvs: number[] = [];
-    const normals: number[] = [];
+    const vertexHeights: number[] = [];
 
     for (let iz = 0; iz < heightField.resolutionZ; iz += 1) {
       const v = heightField.resolutionZ <= 1 ? 0 : iz / (heightField.resolutionZ - 1);
@@ -55,6 +65,7 @@ export class TerrainMeshBuilder {
         const y = heightField.getHeight(ix, iz);
         positions.push(x, y, z);
         uvs.push(u, 1 - v);
+        vertexHeights.push(y);
       }
     }
 
@@ -74,7 +85,11 @@ export class TerrainMeshBuilder {
       }
     }
 
-    VertexData.ComputeNormals(positions, indices, normals);
-    return { positions, indices, uvs, normals };
+    return this.normalBuilder.build({
+      positions,
+      indices,
+      uvs,
+      vertexHeights
+    }, normalMode);
   }
 }

@@ -1,7 +1,7 @@
 import { Color3, Color4, type AbstractMesh, type Scene as BabylonScene } from "@babylonjs/core";
 import { LightingRig } from "./LightingRig";
 import { LightingRigFactory } from "./LightingRigFactory";
-import type { SceneLightingDescriptor } from "./LightingTypes";
+import type { SceneLightingDescriptor, ShadowGeneratorKind } from "./LightingTypes";
 
 export class SceneLightingController {
   private rig: LightingRig | null = null;
@@ -23,6 +23,14 @@ export class SceneLightingController {
 
   public hasShadows(): boolean {
     return this.rig?.hasShadows() ?? false;
+  }
+
+  public getShadowGeneratorKind(): ShadowGeneratorKind | "none" {
+    return this.rig?.getShadowGeneratorKind() ?? "none";
+  }
+
+  public getShadowCasterCount(): number {
+    return this.rig?.getShadowCasterCount() ?? 0;
   }
 
   public clearShadowCasters(): void {

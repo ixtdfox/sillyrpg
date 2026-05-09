@@ -4,6 +4,7 @@ export type LightingVector3Tuple = readonly [number, number, number];
 export type ShadowGeneratorKind = "standard" | "cascaded";
 export type ShadowCasterMode = "all" | "metadata" | "none";
 export type ShadowReceiverMode = "terrainOnly" | "all" | "metadata" | "none";
+export type ShadowFilterMode = "none" | "pcf" | "esm" | "blurEsm";
 
 export interface SceneLightingDescriptor {
   readonly preset?: LightingPresetId;
@@ -36,6 +37,7 @@ export interface ShadowLightingDescriptor {
   readonly generator?: ShadowGeneratorKind;
   readonly mapSize?: number;
   readonly darkness?: number;
+  readonly filter?: ShadowFilterMode;
   readonly useBlurExponentialShadowMap?: boolean;
   readonly usePercentageCloserFiltering?: boolean;
   readonly blurKernel?: number;

@@ -10,6 +10,7 @@ import type {
   LightingPresetId,
   LightingVector3Tuple,
   SceneLightingDescriptor,
+  ShadowFilterMode,
   ShadowLightingDescriptor
 } from "../../core/lighting/LightingTypes";
 import type { EditorSceneLoader } from "../EditorSceneLoader";
@@ -62,6 +63,7 @@ export class EditorLightingController {
     return {
       enabled: this.document !== null && this.sceneLoader !== null,
       descriptor: this.document ? this.getCurrentLighting() : null,
+      shadowDiagnostics: this.shadowRegistry.getDiagnostics(),
       presetOptions: PRESET_OPTIONS,
       dirty: this.document?.dirty ?? false,
       message: this.message
@@ -176,6 +178,7 @@ export class EditorLightingController {
     const ambient = descriptor.ambient ?? preset.ambient ?? {};
     const sun = descriptor.sun ?? preset.sun ?? {};
     const shadows = descriptor.shadows ?? preset.shadows ?? {};
+    const filter = normalizeShadowFilterMode(shadows);
 
     return cloneSceneLightingDescriptor({
       preset: presetId,
@@ -197,17 +200,18 @@ export class EditorLightingController {
         specular: normalizeHexColor(sun.specular, preset.sun?.specular ?? "#FFFFFF")
       },
       shadows: {
-        enabled: shadows.enabled ?? false,
+        enabled: shadows.enabled ?? preset.shadows?.enabled ?? true,
         generator: normalizeShadowGeneratorKind(shadows.generator, preset.shadows?.generator ?? "cascaded"),
         mapSize: normalizeShadowMapSize(shadows.mapSize, preset.shadows?.mapSize ?? 2048),
-        darkness: clampNumber(shadows.darkness, preset.shadows?.darkness ?? 0.35, 0, 1),
-        useBlurExponentialShadowMap: shadows.useBlurExponentialShadowMap ?? true,
-        usePercentageCloserFiltering: shadows.usePercentageCloserFiltering ?? false,
-        blurKernel: clampNumber(shadows.blurKernel, preset.shadows?.blurKernel ?? 16, 0, 128),
-        bias: clampNumber(shadows.bias, preset.shadows?.bias ?? 0.00005, 0, 0.1),
+        darkness: clampNumber(shadows.darkness, preset.shadows?.darkness ?? 0.45, 0, 1),
+        filter,
+        useBlurExponentialShadowMap: filter === "blurEsm",
+        usePercentageCloserFiltering: filter === "pcf",
+        blurKernel: clampNumber(shadows.blurKernel, preset.shadows?.blurKernel ?? 0, 0, 128),
+        bias: clampNumber(shadows.bias, preset.shadows?.bias ?? 0.0005, 0, 0.1),
         normalBias: clampNumber(shadows.normalBias, preset.shadows?.normalBias ?? 0.02, 0, 10),
-        depthScale: clampNumber(shadows.depthScale, preset.shadows?.depthScale ?? 80, 1, 1000),
-        lambda: clampNumber(shadows.lambda, preset.shadows?.lambda ?? 0.5, 0, 1),
+        depthScale: clampNumber(shadows.depthScale, preset.shadows?.depthScale ?? 60, 1, 1000),
+        lambda: clampNumber(shadows.lambda, preset.shadows?.lambda ?? 0.65, 0, 1),
         casterMode: normalizeShadowCasterMode(shadows.casterMode, preset.shadows?.casterMode ?? "all"),
         receiverMode: normalizeShadowReceiverMode(shadows.receiverMode, preset.shadows?.receiverMode ?? "terrainOnly"),
         includeCharacters: shadows.includeCharacters ?? true,
@@ -251,6 +255,26 @@ function normalizeShadowReceiverMode(
   fallback: "terrainOnly" | "all" | "metadata" | "none"
 ): "terrainOnly" | "all" | "metadata" | "none" {
   return value === "terrainOnly" || value === "all" || value === "metadata" || value === "none" ? value : fallback;
+}
+
+function normalizeShadowFilterMode(shadows: ShadowLightingDescriptor): ShadowFilterMode {
+  if (shadows.filter === "none" || shadows.filter === "pcf" || shadows.filter === "esm" || shadows.filter === "blurEsm") {
+    return shadows.filter;
+  }
+
+  if (shadows.usePercentageCloserFiltering === true) {
+    return "pcf";
+  }
+
+  if (shadows.useBlurExponentialShadowMap === true) {
+    return "blurEsm";
+  }
+
+  if (shadows.usePercentageCloserFiltering === false || shadows.useBlurExponentialShadowMap === false) {
+    return "none";
+  }
+
+  return "pcf";
 }
 
 function normalizeShadowMapSize(value: number | undefined, fallback: number): number {

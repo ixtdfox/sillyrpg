@@ -51,6 +51,33 @@ function testDefaultSceneObjectCastsButDoesNotReceive(): void {
   engine.dispose();
 }
 
+function testCharactersCastWhenIncluded(): void {
+  const { engine, scene } = createScene();
+  const mesh = MeshBuilder.CreateBox("character", { size: 1 }, scene);
+  const policy = new ShadowMeshPolicy();
+  const lighting = createLighting();
+
+  assert(policy.canCast(mesh, { lighting, source: "character" }), "Expected character to cast shadows when included.");
+  scene.dispose();
+  engine.dispose();
+}
+
+function testCharactersDoNotCastWhenExcluded(): void {
+  const { engine, scene } = createScene();
+  const mesh = MeshBuilder.CreateBox("character", { size: 1 }, scene);
+  const policy = new ShadowMeshPolicy();
+  const lighting: SceneLightingDescriptor = {
+    shadows: {
+      ...createLighting().shadows,
+      includeCharacters: false
+    }
+  };
+
+  assert(!policy.canCast(mesh, { lighting, source: "character" }), "Expected character not to cast when includeCharacters=false.");
+  scene.dispose();
+  engine.dispose();
+}
+
 function testMetadataOverridesPolicy(): void {
   const { engine, scene } = createScene();
   const mesh = MeshBuilder.CreateBox("building-shadow-override", { size: 1 }, scene);
@@ -80,6 +107,18 @@ function testHelperMeshesAreExcluded(): void {
   engine.dispose();
 }
 
+function testMetadataMeshesAreExcluded(): void {
+  const { engine, scene } = createScene();
+  const mesh = MeshBuilder.CreateBox("NavigationMetadata", { size: 1 }, scene);
+  const policy = new ShadowMeshPolicy();
+  const lighting = createLighting();
+
+  assert(!policy.canCast(mesh, { lighting, source: "sceneObject" }), "Expected metadata mesh not to cast.");
+  assert(!policy.canReceive(mesh, { lighting, source: "sceneObject" }), "Expected metadata mesh not to receive.");
+  scene.dispose();
+  engine.dispose();
+}
+
 function testReceiverModeAllAllowsCharactersToReceive(): void {
   const { engine, scene } = createScene();
   const mesh = MeshBuilder.CreateBox("character", { size: 1 }, scene);
@@ -100,8 +139,11 @@ function testReceiverModeAllAllowsCharactersToReceive(): void {
 function run(): void {
   testDefaultTerrainReceivesButDoesNotCast();
   testDefaultSceneObjectCastsButDoesNotReceive();
+  testCharactersCastWhenIncluded();
+  testCharactersDoNotCastWhenExcluded();
   testMetadataOverridesPolicy();
   testHelperMeshesAreExcluded();
+  testMetadataMeshesAreExcluded();
   testReceiverModeAllAllowsCharactersToReceive();
 }
 

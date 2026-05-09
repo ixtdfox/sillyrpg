@@ -8,6 +8,26 @@ import type {
 
 export const DEFAULT_LIGHTING_PRESET_ID: LightingPresetId = "day";
 
+const SAFE_OUTDOOR_SHADOWS: ShadowLightingDescriptor = {
+  enabled: true,
+  generator: "cascaded",
+  mapSize: 2048,
+  darkness: 0.45,
+  filter: "pcf",
+  usePercentageCloserFiltering: true,
+  useBlurExponentialShadowMap: false,
+  blurKernel: 0,
+  bias: 0.0005,
+  normalBias: 0.02,
+  depthScale: 60,
+  lambda: 0.65,
+  casterMode: "all",
+  receiverMode: "terrainOnly",
+  includeSceneObjects: true,
+  includeCharacters: true,
+  includeTerrain: false
+};
+
 export const LIGHTING_PRESETS: Readonly<Record<LightingPresetId, SceneLightingDescriptor>> = {
   day: {
     preset: "day",
@@ -29,22 +49,7 @@ export const LIGHTING_PRESETS: Readonly<Record<LightingPresetId, SceneLightingDe
       specular: "#FFFFFF"
     },
     shadows: {
-      enabled: false,
-      generator: "cascaded",
-      mapSize: 2048,
-      darkness: 0.35,
-      useBlurExponentialShadowMap: true,
-      usePercentageCloserFiltering: false,
-      blurKernel: 16,
-      bias: 0.00005,
-      normalBias: 0.02,
-      depthScale: 80,
-      lambda: 0.5,
-      casterMode: "all",
-      receiverMode: "terrainOnly",
-      includeCharacters: true,
-      includeSceneObjects: true,
-      includeTerrain: false
+      ...SAFE_OUTDOOR_SHADOWS
     }
   },
   overcast: {
@@ -67,22 +72,8 @@ export const LIGHTING_PRESETS: Readonly<Record<LightingPresetId, SceneLightingDe
       specular: "#EEF2F2"
     },
     shadows: {
-      enabled: false,
-      generator: "cascaded",
-      mapSize: 2048,
-      darkness: 0.25,
-      useBlurExponentialShadowMap: true,
-      usePercentageCloserFiltering: false,
-      blurKernel: 24,
-      bias: 0.00005,
-      normalBias: 0.025,
-      depthScale: 90,
-      lambda: 0.55,
-      casterMode: "all",
-      receiverMode: "terrainOnly",
-      includeCharacters: true,
-      includeSceneObjects: true,
-      includeTerrain: false
+      ...SAFE_OUTDOOR_SHADOWS,
+      normalBias: 0.025
     }
   },
   dusk: {
@@ -105,22 +96,8 @@ export const LIGHTING_PRESETS: Readonly<Record<LightingPresetId, SceneLightingDe
       specular: "#FFE2B3"
     },
     shadows: {
-      enabled: false,
-      generator: "cascaded",
-      mapSize: 2048,
-      darkness: 0.42,
-      useBlurExponentialShadowMap: true,
-      usePercentageCloserFiltering: false,
-      blurKernel: 20,
-      bias: 0.00007,
-      normalBias: 0.025,
-      depthScale: 90,
-      lambda: 0.55,
-      casterMode: "all",
-      receiverMode: "terrainOnly",
-      includeCharacters: true,
-      includeSceneObjects: true,
-      includeTerrain: false
+      ...SAFE_OUTDOOR_SHADOWS,
+      normalBias: 0.025
     }
   },
   night: {
@@ -143,22 +120,8 @@ export const LIGHTING_PRESETS: Readonly<Record<LightingPresetId, SceneLightingDe
       specular: "#C7D5FF"
     },
     shadows: {
-      enabled: false,
-      generator: "cascaded",
-      mapSize: 2048,
-      darkness: 0.5,
-      useBlurExponentialShadowMap: true,
-      usePercentageCloserFiltering: false,
-      blurKernel: 18,
-      bias: 0.00008,
-      normalBias: 0.03,
-      depthScale: 70,
-      lambda: 0.5,
-      casterMode: "all",
-      receiverMode: "terrainOnly",
-      includeCharacters: true,
-      includeSceneObjects: true,
-      includeTerrain: false
+      ...SAFE_OUTDOOR_SHADOWS,
+      normalBias: 0.03
     }
   }
 };

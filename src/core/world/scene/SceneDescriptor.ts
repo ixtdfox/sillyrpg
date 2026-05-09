@@ -3,10 +3,12 @@ import type { SceneLightingDescriptor } from "../../lighting/LightingTypes";
 
 export type SceneVector2Tuple = readonly [number, number];
 export type SceneVector3Tuple = readonly [number, number, number];
+export type SceneTerrainNormalMode = "smooth" | "flat";
 
 export interface SceneFlatTerrainMaterialDescriptor {
   readonly kind: "flat";
   readonly color?: string;
+  readonly emissive?: string | null;
 }
 
 export interface SceneTerrainMaterialBandDescriptor {
@@ -20,6 +22,7 @@ export interface SceneTerrainMaterialBandDescriptor {
 export interface SceneGeneratedTerrainMaterialDescriptor {
   readonly kind: "heightBands" | "flat";
   readonly color?: string;
+  readonly emissive?: string | null;
   readonly bands?: readonly SceneTerrainMaterialBandDescriptor[];
 }
 
@@ -82,6 +85,7 @@ export interface SceneGeneratedTerrainDescriptor {
   readonly position?: SceneVector3Tuple;
   readonly rotation?: SceneVector3Tuple;
   readonly scale?: SceneVector3Tuple;
+  readonly normalMode?: SceneTerrainNormalMode;
   readonly generator: SceneTerrainGeneratorDescriptor;
   readonly material?: SceneGeneratedTerrainMaterialDescriptor;
   readonly editedHeightMap?: SceneGeneratedTerrainEditedHeightMap;
@@ -218,7 +222,8 @@ function parseFlatMaterial(value: unknown, sourceLabel: string): SceneFlatTerrai
 
   return {
     kind: "flat",
-    color: optionalString(record.color, `${sourceLabel}.color must be a string if provided.`)
+    color: optionalString(record.color, `${sourceLabel}.color must be a string if provided.`),
+    emissive: optionalNullableHexColor(record.emissive, `${sourceLabel}.emissive`)
   };
 }
 
@@ -248,6 +253,7 @@ function parseGeneratedTerrainDescriptor(
     position: parseVector3Tuple(record.position, `${sourceLabel}.position`),
     rotation: parseVector3Tuple(record.rotation, `${sourceLabel}.rotation`),
     scale: parseVector3Tuple(record.scale, `${sourceLabel}.scale`),
+    normalMode: parseTerrainNormalMode(record.normalMode, `${sourceLabel}.normalMode`),
     generator: parseTerrainGeneratorDescriptor(record.generator, `${sourceLabel}.generator`),
     material: parseGeneratedTerrainMaterial(record.material, `${sourceLabel}.material`),
     editedHeightMap: parseGeneratedTerrainEditedHeightMap(record.editedHeightMap, resolution, `${sourceLabel}.editedHeightMap`)
@@ -364,7 +370,8 @@ function parseGeneratedTerrainMaterial(
   if (kind === "flat") {
     return {
       kind: "flat",
-      color: optionalString(record.color, `${sourceLabel}.color must be a string if provided.`)
+      color: optionalString(record.color, `${sourceLabel}.color must be a string if provided.`),
+      emissive: optionalNullableHexColor(record.emissive, `${sourceLabel}.emissive`)
     };
   }
 
@@ -372,6 +379,7 @@ function parseGeneratedTerrainMaterial(
     return {
       kind: "heightBands",
       color: optionalString(record.color, `${sourceLabel}.color must be a string if provided.`),
+      emissive: optionalNullableHexColor(record.emissive, `${sourceLabel}.emissive`),
       bands: parseTerrainMaterialBands(record.bands, `${sourceLabel}.bands`)
     };
   }
@@ -521,6 +529,34 @@ function optionalString(value: unknown, errorMessage: string): string | undefine
 
   if (typeof value !== "string") {
     throw new Error(errorMessage);
+  }
+
+  return value;
+}
+
+function optionalNullableHexColor(value: unknown, sourceLabel: string): string | null | undefined {
+  if (value === undefined) {
+    return undefined;
+  }
+
+  if (value === null) {
+    return null;
+  }
+
+  if (typeof value !== "string" || !/^#[0-9A-Fa-f]{6}$/.test(value)) {
+    throw new Error(`${sourceLabel} must be a #RRGGBB color string or null if provided.`);
+  }
+
+  return value;
+}
+
+function parseTerrainNormalMode(value: unknown, sourceLabel: string): SceneTerrainNormalMode | undefined {
+  if (value === undefined) {
+    return undefined;
+  }
+
+  if (value !== "smooth" && value !== "flat") {
+    throw new Error(`${sourceLabel} must be 'smooth' or 'flat'.`);
   }
 
   return value;

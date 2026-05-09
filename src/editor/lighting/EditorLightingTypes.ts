@@ -5,6 +5,7 @@ import type {
   SceneLightingDescriptor,
   ShadowLightingDescriptor
 } from "../../core/lighting/LightingTypes";
+import type { ShadowDiagnostics } from "../../core/lighting/SceneShadowRegistry";
 
 export interface LightingPresetOption {
   readonly id: LightingPresetId;
@@ -14,6 +15,7 @@ export interface LightingPresetOption {
 export interface LightingPanelViewModel {
   readonly enabled: boolean;
   readonly descriptor: SceneLightingDescriptor | null;
+  readonly shadowDiagnostics: ShadowDiagnostics | null;
   readonly presetOptions: readonly LightingPresetOption[];
   readonly dirty: boolean;
   readonly message: string;

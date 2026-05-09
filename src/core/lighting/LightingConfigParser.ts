@@ -9,6 +9,7 @@ import type {
   LightingVector3Tuple,
   SceneLightingDescriptor,
   ShadowCasterMode,
+  ShadowFilterMode,
   ShadowGeneratorKind,
   ShadowLightingDescriptor,
   ShadowReceiverMode
@@ -18,6 +19,7 @@ const LIGHTING_PRESET_IDS: readonly LightingPresetId[] = ["day", "overcast", "du
 const SHADOW_GENERATOR_KINDS: readonly ShadowGeneratorKind[] = ["standard", "cascaded"];
 const SHADOW_CASTER_MODES: readonly ShadowCasterMode[] = ["all", "metadata", "none"];
 const SHADOW_RECEIVER_MODES: readonly ShadowReceiverMode[] = ["terrainOnly", "all", "metadata", "none"];
+const SHADOW_FILTER_MODES: readonly ShadowFilterMode[] = ["none", "pcf", "esm", "blurEsm"];
 const HEX_COLOR_PATTERN = /^#[0-9A-Fa-f]{6}$/;
 
 export function parseSceneLightingDescriptor(value: unknown, sourceLabel: string): SceneLightingDescriptor {
@@ -102,6 +104,7 @@ function parseShadowLightingDescriptor(value: unknown, sourceLabel: string): Sha
   const generator = parseOptionalEnum(record.generator, SHADOW_GENERATOR_KINDS, `${sourceLabel}.generator`);
   const mapSize = parseOptionalFiniteInteger(record.mapSize, `${sourceLabel}.mapSize must be a finite integer if provided.`);
   const darkness = parseOptionalFiniteNumber(record.darkness, `${sourceLabel}.darkness must be a finite number if provided.`);
+  const parsedFilter = parseOptionalEnum(record.filter, SHADOW_FILTER_MODES, `${sourceLabel}.filter`);
   const useBlurExponentialShadowMap = optionalBoolean(
     record.useBlurExponentialShadowMap,
     `${sourceLabel}.useBlurExponentialShadowMap must be a boolean if provided.`
@@ -120,12 +123,16 @@ function parseShadowLightingDescriptor(value: unknown, sourceLabel: string): Sha
   const includeCharacters = optionalBoolean(record.includeCharacters, `${sourceLabel}.includeCharacters must be a boolean if provided.`);
   const includeSceneObjects = optionalBoolean(record.includeSceneObjects, `${sourceLabel}.includeSceneObjects must be a boolean if provided.`);
   const includeTerrain = optionalBoolean(record.includeTerrain, `${sourceLabel}.includeTerrain must be a boolean if provided.`);
+  const filter =
+    parsedFilter ??
+    inferLegacyShadowFilter(usePercentageCloserFiltering, useBlurExponentialShadowMap);
 
   return {
     ...(enabled !== undefined ? { enabled } : {}),
     ...(generator !== undefined ? { generator } : {}),
     ...(mapSize !== undefined ? { mapSize } : {}),
     ...(darkness !== undefined ? { darkness } : {}),
+    ...(filter !== undefined ? { filter } : {}),
     ...(useBlurExponentialShadowMap !== undefined ? { useBlurExponentialShadowMap } : {}),
     ...(usePercentageCloserFiltering !== undefined ? { usePercentageCloserFiltering } : {}),
     ...(blurKernel !== undefined ? { blurKernel } : {}),
@@ -139,6 +146,25 @@ function parseShadowLightingDescriptor(value: unknown, sourceLabel: string): Sha
     ...(includeSceneObjects !== undefined ? { includeSceneObjects } : {}),
     ...(includeTerrain !== undefined ? { includeTerrain } : {})
   };
+}
+
+function inferLegacyShadowFilter(
+  usePercentageCloserFiltering: boolean | undefined,
+  useBlurExponentialShadowMap: boolean | undefined
+): ShadowFilterMode | undefined {
+  if (usePercentageCloserFiltering === true) {
+    return "pcf";
+  }
+
+  if (useBlurExponentialShadowMap === true) {
+    return "blurEsm";
+  }
+
+  if (usePercentageCloserFiltering === false || useBlurExponentialShadowMap === false) {
+    return "none";
+  }
+
+  return undefined;
 }
 
 function parseLightingPresetId(value: unknown, sourceLabel: string): LightingPresetId | undefined {

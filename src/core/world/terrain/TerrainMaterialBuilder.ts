@@ -3,15 +3,24 @@ import type { SceneGeneratedTerrainDescriptor, SceneTerrainMaterialBandDescripto
 import type { TerrainHeightField } from "./TerrainHeightField";
 
 export class TerrainMaterialBuilder {
-  public build(scene: Scene, mesh: Mesh, descriptor: SceneGeneratedTerrainDescriptor, heightField: TerrainHeightField): StandardMaterial {
+  public build(
+    scene: Scene,
+    mesh: Mesh,
+    descriptor: SceneGeneratedTerrainDescriptor,
+    heightField: TerrainHeightField,
+    vertexHeights: readonly number[] = Array.from(heightField.heights)
+  ): StandardMaterial {
     const material = new StandardMaterial(`terrain-material:${descriptor.id}`, scene);
+    material.disableLighting = false;
     material.specularColor = new Color3(0, 0, 0);
     material.ambientColor = new Color3(0.12, 0.12, 0.12);
+    material.emissiveColor = descriptor.material?.emissive
+      ? resolveColor3(descriptor.material.emissive)
+      : new Color3(0, 0, 0);
 
     if (descriptor.material?.kind === "heightBands" && descriptor.material.bands?.length) {
-      mesh.setVerticesData(VertexBuffer.ColorKind, this.buildBandColors(heightField, descriptor.material.bands), true);
+      mesh.setVerticesData(VertexBuffer.ColorKind, this.buildBandColors(vertexHeights, descriptor.material.bands), true);
       material.diffuseColor = new Color3(1, 1, 1);
-      material.emissiveColor = new Color3(0.08, 0.08, 0.08);
       mesh.useVertexColors = true;
       return material;
     }
@@ -20,10 +29,10 @@ export class TerrainMaterialBuilder {
     return material;
   }
 
-  private buildBandColors(heightField: TerrainHeightField, bands: readonly SceneTerrainMaterialBandDescriptor[]): number[] {
+  private buildBandColors(vertexHeights: readonly number[], bands: readonly SceneTerrainMaterialBandDescriptor[]): number[] {
     const colors: number[] = [];
-    for (let index = 0; index < heightField.heights.length; index += 1) {
-      const height = heightField.heights[index] ?? 0;
+    for (let index = 0; index < vertexHeights.length; index += 1) {
+      const height = vertexHeights[index] ?? 0;
       const band =
         bands.find((candidate) => height >= candidate.minHeight && height <= candidate.maxHeight) ??
         (height < bands[0]!.minHeight ? bands[0]! : bands[bands.length - 1]!);

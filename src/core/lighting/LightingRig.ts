@@ -1,10 +1,11 @@
 import type {
   AbstractMesh,
-  CascadedShadowGenerator,
   DirectionalLight,
   HemisphericLight,
   ShadowGenerator
 } from "@babylonjs/core";
+import { CascadedShadowGenerator } from "@babylonjs/core";
+import type { ShadowGeneratorKind } from "./LightingTypes";
 
 export type SceneShadowGenerator = ShadowGenerator | CascadedShadowGenerator;
 
@@ -33,6 +34,18 @@ export class LightingRig {
 
   public hasShadows(): boolean {
     return this.shadowGenerator !== null;
+  }
+
+  public getShadowGeneratorKind(): ShadowGeneratorKind | "none" {
+    if (!this.shadowGenerator) {
+      return "none";
+    }
+
+    return this.shadowGenerator instanceof CascadedShadowGenerator ? "cascaded" : "standard";
+  }
+
+  public getShadowCasterCount(): number {
+    return this.shadowCasterIds.size;
   }
 
   public clearShadowCasters(): void {

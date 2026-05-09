@@ -742,6 +742,7 @@ export class EditorScene implements Scene {
       this.editorLightingController?.getViewModel() ?? {
         enabled: false,
         descriptor: null,
+        shadowDiagnostics: null,
         presetOptions: [],
         dirty: false,
         message: ""

@@ -38,7 +38,8 @@ function testParserAcceptsTopLevelLighting(): void {
   assert(descriptor.lighting?.sun?.direction?.[1] === -1, "Expected sun direction override.");
   assert(descriptor.lighting?.sun?.intensity === 1.05, "Expected sun defaults to be preserved.");
   assert(descriptor.lighting?.shadows?.enabled === true, "Expected shadow flag override.");
-  assert(descriptor.lighting?.shadows?.blurKernel === 16, "Expected shadow defaults to be preserved.");
+  assert(descriptor.lighting?.shadows?.filter === "pcf", "Expected shadow filter defaults to be preserved.");
+  assert(descriptor.lighting?.shadows?.blurKernel === 0, "Expected shadow defaults to be preserved.");
 }
 
 function testMissingLightingNormalizesToDefault(): void {
@@ -54,6 +55,7 @@ function testMissingLightingNormalizesToDefault(): void {
 
   assert(descriptor.lighting?.preset === "day", "Expected missing top-level lighting to normalize to day.");
   assert(descriptor.lighting?.clearColor === "#8DB7D6", "Expected default clear color.");
+  assert(descriptor.lighting?.shadows?.enabled === true, "Expected default shadows to be enabled.");
 }
 
 function run(): void {

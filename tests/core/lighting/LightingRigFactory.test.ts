@@ -137,6 +137,32 @@ function testSkipsShadowGeneratorWhenSunDisabled(): void {
   disposeScene(engine, scene);
 }
 
+function testShadowFilterModeKeepsBabylonFlagsExclusive(): void {
+  const { engine, scene } = createScene();
+  const rig = new LightingRigFactory().create(scene, {
+    ambient: { enabled: false },
+    sun: { enabled: true },
+    shadows: {
+      enabled: true,
+      generator: "standard",
+      filter: "pcf",
+      useBlurExponentialShadowMap: true,
+      usePercentageCloserFiltering: false,
+      mapSize: 1024
+    }
+  });
+
+  const generator = rig.getShadowGenerator();
+  assert(
+    generator?.usePercentageCloserFiltering === true || generator?.usePoissonSampling === true,
+    "Expected PCF filter to enable PCF or Babylon's non-WebGL2 fallback."
+  );
+  assert(generator?.useBlurExponentialShadowMap === false, "Expected PCF filter to disable Blur ESM.");
+  assert(generator?.useExponentialShadowMap === false, "Expected PCF filter to disable ESM.");
+  rig.dispose();
+  disposeScene(engine, scene);
+}
+
 function run(): void {
   testCreatesAmbientLight();
   testCreatesSunLight();
@@ -146,6 +172,7 @@ function run(): void {
   testCreatesStandardShadowGeneratorWhenRequested();
   testCreatesCascadedShadowGeneratorByDefault();
   testSkipsShadowGeneratorWhenSunDisabled();
+  testShadowFilterModeKeepsBabylonFlagsExclusive();
 }
 
 run();

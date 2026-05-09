@@ -19,6 +19,7 @@ function testParserAcceptsGeneratedTerrain(): void {
         position: [0, 0, 0],
         rotation: [0, 0, 0],
         scale: [1, 1, 1],
+        normalMode: "flat",
         generator: {
           preset: "urban-pad",
           seed: 101,
@@ -45,7 +46,8 @@ function testParserAcceptsGeneratedTerrain(): void {
         },
         material: {
           kind: "flat",
-          color: "#8D9298"
+          color: "#8D9298",
+          emissive: null
         }
       },
       objects: []
@@ -54,6 +56,7 @@ function testParserAcceptsGeneratedTerrain(): void {
   );
 
   assert(descriptor.terrain?.kind === "generated", "Expected generated terrain kind.");
+  assert(descriptor.terrain?.kind === "generated" && descriptor.terrain.normalMode === "flat", "Expected normal mode to parse.");
 }
 
 function testParserRejectsInvalidResolution(): void {

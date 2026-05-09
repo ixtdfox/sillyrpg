@@ -24,6 +24,8 @@ function testMissingLightingUsesDefaultDay(): void {
   assert(descriptor.clearColor === "#8DB7D6", "Expected default day clear color.");
   assert(descriptor.ambient?.intensity === 0.55, "Expected default day ambient intensity.");
   assert(descriptor.sun?.intensity === 1.05, "Expected default day sun intensity.");
+  assert(descriptor.shadows?.enabled === true, "Expected default day shadows to be enabled.");
+  assert(descriptor.shadows?.filter === "pcf", "Expected default day shadows to use PCF.");
 }
 
 function testValidOverrideMergesWithPreset(): void {
@@ -40,6 +42,7 @@ function testValidOverrideMergesWithPreset(): void {
       shadows: {
         enabled: true,
         generator: "standard",
+        filter: "blurEsm",
         usePercentageCloserFiltering: true,
         bias: 0.0001,
         normalBias: 0.03,
@@ -62,6 +65,7 @@ function testValidOverrideMergesWithPreset(): void {
   assert(descriptor.sun?.enabled === false, "Expected sun enabled override.");
   assert(descriptor.sun?.intensity === 1.05, "Expected disabled sun descriptor to keep preset intensity.");
   assert(descriptor.shadows?.generator === "standard", "Expected shadow generator override.");
+  assert(descriptor.shadows?.filter === "blurEsm", "Expected explicit shadow filter override.");
   assert(descriptor.shadows?.receiverMode === "all", "Expected shadow receiver mode override.");
   assert(descriptor.shadows?.includeCharacters === false, "Expected character include override.");
 }
