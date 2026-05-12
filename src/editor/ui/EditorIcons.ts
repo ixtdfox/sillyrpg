@@ -29,6 +29,7 @@ export type EditorIconName =
   | "terrainSmooth"
   | "terrainFlatten"
   | "terrainFlattenToHeight"
+  | "terrainPaintTexture"
   | "terrainBrushCircle"
   | "terrainBrushSquare"
   | "terrainFlattenAll"
@@ -95,6 +96,8 @@ const ICON_PATHS: Record<EditorIconName, string> = {
     '<path d="M4 16l4-3 3 1 4-3 5 2" /><path d="M4 19h16" /><path d="M10 8h8" />',
   terrainFlattenToHeight:
     '<path d="M5 18h14" /><path d="M7 6v12" /><path d="M7 9h3" /><path d="M10 12h7" />',
+  terrainPaintTexture:
+    '<path d="M5 5h6v6H5z" /><path d="M13 5h6v6h-6z" /><path d="M5 13h6v6H5z" /><path d="M14 18l5-5" /><path d="M16 13l3 3" />',
   terrainBrushCircle:
     '<circle cx="12" cy="12" r="6" /><circle cx="12" cy="12" r="1.2" />',
   terrainBrushSquare:

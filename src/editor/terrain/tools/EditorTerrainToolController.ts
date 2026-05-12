@@ -13,6 +13,8 @@ import { EditorTerrainPicking, type EditorTerrainPickResult } from "./EditorTerr
 import type { TerrainToolsPanelViewModel } from "./EditorTerrainToolState";
 import type { EditorSceneDocument } from "../../state/EditorSceneDocument";
 import type { Scene } from "@babylonjs/core";
+import { EditorTerrainTextureLayerRegistry } from "./EditorTerrainTextureLayerRegistry";
+import { EditorTerrainTexturePaintRuntime } from "./EditorTerrainTexturePaintRuntime";
 
 interface EditorTerrainToolControllerCallbacks {
   readonly onChanged: () => void;
@@ -33,6 +35,7 @@ export class EditorTerrainToolController {
   private readonly heightSampler: TerrainHeightSampler;
   private readonly picking: EditorTerrainPicking;
   private readonly preview: EditorTerrainBrushPreview;
+  private readonly texturePaintRuntime: EditorTerrainTexturePaintRuntime;
   private readonly callbacks: EditorTerrainToolControllerCallbacks;
   private document: EditorSceneDocument | null = null;
   private sceneLoader: EditorSceneLoader | null = null;
@@ -63,6 +66,7 @@ export class EditorTerrainToolController {
     this.heightSampler = heightSampler;
     this.picking = picking;
     this.preview = new EditorTerrainBrushPreview(scene);
+    this.texturePaintRuntime = new EditorTerrainTexturePaintRuntime(scene, new EditorTerrainTextureLayerRegistry().getLayers());
   }
 
   public bind(document: EditorSceneDocument | null, sceneLoader: EditorSceneLoader | null): void {
@@ -73,6 +77,7 @@ export class EditorTerrainToolController {
 
   public dispose(): void {
     this.preview.dispose();
+    this.texturePaintRuntime.dispose();
   }
 
   public setTerrainTabActive(isActive: boolean): void {
@@ -88,6 +93,7 @@ export class EditorTerrainToolController {
     this.visibleField = this.workingField;
     this.activeStroke = null;
     this.message = message || (this.currentDescriptor ? "Hover over terrain to preview the brush. Click and drag to sculpt." : "Generate terrain first.");
+    this.resetTexturePaintRuntime();
     if (!this.activeTab || !this.currentDescriptor) {
       this.preview.hide();
     }
@@ -104,6 +110,12 @@ export class EditorTerrainToolController {
       snapHeightStep: this.settings.snapHeightStep,
       edited: Boolean(this.currentDescriptor?.editedHeightMap),
       stats: this.computeStats(),
+      textureLayers: this.texturePaintRuntime.getLayers().map((layer, index) => ({
+        ...layer,
+        paintable: index < this.texturePaintRuntime.getPaintableLayerCount()
+      })),
+      selectedTextureLayerId: this.texturePaintRuntime.getSelectedLayerId(),
+      textureLayerLimitMessage: this.texturePaintRuntime.getLayerLimitMessage(),
       message: this.message
     };
   }
@@ -114,11 +126,24 @@ export class EditorTerrainToolController {
       tool
     });
     this.message =
-      tool === "flatten"
+      tool === "paintTexture"
+        ? this.texturePaintRuntime.getPaintableLayerCount() > 0
+          ? this.texturePaintRuntime.getLayerLimitMessage() ||
+            "Select a terrain texture, then click and drag to paint runtime texture weights."
+          : this.texturePaintRuntime.getLayers().length > 0
+            ? this.texturePaintRuntime.getLayerLimitMessage()
+            : "No terrain texture files found."
+        : tool === "flatten"
         ? "Flatten samples the terrain height on pointer-down, then levels toward it while you drag."
         : tool === "flattenToHeight"
           ? "Flatten To Height levels terrain toward the configured height."
           : "Hover over terrain to preview the brush. Click and drag to sculpt.";
+    this.callbacks.onChanged();
+  }
+
+  public selectTextureLayer(layerId: string): void {
+    const result = this.texturePaintRuntime.selectLayer(layerId);
+    this.message = result.message;
     this.callbacks.onChanged();
   }
 
@@ -163,7 +188,9 @@ export class EditorTerrainToolController {
     this.workingField = this.generator.generate(descriptor);
     this.visibleField = this.workingField;
     this.message = "Cleared terrain edits and restored procedural terrain.";
+    this.texturePaintRuntime.dispose();
     await this.sceneLoader.setTerrain(descriptor);
+    this.resetTexturePaintRuntime();
     this.callbacks.onTerrainApplied(descriptor, this.message);
     this.callbacks.onChanged();
   }
@@ -258,6 +285,15 @@ export class EditorTerrainToolController {
     const center = toBrushCenter(pick);
     const sampledHeight = this.activeStroke?.flattenSampleHeight ?? workingSettings.targetHeight;
 
+    if (workingSettings.tool === "paintTexture") {
+      const result = this.texturePaintRuntime.paint(center, workingSettings.brush, deltaTime);
+      if (result.changedTexelCount > 0) {
+        this.message = "Painted terrain texture weights.";
+        this.callbacks.onChanged();
+      }
+      return;
+    }
+
     if (workingSettings.tool === "raise") {
       this.workingField = this.heightEditor.raise(this.workingField, center, workingSettings, deltaTime);
     } else if (workingSettings.tool === "lower") {
@@ -314,7 +350,9 @@ export class EditorTerrainToolController {
 
     this.applyInFlight = true;
     try {
+      this.texturePaintRuntime.dispose();
       await this.sceneLoader.setTerrain(this.currentDescriptor);
+      this.resetTexturePaintRuntime();
       this.callbacks.onTerrainApplied(this.currentDescriptor, this.message);
     } finally {
       this.applyInFlight = false;
@@ -337,6 +375,10 @@ export class EditorTerrainToolController {
       triangleCount: this.visibleField.getTriangleCount()
     };
   }
+
+  private resetTexturePaintRuntime(): void {
+    this.texturePaintRuntime.resetForTerrain(this.sceneLoader?.getTerrainInstance() ?? null, this.visibleField ?? this.workingField);
+  }
 }
 
 function toBrushCenter(pick: EditorTerrainPickResult): TerrainBrushCenter {
@@ -356,6 +398,9 @@ function resolveBrushPreviewColor(tool: TerrainEditToolId): string {
   if (tool === "smooth") {
     return "#74C0FC";
   }
+  if (tool === "paintTexture") {
+    return "#B2F2BB";
+  }
   return "#F7C948";
 }
 
@@ -371,5 +416,7 @@ function labelForTool(tool: TerrainEditToolId): string {
       return "flatten";
     case "flattenToHeight":
       return "flatten to height";
+    case "paintTexture":
+      return "paint texture";
   }
 }

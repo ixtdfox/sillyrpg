@@ -1,6 +1,6 @@
 export type TerrainBrushShape = "circle" | "square";
 
-export type TerrainEditToolId = "raise" | "lower" | "smooth" | "flatten" | "flattenToHeight";
+export type TerrainEditToolId = "raise" | "lower" | "smooth" | "flatten" | "flattenToHeight" | "paintTexture";
 
 export interface TerrainBrushSettings {
   readonly shape: TerrainBrushShape;

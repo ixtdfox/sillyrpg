@@ -441,6 +441,8 @@ export class EditorUi {
       snapHeightStep: 1,
       edited: false,
       stats: null,
+      textureLayers: [],
+      selectedTextureLayerId: null,
       message: ""
     });
     this.setLightingPanel({
@@ -1167,6 +1169,47 @@ function buildEditorCss(): string {
       display: grid;
       grid-template-columns: repeat(2, minmax(0, 1fr));
       gap: 8px;
+    }
+    .editor-terrain-texture-grid {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 8px;
+      margin-top: 10px;
+    }
+    .editor-terrain-texture-tile {
+      aspect-ratio: 1;
+      min-width: 0;
+      padding: 3px;
+      border-radius: 10px;
+      border: 1px solid rgba(115, 140, 165, 0.22);
+      background: rgba(15, 23, 33, 0.88);
+      cursor: pointer;
+      transition: border-color 120ms ease, transform 120ms ease, background 120ms ease;
+    }
+    .editor-terrain-texture-tile:hover {
+      border-color: rgba(111, 180, 235, 0.42);
+      transform: translateY(-1px);
+    }
+    .editor-terrain-texture-tile:disabled:hover {
+      border-color: rgba(115, 140, 165, 0.22);
+      transform: none;
+    }
+    .editor-terrain-texture-tile.is-active {
+      border-color: rgba(247, 201, 72, 0.72);
+      box-shadow: 0 0 0 1px rgba(247, 201, 72, 0.24);
+    }
+    .editor-terrain-texture-tile.is-disabled {
+      opacity: 0.45;
+      cursor: not-allowed;
+    }
+    .editor-terrain-texture-tile__preview {
+      display: block;
+      width: 100%;
+      height: 100%;
+      border-radius: 7px;
+      background-size: cover;
+      background-position: center;
+      image-rendering: auto;
     }
     .editor-terrain__grid {
       display: grid;

@@ -80,16 +80,7 @@ export class LightingRigFactory {
 
     const filter = this.resolveShadowFilterMode(shadows);
     generator.darkness = this.clampNumber(shadows.darkness, 0.45, 0, 1);
-    generator.usePercentageCloserFiltering = false;
-    generator.useExponentialShadowMap = false;
-    generator.useBlurExponentialShadowMap = false;
-    if (filter === "pcf") {
-      generator.usePercentageCloserFiltering = true;
-    } else if (filter === "esm") {
-      generator.useExponentialShadowMap = true;
-    } else if (filter === "blurEsm") {
-      generator.useBlurExponentialShadowMap = true;
-    }
+    this.applyShadowFilter(generator, filter);
     generator.blurKernel = this.clampNumber(shadows.blurKernel, 0, 0, 128);
     generator.bias = this.clampNumber(shadows.bias, 0.0005, 0, 0.1);
     generator.normalBias = this.clampNumber(shadows.normalBias, 0.02, 0, 10);
@@ -97,6 +88,25 @@ export class LightingRigFactory {
 
     if (generator instanceof CascadedShadowGenerator) {
       generator.lambda = this.clampNumber(shadows.lambda, 0.65, 0, 1);
+    }
+  }
+
+  private applyShadowFilter(generator: SceneShadowGenerator, filter: ShadowFilterMode): void {
+    generator.filter = ShadowGenerator.FILTER_NONE;
+
+    if (generator instanceof CascadedShadowGenerator) {
+      if (filter !== "none") {
+        generator.usePercentageCloserFiltering = true;
+      }
+      return;
+    }
+
+    if (filter === "pcf") {
+      generator.usePercentageCloserFiltering = true;
+    } else if (filter === "esm") {
+      generator.useExponentialShadowMap = true;
+    } else if (filter === "blurEsm") {
+      generator.useBlurExponentialShadowMap = true;
     }
   }
 

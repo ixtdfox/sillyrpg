@@ -225,6 +225,9 @@ export class EditorScene implements Scene {
         onChangeBrushSettings: (settings) => {
           this.terrainToolController?.updateBrushSettings(settings);
         },
+        onSelectTextureLayer: (layerId) => {
+          this.terrainToolController?.selectTextureLayer(layerId);
+        },
         onChangeTargetHeight: (height) => {
           this.terrainToolController?.updateTargetHeight(height);
         },
@@ -404,6 +407,7 @@ export class EditorScene implements Scene {
         this.frameCurrentScene();
       }
     } catch (error) {
+      console.error("Failed to load editor scene.", error);
       this.statusMessage = error instanceof Error ? error.message : String(error);
       this.sceneLoader.clear();
       this.terrainController?.bind(null, null);
@@ -735,6 +739,8 @@ export class EditorScene implements Scene {
         snapHeightStep: 1,
         edited: false,
         stats: null,
+        textureLayers: [],
+        selectedTextureLayerId: null,
         message: ""
       }
     );

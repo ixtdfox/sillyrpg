@@ -25,6 +25,9 @@ export class TerrainToolsPanel {
       snapHeightStep: 1,
       edited: false,
       stats: null,
+      textureLayers: [],
+      selectedTextureLayerId: null,
+      textureLayerLimitMessage: "",
       message: ""
     };
   }
@@ -78,6 +81,7 @@ export class TerrainToolsPanel {
           ${this.renderToolButton("smooth", "Smooth", "terrainSmooth")}
           ${this.renderToolButton("flatten", "Flatten", "terrainFlatten")}
           ${this.renderToolButton("flattenToHeight", "Flatten To Height", "terrainFlattenToHeight")}
+          ${this.renderToolButton("paintTexture", "Paint Texture", "terrainPaintTexture")}
         </div>
       </div>
 
@@ -98,6 +102,8 @@ export class TerrainToolsPanel {
           }
         </div>
       </div>
+
+      ${this.viewModel.activeTool === "paintTexture" ? this.renderTexturePalette() : ""}
 
       <div class="editor-card editor-card--compact">
         <div class="editor-card__title">${editorIconSvg("flatten", 18)}<span>Actions</span></div>
@@ -130,6 +136,18 @@ export class TerrainToolsPanel {
             ...this.viewModel.brush,
             shape
           });
+        }
+      });
+    });
+
+    this.root.querySelectorAll<HTMLElement>("[data-texture-layer]").forEach((button) => {
+      button.addEventListener("click", () => {
+        if (button instanceof HTMLButtonElement && button.disabled) {
+          return;
+        }
+        const layerId = button.dataset.textureLayer;
+        if (layerId) {
+          this.callbacks.onSelectTextureLayer(layerId);
         }
       });
     });
@@ -206,6 +224,47 @@ export class TerrainToolsPanel {
       <button type="button" class="editor-mini-button${isActive ? " is-active" : ""}" data-shape="${shape}" title="${escapeHtml(label)}" aria-label="${escapeHtml(label)}">
         ${editorIconSvg(icon, 16)}
         <span>${escapeHtml(label)}</span>
+      </button>
+    `;
+  }
+
+  private renderTexturePalette(): string {
+    const activeLayer = this.viewModel.textureLayers.find((layer) => layer.id === this.viewModel.selectedTextureLayerId) ?? null;
+    const limitMessage = this.viewModel.textureLayerLimitMessage ?? "";
+    const layerTiles = this.viewModel.textureLayers.length > 0
+      ? this.viewModel.textureLayers.map((layer) => this.renderTextureTile(layer)).join("")
+      : `<div class="editor-card__line">No terrain textures found.</div>`;
+
+    return `
+      <div class="editor-card editor-card--compact">
+        <div class="editor-card__title">${editorIconSvg("terrainPaintTexture", 18)}<span>Texture</span></div>
+        <div class="editor-terrain__status-badge">
+          ${activeLayer ? `Selected: ${escapeHtml(activeLayer.label)}` : "No paintable texture selected."}
+        </div>
+        ${limitMessage ? `<div class="editor-card__line">${escapeHtml(limitMessage)}</div>` : ""}
+        <div class="editor-terrain-texture-grid">
+          ${layerTiles}
+        </div>
+      </div>
+    `;
+  }
+
+  private renderTextureTile(layer: { readonly id: string; readonly label: string; readonly url: string; readonly paintable: boolean }): string {
+    const isActive = this.viewModel.selectedTextureLayerId === layer.id;
+    const limitMessage = this.viewModel.textureLayerLimitMessage ?? "";
+    const title = layer.paintable
+      ? layer.label
+      : `${layer.label} (${limitMessage || "not paintable on this graphics device"})`;
+    return `
+      <button
+        type="button"
+        class="editor-terrain-texture-tile${isActive ? " is-active" : ""}${layer.paintable ? "" : " is-disabled"}"
+        data-texture-layer="${escapeHtml(layer.id)}"
+        title="${escapeHtml(title)}"
+        aria-label="${escapeHtml(title)}"
+        ${layer.paintable ? "" : "disabled"}
+      >
+        <span class="editor-terrain-texture-tile__preview" style="background-image: url(&quot;${escapeHtml(layer.url)}&quot;)"></span>
       </button>
     `;
   }

@@ -1,4 +1,4 @@
-import { CascadedShadowGenerator, NullEngine, Scene, ShadowGenerator } from "@babylonjs/core";
+import { CascadedShadowGenerator, Logger, NullEngine, Scene, ShadowGenerator } from "@babylonjs/core";
 import { LightingRigFactory } from "../../../src/core/lighting/LightingRigFactory";
 import type { SceneLightingDescriptor } from "../../../src/core/lighting/LightingTypes";
 
@@ -163,6 +163,41 @@ function testShadowFilterModeKeepsBabylonFlagsExclusive(): void {
   disposeScene(engine, scene);
 }
 
+function testCascadedShadowGeneratorAvoidsUnsupportedFilterLogs(): void {
+  if (!CascadedShadowGenerator.IsSupported) {
+    return;
+  }
+
+  const messages: string[] = [];
+  const originalError = Logger.Error;
+  Logger.Error = (message: string | any[]) => {
+    messages.push(Array.isArray(message) ? message.join(" ") : String(message));
+  };
+
+  const { engine, scene } = createScene();
+  try {
+    const rig = new LightingRigFactory().create(scene, {
+      ambient: { enabled: false },
+      sun: { enabled: true },
+      shadows: {
+        enabled: true,
+        filter: "pcf",
+        mapSize: 1024
+      }
+    });
+
+    assert(rig.getShadowGenerator() instanceof CascadedShadowGenerator, "Expected CSM for default shadow generator.");
+    assert(
+      !messages.some((message) => message.includes("Unsupported filter")),
+      "Expected CSM configuration not to log unsupported Babylon shadow filters."
+    );
+    rig.dispose();
+  } finally {
+    Logger.Error = originalError;
+    disposeScene(engine, scene);
+  }
+}
+
 function run(): void {
   testCreatesAmbientLight();
   testCreatesSunLight();
@@ -173,6 +208,7 @@ function run(): void {
   testCreatesCascadedShadowGeneratorByDefault();
   testSkipsShadowGeneratorWhenSunDisabled();
   testShadowFilterModeKeepsBabylonFlagsExclusive();
+  testCascadedShadowGeneratorAvoidsUnsupportedFilterLogs();
 }
 
 run();
