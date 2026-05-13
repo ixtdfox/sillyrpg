@@ -112,7 +112,7 @@ export class TerrainSplatMaterialBuilder {
       layerAtlasTexture,
       layers.length,
       layerAtlasLayout,
-      resolveTileScale(terrainWidth, terrainDepth)
+      resolveTerrainSplatTileScale(terrainWidth, terrainDepth)
     );
 
     mesh.useVertexColors = false;
@@ -426,7 +426,7 @@ function getSplatChannelName(channelIndex: number): string {
   }
 }
 
-function resolveTileScale(terrainWidth: number, terrainDepth: number): number {
+export function resolveTerrainSplatTileScale(terrainWidth: number, terrainDepth: number): number {
   const maxSize = Math.max(Math.abs(terrainWidth), Math.abs(terrainDepth), 1);
   return Math.max(4, Math.min(24, maxSize / 6));
 }

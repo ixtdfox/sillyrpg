@@ -173,6 +173,71 @@ function testPaintingLayerAboveFirstChunkUpdatesCorrectChunk(): void {
   assertClose(sumWeights(splatMap, 4, 4), 1, "Painting layer 4 should keep the changed texel normalized.");
 }
 
+function testRgbaChunkRoundTripRestoresSplatWeights(): void {
+  const splatMap = new TerrainSplatMap(3, 3, 5);
+  splatMap.setWeight(1, 1, 0, 0.1);
+  splatMap.setWeight(1, 1, 1, 0.2);
+  splatMap.setWeight(1, 1, 2, 0.3);
+  splatMap.setWeight(1, 1, 3, 0.15);
+  splatMap.setWeight(1, 1, 4, 0.25);
+  splatMap.normalizeTexel(1, 1);
+
+  const restored = TerrainSplatMap.fromRgba8Chunks(
+    splatMap.resolutionX,
+    splatMap.resolutionZ,
+    splatMap.layerCount,
+    Array.from({ length: splatMap.getSplatTextureCount() }, (_unused, chunkIndex) => splatMap.toRgba8ArrayForChunk(chunkIndex, true)),
+    true
+  );
+
+  for (let layerIndex = 0; layerIndex < splatMap.layerCount; layerIndex += 1) {
+    const difference = Math.abs(restored.getWeight(1, 1, layerIndex) - splatMap.getWeight(1, 1, layerIndex));
+    assert(difference <= 1 / 255, `Expected restored splat layer ${layerIndex} to stay within 8-bit quantization error.`);
+  }
+}
+
+function testResampledMapUsesSmoothInterpolation(): void {
+  const splatMap = new TerrainSplatMap(2, 2, 2);
+  splatMap.weights.fill(0);
+  splatMap.setWeight(0, 0, 0, 1);
+  splatMap.setWeight(1, 0, 1, 1);
+  splatMap.setWeight(0, 1, 1, 1);
+  splatMap.setWeight(1, 1, 0, 1);
+
+  const resampled = splatMap.resampled(3, 3);
+  const centerLayer0 = resampled.getWeight(1, 1, 0);
+  const centerLayer1 = resampled.getWeight(1, 1, 1);
+
+  assert(centerLayer0 > 0.45 && centerLayer0 < 0.55, "Expected bilinear resampling to blend layer 0 at the center texel.");
+  assert(centerLayer1 > 0.45 && centerLayer1 < 0.55, "Expected bilinear resampling to blend layer 1 at the center texel.");
+  assertClose(sumWeights(resampled, 1, 1), 1, "Expected resampled texels to stay normalized.");
+}
+
+function testAsymmetricCornerPatternRoundTripsWithoutVerticalMirroring(): void {
+  const splatMap = new TerrainSplatMap(4, 4, 3);
+  splatMap.weights.fill(0);
+  splatMap.setWeight(0, 0, 0, 1);
+  splatMap.setWeight(3, 0, 1, 1);
+  splatMap.setWeight(0, 3, 2, 1);
+  splatMap.setWeight(3, 3, 1, 0.4);
+  splatMap.setWeight(3, 3, 2, 0.6);
+  splatMap.normalizeTexel(3, 3);
+
+  const restored = TerrainSplatMap.fromRgba8Chunks(
+    splatMap.resolutionX,
+    splatMap.resolutionZ,
+    splatMap.layerCount,
+    Array.from({ length: splatMap.getSplatTextureCount() }, (_unused, chunkIndex) => splatMap.toRgba8ArrayForChunk(chunkIndex, true)),
+    true
+  );
+
+  assert(restored.getWeight(0, 0, 0) > 0.99, "Expected top-left terrain texel to remain on layer 0 after round-trip.");
+  assert(restored.getWeight(3, 0, 1) > 0.99, "Expected top-right terrain texel to remain on layer 1 after round-trip.");
+  assert(restored.getWeight(0, 3, 2) > 0.99, "Expected bottom-left terrain texel to remain on layer 2 after round-trip.");
+  assert(restored.getWeight(3, 3, 1) > 0.35, "Expected blended bottom-right terrain texel to preserve layer 1 weight after round-trip.");
+  assert(restored.getWeight(3, 3, 2) > 0.55, "Expected blended bottom-right terrain texel to preserve layer 2 weight after round-trip.");
+}
+
 function forEachTexel(splatMap: TerrainSplatMap, callback: (ix: number, iz: number) => void): void {
   for (let iz = 0; iz < splatMap.resolutionZ; iz += 1) {
     for (let ix = 0; ix < splatMap.resolutionX; ix += 1) {
@@ -198,6 +263,9 @@ function run(): void {
   testSplatTextureChunkCounts();
   testChunkExportMapsLayerFourToSecondTextureRedChannel();
   testPaintingLayerAboveFirstChunkUpdatesCorrectChunk();
+  testRgbaChunkRoundTripRestoresSplatWeights();
+  testResampledMapUsesSmoothInterpolation();
+  testAsymmetricCornerPatternRoundTripsWithoutVerticalMirroring();
 }
 
 run();

@@ -1,4 +1,9 @@
-import type { SceneGeneratedTerrainDescriptor, SceneTerrainDescriptor } from "../../../core/world/scene/SceneDescriptor";
+import {
+  cloneSceneDescriptor,
+  type SceneDescriptor,
+  type SceneGeneratedTerrainDescriptor,
+  type SceneTerrainDescriptor
+} from "../../../core/world/scene/SceneDescriptor";
 import { TerrainGenerator } from "../../../core/world/terrain/TerrainGenerator";
 import { DEFAULT_TERRAIN_TOOL_SETTINGS, normalizeTerrainBrushSettings, normalizeTerrainToolSettings } from "../../../core/world/terrain/editing/TerrainBrush";
 import { TerrainHeightEditor } from "../../../core/world/terrain/editing/TerrainHeightEditor";
@@ -14,7 +19,11 @@ import type { TerrainToolsPanelViewModel } from "./EditorTerrainToolState";
 import type { EditorSceneDocument } from "../../state/EditorSceneDocument";
 import type { Scene } from "@babylonjs/core";
 import { EditorTerrainTextureLayerRegistry } from "./EditorTerrainTextureLayerRegistry";
+import { EditorTerrainTextureBakeService, resolveTerrainBakeResolution } from "./EditorTerrainTextureBakeService";
+import { EditorTerrainTextureMapPersistence } from "./EditorTerrainTextureMapPersistence";
 import { EditorTerrainTexturePaintRuntime } from "./EditorTerrainTexturePaintRuntime";
+import { resolveTexturePaintStrokeAction, type TexturePaintRawLoadState } from "./EditorTerrainTexturePaintRecovery";
+import type { EditorSceneSaveAsset } from "../../state/EditorScenePersistence";
 
 interface EditorTerrainToolControllerCallbacks {
   readonly onChanged: () => void;
@@ -36,6 +45,8 @@ export class EditorTerrainToolController {
   private readonly picking: EditorTerrainPicking;
   private readonly preview: EditorTerrainBrushPreview;
   private readonly texturePaintRuntime: EditorTerrainTexturePaintRuntime;
+  private readonly textureBakeService: EditorTerrainTextureBakeService;
+  private readonly textureMapPersistence: EditorTerrainTextureMapPersistence;
   private readonly callbacks: EditorTerrainToolControllerCallbacks;
   private document: EditorSceneDocument | null = null;
   private sceneLoader: EditorSceneLoader | null = null;
@@ -48,6 +59,8 @@ export class EditorTerrainToolController {
   private message = "";
   private applyInFlight = false;
   private applyQueued = false;
+  private texturePaintLoadRequestId = 0;
+  private texturePaintRawLoadState: TexturePaintRawLoadState = "idle";
 
   public constructor(
     scene: Scene,
@@ -56,7 +69,9 @@ export class EditorTerrainToolController {
     generator = new TerrainGenerator(),
     heightEditor = new TerrainHeightEditor(),
     heightSampler = new TerrainHeightSampler(),
-    picking = new EditorTerrainPicking()
+    picking = new EditorTerrainPicking(),
+    textureBakeService = new EditorTerrainTextureBakeService(),
+    textureMapPersistence = new EditorTerrainTextureMapPersistence()
   ) {
     this.scene = scene;
     this.canvas = canvas;
@@ -67,6 +82,8 @@ export class EditorTerrainToolController {
     this.picking = picking;
     this.preview = new EditorTerrainBrushPreview(scene);
     this.texturePaintRuntime = new EditorTerrainTexturePaintRuntime(scene, new EditorTerrainTextureLayerRegistry().getLayers());
+    this.textureBakeService = textureBakeService;
+    this.textureMapPersistence = textureMapPersistence;
   }
 
   public bind(document: EditorSceneDocument | null, sceneLoader: EditorSceneLoader | null): void {
@@ -92,6 +109,7 @@ export class EditorTerrainToolController {
     this.workingField = this.currentDescriptor ? this.generator.generate(this.currentDescriptor) : null;
     this.visibleField = this.workingField;
     this.activeStroke = null;
+    this.texturePaintRawLoadState = "idle";
     this.message = message || (this.currentDescriptor ? "Hover over terrain to preview the brush. Click and drag to sculpt." : "Generate terrain first.");
     this.resetTexturePaintRuntime();
     if (!this.activeTab || !this.currentDescriptor) {
@@ -121,18 +139,26 @@ export class EditorTerrainToolController {
   }
 
   public selectTool(tool: TerrainEditToolId): void {
+    const previousTool = this.settings.tool;
     this.settings = normalizeTerrainToolSettings({
       ...this.settings,
       tool
     });
+    if (previousTool !== tool) {
+      this.resetTexturePaintRuntime();
+    }
     this.message =
       tool === "paintTexture"
-        ? this.texturePaintRuntime.getPaintableLayerCount() > 0
-          ? this.texturePaintRuntime.getLayerLimitMessage() ||
-            "Select a terrain texture, then click and drag to paint runtime texture weights."
-          : this.texturePaintRuntime.getLayers().length > 0
-            ? this.texturePaintRuntime.getLayerLimitMessage()
-            : "No terrain texture files found."
+          ? this.currentDescriptor?.material?.kind === "bakedTexture" &&
+            !this.currentDescriptor.editedTextureMap &&
+            !this.texturePaintRuntime.hasEditableTextureMap()
+            ? "This baked terrain has no editable paint data yet. Paint to start a new texture map."
+            : this.texturePaintRuntime.getPaintableLayerCount() > 0
+            ? this.texturePaintRuntime.getLayerLimitMessage() ||
+            "Select a terrain texture, then click and drag to paint terrain texture weights."
+            : this.texturePaintRuntime.getLayers().length > 0
+              ? this.texturePaintRuntime.getLayerLimitMessage()
+              : "No terrain texture files found."
         : tool === "flatten"
         ? "Flatten samples the terrain height on pointer-down, then levels toward it while you drag."
         : tool === "flattenToHeight"
@@ -258,6 +284,71 @@ export class EditorTerrainToolController {
     return true;
   }
 
+  public async prepareTerrainForSceneSave(descriptor: SceneDescriptor): Promise<{
+    readonly descriptor: SceneDescriptor;
+    readonly assets: readonly EditorSceneSaveAsset[];
+  }> {
+    const nextDescriptor = cloneSceneDescriptor(descriptor);
+    const terrain = nextDescriptor.terrain;
+    if (terrain?.kind !== "generated") {
+      return {
+        descriptor: nextDescriptor,
+        assets: []
+      };
+    }
+
+    const splatMap = this.texturePaintRuntime.createBakeSnapshot();
+    if (!splatMap) {
+      return {
+        descriptor: nextDescriptor,
+        assets: []
+      };
+    }
+
+    const bakedAssetPath = `assets/generated/terrain/${nextDescriptor.id}/${terrain.id}_albedo.png`;
+    const bakeResolution = resolveBakeResolutionTuple(this.currentDescriptor ?? terrain);
+    const bakedTexture = await this.textureBakeService.bakeToDataUrl({
+      splatMap,
+      layers: this.texturePaintRuntime.getActiveLayers(),
+      terrainWidth: terrain.size[0],
+      terrainDepth: terrain.size[1],
+      outputResolution: bakeResolution
+    });
+    const serializedTextureMap = await this.textureMapPersistence.serialize({
+      sceneId: nextDescriptor.id,
+      terrainId: terrain.id,
+      splatMap,
+      layers: this.texturePaintRuntime.getActiveLayers(),
+      bakedTexturePath: bakedAssetPath,
+      bakeResolution
+    });
+
+    return {
+      descriptor: {
+        ...nextDescriptor,
+        terrain: {
+          ...terrain,
+          material: {
+            kind: "bakedTexture",
+            texture: bakedAssetPath,
+            color: terrain.material?.color,
+            emissive: terrain.material?.emissive
+          },
+          editedTextureMap: serializedTextureMap.editedTextureMap
+        }
+      },
+      assets: [
+        {
+          path: bakedAssetPath,
+          encoding: "dataUrl",
+          mimeType: "image/png",
+          data: bakedTexture
+        },
+        ...serializedTextureMap.assets
+      ]
+    };
+  }
+
   private pickTerrain(clientX: number, clientY: number): EditorTerrainPickResult | null {
     return this.sceneLoader
       ? this.picking.pick(
@@ -286,8 +377,15 @@ export class EditorTerrainToolController {
     const sampledHeight = this.activeStroke?.flattenSampleHeight ?? workingSettings.targetHeight;
 
     if (workingSettings.tool === "paintTexture") {
+      if (!this.texturePaintRuntime.isReadyToPaint()) {
+        if (!this.startTexturePaintRuntimeForStroke()) {
+          return;
+        }
+      }
+
       const result = this.texturePaintRuntime.paint(center, workingSettings.brush, deltaTime);
       if (result.changedTexelCount > 0) {
+        this.document.markDirty();
         this.message = "Painted terrain texture weights.";
         this.callbacks.onChanged();
       }
@@ -350,7 +448,6 @@ export class EditorTerrainToolController {
 
     this.applyInFlight = true;
     try {
-      this.texturePaintRuntime.dispose();
       await this.sceneLoader.setTerrain(this.currentDescriptor);
       this.resetTexturePaintRuntime();
       this.callbacks.onTerrainApplied(this.currentDescriptor, this.message);
@@ -377,8 +474,189 @@ export class EditorTerrainToolController {
   }
 
   private resetTexturePaintRuntime(): void {
-    this.texturePaintRuntime.resetForTerrain(this.sceneLoader?.getTerrainInstance() ?? null, this.visibleField ?? this.workingField);
+    const terrainInstance = this.sceneLoader?.getTerrainInstance() ?? null;
+    const heightField = this.visibleField ?? this.workingField;
+    if (!terrainInstance || !heightField) {
+      this.texturePaintRuntime.dispose();
+      return;
+    }
+
+    if (this.texturePaintRuntime.hasEditableTextureMap()) {
+      this.texturePaintRawLoadState = "loaded";
+      this.texturePaintRuntime.resetForTerrainWithOptions(terrainInstance, heightField, {
+        allowCreateDefault: true
+      });
+      return;
+    }
+
+    if (this.settings.tool === "paintTexture") {
+      void this.ensureTexturePaintRuntimeReady(false);
+      return;
+    }
+
+    this.texturePaintRuntime.dispose();
   }
+
+  private async ensureTexturePaintRuntimeReady(allowCreateDefault: boolean): Promise<void> {
+    const terrain = this.currentDescriptor;
+    const terrainInstance = this.sceneLoader?.getTerrainInstance() ?? null;
+    const heightField = this.visibleField ?? this.workingField;
+    if (!terrain || !terrainInstance || !heightField) {
+      this.texturePaintRuntime.dispose();
+      this.texturePaintRawLoadState = "idle";
+      this.callbacks.onChanged();
+      return;
+    }
+
+    if (this.texturePaintRuntime.hasEditableTextureMap()) {
+      this.texturePaintRawLoadState = "loaded";
+      this.texturePaintRuntime.resetForTerrainWithOptions(terrainInstance, heightField, {
+        allowCreateDefault: true
+      });
+      this.callbacks.onChanged();
+      return;
+    }
+
+    if (this.texturePaintRawLoadState === "loading") {
+      this.callbacks.onChanged();
+      return;
+    }
+
+    if (this.texturePaintRawLoadState === "failed" && terrain.editedTextureMap) {
+      this.leaveBakedTerrainVisible(
+        terrain,
+        "Saved terrain texture paint data could not be loaded. Keeping baked terrain preview."
+      );
+      return;
+    }
+
+    const requestId = ++this.texturePaintLoadRequestId;
+    if (terrain.editedTextureMap) {
+      this.texturePaintRawLoadState = "loading";
+      this.message = "Loading saved terrain texture paint data.";
+      this.callbacks.onChanged();
+      try {
+        const loaded = await this.textureMapPersistence.load({
+          editedTextureMap: terrain.editedTextureMap,
+          availableLayers: this.texturePaintRuntime.getLayers(),
+          maxPaintableLayerCount: this.texturePaintRuntime.getPaintableLayerCount()
+        });
+        if (requestId !== this.texturePaintLoadRequestId || this.currentDescriptor !== terrain) {
+          return;
+        }
+        if (!loaded) {
+          this.texturePaintRawLoadState = "failed";
+          this.leaveBakedTerrainVisible(terrain, "Unable to load saved terrain texture paint data. Keeping baked terrain preview.");
+          return;
+        }
+
+        this.texturePaintRuntime.resetForTerrainWithOptions(terrainInstance, heightField, {
+          initialSplatMap: loaded.splatMap
+        });
+        if (!this.texturePaintRuntime.isReadyToPaint()) {
+          this.texturePaintRawLoadState = "failed";
+          this.leaveBakedTerrainVisible(terrain, "Saved terrain texture paint data could not be activated. Keeping baked terrain preview.");
+          return;
+        }
+        this.texturePaintRawLoadState = "loaded";
+        this.message =
+          this.settings.tool === "paintTexture"
+            ? "Loaded saved terrain texture paint data."
+            : this.message;
+      } catch (error) {
+        if (requestId !== this.texturePaintLoadRequestId || this.currentDescriptor !== terrain) {
+          return;
+        }
+        this.texturePaintRawLoadState = "failed";
+        this.leaveBakedTerrainVisible(
+          terrain,
+          `Saved terrain paint data is broken or missing. Baked preview is kept. Paint again to start a new editable texture map. ${error instanceof Error ? error.message : String(error)}`
+        );
+        return;
+      }
+      this.callbacks.onChanged();
+      return;
+    }
+
+    if (!allowCreateDefault) {
+      this.texturePaintRawLoadState = "idle";
+      this.leaveBakedTerrainVisible(
+        terrain,
+        terrain.material?.kind === "bakedTexture"
+          ? "This baked terrain has no editable paint data yet. Paint to start a new texture map."
+          : "Select a terrain texture, then click and drag to paint terrain texture weights."
+      );
+      return;
+    }
+
+    this.texturePaintRuntime.resetForTerrainWithOptions(terrainInstance, heightField, {
+      allowCreateDefault: true
+    });
+    this.texturePaintRawLoadState = this.texturePaintRuntime.isReadyToPaint() ? "loaded" : "idle";
+    this.message = "Started a new terrain texture paint map.";
+    this.callbacks.onChanged();
+  }
+
+  private startTexturePaintRuntimeForStroke(): boolean {
+    if (!this.currentDescriptor || !this.sceneLoader || !(this.visibleField ?? this.workingField)) {
+      return false;
+    }
+
+    if (this.currentDescriptor.editedTextureMap) {
+      const action = resolveTexturePaintStrokeAction({
+        hasEditedTextureMap: true,
+        rawLoadState: this.texturePaintRawLoadState,
+        runtimeReady: this.texturePaintRuntime.isReadyToPaint()
+      });
+
+      if (action === "block") {
+        return false;
+      }
+      if (action === "paintLoadedMap") {
+        return this.texturePaintRuntime.isReadyToPaint();
+      }
+      if (action === "startNewMap") {
+        this.texturePaintRuntime.resetForTerrainWithOptions(
+          this.sceneLoader.getTerrainInstance(),
+          this.visibleField ?? this.workingField,
+          { allowCreateDefault: true }
+        );
+        if (this.texturePaintRuntime.isReadyToPaint()) {
+          this.texturePaintRawLoadState = "loaded";
+          this.message = "Started a new terrain texture paint map because saved raw paint data is broken.";
+          this.callbacks.onChanged();
+          return true;
+        }
+        return false;
+      }
+
+      this.message = "Loading saved terrain texture paint data before painting.";
+      void this.ensureTexturePaintRuntimeReady(false);
+      this.callbacks.onChanged();
+      return false;
+    }
+
+    this.texturePaintRuntime.resetForTerrainWithOptions(
+      this.sceneLoader.getTerrainInstance(),
+      this.visibleField ?? this.workingField,
+      { allowCreateDefault: true }
+    );
+    return this.texturePaintRuntime.isReadyToPaint();
+  }
+
+  private leaveBakedTerrainVisible(terrain: SceneGeneratedTerrainDescriptor, message: string): void {
+    this.texturePaintRuntime.resetForTerrainWithOptions(this.sceneLoader?.getTerrainInstance() ?? null, this.visibleField ?? this.workingField, {
+      allowCreateDefault: false
+    });
+    if (this.settings.tool === "paintTexture" || terrain.material?.kind === "bakedTexture") {
+      this.message = message;
+    }
+    this.callbacks.onChanged();
+  }
+}
+
+function resolveBakeResolutionTuple(terrain: SceneGeneratedTerrainDescriptor) {
+  return terrain.editedTextureMap?.bakeResolution ?? resolveTerrainBakeResolution(terrain.size[0], terrain.size[1]);
 }
 
 function toBrushCenter(pick: EditorTerrainPickResult): TerrainBrushCenter {

@@ -109,38 +109,9 @@
       }
     },
     "material": {
-      "kind": "heightBands",
-      "color": "#7E8770",
-      "bands": [
-        {
-          "id": "shore",
-          "label": "Shore",
-          "minHeight": -160,
-          "maxHeight": 0,
-          "color": "#4D6970"
-        },
-        {
-          "id": "low",
-          "label": "Low",
-          "minHeight": 0,
-          "maxHeight": 14,
-          "color": "#73805A"
-        },
-        {
-          "id": "high",
-          "label": "High",
-          "minHeight": 14,
-          "maxHeight": 40,
-          "color": "#8A846F"
-        },
-        {
-          "id": "peak",
-          "label": "Peak",
-          "minHeight": 40,
-          "maxHeight": 180,
-          "color": "#D0D2D0"
-        }
-      ]
+      "kind": "bakedTexture",
+      "texture": "assets/generated/terrain/port-main-0-0/terrain-0_albedo.png",
+      "color": "#7E8770"
     },
     "editedHeightMap": {
       "encoding": "array",
@@ -4374,6 +4345,46 @@
         -1,
         -2,
         -2
+      ]
+    },
+    "editedTextureMap": {
+      "encoding": "splatRgba8",
+      "resolution": [
+        256,
+        256
+      ],
+      "layers": [
+        "dirt_1",
+        "dirt_2",
+        "dirt_3",
+        "dirt snow",
+        "g_pal_00_color",
+        "grass (2)",
+        "grass_1",
+        "grass_3",
+        "grass_4",
+        "grass_5",
+        "grass snow",
+        "ice",
+        "leaves",
+        "leaves snow",
+        "road",
+        "road dirt",
+        "road sand",
+        "road snow",
+        "snow"
+      ],
+      "weights": [
+        "assets/generated/terrain/port-main-0-0/terrain-0_splat_0.png",
+        "assets/generated/terrain/port-main-0-0/terrain-0_splat_1.png",
+        "assets/generated/terrain/port-main-0-0/terrain-0_splat_2.png",
+        "assets/generated/terrain/port-main-0-0/terrain-0_splat_3.png",
+        "assets/generated/terrain/port-main-0-0/terrain-0_splat_4.png"
+      ],
+      "bakedTexture": "assets/generated/terrain/port-main-0-0/terrain-0_albedo.png",
+      "bakeResolution": [
+        4096,
+        4096
       ]
     }
   },

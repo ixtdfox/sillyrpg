@@ -2,6 +2,7 @@ import { MeshBuilder, NullEngine, Scene, StandardMaterial, TransformNode } from 
 import { TerrainHeightField } from "../../src/core/world/terrain/TerrainHeightField";
 import { TerrainSplatMaterialBuilder, type TerrainSplatMaterialRuntime } from "../../src/core/world/terrain/TerrainSplatMaterialBuilder";
 import { TerrainSplatMap } from "../../src/core/world/terrain/editing/TerrainSplatMap";
+import type { SceneGeneratedTerrainDescriptor } from "../../src/core/world/scene/SceneDescriptor";
 import type { TerrainTextureLayerDescriptor } from "../../src/core/world/terrain/editing/TerrainTextureLayer";
 import { EditorTerrainTexturePaintRuntime } from "../../src/editor/terrain/tools/EditorTerrainTexturePaintRuntime";
 import type { EditorTerrainInstance } from "../../src/editor/types";
@@ -235,6 +236,34 @@ function testResetForTerrainInitializesRealSplatMaterial(): void {
   engine.dispose();
 }
 
+function testResetForTerrainKeepsBakedMaterialVisibleWithoutEditableMap(): void {
+  const engine = new NullEngine();
+  const scene = new Scene(engine);
+  const { terrain: sourceTerrain, terrainMesh, baseMaterial } = createGeneratedTerrainInstance(scene);
+  const generatedDescriptor = sourceTerrain.descriptor as SceneGeneratedTerrainDescriptor;
+  const terrain: EditorTerrainInstance = {
+    ...sourceTerrain,
+    descriptor: {
+      ...generatedDescriptor,
+      material: {
+        kind: "bakedTexture",
+        texture: "assets/generated/terrain/test-scene/terrain_albedo.png"
+      }
+    }
+  };
+  const runtime = new EditorTerrainTexturePaintRuntime(scene, createLayers(2), new CountingTerrainSplatMaterialBuilder());
+  const heightField = TerrainHeightField.createFilled(10, 10, 2, 2, 0);
+
+  runtime.resetForTerrainWithOptions(terrain, heightField, { allowCreateDefault: false });
+
+  assert(terrainMesh.material === baseMaterial, "Expected baked terrain to keep its current material until an editable map exists.");
+  assert(runtime.isReadyToPaint() === false, "Expected paint runtime to stay inactive without an editable map.");
+
+  runtime.dispose();
+  scene.dispose();
+  engine.dispose();
+}
+
 function testPaintUpdatesSplatTextureRuntimePath(): void {
   const engine = new NullEngine();
   const scene = new Scene(engine);
@@ -254,6 +283,61 @@ function testPaintUpdatesSplatTextureRuntimePath(): void {
   assert(result.changedTexelCount > 0, "Expected painting to affect at least one splat texel.");
   assert(builder.updateCount === 1, "Expected painting to update the runtime splat texture.");
   assert(runtime.getPaintableLayerCount() > 4, "Expected more than four layers to remain paintable.");
+
+  runtime.dispose();
+  scene.dispose();
+  engine.dispose();
+}
+
+function testBakeSnapshotReturnsCloneAndTracksPaintState(): void {
+  const engine = new NullEngine();
+  const scene = new Scene(engine);
+  const { terrain } = createGeneratedTerrainInstance(scene);
+  const runtime = new EditorTerrainTexturePaintRuntime(scene, createLayers(2), new CountingTerrainSplatMaterialBuilder());
+  const heightField = TerrainHeightField.createFilled(10, 10, 2, 2, 0);
+
+  runtime.resetForTerrain(terrain, heightField);
+  assert(runtime.hasPaintedTexture() === false, "Expected paint state to start clean.");
+  runtime.selectLayer("layer-1");
+  runtime.paint({ x: 0, z: 0 }, { shape: "circle", radius: 5, strength: 1, falloff: 0 }, 0.25);
+
+  const snapshot = runtime.createBakeSnapshot();
+  assert(snapshot !== null, "Expected bake snapshot after initialization.");
+  assert(runtime.hasPaintedTexture(), "Expected painting to mark the runtime as dirty for baking.");
+
+  const originalWeight = snapshot?.getWeight(128, 128, 1) ?? 0;
+  snapshot?.setWeight(128, 128, 1, 0);
+  const secondSnapshot = runtime.createBakeSnapshot();
+  assert(
+    Math.abs((secondSnapshot?.getWeight(128, 128, 1) ?? 0) - originalWeight) < 0.0001,
+    "Expected bake snapshots to be detached clones of the runtime splat map."
+  );
+
+  runtime.dispose();
+  scene.dispose();
+  engine.dispose();
+}
+
+function testResetForTerrainPreservesPaintedSplatWeightsAcrossTerrainRefresh(): void {
+  const engine = new NullEngine();
+  const scene = new Scene(engine);
+  const { terrain } = createGeneratedTerrainInstance(scene);
+  const runtime = new EditorTerrainTexturePaintRuntime(scene, createLayers(2), new CountingTerrainSplatMaterialBuilder());
+  const heightField = TerrainHeightField.createFilled(10, 10, 2, 2, 0);
+
+  runtime.resetForTerrain(terrain, heightField);
+  runtime.selectLayer("layer-1");
+  runtime.paint({ x: 0, z: 0 }, { shape: "circle", radius: 5, strength: 1, falloff: 0 }, 0.25);
+  const beforeRefresh = runtime.createBakeSnapshot();
+
+  runtime.resetForTerrain(terrain, heightField);
+  const afterRefresh = runtime.createBakeSnapshot();
+
+  assert(runtime.hasPaintedTexture(), "Expected terrain refresh to keep the runtime paint state.");
+  assert(
+    Math.abs((afterRefresh?.getWeight(128, 128, 1) ?? 0) - (beforeRefresh?.getWeight(128, 128, 1) ?? 0)) < 0.0001,
+    "Expected terrain refresh to preserve the painted splat weights."
+  );
 
   runtime.dispose();
   scene.dispose();
@@ -304,7 +388,10 @@ function run(): void {
   testDefaultBuilderSupportsCurrentTerrainTextureCountOnSixteenSamplerBudget();
   testSplatMaterialPluginRegistrationUsesInitializedFields();
   testResetForTerrainInitializesRealSplatMaterial();
+  testResetForTerrainKeepsBakedMaterialVisibleWithoutEditableMap();
   testPaintUpdatesSplatTextureRuntimePath();
+  testBakeSnapshotReturnsCloneAndTracksPaintState();
+  testResetForTerrainPreservesPaintedSplatWeightsAcrossTerrainRefresh();
   testResetForTerrainKeepsSceneMaterialWhenSplatMaterialBuildFails();
 }
 

@@ -675,7 +675,11 @@ export class EditorScene implements Scene {
     }
 
     try {
-      await saveSceneDescriptor(this.document.descriptorPath, this.document.descriptor);
+      const preparedTerrain = await (this.terrainToolController?.prepareTerrainForSceneSave(this.document.descriptor) ??
+        Promise.resolve({ descriptor: this.document.descriptor, assets: [] }));
+      await saveSceneDescriptor(this.document.descriptorPath, preparedTerrain.descriptor, preparedTerrain.assets);
+      this.document.replaceDescriptor(preparedTerrain.descriptor);
+      this.terrainToolController?.synchronizeFromTerrain(preparedTerrain.descriptor.terrain ?? null, this.statusMessage);
       this.document.markSaved();
       this.statusMessage = "Scene saved.";
     } catch (error) {

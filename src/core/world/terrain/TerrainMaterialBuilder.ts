@@ -1,4 +1,5 @@
-import { Color3, Color4, StandardMaterial, VertexBuffer, type Mesh, type Scene } from "@babylonjs/core";
+import { Color3, Color4, StandardMaterial, Texture, VertexBuffer, type Mesh, type Scene } from "@babylonjs/core";
+import { normalizeAssetPath } from "../../model/SceneAssetPath";
 import type { SceneGeneratedTerrainDescriptor, SceneTerrainMaterialBandDescriptor } from "../scene/SceneDescriptor";
 import type { TerrainHeightField } from "./TerrainHeightField";
 
@@ -17,6 +18,28 @@ export class TerrainMaterialBuilder {
     material.emissiveColor = descriptor.material?.emissive
       ? resolveColor3(descriptor.material.emissive)
       : new Color3(0, 0, 0);
+
+    mesh.useVertexColors = false;
+
+    if (descriptor.material?.kind === "bakedTexture") {
+      material.diffuseColor = resolveColor3(descriptor.material.color ?? "#FFFFFF");
+      const texture = new Texture(
+        normalizeAssetPath(descriptor.material.texture),
+        scene,
+        false,
+        false,
+        Texture.TRILINEAR_SAMPLINGMODE
+      );
+      texture.wrapU = Texture.CLAMP_ADDRESSMODE;
+      texture.wrapV = Texture.CLAMP_ADDRESSMODE;
+      texture.anisotropicFilteringLevel = 8;
+      if (descriptor.material.uvScale) {
+        texture.uScale = descriptor.material.uvScale[0];
+        texture.vScale = descriptor.material.uvScale[1];
+      }
+      material.diffuseTexture = texture;
+      return material;
+    }
 
     if (descriptor.material?.kind === "heightBands" && descriptor.material.bands?.length) {
       mesh.setVerticesData(VertexBuffer.ColorKind, this.buildBandColors(vertexHeights, descriptor.material.bands), true);

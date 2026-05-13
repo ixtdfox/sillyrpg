@@ -11,6 +11,14 @@ export interface SceneFlatTerrainMaterialDescriptor {
   readonly emissive?: string | null;
 }
 
+export interface SceneGeneratedTerrainBakedTextureMaterialDescriptor {
+  readonly kind: "bakedTexture";
+  readonly texture: string;
+  readonly color?: string;
+  readonly emissive?: string | null;
+  readonly uvScale?: readonly [number, number];
+}
+
 export interface SceneTerrainMaterialBandDescriptor {
   readonly id: string;
   readonly label: string;
@@ -19,17 +27,37 @@ export interface SceneTerrainMaterialBandDescriptor {
   readonly color: string;
 }
 
-export interface SceneGeneratedTerrainMaterialDescriptor {
-  readonly kind: "heightBands" | "flat";
+export interface SceneGeneratedTerrainFlatMaterialDescriptor {
+  readonly kind: "flat";
   readonly color?: string;
   readonly emissive?: string | null;
-  readonly bands?: readonly SceneTerrainMaterialBandDescriptor[];
 }
+
+export interface SceneGeneratedTerrainHeightBandsMaterialDescriptor {
+  readonly kind: "heightBands";
+  readonly color?: string;
+  readonly emissive?: string | null;
+  readonly bands: readonly SceneTerrainMaterialBandDescriptor[];
+}
+
+export type SceneGeneratedTerrainMaterialDescriptor =
+  | SceneGeneratedTerrainFlatMaterialDescriptor
+  | SceneGeneratedTerrainHeightBandsMaterialDescriptor
+  | SceneGeneratedTerrainBakedTextureMaterialDescriptor;
 
 export interface SceneGeneratedTerrainEditedHeightMap {
   readonly encoding: "array";
   readonly resolution: SceneVector2Tuple;
   readonly heights: readonly number[];
+}
+
+export interface SceneGeneratedTerrainEditedTextureMap {
+  readonly encoding: "splatRgba8";
+  readonly resolution: SceneVector2Tuple;
+  readonly layers: readonly string[];
+  readonly weights: readonly string[];
+  readonly bakedTexture?: string;
+  readonly bakeResolution?: SceneVector2Tuple;
 }
 
 export interface SceneTerrainGeneratorDescriptor {
@@ -89,6 +117,7 @@ export interface SceneGeneratedTerrainDescriptor {
   readonly generator: SceneTerrainGeneratorDescriptor;
   readonly material?: SceneGeneratedTerrainMaterialDescriptor;
   readonly editedHeightMap?: SceneGeneratedTerrainEditedHeightMap;
+  readonly editedTextureMap?: SceneGeneratedTerrainEditedTextureMap;
 }
 
 export type SceneTerrainDescriptor =
@@ -256,7 +285,8 @@ function parseGeneratedTerrainDescriptor(
     normalMode: parseTerrainNormalMode(record.normalMode, `${sourceLabel}.normalMode`),
     generator: parseTerrainGeneratorDescriptor(record.generator, `${sourceLabel}.generator`),
     material: parseGeneratedTerrainMaterial(record.material, `${sourceLabel}.material`),
-    editedHeightMap: parseGeneratedTerrainEditedHeightMap(record.editedHeightMap, resolution, `${sourceLabel}.editedHeightMap`)
+    editedHeightMap: parseGeneratedTerrainEditedHeightMap(record.editedHeightMap, resolution, `${sourceLabel}.editedHeightMap`),
+    editedTextureMap: parseGeneratedTerrainEditedTextureMap(record.editedTextureMap, `${sourceLabel}.editedTextureMap`)
   };
 }
 
@@ -299,6 +329,48 @@ function parseGeneratedTerrainEditedHeightMap(
     encoding: "array",
     resolution,
     heights
+  };
+}
+
+function parseGeneratedTerrainEditedTextureMap(
+  value: unknown,
+  sourceLabel: string
+): SceneGeneratedTerrainEditedTextureMap | undefined {
+  if (value === undefined) {
+    return undefined;
+  }
+
+  const record = requireRecord(value, `${sourceLabel} must be an object.`);
+  const encoding = requireString(record.encoding, `${sourceLabel}.encoding must be a string.`);
+  if (encoding !== "splatRgba8") {
+    throw new Error(`${sourceLabel}.encoding must be 'splatRgba8'.`);
+  }
+
+  const resolution = parsePositiveIntegerVector2Tuple(record.resolution, `${sourceLabel}.resolution`);
+  const layers = parseStringArray(record.layers, `${sourceLabel}.layers`);
+  const weights = parseStringArray(record.weights, `${sourceLabel}.weights`);
+  if (layers.length === 0) {
+    throw new Error(`${sourceLabel}.layers must be a non-empty array.`);
+  }
+  if (weights.length === 0) {
+    throw new Error(`${sourceLabel}.weights must be a non-empty array.`);
+  }
+  for (let index = 0; index < weights.length; index += 1) {
+    assertAllowedGeneratedTerrainTextureAssetPath(weights[index]!, `${sourceLabel}.weights[${index}]`);
+  }
+
+  const bakedTexture = optionalString(record.bakedTexture, `${sourceLabel}.bakedTexture must be a string if provided.`);
+  if (bakedTexture !== undefined) {
+    assertAllowedGeneratedTerrainTextureAssetPath(bakedTexture, `${sourceLabel}.bakedTexture`);
+  }
+
+  return {
+    encoding: "splatRgba8",
+    resolution,
+    layers,
+    weights,
+    bakedTexture,
+    bakeResolution: parseOptionalPositiveIntegerVector2Tuple(record.bakeResolution, `${sourceLabel}.bakeResolution`)
   };
 }
 
@@ -384,7 +456,19 @@ function parseGeneratedTerrainMaterial(
     };
   }
 
-  throw new Error(`${sourceLabel}.kind must be 'flat' or 'heightBands'.`);
+  if (kind === "bakedTexture") {
+    const texture = requireString(record.texture, `${sourceLabel}.texture must be a string.`);
+    assertAllowedGeneratedTerrainTextureAssetPath(texture, `${sourceLabel}.texture`);
+    return {
+      kind: "bakedTexture",
+      texture,
+      color: optionalString(record.color, `${sourceLabel}.color must be a string if provided.`),
+      emissive: optionalNullableHexColor(record.emissive, `${sourceLabel}.emissive`),
+      uvScale: parseOptionalVector2Tuple(record.uvScale, `${sourceLabel}.uvScale`)
+    };
+  }
+
+  throw new Error(`${sourceLabel}.kind must be 'flat', 'heightBands', or 'bakedTexture'.`);
 }
 
 function parseTerrainMaterialBands(
@@ -438,6 +522,18 @@ function assertAllowedSceneAssetPath(assetPath: string, sourceLabel: string): vo
   }
 }
 
+function assertAllowedGeneratedTerrainTextureAssetPath(assetPath: string, sourceLabel: string): void {
+  assertAllowedSceneAssetPath(assetPath, sourceLabel);
+  if (assetPath.startsWith("/")) {
+    throw new Error(`${sourceLabel} must be a relative asset path under assets/generated/terrain.`);
+  }
+
+  const normalized = assetPath.replace(/\\/g, "/");
+  if (normalized.includes("..") || !normalized.startsWith("assets/generated/terrain/") || !normalized.endsWith(".png")) {
+    throw new Error(`${sourceLabel} must be a .png under assets/generated/terrain.`);
+  }
+}
+
 function parseChunkCoord(value: unknown, sourceLabel: string): readonly [number, number] | undefined {
   if (value === undefined) {
     return undefined;
@@ -470,6 +566,33 @@ function parseVector2Tuple(value: unknown, sourceLabel: string): SceneVector2Tup
   }
 
   return [x, z] as const;
+}
+
+function parseOptionalVector2Tuple(value: unknown, sourceLabel: string): SceneVector2Tuple | undefined {
+  if (value === undefined) {
+    return undefined;
+  }
+
+  return parseVector2Tuple(value, sourceLabel);
+}
+
+function parsePositiveIntegerVector2Tuple(value: unknown, sourceLabel: string): SceneVector2Tuple {
+  if (!Array.isArray(value) || value.length !== 2) {
+    throw new Error(`${sourceLabel} must be a [x, z] tuple.`);
+  }
+
+  const [x, z] = value;
+  const parsedX = parseFiniteIntegerInRange(x, `${sourceLabel}[0]`, 1, 16384);
+  const parsedZ = parseFiniteIntegerInRange(z, `${sourceLabel}[1]`, 1, 16384);
+  return [parsedX, parsedZ] as const;
+}
+
+function parseOptionalPositiveIntegerVector2Tuple(value: unknown, sourceLabel: string): SceneVector2Tuple | undefined {
+  if (value === undefined) {
+    return undefined;
+  }
+
+  return parsePositiveIntegerVector2Tuple(value, sourceLabel);
 }
 
 function parseTerrainSizeTuple(value: unknown, sourceLabel: string): SceneVector2Tuple {
@@ -532,6 +655,14 @@ function optionalString(value: unknown, errorMessage: string): string | undefine
   }
 
   return value;
+}
+
+function parseStringArray(value: unknown, sourceLabel: string): readonly string[] {
+  if (!Array.isArray(value)) {
+    throw new Error(`${sourceLabel} must be an array.`);
+  }
+
+  return value.map((entry, index) => requireString(entry, `${sourceLabel}[${index}] must be a string.`));
 }
 
 function optionalNullableHexColor(value: unknown, sourceLabel: string): string | null | undefined {

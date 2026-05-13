@@ -216,6 +216,22 @@ export class TerrainGeneratorPanel {
       return input?.value ?? fallback;
     };
 
+    const materialKind = readString(
+      "materialKind",
+      current.material?.kind === "heightBands" ? "heightBands" : "flat"
+    ) as "flat" | "heightBands";
+    const material =
+      materialKind === "heightBands"
+        ? {
+            kind: "heightBands" as const,
+            color: readString("materialColor", current.material?.color ?? "#8D9298"),
+            bands: current.material?.kind === "heightBands" ? current.material.bands : []
+          }
+        : {
+            kind: "flat" as const,
+            color: readString("materialColor", current.material?.color ?? "#8D9298")
+          };
+
     return {
       ...current,
       size: [readNumber("width", current.size[0]), readNumber("depth", current.size[1])] as const,
@@ -249,11 +265,7 @@ export class TerrainGeneratorPanel {
           terraceSteps: readInteger("terraceSteps", current.generator.shaping?.terraceSteps ?? 0)
         }
       },
-      material: {
-        kind: readString("materialKind", current.material?.kind ?? "flat") as "flat" | "heightBands",
-        color: readString("materialColor", current.material?.color ?? "#8D9298"),
-        bands: current.material?.bands
-      }
+      material
     };
   }
 

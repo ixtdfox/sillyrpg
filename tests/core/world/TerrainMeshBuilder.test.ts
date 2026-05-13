@@ -1,4 +1,4 @@
-import { NullEngine, Scene } from "@babylonjs/core";
+import { NullEngine, Scene, StandardMaterial } from "@babylonjs/core";
 import { TerrainHeightField } from "../../../src/core/world/terrain/TerrainHeightField";
 import { TerrainMeshBuilder } from "../../../src/core/world/terrain/TerrainMeshBuilder";
 import { TerrainNormalBuilder } from "../../../src/core/world/terrain/TerrainNormalBuilder";
@@ -122,6 +122,52 @@ function testFlatTerrainMeshBoundsStayOnGroundPlane(): void {
   engine.dispose();
 }
 
+function testBakedTextureTerrainUsesDiffuseTextureMaterial(): void {
+  const engine = new NullEngine();
+  const scene = new Scene(engine);
+  const field = TerrainHeightField.createFilled(6, 8, 3, 3, 0);
+  const builder = new TerrainMeshBuilder();
+  const mesh = builder.build(
+    scene,
+    {
+      id: "terrain-0",
+      kind: "generated",
+      size: [6, 8],
+      resolution: [3, 3],
+      generator: {
+        preset: "flat-gray",
+        strategy: "flat",
+        seed: 1,
+        height: {
+          base: 0,
+          amplitude: 0,
+          frequency: 0.1,
+          octaves: 1,
+          persistence: 0.5,
+          lacunarity: 2
+        }
+      },
+      material: {
+        kind: "bakedTexture",
+        texture: "assets/generated/terrain/test-scene/terrain-0_albedo.png",
+        uvScale: [2, 3]
+      }
+    },
+    field
+  );
+
+  const material = mesh.material as StandardMaterial | null;
+  const diffuseTexture = material?.diffuseTexture as { uScale?: number; vScale?: number } | null | undefined;
+  assert(material instanceof StandardMaterial, "Expected generated terrain to use a StandardMaterial.");
+  assert(material?.diffuseTexture !== null, "Expected baked terrain material to create a diffuse texture.");
+  assert(diffuseTexture?.uScale === 2, "Expected baked terrain diffuse texture to use the configured U scale.");
+  assert(diffuseTexture?.vScale === 3, "Expected baked terrain diffuse texture to use the configured V scale.");
+  assert(mesh.useVertexColors === false, "Expected baked terrain material to disable vertex colors.");
+
+  scene.dispose();
+  engine.dispose();
+}
+
 function run(): void {
   testVertexDataMatchesBabylonGroundOrientation();
   testFlatTerrainNormalsPointUp();
@@ -130,6 +176,7 @@ function run(): void {
   testNormalsRecomputeAfterEditedHeightFieldRebuild();
   testFlatNormalModeDuplicatesVerticesForFacetedNormals();
   testFlatTerrainMeshBoundsStayOnGroundPlane();
+  testBakedTextureTerrainUsesDiffuseTextureMaterial();
 }
 
 run();

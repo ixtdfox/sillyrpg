@@ -18,6 +18,7 @@ export class EditorTerrainTexturePaintRuntime {
   private selectedLayerId: string | null = null;
   private supportedLayerCount: number;
   private layerLimitMessage = "";
+  private hasPaint = false;
 
   public constructor(
     scene: Scene,
@@ -73,13 +74,26 @@ export class EditorTerrainTexturePaintRuntime {
   }
 
   public resetForTerrain(terrain: EditorTerrainInstance | null, heightField: TerrainHeightField | null): void {
+    this.resetForTerrainWithOptions(terrain, heightField, { allowCreateDefault: true });
+  }
+
+  public resetForTerrainWithOptions(
+    terrain: EditorTerrainInstance | null,
+    heightField: TerrainHeightField | null,
+    options: {
+      readonly initialSplatMap?: TerrainSplatMap | null;
+      readonly allowCreateDefault?: boolean;
+    }
+  ): void {
     const previousRuntime = this.materialRuntime;
     const previousRuntimeMaterial = previousRuntime?.material ?? null;
     const previousSplatMap = this.splatMap;
     const previousHeightField = this.heightField;
+    const previousHasPaint = this.hasPaint;
     this.materialRuntime = null;
     this.splatMap = null;
     this.heightField = heightField;
+    this.hasPaint = false;
     this.supportedLayerCount = this.resolveSupportedLayerCount();
     this.ensureSelectedLayerIsPaintable();
 
@@ -97,7 +111,19 @@ export class EditorTerrainTexturePaintRuntime {
 
     const previousMaterial = terrainMesh.material;
     const canKeepPreviousRuntime = previousRuntime !== null && previousMaterial === previousRuntimeMaterial;
-    const nextSplatMap = new TerrainSplatMap(256, 256, paintableLayers.length);
+    const nextSplatMap =
+      cloneCompatibleSplatMap(options.initialSplatMap ?? null, paintableLayers.length) ??
+      cloneCompatibleSplatMap(previousSplatMap, paintableLayers.length) ??
+      (options.allowCreateDefault ? new TerrainSplatMap(256, 256, paintableLayers.length) : null);
+
+    if (!nextSplatMap) {
+      previousRuntime?.dispose();
+      restoreTerrainMaterial(terrainMesh, previousMaterial);
+      this.splatMap = null;
+      this.heightField = heightField;
+      this.hasPaint = false;
+      return;
+    }
 
     try {
       const nextRuntime = this.materialBuilder.build(
@@ -111,6 +137,7 @@ export class EditorTerrainTexturePaintRuntime {
 
       this.splatMap = nextSplatMap;
       this.materialRuntime = nextRuntime;
+      this.hasPaint = previousHasPaint && previousSplatMap !== null;
       previousRuntime?.dispose();
       disposePreviousTerrainMaterial(previousMaterial, previousRuntimeMaterial, nextRuntime.material);
     } catch (error) {
@@ -119,6 +146,7 @@ export class EditorTerrainTexturePaintRuntime {
         this.materialRuntime = previousRuntime;
         this.splatMap = previousSplatMap;
         this.heightField = previousHeightField;
+        this.hasPaint = previousHasPaint;
       } else {
         previousRuntime?.dispose();
         this.supportedLayerCount = 0;
@@ -152,15 +180,37 @@ export class EditorTerrainTexturePaintRuntime {
       deltaTime
     });
     if (result.changedTexelCount > 0) {
+      this.hasPaint = true;
       this.materialRuntime.updateSplatTexture();
     }
     return result;
+  }
+
+  public hasPaintedTexture(): boolean {
+    return this.hasPaint && this.splatMap !== null;
+  }
+
+  public hasEditableTextureMap(): boolean {
+    return this.splatMap !== null;
+  }
+
+  public isReadyToPaint(): boolean {
+    return this.splatMap !== null && this.materialRuntime !== null && this.heightField !== null;
+  }
+
+  public createBakeSnapshot(): TerrainSplatMap | null {
+    return this.splatMap?.clone() ?? null;
+  }
+
+  public getActiveLayers(): readonly TerrainTextureLayerDescriptor[] {
+    return this.getPaintableLayers();
   }
 
   public dispose(): void {
     this.disposeMaterialResources();
     this.splatMap = null;
     this.heightField = null;
+    this.hasPaint = false;
   }
 
   private getPaintableLayers(): readonly TerrainTextureLayerDescriptor[] {
@@ -189,6 +239,14 @@ export class EditorTerrainTexturePaintRuntime {
     }
     return supportedLayerCount;
   }
+}
+
+function cloneCompatibleSplatMap(splatMap: TerrainSplatMap | null, layerCount: number): TerrainSplatMap | null {
+  if (!splatMap || splatMap.layerCount !== layerCount) {
+    return null;
+  }
+
+  return splatMap.clone();
 }
 
 function disposePreviousTerrainMaterial(

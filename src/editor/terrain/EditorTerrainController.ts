@@ -224,13 +224,14 @@ export class EditorTerrainController {
       preset.material ??
         getTerrainGeneratorPreset(DEFAULT_TERRAIN_PRESET).material
     );
+    const presetBands = presetMaterial?.kind === "heightBands" ? presetMaterial.bands : undefined;
     const material =
       descriptor.material?.kind === "heightBands"
         ? {
             kind: "heightBands" as const,
             color: descriptor.material.color ?? presetMaterial?.color ?? "#8D9298",
             emissive: descriptor.material.emissive !== undefined ? descriptor.material.emissive : presetMaterial?.emissive,
-            bands: descriptor.material.bands ?? presetMaterial?.bands
+            bands: descriptor.material.bands ?? presetBands
           }
         : {
             kind: "flat" as const,

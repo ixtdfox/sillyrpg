@@ -239,6 +239,170 @@ function testParserAcceptsEditedHeightMap(): void {
   );
 }
 
+function testParserAcceptsBakedTextureTerrainMaterial(): void {
+  const descriptor = parseSceneDescriptor(
+    {
+      schemaVersion: 2,
+      id: "baked-terrain-scene",
+      terrain: {
+        id: "terrain-0",
+        kind: "generated",
+        size: [40, 40],
+        resolution: [65, 65],
+        generator: {
+          preset: "urban-pad",
+          seed: 1,
+          height: {
+            base: 0,
+            amplitude: 1,
+            frequency: 0.1,
+            octaves: 3,
+            persistence: 0.4,
+            lacunarity: 2
+          }
+        },
+        material: {
+          kind: "bakedTexture",
+          texture: "assets/generated/terrain/baked-terrain-scene/terrain-0_albedo.png",
+          uvScale: [1, 1]
+        }
+      },
+      objects: []
+    },
+    "baked texture material"
+  );
+
+  assert(descriptor.terrain?.kind === "generated", "Expected generated terrain kind.");
+  assert(
+    descriptor.terrain?.kind === "generated" && descriptor.terrain.material?.kind === "bakedTexture",
+    "Expected baked terrain material to parse."
+  );
+}
+
+function testParserAcceptsEditedTextureMap(): void {
+  const descriptor = parseSceneDescriptor(
+    {
+      schemaVersion: 2,
+      id: "edited-texture-map-scene",
+      terrain: {
+        id: "terrain-0",
+        kind: "generated",
+        size: [40, 40],
+        resolution: [65, 65],
+        generator: {
+          preset: "urban-pad",
+          seed: 1,
+          height: {
+            base: 0,
+            amplitude: 1,
+            frequency: 0.1,
+            octaves: 3,
+            persistence: 0.4,
+            lacunarity: 2
+          }
+        },
+        editedTextureMap: {
+          encoding: "splatRgba8",
+          resolution: [256, 256],
+          layers: ["grass", "dirt"],
+          weights: ["assets/generated/terrain/edited-texture-map-scene/terrain-0_splat_0.png"],
+          bakedTexture: "assets/generated/terrain/edited-texture-map-scene/terrain-0_albedo.png",
+          bakeResolution: [2048, 2048]
+        }
+      },
+      objects: []
+    },
+    "edited texture map"
+  );
+
+  assert(
+    descriptor.terrain?.kind === "generated" && descriptor.terrain.editedTextureMap?.weights.length === 1,
+    "Expected edited texture map to parse."
+  );
+}
+
+function testParserRejectsUnsafeBakedTexturePath(): void {
+  let threw = false;
+  try {
+    parseSceneDescriptor(
+      {
+        schemaVersion: 2,
+        id: "bad-baked-terrain-scene",
+        terrain: {
+          id: "terrain-0",
+          kind: "generated",
+          size: [40, 40],
+          resolution: [65, 65],
+          generator: {
+            preset: "urban-pad",
+            seed: 1,
+            height: {
+              base: 0,
+              amplitude: 1,
+              frequency: 0.1,
+              octaves: 3,
+              persistence: 0.4,
+              lacunarity: 2
+            }
+          },
+          material: {
+            kind: "bakedTexture",
+            texture: "assets/generated/terrain/../../oops.png"
+          }
+        },
+        objects: []
+      },
+      "bad baked texture material"
+    );
+  } catch (error) {
+    threw = (error as Error).message.includes("assets/generated/terrain");
+  }
+
+  assert(threw, "Expected unsafe baked terrain texture path to throw.");
+}
+
+function testParserRejectsUnsafeEditedTextureMapPath(): void {
+  let threw = false;
+  try {
+    parseSceneDescriptor(
+      {
+        schemaVersion: 2,
+        id: "bad-edited-texture-map-scene",
+        terrain: {
+          id: "terrain-0",
+          kind: "generated",
+          size: [40, 40],
+          resolution: [65, 65],
+          generator: {
+            preset: "urban-pad",
+            seed: 1,
+            height: {
+              base: 0,
+              amplitude: 1,
+              frequency: 0.1,
+              octaves: 3,
+              persistence: 0.4,
+              lacunarity: 2
+            }
+          },
+          editedTextureMap: {
+            encoding: "splatRgba8",
+            resolution: [256, 256],
+            layers: ["grass"],
+            weights: ["assets/generated/terrain/../../oops.png"]
+          }
+        },
+        objects: []
+      },
+      "bad edited texture map"
+    );
+  } catch (error) {
+    threw = (error as Error).message.includes("assets/generated/terrain");
+  }
+
+  assert(threw, "Expected unsafe edited texture map path to throw.");
+}
+
 function testParserRejectsMismatchedEditedHeightMapResolution(): void {
   let threw = false;
   try {
@@ -287,6 +451,10 @@ function run(): void {
   testParserAcceptsKnownStrategy();
   testParserAllowsUnknownStrategyString();
   testParserAcceptsEditedHeightMap();
+  testParserAcceptsBakedTextureTerrainMaterial();
+  testParserAcceptsEditedTextureMap();
+  testParserRejectsUnsafeBakedTexturePath();
+  testParserRejectsUnsafeEditedTextureMapPath();
   testParserRejectsMismatchedEditedHeightMapResolution();
 }
 

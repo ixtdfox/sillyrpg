@@ -1,15 +1,41 @@
 import type { SceneDescriptor } from "../../core/world/scene/SceneDescriptor";
 
-export async function saveSceneDescriptor(descriptorPath: string, descriptor: SceneDescriptor): Promise<void> {
+export interface EditorSceneSaveAsset {
+  readonly path: string;
+  readonly encoding: "base64" | "dataUrl";
+  readonly mimeType: "image/png";
+  readonly data: string;
+}
+
+export interface SaveSceneDescriptorRequestBody {
+  readonly path: string;
+  readonly descriptor: SceneDescriptor;
+  readonly assets?: readonly EditorSceneSaveAsset[];
+}
+
+export function buildSaveSceneDescriptorRequestBody(
+  descriptorPath: string,
+  descriptor: SceneDescriptor,
+  assets: readonly EditorSceneSaveAsset[] = []
+): SaveSceneDescriptorRequestBody {
+  return {
+    path: descriptorPath,
+    descriptor,
+    assets
+  };
+}
+
+export async function saveSceneDescriptor(
+  descriptorPath: string,
+  descriptor: SceneDescriptor,
+  assets: readonly EditorSceneSaveAsset[] = []
+): Promise<void> {
   const response = await fetch("/__editor/scene", {
     method: "POST",
     headers: {
       "Content-Type": "application/json"
     },
-    body: JSON.stringify({
-      path: descriptorPath,
-      descriptor
-    })
+    body: JSON.stringify(buildSaveSceneDescriptorRequestBody(descriptorPath, descriptor, assets))
   });
 
   if (!response.ok) {

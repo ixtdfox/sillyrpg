@@ -130,6 +130,14 @@ export class EditorSceneDocument {
     this.dirty = false;
   }
 
+  public markDirty(): void {
+    this.dirty = true;
+  }
+
+  public replaceDescriptor(descriptor: SceneDescriptor): void {
+    this.descriptor = cloneSceneDescriptor(descriptor);
+  }
+
   public toJson(): string {
     return `${JSON.stringify(this.descriptor, null, 2)}\n`;
   }
