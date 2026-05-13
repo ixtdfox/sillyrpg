@@ -27,6 +27,7 @@ interface HiddenMeshState {
   readonly isEnabled: boolean;
   readonly isVisible: boolean;
   readonly visibility: number;
+  readonly isPickable: boolean;
 }
 
 interface PlayerBuildingState {
@@ -340,9 +341,7 @@ export class BuildingVisibilitySystem implements System {
       const mesh = this.findMeshByUniqueId(meshId);
       if (!mesh || mesh.isDisposed() || !meshesToHide.has(mesh)) {
         if (mesh && !mesh.isDisposed()) {
-          mesh.setEnabled(state.isEnabled);
-          mesh.isVisible = state.isVisible;
-          mesh.visibility = state.visibility;
+          restoreCutawayHiddenMeshState(mesh, state);
         }
         this.hiddenMeshStates.delete(meshId);
       }
@@ -358,13 +357,28 @@ export class BuildingVisibilitySystem implements System {
           isEnabled: mesh.isEnabled(),
           isVisible: mesh.isVisible,
           visibility: mesh.visibility,
+          isPickable: mesh.isPickable,
         });
       }
 
-      if (mesh.isVisible) {
-        mesh.isVisible = false;
-        mesh.visibility = 0;
-        mesh.setEnabled(false);
+      const originalState = this.hiddenMeshStates.get(mesh.uniqueId);
+      if (!originalState) {
+        continue;
+      }
+
+      if (originalState.isEnabled !== false && originalState.isVisible !== false) {
+        applyCutawayHiddenMeshState(mesh);
+        if (DEBUG_BUILDING_VISIBILITY) {
+          console.debug("[BuildingVisibility] cutaway-hidden mesh keeps shadow caster", {
+            meshName: mesh.name,
+            meshId: mesh.id,
+            uniqueId: mesh.uniqueId,
+            enabled: mesh.isEnabled(),
+            isVisible: mesh.isVisible,
+            visibility: mesh.visibility,
+            isPickable: mesh.isPickable,
+          });
+        }
       }
     }
   }
@@ -405,9 +419,7 @@ export class BuildingVisibilitySystem implements System {
         continue;
       }
 
-      mesh.setEnabled(state.isEnabled);
-      mesh.isVisible = state.isVisible;
-      mesh.visibility = state.visibility;
+      restoreCutawayHiddenMeshState(mesh, state);
     }
 
     this.hiddenMeshStates.clear();
@@ -632,6 +644,29 @@ export class BuildingVisibilitySystem implements System {
       maxY: boundingBox.maximumWorld.y,
     };
   }
+}
+
+export function applyCutawayHiddenMeshState(mesh: {
+  visibility: number;
+  isPickable: boolean;
+}): void {
+  mesh.visibility = 0;
+  mesh.isPickable = false;
+}
+
+export function restoreCutawayHiddenMeshState(
+  mesh: {
+    setEnabled(enabled: boolean): void;
+    isVisible: boolean;
+    visibility: number;
+    isPickable: boolean;
+  },
+  state: HiddenMeshState,
+): void {
+  mesh.setEnabled(state.isEnabled);
+  mesh.isVisible = state.isVisible;
+  mesh.visibility = state.visibility;
+  mesh.isPickable = state.isPickable;
 }
 
 function containsPoint(
