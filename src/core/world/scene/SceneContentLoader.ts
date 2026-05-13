@@ -240,14 +240,18 @@ export async function importSceneObjectContent(
   parent: TransformNode,
   rootNamePrefix: string
 ): Promise<ImportedSceneObjectContent> {
+  const runtimeObjectMetadata = {
+    sceneObjectId: descriptor.id,
+    sceneObjectType: descriptor.type,
+    buildingVisibilityInstanceId: descriptor.id,
+    editorSelectable: true
+  };
   const objectRoot = new TransformNode(`${rootNamePrefix}-scene-object-root:${descriptor.id}`, scene);
   objectRoot.setParent(parent, false);
   applyTransform(objectRoot, descriptor);
   objectRoot.metadata = {
     ...(objectRoot.metadata as Record<string, unknown> | undefined),
-    sceneObjectId: descriptor.id,
-    sceneObjectType: descriptor.type,
-    editorSelectable: true
+    ...runtimeObjectMetadata
   };
 
   const imported = await importSceneAsset(scene, descriptor.asset, objectRoot);
@@ -255,18 +259,14 @@ export async function importSceneObjectContent(
   for (const transformNode of imported.transformNodes) {
     transformNode.metadata = {
       ...(transformNode.metadata as Record<string, unknown> | undefined),
-      sceneObjectId: descriptor.id,
-      sceneObjectType: descriptor.type,
-      editorSelectable: true
+      ...runtimeObjectMetadata
     };
   }
 
   for (const mesh of imported.renderableMeshes) {
     mesh.metadata = {
       ...(mesh.metadata as Record<string, unknown> | undefined),
-      sceneObjectId: descriptor.id,
-      sceneObjectType: descriptor.type,
-      editorSelectable: true
+      ...runtimeObjectMetadata
     };
     mesh.isPickable = true;
   }

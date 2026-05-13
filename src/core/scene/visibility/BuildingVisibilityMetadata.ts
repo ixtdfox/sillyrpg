@@ -45,6 +45,9 @@ interface RawBuildingVisibilityMetadata {
   readonly part?: unknown;
   readonly building_part?: unknown;
   readonly stair_part?: unknown;
+  readonly sceneObjectId?: unknown;
+  readonly sceneObjectType?: unknown;
+  readonly buildingVisibilityInstanceId?: unknown;
 }
 
 const ROLE_VALUES = new Set<BuildingVisibilityRole>([
@@ -85,7 +88,11 @@ function parseMetadataRecord(
 ): BuildingVisibilityMeshRecord | null {
   const hasVisibilityMarker = hasGameVisibilityMetadata(metadata as Record<string, unknown>);
   const role = normalizeRole(metadata.game_visibility_role) ?? inferFallbackRole(mesh.name);
-  const buildingId = normalizeString(metadata.game_building_id);
+  const instanceBuildingId =
+    normalizeString(metadata.buildingVisibilityInstanceId) ??
+    normalizeString(metadata.sceneObjectId);
+  const authoredBuildingId = normalizeString(metadata.game_building_id);
+  const buildingId = instanceBuildingId ?? authoredBuildingId;
   const part =
     normalizeString(metadata.game_part) ??
     normalizeString(metadata.part) ??
@@ -171,15 +178,36 @@ function resolveVisibilityMetadata(mesh: AbstractMesh): RawBuildingVisibilityMet
 }
 
 function resolveExtrasRecord(metadata: Record<string, unknown>): Record<string, unknown> {
+  const runtimeOverrides = pickRuntimeVisibilityOverrides(metadata);
   const gltfPayload = metadata.gltf;
   if (gltfPayload && typeof gltfPayload === "object") {
     const extrasPayload = (gltfPayload as Record<string, unknown>).extras;
     if (extrasPayload && typeof extrasPayload === "object") {
-      return extrasPayload as Record<string, unknown>;
+      return {
+        ...(extrasPayload as Record<string, unknown>),
+        ...runtimeOverrides
+      };
     }
   }
 
-  return metadata;
+  return {
+    ...metadata,
+    ...runtimeOverrides
+  };
+}
+
+function pickRuntimeVisibilityOverrides(metadata: Record<string, unknown>): Record<string, unknown> {
+  const result: Record<string, unknown> = {};
+  if ("sceneObjectId" in metadata) {
+    result.sceneObjectId = metadata.sceneObjectId;
+  }
+  if ("sceneObjectType" in metadata) {
+    result.sceneObjectType = metadata.sceneObjectType;
+  }
+  if ("buildingVisibilityInstanceId" in metadata) {
+    result.buildingVisibilityInstanceId = metadata.buildingVisibilityInstanceId;
+  }
+  return result;
 }
 
 function hasGameVisibilityMetadata(record: Record<string, unknown>): boolean {
@@ -197,7 +225,9 @@ function hasGameVisibilityMetadata(record: Record<string, unknown>): boolean {
     "to_story" in record ||
     "part" in record ||
     "building_part" in record ||
-    "stair_part" in record
+    "stair_part" in record ||
+    "sceneObjectId" in record ||
+    "buildingVisibilityInstanceId" in record
   );
 }
 
