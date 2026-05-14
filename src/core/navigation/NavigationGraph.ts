@@ -55,10 +55,37 @@ export interface StairNavigationConnector {
   readonly isSynthetic?: boolean;
 }
 
-export function makeNavigationNodeId(storyIndex: number, cell: GridCell): string {
-  return `node:${storyIndex}:${cell.x}:${cell.z}`;
+/**
+ * Factory/parser для стабильных id navigation nodes.
+ *
+ * Формат id является частью contract между graph, pathfinder и reachable-cell
+ * maps. Класс держит сборку и парсинг вместе, чтобы формат не размножался по
+ * разным файлам.
+ */
+export class NavigationNodeIdFactory {
+  public make(storyIndex: number, cell: GridCell): string {
+    return `node:${storyIndex}:${cell.x}:${cell.z}`;
+  }
+
+  public parse(nodeId: string): { storyIndex: number; cell: GridCell } | null {
+    const match = /^node:(-?\d+):(-?\d+):(-?\d+)$/.exec(nodeId);
+    if (!match) {
+      return null;
+    }
+
+    return {
+      storyIndex: Number.parseInt(match[1], 10),
+      cell: new GridCell(Number.parseInt(match[2], 10), Number.parseInt(match[3], 10))
+    };
+  }
 }
 
+/**
+ * Graph abstraction поверх RectGrid и межэтажных connector'ов.
+ *
+ * Класс скрывает генерацию walk/stair edges и предоставляет pathfinder'у единый
+ * объектный API для чтения nodes и neighbors.
+ */
 export class NavigationGraph {
   private readonly grid: RectGrid;
   private readonly storyIndices: Set<number>;
@@ -67,6 +94,7 @@ export class NavigationGraph {
   private readonly isWalkableCell: (cell: GridCell, storyIndex: number) => boolean;
   private readonly isEdgeBlocked: (fromCell: GridCell, toCell: GridCell, storyIndex: number) => boolean;
   private readonly getMovementCost: (cell: GridCell, storyIndex: number) => number;
+  private readonly nodeIdFactory: NavigationNodeIdFactory;
 
   public constructor(
     grid: RectGrid,
@@ -83,6 +111,7 @@ export class NavigationGraph {
     this.isWalkableCell = isWalkableCell ?? ((cell) => this.grid.contains(cell));
     this.isEdgeBlocked = isEdgeBlocked ?? (() => false);
     this.getMovementCost = getMovementCost ?? (() => 1);
+    this.nodeIdFactory = new NavigationNodeIdFactory();
 
     for (const connector of stairConnectors) {
       this.storyIndices.add(connector.fromStoryIndex);
@@ -95,7 +124,7 @@ export class NavigationGraph {
   }
 
   public getNode(nodeId: string): NavigationNode | null {
-    const parsed = parseNavigationNodeId(nodeId);
+    const parsed = this.nodeIdFactory.parse(nodeId);
     if (!parsed) {
       return null;
     }
@@ -176,8 +205,8 @@ export class NavigationGraph {
     const toStoryIndex = reverse ? connector.fromStoryIndex : connector.toStoryIndex;
     const fromCell = reverse ? connector.toCell : connector.fromCell;
     const toCell = reverse ? connector.fromCell : connector.toCell;
-    const fromNodeId = makeNavigationNodeId(fromStoryIndex, fromCell);
-    const toNodeId = makeNavigationNodeId(toStoryIndex, toCell);
+    const fromNodeId = this.nodeIdFactory.make(fromStoryIndex, fromCell);
+    const toNodeId = this.nodeIdFactory.make(toStoryIndex, toCell);
     const traversalPath = reverse
       ? [...connector.traversalPathWorld].reverse().map((point) => point.clone())
       : connector.traversalPathWorld.map((point) => point.clone());
@@ -198,22 +227,10 @@ export class NavigationGraph {
 
   private createNode(storyIndex: number, cell: GridCell): NavigationNode {
     return {
-      id: makeNavigationNodeId(storyIndex, cell),
+      id: this.nodeIdFactory.make(storyIndex, cell),
       cell,
       storyIndex,
       worldPosition: this.grid.cellToWorld(cell, this.getStoryY(storyIndex))
     };
   }
-}
-
-function parseNavigationNodeId(nodeId: string): { storyIndex: number; cell: GridCell } | null {
-  const match = /^node:(-?\d+):(-?\d+):(-?\d+)$/.exec(nodeId);
-  if (!match) {
-    return null;
-  }
-
-  return {
-    storyIndex: Number.parseInt(match[1], 10),
-    cell: new GridCell(Number.parseInt(match[2], 10), Number.parseInt(match[3], 10))
-  };
 }

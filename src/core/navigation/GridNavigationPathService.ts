@@ -1,7 +1,7 @@
 import { GridCell } from "../grid/GridCell";
 import type { RectGrid } from "../grid/RectGrid";
 import type { RectGridRuntime } from "../grid/RectGridRuntime";
-import { MultiFloorPathfinder, makeMovementTargetKey } from "./MultiFloorPathfinder";
+import { MovementTargetKeyFactory, MultiFloorPathfinder } from "./MultiFloorPathfinder";
 import { NavigationRouteBuilder } from "./NavigationRouteBuilder";
 import {
   NavigationGraph,
@@ -45,15 +45,58 @@ export interface ReachableNavigationCellsResult {
 }
 
 /**
+ * Reader для глобального rect navigation debug flag.
+ *
+ * Debug flag может прийти из тестового globalThis или query string браузера.
+ * Класс делает это явной dependency вместо свободной функции.
+ */
+export class RectNavigationDebugFlag {
+  public isEnabled(): boolean {
+    const g = globalThis as { readonly __RECT_NAV_DEBUG__?: unknown; readonly location?: { readonly search?: string } };
+    const raw = typeof g.__RECT_NAV_DEBUG__ === "string" ? g.__RECT_NAV_DEBUG__.toLowerCase() : "";
+    if (raw === "1" || raw === "true") {
+      return true;
+    }
+    const query = g.location?.search ?? "";
+    return query.includes("rectNavDebug=1") || query.includes("rectNavDebug=true");
+  }
+}
+
+/**
+ * Formatter для debug-строк path segments.
+ *
+ * Вынесен в объект, чтобы diagnostics остались зависимостью сервиса, а не
+ * процедурной helper-функцией в конце модуля.
+ */
+export class NavigationSegmentDebugFormatter {
+  public format(segments: readonly MovementSegment[]): string {
+    return segments.map((segment) => {
+      return `${segment.kind} ${segment.fromStoryIndex}:${segment.fromCell.x}:${segment.fromCell.z}->${segment.toStoryIndex}:${segment.toCell.x}:${segment.toCell.z} points=${segment.points.length} stair=${segment.metadata?.stairId ?? "n/a"} cost=${segment.cost}`;
+    }).join(" | ");
+  }
+}
+
+/**
  * Shared rectangular-grid path service for runtime and combat movement.
+ *
+ * Сервис является фасадом над graph, pathfinder и route builder: runtime code
+ * не работает напрямую с алгоритмом поиска и получает готовые movement segments.
  */
 export class GridNavigationPathService {
   private readonly environment: GridNavigationPathEnvironment;
   private readonly graph: NavigationGraph;
   private readonly pathfinder: MultiFloorPathfinder;
   private readonly routeBuilder: NavigationRouteBuilder;
+  private readonly targetKeyFactory: MovementTargetKeyFactory;
+  private readonly debugFlag: RectNavigationDebugFlag;
+  private readonly segmentDebugFormatter: NavigationSegmentDebugFormatter;
 
-  public constructor(environment: GridNavigationPathEnvironment) {
+  public constructor(
+    environment: GridNavigationPathEnvironment,
+    targetKeyFactory: MovementTargetKeyFactory = new MovementTargetKeyFactory(),
+    debugFlag: RectNavigationDebugFlag = new RectNavigationDebugFlag(),
+    segmentDebugFormatter: NavigationSegmentDebugFormatter = new NavigationSegmentDebugFormatter()
+  ) {
     this.environment = environment;
     this.graph = new NavigationGraph(
       environment.grid,
@@ -65,6 +108,9 @@ export class GridNavigationPathService {
     );
     this.pathfinder = new MultiFloorPathfinder(this.graph, environment.debugEnabled === true);
     this.routeBuilder = new NavigationRouteBuilder(this.graph, environment.surfaceHeightResolver);
+    this.targetKeyFactory = targetKeyFactory;
+    this.debugFlag = debugFlag;
+    this.segmentDebugFormatter = segmentDebugFormatter;
   }
 
   public static fromGridRuntime(gridRuntime: RectGridRuntime): GridNavigationPathService {
@@ -197,7 +243,7 @@ export class GridNavigationPathService {
   }
 
   public makeTargetKey(cell: GridCell, storyIndex: number): string {
-    return makeMovementTargetKey(cell, storyIndex);
+    return this.targetKeyFactory.make(cell, storyIndex);
   }
 
   private isBlockedForRequest(input: GridNavigationPathRequest, node: NavigationNode): boolean {
@@ -259,27 +305,11 @@ export class GridNavigationPathService {
       `[GridNavigationPath]${entityText} from=${input.fromStoryIndex}:${input.fromCell.x}:${input.fromCell.z} ` +
       `to=${input.toStoryIndex}:${input.toCell.x}:${input.toCell.z}${budgetText} startWalkable=${startWalkable} ` +
       `goalWalkable=${goalWalkable} goalOccupied=${goalOccupied} cost=${pathCost ?? "n/a"} ` +
-      `segments=${path ? formatSegments(path) : "none"}`
+      `segments=${path ? this.segmentDebugFormatter.format(path) : "none"}`
     );
   }
 
   private isDebugEnabled(): boolean {
-    return this.environment.debugEnabled === true || isRectNavDebugEnabled();
+    return this.environment.debugEnabled === true || this.debugFlag.isEnabled();
   }
-}
-
-export function isRectNavDebugEnabled(): boolean {
-  const g = globalThis as { readonly __RECT_NAV_DEBUG__?: unknown; readonly location?: { readonly search?: string } };
-  const raw = typeof g.__RECT_NAV_DEBUG__ === "string" ? g.__RECT_NAV_DEBUG__.toLowerCase() : "";
-  if (raw === "1" || raw === "true") {
-    return true;
-  }
-  const query = g.location?.search ?? "";
-  return query.includes("rectNavDebug=1") || query.includes("rectNavDebug=true");
-}
-
-function formatSegments(segments: readonly MovementSegment[]): string {
-  return segments.map((segment) => {
-    return `${segment.kind} ${segment.fromStoryIndex}:${segment.fromCell.x}:${segment.fromCell.z}->${segment.toStoryIndex}:${segment.toCell.x}:${segment.toCell.z} points=${segment.points.length} stair=${segment.metadata?.stairId ?? "n/a"} cost=${segment.cost}`;
-  }).join(" | ");
 }

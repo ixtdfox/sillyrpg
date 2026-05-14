@@ -9,15 +9,14 @@ import {
 } from "@babylonjs/core";
 import { RectGrid } from "../grid/RectGrid";
 import {
-  parseStairCheckpointMetadata,
-  parseStairConnectorMetadata,
+  NavigationMetadataParser,
   type StairCheckpointMetadata,
   type StairConnectorMetadata
 } from "./BuildingNavigationMetadata";
 import type { StairNavigationConnector } from "./NavigationGraph";
 import type { GridCell } from "../grid/GridCell";
 import {
-  mapGridNavigationContractsToRuntime,
+  GridNavigationContractService,
   type GridNavigationContract,
   type GridNavigationStair
 } from "./GridNavigationContract";
@@ -32,6 +31,144 @@ interface StairCheckpointRecord {
   readonly worldPosition: Vector3;
 }
 
+/** Валидатор Vector3, используемый перед построением stair traversal polyline. */
+export class NavigationVector3Validator {
+  public isValid(point: Vector3): boolean {
+    return Number.isFinite(point.x) && Number.isFinite(point.y) && Number.isFinite(point.z);
+  }
+}
+
+/**
+ * Policy нормализации tactical/combat cost лестниц.
+ *
+ * Exporter иногда передавал длину traversal path вместо стоимости хода. Policy
+ * ограничивает стоимость разумным максимумом на этаж и возвращает default cost,
+ * если вход выглядит как legacy path length.
+ */
+export class StairTacticalCostPolicy {
+  public resolveDefaultCost(kind: "internal" | "external", fromStoryIndex: number, toStoryIndex: number): number {
+    const storyDelta = Math.max(1, Math.abs(toStoryIndex - fromStoryIndex));
+    const adjacentStoryCost = kind === "external" ? DEFAULT_EXTERNAL_STAIR_COMBAT_COST : DEFAULT_INTERNAL_STAIR_COMBAT_COST;
+    return adjacentStoryCost * storyDelta;
+  }
+
+  public normalize(
+    rawCost: number | undefined,
+    defaultCost: number,
+    stair: Pick<GridNavigationStair, "id" | "kind" | "from" | "to">
+  ): number {
+    if (rawCost === undefined || !Number.isFinite(rawCost) || rawCost <= 0) {
+      return defaultCost;
+    }
+
+    const storyDelta = Math.max(1, Math.abs(stair.to.storyIndex - stair.from.storyIndex));
+    const maxReasonableCost = MAX_REASONABLE_ONE_STORY_STAIR_COMBAT_COST * storyDelta;
+    if (rawCost > maxReasonableCost) {
+      console.warn(
+        `[StairNav] stair=${stair.id} kind=${stair.kind ?? "internal"} rawCost=${rawCost} exceeds tactical limit ${maxReasonableCost}; ` +
+        `using default combat cost ${defaultCost}. Exporter may have used traversal path length as movement cost.`
+      );
+      return defaultCost;
+    }
+
+    return rawCost;
+  }
+}
+
+/** Reader для stair navigation debug flag. */
+export class StairNavigationDebugFlagReader {
+  public isEnabled(showStairNavigationDebug: boolean): boolean {
+    if (showStairNavigationDebug) {
+      return true;
+    }
+    const g = globalThis as { readonly __RECT_NAV_DEBUG__?: unknown; readonly location?: { readonly search?: string } };
+    const raw = typeof g.__RECT_NAV_DEBUG__ === "string" ? g.__RECT_NAV_DEBUG__.toLowerCase() : "";
+    if (raw === "1" || raw === "true") {
+      return true;
+    }
+    const query = g.location?.search ?? "";
+    return query.includes("rectNavDebug=1") || query.includes("rectNavDebug=true");
+  }
+}
+
+/** Policy для проверки, относится ли connector к текущему story. */
+export class StairConnectorStoryPolicy {
+  public isConnected(connector: StairNavigationConnector, storyIndex: number): boolean {
+    return storyIndex === connector.fromStoryIndex || storyIndex === connector.toStoryIndex;
+  }
+}
+
+/** Builder pick-proxy точек вдоль stair polyline. */
+export class StairProxyPointBuilder {
+  public collect(path: readonly Vector3[]): Vector3[] {
+    const points: Vector3[] = [];
+
+    for (let index = 0; index < path.length; index += 1) {
+      points.push(path[index].clone());
+
+      const nextPoint = path[index + 1];
+      if (nextPoint) {
+        points.push(Vector3.Center(path[index], nextPoint));
+      }
+    }
+
+    return points;
+  }
+}
+
+/** Geometry helper для stair polylines: midpoint и расстояния до polyline. */
+export class StairPathGeometry {
+  public computeMidpoint(path: readonly Vector3[]): Vector3 {
+    if (path.length === 0) {
+      return Vector3.Zero();
+    }
+
+    if (path.length === 1) {
+      return path[0].clone();
+    }
+
+    const midIndex = Math.floor((path.length - 1) / 2);
+    return Vector3.Center(path[midIndex], path[midIndex + 1] ?? path[midIndex]);
+  }
+
+  public distanceToPolyline(point: Vector3, path: readonly Vector3[]): number {
+    if (path.length === 0) {
+      return Number.POSITIVE_INFINITY;
+    }
+
+    if (path.length === 1) {
+      return Vector3.Distance(point, path[0]);
+    }
+
+    let bestDistanceSquared = Number.POSITIVE_INFINITY;
+
+    for (let index = 0; index < path.length - 1; index += 1) {
+      bestDistanceSquared = Math.min(bestDistanceSquared, this.distanceSquaredToSegment(point, path[index], path[index + 1]));
+    }
+
+    return Math.sqrt(bestDistanceSquared);
+  }
+
+  private distanceSquaredToSegment(point: Vector3, segmentStart: Vector3, segmentEnd: Vector3): number {
+    const segment = segmentEnd.subtract(segmentStart);
+    const segmentLengthSquared = segment.lengthSquared();
+    if (segmentLengthSquared <= Number.EPSILON) {
+      return Vector3.DistanceSquared(point, segmentStart);
+    }
+
+    const t = Math.max(0, Math.min(1, Vector3.Dot(point.subtract(segmentStart), segment) / segmentLengthSquared));
+    const closestPoint = segmentStart.add(segment.scale(t));
+    return Vector3.DistanceSquared(point, closestPoint);
+  }
+}
+
+/**
+ * Registry stair connectors, pick proxies and debug affordances.
+ *
+ * Registry строит stair navigation из v3 contract или legacy checkpoint
+ * metadata. Object collaborators отвечают за parsing, cost policy, geometry и
+ * debug flags, поэтому registry остается lifecycle/orchestration объектом.
+ */
 export class BuildingNavigationRegistry {
   private readonly stairConnectors: StairNavigationConnector[];
   private readonly storyYByStory: Map<number, number>;
@@ -46,7 +183,16 @@ export class BuildingNavigationRegistry {
   private hoveredStairId: string | null;
   private showStairNavigationDebug: boolean;
 
-  public constructor() {
+  public constructor(
+    private readonly metadataParser: NavigationMetadataParser = NavigationMetadataParser.getShared(),
+    private readonly contractService: GridNavigationContractService = GridNavigationContractService.getShared(),
+    private readonly stairCostPolicy: StairTacticalCostPolicy = new StairTacticalCostPolicy(),
+    private readonly vectorValidator: NavigationVector3Validator = new NavigationVector3Validator(),
+    private readonly stairDebugFlagReader: StairNavigationDebugFlagReader = new StairNavigationDebugFlagReader(),
+    private readonly connectorStoryPolicy: StairConnectorStoryPolicy = new StairConnectorStoryPolicy(),
+    private readonly proxyPointBuilder: StairProxyPointBuilder = new StairProxyPointBuilder(),
+    private readonly stairPathGeometry: StairPathGeometry = new StairPathGeometry()
+  ) {
     this.stairConnectors = [];
     this.storyYByStory = new Map();
     this.checkpointMeshes = new Set();
@@ -90,7 +236,7 @@ export class BuildingNavigationRegistry {
           continue;
         }
 
-        const checkpointMetadata = parseStairCheckpointMetadata(mesh);
+        const checkpointMetadata = this.metadataParser.parseStairCheckpointMetadata(mesh);
         if (checkpointMetadata) {
           this.checkpointMeshes.add(mesh);
           const record: StairCheckpointRecord = {
@@ -105,7 +251,7 @@ export class BuildingNavigationRegistry {
           continue;
         }
 
-        const connectorMetadata = parseStairConnectorMetadata(mesh);
+        const connectorMetadata = this.metadataParser.parseStairConnectorMetadata(mesh);
         if (connectorMetadata) {
           connectorMetadataByStairId.set(connectorMetadata.stair_id, connectorMetadata);
         }
@@ -131,7 +277,7 @@ export class BuildingNavigationRegistry {
   }
 
   private buildContractStairConnectors(scene: Scene, grid: RectGrid): StairNavigationConnector[] {
-    const contracts = mapGridNavigationContractsToRuntime(scene, grid);
+    const contracts = this.contractService.mapToRuntime(scene, grid);
     if (contracts.length === 0) {
       return [];
     }
@@ -196,8 +342,8 @@ export class BuildingNavigationRegistry {
     const toCell = stair.to.cell;
     const traversalPathWorld = this.resolveContractStairPath(stair, grid, fromStoryY, toStoryY);
     const kind = stair.kind ?? "internal";
-    const defaultCost = resolveDefaultStairCombatCost(kind, stair.from.storyIndex, stair.to.storyIndex);
-    const cost = normalizeStairTacticalCost(stair.cost, defaultCost, stair);
+    const defaultCost = this.stairCostPolicy.resolveDefaultCost(kind, stair.from.storyIndex, stair.to.storyIndex);
+    const cost = this.stairCostPolicy.normalize(stair.cost, defaultCost, stair);
     const bidirectional = stair.bidirectional ?? true;
 
     if (!grid.contains(fromCell) || !grid.contains(toCell)) {
@@ -206,7 +352,7 @@ export class BuildingNavigationRegistry {
       );
     }
 
-    if (isStairNavigationDebugEnabled(this.showStairNavigationDebug)) {
+    if (this.stairDebugFlagReader.isEnabled(this.showStairNavigationDebug)) {
       console.debug(
         `[StairNav] connector stair=${stair.id} kind=${kind} ` +
         `from=${stair.from.storyIndex}:${fromCell.x}:${fromCell.z} to=${stair.to.storyIndex}:${toCell.x}:${toCell.z} ` +
@@ -235,7 +381,7 @@ export class BuildingNavigationRegistry {
     fromStoryY: number,
     toStoryY: number
   ): { readonly path: Vector3[]; readonly synthetic: boolean } {
-    const contractPath = stair.traversalPathWorld?.filter((point) => isValidVector3(point)).map((point) => point.clone()) ?? [];
+    const contractPath = stair.traversalPathWorld?.filter((point) => this.vectorValidator.isValid(point)).map((point) => point.clone()) ?? [];
     if (contractPath.length >= 2) {
       if ((stair.kind ?? "internal") === "external" && contractPath.length <= 3) {
         console.warn(
@@ -285,7 +431,7 @@ export class BuildingNavigationRegistry {
     for (const connector of this.stairConnectors) {
       if (
         input.currentStoryIndex !== undefined &&
-        !isStoryConnectedToConnector(connector, input.currentStoryIndex)
+        !this.connectorStoryPolicy.isConnected(connector, input.currentStoryIndex)
       ) {
         continue;
       }
@@ -295,7 +441,7 @@ export class BuildingNavigationRegistry {
         continue;
       }
 
-      const distance = distanceToPolyline(input.point, connector.traversalPathWorld);
+      const distance = this.stairPathGeometry.distanceToPolyline(input.point, connector.traversalPathWorld);
       if (distance > maxDistance) {
         continue;
       }
@@ -389,7 +535,7 @@ export class BuildingNavigationRegistry {
       return null;
     }
 
-    const storyConnectors = matchingConnectors.filter((connector) => isStoryConnectedToConnector(connector, currentStoryIndex));
+    const storyConnectors = matchingConnectors.filter((connector) => this.connectorStoryPolicy.isConnected(connector, currentStoryIndex));
     if (storyConnectors.length === 0) {
       return null;
     }
@@ -400,7 +546,8 @@ export class BuildingNavigationRegistry {
     }
 
     return [...candidates].sort((first, second) => {
-      return distanceToPolyline(pickedPoint, first.traversalPathWorld) - distanceToPolyline(pickedPoint, second.traversalPathWorld);
+      return this.stairPathGeometry.distanceToPolyline(pickedPoint, first.traversalPathWorld) -
+        this.stairPathGeometry.distanceToPolyline(pickedPoint, second.traversalPathWorld);
     })[0] ?? null;
   }
 
@@ -489,7 +636,7 @@ export class BuildingNavigationRegistry {
     const toStoryIndex = rootMetadata?.to_story ?? first.metadata.to_story;
     const traversalPathWorld = sorted.map((checkpoint) => checkpoint.worldPosition.clone());
 
-    if (!traversalPathWorld.every((point) => isValidVector3(point))) {
+    if (!traversalPathWorld.every((point) => this.vectorValidator.isValid(point))) {
       console.warn(`[BuildingNavigationRegistry] skipped stair '${stairId}': traversal path contains invalid world positions.`);
       return null;
     }
@@ -544,7 +691,7 @@ export class BuildingNavigationRegistry {
 
   private createPickProxies(scene: Scene, connector: StairNavigationConnector): void {
     const material = this.getOrCreatePickProxyMaterial(scene);
-    const proxyPoints = collectProxyPoints(connector.traversalPathWorld);
+    const proxyPoints = this.proxyPointBuilder.collect(connector.traversalPathWorld);
 
     for (let index = 0; index < proxyPoints.length; index += 1) {
       const proxy = MeshBuilder.CreateSphere(
@@ -602,7 +749,7 @@ export class BuildingNavigationRegistry {
 
     this.rebuildHoverLine(connector);
     const marker = this.getOrCreateHoverMarker(this.activeScene);
-    const midpoint = computePathMidpoint(connector.traversalPathWorld);
+    const midpoint = this.stairPathGeometry.computeMidpoint(connector.traversalPathWorld);
     marker.position.copyFrom(midpoint);
     marker.position.y += 1.1;
     marker.rotation.set(0, 0, 0);
@@ -743,111 +890,4 @@ export class BuildingNavigationRegistry {
       );
     }
   }
-}
-
-function isValidVector3(point: Vector3): boolean {
-  return Number.isFinite(point.x) && Number.isFinite(point.y) && Number.isFinite(point.z);
-}
-
-function resolveDefaultStairCombatCost(kind: "internal" | "external", fromStoryIndex: number, toStoryIndex: number): number {
-  const storyDelta = Math.max(1, Math.abs(toStoryIndex - fromStoryIndex));
-  const adjacentStoryCost = kind === "external" ? DEFAULT_EXTERNAL_STAIR_COMBAT_COST : DEFAULT_INTERNAL_STAIR_COMBAT_COST;
-  return adjacentStoryCost * storyDelta;
-}
-
-export function normalizeStairTacticalCost(
-  rawCost: number | undefined,
-  defaultCost: number,
-  stair: Pick<GridNavigationStair, "id" | "kind" | "from" | "to">
-): number {
-  if (rawCost === undefined || !Number.isFinite(rawCost) || rawCost <= 0) {
-    return defaultCost;
-  }
-
-  const storyDelta = Math.max(1, Math.abs(stair.to.storyIndex - stair.from.storyIndex));
-  const maxReasonableCost = MAX_REASONABLE_ONE_STORY_STAIR_COMBAT_COST * storyDelta;
-  if (rawCost > maxReasonableCost) {
-    console.warn(
-      `[StairNav] stair=${stair.id} kind=${stair.kind ?? "internal"} rawCost=${rawCost} exceeds tactical limit ${maxReasonableCost}; ` +
-      `using default combat cost ${defaultCost}. Exporter may have used traversal path length as movement cost.`
-    );
-    return defaultCost;
-  }
-
-  return rawCost;
-}
-
-function isStairNavigationDebugEnabled(showStairNavigationDebug: boolean): boolean {
-  if (showStairNavigationDebug) {
-    return true;
-  }
-  const g = globalThis as { readonly __RECT_NAV_DEBUG__?: unknown; readonly location?: { readonly search?: string } };
-  const raw = typeof g.__RECT_NAV_DEBUG__ === "string" ? g.__RECT_NAV_DEBUG__.toLowerCase() : "";
-  if (raw === "1" || raw === "true") {
-    return true;
-  }
-  const query = g.location?.search ?? "";
-  return query.includes("rectNavDebug=1") || query.includes("rectNavDebug=true");
-}
-
-function isStoryConnectedToConnector(connector: StairNavigationConnector, storyIndex: number): boolean {
-  return storyIndex === connector.fromStoryIndex || storyIndex === connector.toStoryIndex;
-}
-
-function collectProxyPoints(path: readonly Vector3[]): Vector3[] {
-  const points: Vector3[] = [];
-
-  for (let index = 0; index < path.length; index += 1) {
-    points.push(path[index].clone());
-
-    const nextPoint = path[index + 1];
-    if (nextPoint) {
-      points.push(Vector3.Center(path[index], nextPoint));
-    }
-  }
-
-  return points;
-}
-
-function computePathMidpoint(path: readonly Vector3[]): Vector3 {
-  if (path.length === 0) {
-    return Vector3.Zero();
-  }
-
-  if (path.length === 1) {
-    return path[0].clone();
-  }
-
-  const midIndex = Math.floor((path.length - 1) / 2);
-  return Vector3.Center(path[midIndex], path[midIndex + 1] ?? path[midIndex]);
-}
-
-function distanceToPolyline(point: Vector3, path: readonly Vector3[]): number {
-  if (path.length === 0) {
-    return Number.POSITIVE_INFINITY;
-  }
-
-  if (path.length === 1) {
-    return Vector3.Distance(point, path[0]);
-  }
-
-  let bestDistanceSquared = Number.POSITIVE_INFINITY;
-
-  for (let index = 0; index < path.length - 1; index += 1) {
-    bestDistanceSquared = Math.min(bestDistanceSquared, distanceSquaredToSegment(point, path[index], path[index + 1]));
-  }
-
-  return Math.sqrt(bestDistanceSquared);
-}
-
-function distanceSquaredToSegment(point: Vector3, segmentStart: Vector3, segmentEnd: Vector3): number {
-  const segment = segmentEnd.subtract(segmentStart);
-  const segmentLengthSquared = segment.lengthSquared();
-  if (segmentLengthSquared <= Number.EPSILON) {
-    return Vector3.DistanceSquared(point, segmentStart);
-  }
-
-  const t = Math.max(0, Math.min(1, Vector3.Dot(point.subtract(segmentStart), segment) / segmentLengthSquared));
-  const closestPoint = segmentStart.add(segment.scale(t));
-  return Vector3.DistanceSquared(point, closestPoint);
 }

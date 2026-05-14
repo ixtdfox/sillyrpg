@@ -2,14 +2,15 @@ import { Vector3, type AbstractMesh, type Scene } from "@babylonjs/core";
 import { GridCell } from "../grid/GridCell";
 import type { RectGrid } from "../grid/RectGrid";
 import {
-  parseGameNavigationMetadata,
-  parseStairCheckpointMetadata,
-  parseStairConnectorMetadata,
-  parseStairPickMetadata,
+  NavigationMetadataParser,
   type GameNavigationCover,
   type GameNavigationMetadata
 } from "./BuildingNavigationMetadata";
-import { makeStoryCellKey, type FloorNavigationCell } from "./FloorNavigationSurfaceRegistry";
+import {
+  NavigationMeshBoundsReader,
+  StoryCellKeyFactory,
+  type FloorNavigationCell
+} from "./FloorNavigationSurfaceRegistry";
 
 export type NavigationCover = Exclude<GameNavigationCover, "none">;
 
@@ -26,13 +27,24 @@ export interface CoverNavigationCell {
   readonly cover: NavigationCover;
 }
 
+/**
+ * Registry gameplay-obstacles, vision blockers, cover и movement cost cells.
+ *
+ * Класс использует metadata parser и bounds reader как стратегии, чтобы rebuild
+ * отвечал только за orchestration: пройти meshes, спроецировать footprint и
+ * записать результаты в индексы по story/cell.
+ */
 export class NavigationObstacleRegistry {
   private readonly movementBlockedCells: Map<string, FloorNavigationCell>;
   private readonly visionBlockedCells: Map<string, FloorNavigationCell>;
   private readonly coverByCellKey: Map<string, CoverNavigationCell>;
   private readonly movementCostByCellKey: Map<string, number>;
 
-  public constructor() {
+  public constructor(
+    private readonly metadataParser: NavigationMetadataParser = NavigationMetadataParser.getShared(),
+    private readonly storyCellKeyFactory: StoryCellKeyFactory = new StoryCellKeyFactory(),
+    private readonly meshBoundsReader: NavigationMeshBoundsReader = new NavigationMeshBoundsReader()
+  ) {
     this.movementBlockedCells = new Map();
     this.visionBlockedCells = new Map();
     this.coverByCellKey = new Map();
@@ -47,7 +59,7 @@ export class NavigationObstacleRegistry {
         continue;
       }
 
-      const metadata = parseGameNavigationMetadata(mesh);
+      const metadata = this.metadataParser.parseGameNavigationMetadata(mesh);
       if (!metadata || this.shouldIgnoreMetadata(metadata)) {
         continue;
       }
@@ -75,19 +87,19 @@ export class NavigationObstacleRegistry {
   }
 
   public isMovementBlocked(cell: GridCell, storyIndex: number): boolean {
-    return this.movementBlockedCells.has(makeStoryCellKey(storyIndex, cell));
+    return this.movementBlockedCells.has(this.storyCellKeyFactory.make(storyIndex, cell));
   }
 
   public isVisionBlocked(cell: GridCell, storyIndex: number): boolean {
-    return this.visionBlockedCells.has(makeStoryCellKey(storyIndex, cell));
+    return this.visionBlockedCells.has(this.storyCellKeyFactory.make(storyIndex, cell));
   }
 
   public getCover(cell: GridCell, storyIndex: number): GameNavigationCover {
-    return this.coverByCellKey.get(makeStoryCellKey(storyIndex, cell))?.cover ?? "none";
+    return this.coverByCellKey.get(this.storyCellKeyFactory.make(storyIndex, cell))?.cover ?? "none";
   }
 
   public getMovementCost(cell: GridCell, storyIndex: number): number {
-    return this.movementCostByCellKey.get(makeStoryCellKey(storyIndex, cell)) ?? 1;
+    return this.movementCostByCellKey.get(this.storyCellKeyFactory.make(storyIndex, cell)) ?? 1;
   }
 
   public getBlockedCells(): readonly FloorNavigationCell[] {
@@ -142,7 +154,7 @@ export class NavigationObstacleRegistry {
       return [];
     }
 
-    const bounds = getWorldBounds(mesh);
+    const bounds = this.meshBoundsReader.read(mesh);
     const storyY = storyYByStory.get(storyIndex) ?? bounds.center.y;
     const tileSize = grid.getTileSize();
     const halfX = Math.max((bounds.max.x - bounds.min.x) / 2, tileSize * 0.15);
@@ -164,7 +176,7 @@ export class NavigationObstacleRegistry {
   }
 
   private recordCell(cell: GridCell, storyIndex: number, metadata: GameNavigationMetadata): void {
-    const key = makeStoryCellKey(storyIndex, cell);
+    const key = this.storyCellKeyFactory.make(storyIndex, cell);
     const entry = { cell: new GridCell(cell.x, cell.z), storyIndex };
 
     if (metadata.blocksMovement) {
@@ -187,7 +199,7 @@ export class NavigationObstacleRegistry {
   }
 
   private inferStoryIndex(mesh: AbstractMesh, storyYByStory: ReadonlyMap<number, number>): number | null {
-    const bounds = getWorldBounds(mesh);
+    const bounds = this.meshBoundsReader.read(mesh);
     let bestStory: number | null = null;
     let bestDistance = Number.POSITIVE_INFINITY;
 
@@ -203,8 +215,12 @@ export class NavigationObstacleRegistry {
   }
 
   private isStairNavigationMesh(mesh: AbstractMesh): boolean {
-    const stairPick = parseStairPickMetadata(mesh);
-    return Boolean(stairPick || parseStairCheckpointMetadata(mesh) || parseStairConnectorMetadata(mesh));
+    const stairPick = this.metadataParser.parseStairPickMetadata(mesh);
+    return Boolean(
+      stairPick ||
+      this.metadataParser.parseStairCheckpointMetadata(mesh) ||
+      this.metadataParser.parseStairConnectorMetadata(mesh)
+    );
   }
 
   private logStats(): void {
@@ -228,14 +244,4 @@ export class NavigationObstacleRegistry {
       .join(", ");
     console.info(`- ${label} by story: ${summary || "none"}`);
   }
-}
-
-function getWorldBounds(mesh: AbstractMesh): { readonly min: Vector3; readonly max: Vector3; readonly center: Vector3 } {
-  mesh.computeWorldMatrix(true);
-  const boundingBox = mesh.getBoundingInfo().boundingBox;
-  return {
-    min: boundingBox.minimumWorld.clone(),
-    max: boundingBox.maximumWorld.clone(),
-    center: boundingBox.centerWorld.clone()
-  };
 }

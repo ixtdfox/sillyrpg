@@ -13,7 +13,7 @@ import { GridMovementCostResolver } from "./grid/GridMovementCostResolver";
 import { GridSpatialIndex } from "./grid/GridSpatialIndex";
 import type { RectGrid } from "../../grid/RectGrid";
 import type { MovementSegment, NavigationNode } from "../../navigation/NavigationGraph";
-import { GridNavigationPathService, isRectNavDebugEnabled } from "../../navigation/GridNavigationPathService";
+import { GridNavigationPathService, RectNavigationDebugFlag } from "../../navigation/GridNavigationPathService";
 
 /**
  * Executes path-based grid movement and synchronizes transform positions.
@@ -401,7 +401,7 @@ export class MovementSystem implements System {
     if (!this.runtimeContext || !path) {
       return;
     }
-    if (!isRectNavDebugEnabled()) {
+    if (!new RectNavigationDebugFlag().isEnabled()) {
       return;
     }
 

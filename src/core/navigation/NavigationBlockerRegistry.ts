@@ -2,14 +2,13 @@ import { Vector3, type AbstractMesh, type Scene } from "@babylonjs/core";
 import { GridCell } from "../grid/GridCell";
 import type { RectGrid } from "../grid/RectGrid";
 import {
-  parseGameNavigationMetadata,
-  parseStairCheckpointMetadata,
-  parseStairConnectorMetadata,
+  NavigationMetadataParser,
   type GameNavFootprint,
-  type GameNavKind
+  type GameNavKind,
+  type GameNavigationMetadata
 } from "./BuildingNavigationMetadata";
-import { makeStoryCellKey } from "./FloorNavigationSurfaceRegistry";
-import { mapGridNavigationContractsToRuntime, type GridNavigationStair } from "./GridNavigationContract";
+import { NavigationMeshBoundsReader, StoryCellKeyFactory } from "./FloorNavigationSurfaceRegistry";
+import { GridNavigationContractService, type GridNavigationStair } from "./GridNavigationContract";
 
 export interface NavigationBlockerRecord {
   readonly mesh: AbstractMesh;
@@ -51,18 +50,176 @@ export interface NavigationDoorEdgeEntry {
   readonly isOpen: boolean;
 }
 
-interface Bounds2D {
+export interface Bounds2D {
   readonly minX: number;
   readonly maxX: number;
   readonly minZ: number;
   readonly maxZ: number;
 }
 
-interface Point2D {
+export interface Point2D {
   readonly x: number;
   readonly z: number;
 }
 
+/**
+ * Factory для симметричных edge keys внутри story.
+ *
+ * Edge между A и B должен иметь одинаковый ключ независимо от направления,
+ * иначе blocker registry будет по-разному трактовать walk в разные стороны.
+ */
+export class NavigationEdgeKeyFactory {
+  public make(storyIndex: number, first: GridCell, second: GridCell): string {
+    const firstKey = `${first.x}:${first.z}`;
+    const secondKey = `${second.x}:${second.z}`;
+    return firstKey < secondKey
+      ? `${storyIndex}:${firstKey}->${secondKey}`
+      : `${storyIndex}:${secondKey}->${firstKey}`;
+  }
+}
+
+/**
+ * 2D geometry service для пересечений navigation blockers с grid edges/cells.
+ *
+ * Методы работают в XZ-плоскости Babylon world space. Это отдельная Strategy,
+ * потому что fallback projection стен и дверей должна быть тестируемой без
+ * создания полноценной registry.
+ */
+export class NavigationGeometry2D {
+  public circleIntersectsAabb(center: Point2D, radius: number, bounds: Bounds2D): boolean {
+    const closestX = this.clamp(center.x, bounds.minX, bounds.maxX);
+    const closestZ = this.clamp(center.z, bounds.minZ, bounds.maxZ);
+    const dx = center.x - closestX;
+    const dz = center.z - closestZ;
+    return dx * dx + dz * dz <= radius * radius;
+  }
+
+  public segmentIntersectsAabb(from: Point2D, to: Point2D, bounds: Bounds2D): boolean {
+    if (this.pointInsideAabb(from, bounds) || this.pointInsideAabb(to, bounds)) {
+      return true;
+    }
+
+    let tMin = 0;
+    let tMax = 1;
+    const dx = to.x - from.x;
+    const dz = to.z - from.z;
+
+    const clipper = new LiangBarskyClipper();
+    const first = clipper.clip(-dx, from.x - bounds.minX, { tMin, tMax });
+    if (!first.accepted) {
+      return false;
+    }
+    tMin = first.tMin;
+    tMax = first.tMax;
+
+    const second = clipper.clip(dx, bounds.maxX - from.x, { tMin, tMax });
+    if (!second.accepted) {
+      return false;
+    }
+    tMin = second.tMin;
+    tMax = second.tMax;
+
+    const third = clipper.clip(-dz, from.z - bounds.minZ, { tMin, tMax });
+    if (!third.accepted) {
+      return false;
+    }
+    tMin = third.tMin;
+    tMax = third.tMax;
+
+    const fourth = clipper.clip(dz, bounds.maxZ - from.z, { tMin, tMax });
+    return fourth.accepted;
+  }
+
+  public pointInsideAabb(point: Point2D, bounds: Bounds2D): boolean {
+    return point.x >= bounds.minX && point.x <= bounds.maxX && point.z >= bounds.minZ && point.z <= bounds.maxZ;
+  }
+
+  public inflateBounds(bounds: Bounds2D, epsilon: number): Bounds2D {
+    return {
+      minX: bounds.minX - epsilon,
+      maxX: bounds.maxX + epsilon,
+      minZ: bounds.minZ - epsilon,
+      maxZ: bounds.maxZ + epsilon
+    };
+  }
+
+  private clamp(value: number, min: number, max: number): number {
+    return Math.max(min, Math.min(max, value));
+  }
+}
+
+/**
+ * Маленький объект для одного шага Liang-Barsky clipping.
+ *
+ * Он убирает nested closure из segment/AABB intersection и делает алгоритм
+ * явно объектным.
+ */
+class LiangBarskyClipper {
+  public clip(p: number, q: number, range: { readonly tMin: number; readonly tMax: number }): {
+    readonly accepted: boolean;
+    readonly tMin: number;
+    readonly tMax: number;
+  } {
+    if (Math.abs(p) <= Number.EPSILON) {
+      return { accepted: q >= 0, tMin: range.tMin, tMax: range.tMax };
+    }
+
+    const t = q / p;
+    if (p < 0) {
+      if (t > range.tMax) {
+        return { accepted: false, tMin: range.tMin, tMax: range.tMax };
+      }
+      return { accepted: true, tMin: Math.max(range.tMin, t), tMax: range.tMax };
+    }
+
+    if (t < range.tMin) {
+      return { accepted: false, tMin: range.tMin, tMax: range.tMax };
+    }
+    return { accepted: true, tMin: range.tMin, tMax: Math.min(range.tMax, t) };
+  }
+}
+
+/** Mapper из 3D blocker/door bounds в XZ AABB. */
+export class NavigationBounds2DMapper {
+  public fromBlocker(blocker: NavigationBlockerRecord): Bounds2D {
+    return {
+      minX: blocker.boundsMin.x,
+      maxX: blocker.boundsMax.x,
+      minZ: blocker.boundsMin.z,
+      maxZ: blocker.boundsMax.z
+    };
+  }
+
+  public fromDoor(door: NavigationDoorOpeningRecord): Bounds2D {
+    return {
+      minX: door.boundsMin.x,
+      maxX: door.boundsMax.x,
+      minZ: door.boundsMin.z,
+      maxZ: door.boundsMax.z
+    };
+  }
+}
+
+/** Reader для rect navigation debug flag, используемый edge diagnostics. */
+export class RectNavigationDebugFlagReader {
+  public isEnabled(): boolean {
+    const g = globalThis as { readonly __RECT_NAV_DEBUG__?: unknown; readonly location?: { readonly search?: string } };
+    const raw = typeof g.__RECT_NAV_DEBUG__ === "string" ? g.__RECT_NAV_DEBUG__.toLowerCase() : "";
+    if (raw === "1" || raw === "true") {
+      return true;
+    }
+    const query = g.location?.search ?? "";
+    return query.includes("rectNavDebug=1") || query.includes("rectNavDebug=true");
+  }
+}
+
+/**
+ * Registry blockers, blocked cells, blocked edges and door openings.
+ *
+ * Класс координирует contract-based blockers и legacy mesh projection. Все
+ * geometry/key/metadata операции вынесены в collaborators, поэтому rebuild
+ * остается сценарным методом registry, а не набором helper-функций.
+ */
 export class NavigationBlockerRegistry {
   private readonly blockers: NavigationBlockerRecord[];
   private readonly blockersByStory: Map<number, NavigationBlockerRecord[]>;
@@ -79,7 +236,16 @@ export class NavigationBlockerRegistry {
   private storyYByStory: ReadonlyMap<number, number>;
   private readonly edgeDebugEnabled: boolean;
 
-  public constructor() {
+  public constructor(
+    private readonly metadataParser: NavigationMetadataParser = NavigationMetadataParser.getShared(),
+    private readonly storyCellKeyFactory: StoryCellKeyFactory = new StoryCellKeyFactory(),
+    private readonly edgeKeyFactory: NavigationEdgeKeyFactory = new NavigationEdgeKeyFactory(),
+    private readonly geometry2D: NavigationGeometry2D = new NavigationGeometry2D(),
+    private readonly bounds2DMapper: NavigationBounds2DMapper = new NavigationBounds2DMapper(),
+    private readonly meshBoundsReader: NavigationMeshBoundsReader = new NavigationMeshBoundsReader(),
+    private readonly contractService: GridNavigationContractService = GridNavigationContractService.getShared(),
+    private readonly debugFlagReader: RectNavigationDebugFlagReader = new RectNavigationDebugFlagReader()
+  ) {
     this.blockers = [];
     this.blockersByStory = new Map();
     this.doorOpenings = [];
@@ -93,14 +259,14 @@ export class NavigationBlockerRegistry {
     this.doorEdgeEntries = [];
     this.grid = null;
     this.storyYByStory = new Map();
-    this.edgeDebugEnabled = readRectNavDebugFlag();
+    this.edgeDebugEnabled = this.debugFlagReader.isEnabled();
   }
 
   public rebuild(scene: Scene, grid: RectGrid, storyYByStory: ReadonlyMap<number, number> = new Map()): void {
     this.clear();
     this.grid = grid;
     this.storyYByStory = new Map(storyYByStory);
-    const gridContracts = mapGridNavigationContractsToRuntime(scene, grid);
+    const gridContracts = this.contractService.mapToRuntime(scene, grid);
     const hasGridContract = gridContracts.length > 0;
     let contractBlockedEdgeCount = 0;
     let contractDoorEdgeCount = 0;
@@ -113,10 +279,10 @@ export class NavigationBlockerRegistry {
         contractDoorEdgeCount += story.doorEdges.length;
         contractBlockedCellCount += story.blockedCells.length;
         contractStairCount += story.stairs.length;
-        const walkableKeys = new Set(story.walkableCells.map((cell) => makeStoryCellKey(story.storyIndex, cell)));
+        const walkableKeys = new Set(story.walkableCells.map((cell) => this.storyCellKeyFactory.make(story.storyIndex, cell)));
         const protectedEndpoints = this.collectProtectedEndpoints(story.storyIndex, story.doorEdges, story.stairs);
         for (const blockedCell of story.blockedCells) {
-          const key = makeStoryCellKey(story.storyIndex, blockedCell.cell);
+          const key = this.storyCellKeyFactory.make(story.storyIndex, blockedCell.cell);
           const endpointLabels = protectedEndpoints.get(key);
           if (endpointLabels) {
             console.info(
@@ -127,7 +293,7 @@ export class NavigationBlockerRegistry {
           this.addBlockedCell(story.storyIndex, blockedCell.cell, blockedCell.reason);
         }
         for (const edge of story.blockedEdges) {
-          const edgeKey = makeEdgeKey(story.storyIndex, edge.a, edge.b);
+          const edgeKey = this.edgeKeyFactory.make(story.storyIndex, edge.a, edge.b);
           this.blockedEdgeKeys.add(edgeKey);
           this.blockedEdgeEntries.push({
             storyIndex: story.storyIndex,
@@ -145,16 +311,16 @@ export class NavigationBlockerRegistry {
             isOpen: edge.isOpen
           });
           if (edge.isOpen) {
-            const edgeKey = makeEdgeKey(story.storyIndex, edge.a, edge.b);
+            const edgeKey = this.edgeKeyFactory.make(story.storyIndex, edge.a, edge.b);
             this.doorOpenedEdgeKeys.add(edgeKey);
             if (this.blockedEdgeKeys.delete(edgeKey)) {
               contractDoorOverrides += 1;
             }
             const blockedEndpoint = this.getBlockedEndpointForDoor(story.storyIndex, edge.a, edge.b);
-            const aWalkable = walkableKeys.has(makeStoryCellKey(story.storyIndex, edge.a));
-            const bWalkable = walkableKeys.has(makeStoryCellKey(story.storyIndex, edge.b));
+            const aWalkable = walkableKeys.has(this.storyCellKeyFactory.make(story.storyIndex, edge.a));
+            const bWalkable = walkableKeys.has(this.storyCellKeyFactory.make(story.storyIndex, edge.b));
             if (blockedEndpoint) {
-              const reason = this.blockedCellReasonByStoryKey.get(makeStoryCellKey(story.storyIndex, blockedEndpoint)) ?? "unknown";
+              const reason = this.blockedCellReasonByStoryKey.get(this.storyCellKeyFactory.make(story.storyIndex, blockedEndpoint)) ?? "unknown";
               console.warn(
                 `[RectNavDoorValidation] story=${story.storyIndex} door=${edge.doorId ?? "unknown"} edge=${edge.a.x}:${edge.a.z}<->${edge.b.x}:${edge.b.z} outsideWalkable=${aWalkable} insideWalkable=${bWalkable} endpointBlocked=true blockedEndpoint=${blockedEndpoint.x}:${blockedEndpoint.z} reason=${reason} ok=false`
               );
@@ -180,16 +346,16 @@ export class NavigationBlockerRegistry {
         continue;
       }
 
-      const stairConnectorMetadata = parseStairConnectorMetadata(mesh);
+      const stairConnectorMetadata = this.metadataParser.parseStairConnectorMetadata(mesh);
       if (stairConnectorMetadata) {
         stairMetadataIds.add(stairConnectorMetadata.stair_id);
       }
-      const stairCheckpointMetadata = parseStairCheckpointMetadata(mesh);
+      const stairCheckpointMetadata = this.metadataParser.parseStairCheckpointMetadata(mesh);
       if (stairCheckpointMetadata) {
         stairMetadataIds.add(stairCheckpointMetadata.stair_id);
       }
 
-      const metadata = parseGameNavigationMetadata(mesh);
+      const metadata = this.metadataParser.parseGameNavigationMetadata(mesh);
       if (!metadata?.game_nav) {
         continue;
       }
@@ -200,7 +366,7 @@ export class NavigationBlockerRegistry {
         continue;
       }
 
-      const bounds = getWorldBounds(mesh);
+      const bounds = this.meshBoundsReader.read(mesh);
       if ((metadata.game_nav_kind ?? metadata.kind) === "door") {
         this.addDoorOpening(mesh, storyIndex, bounds, metadata);
         continue;
@@ -255,11 +421,11 @@ export class NavigationBlockerRegistry {
   }
 
   public isCellBlocked(cell: GridCell, storyIndex: number): boolean {
-    return this.blockedCellsByStory.get(storyIndex)?.has(makeStoryCellKey(storyIndex, cell)) ?? false;
+    return this.blockedCellsByStory.get(storyIndex)?.has(this.storyCellKeyFactory.make(storyIndex, cell)) ?? false;
   }
 
   public forceUnblockCell(cell: GridCell, storyIndex: number, reason: string): void {
-    const key = makeStoryCellKey(storyIndex, cell);
+    const key = this.storyCellKeyFactory.make(storyIndex, cell);
     const cells = this.blockedCellsByStory.get(storyIndex);
     if (!cells?.delete(key)) {
       return;
@@ -269,7 +435,7 @@ export class NavigationBlockerRegistry {
   }
 
   public isEdgeBlocked(fromCell: GridCell, toCell: GridCell, storyIndex: number): boolean {
-    const key = makeEdgeKey(storyIndex, fromCell, toCell);
+    const key = this.edgeKeyFactory.make(storyIndex, fromCell, toCell);
     const blocked = this.blockedEdgeKeys.has(key);
     const openedByDoor = this.doorOpenedEdgeKeys.has(key);
     if (this.edgeDebugEnabled && blocked) {
@@ -281,7 +447,7 @@ export class NavigationBlockerRegistry {
   }
 
   public getEdgeKey(fromCell: GridCell, toCell: GridCell, storyIndex: number): string {
-    return makeEdgeKey(storyIndex, fromCell, toCell);
+    return this.edgeKeyFactory.make(storyIndex, fromCell, toCell);
   }
 
   public getBlockedCells(storyIndex: number): readonly GridCell[] {
@@ -334,7 +500,7 @@ export class NavigationBlockerRegistry {
   }
 
   public isEdgeOpenedByDoor(fromCell: GridCell, toCell: GridCell, storyIndex: number): boolean {
-    return this.doorOpenedEdgeKeys.has(makeEdgeKey(storyIndex, fromCell, toCell));
+    return this.doorOpenedEdgeKeys.has(this.edgeKeyFactory.make(storyIndex, fromCell, toCell));
   }
 
   public getDebugInfoForMove(fromCell: GridCell, toCell: GridCell, storyIndex: number): {
@@ -354,7 +520,7 @@ export class NavigationBlockerRegistry {
   }
 
   public getBlockersForCell(cell: GridCell, storyIndex: number): readonly NavigationBlockerRecord[] {
-    return this.blockersByCellKey.get(makeStoryCellKey(storyIndex, cell)) ?? [];
+    return this.blockersByCellKey.get(this.storyCellKeyFactory.make(storyIndex, cell)) ?? [];
   }
 
   private clear(): void {
@@ -375,7 +541,7 @@ export class NavigationBlockerRegistry {
     mesh: AbstractMesh,
     storyIndex: number,
     bounds: { readonly min: Vector3; readonly max: Vector3 },
-    metadata: NonNullable<ReturnType<typeof parseGameNavigationMetadata>>
+    metadata: GameNavigationMetadata
   ): void {
     const doorOpening: NavigationDoorOpeningRecord = {
       mesh,
@@ -397,7 +563,7 @@ export class NavigationBlockerRegistry {
   }
 
   private addBlockedCell(storyIndex: number, cell: GridCell, reason?: string): void {
-    const key = makeStoryCellKey(storyIndex, cell);
+    const key = this.storyCellKeyFactory.make(storyIndex, cell);
     const cells = this.blockedCellsByStory.get(storyIndex) ?? new Map<string, GridCell>();
     cells.set(key, new GridCell(cell.x, cell.z));
     this.blockedCellsByStory.set(storyIndex, cells);
@@ -415,8 +581,8 @@ export class NavigationBlockerRegistry {
       if (!edge.isOpen) {
         continue;
       }
-      result.add(makeStoryCellKey(storyIndex, edge.a));
-      result.add(makeStoryCellKey(storyIndex, edge.b));
+      result.add(this.storyCellKeyFactory.make(storyIndex, edge.a));
+      result.add(this.storyCellKeyFactory.make(storyIndex, edge.b));
     }
     return result;
   }
@@ -457,7 +623,7 @@ export class NavigationBlockerRegistry {
     cell: GridCell,
     label: string
   ): void {
-    const key = makeStoryCellKey(storyIndex, cell);
+    const key = this.storyCellKeyFactory.make(storyIndex, cell);
     const labels = map.get(key) ?? [];
     if (!labels.includes(label)) {
       labels.push(label);
@@ -512,15 +678,15 @@ export class NavigationBlockerRegistry {
         continue;
       }
 
-      const inflatedBounds = inflateBounds(toBounds2D(blocker), epsilon);
+      const inflatedBounds = this.geometry2D.inflateBounds(this.bounds2DMapper.fromBlocker(blocker), epsilon);
       const storyY = this.storyYByStory.get(blocker.storyIndex) ?? blocker.boundsMin.y;
       for (const cell of this.grid.getCellsWithinBounds()) {
         const center = this.grid.cellToWorld(cell, storyY);
-        if (!pointInsideAabb2D({ x: center.x, z: center.z }, inflatedBounds)) {
+        if (!this.geometry2D.pointInsideAabb({ x: center.x, z: center.z }, inflatedBounds)) {
           continue;
         }
 
-        const key = makeStoryCellKey(blocker.storyIndex, cell);
+        const key = this.storyCellKeyFactory.make(blocker.storyIndex, cell);
         this.addBlockedCell(blocker.storyIndex, cell);
 
         const cellBlockers = this.blockersByCellKey.get(key) ?? [];
@@ -562,16 +728,16 @@ export class NavigationBlockerRegistry {
           const fromPoint = { x: from.x, z: from.z };
           const toPoint = { x: to.x, z: to.z };
           const blockedByWall = edgeBlockers.some((blocker) =>
-            segmentIntersectsAabb2D(fromPoint, toPoint, inflateBounds(toBounds2D(blocker), wallEpsilon))
+            this.geometry2D.segmentIntersectsAabb(fromPoint, toPoint, this.geometry2D.inflateBounds(this.bounds2DMapper.fromBlocker(blocker), wallEpsilon))
           );
           if (!blockedByWall) {
             continue;
           }
 
           const openingDoor = doorOpenings.find((door) =>
-            segmentIntersectsAabb2D(fromPoint, toPoint, inflateBounds(toDoorBounds2D(door), doorEpsilon))
+            this.geometry2D.segmentIntersectsAabb(fromPoint, toPoint, this.geometry2D.inflateBounds(this.bounds2DMapper.fromDoor(door), doorEpsilon))
           );
-          const edgeKey = makeEdgeKey(storyIndex, fromCell, toCell);
+          const edgeKey = this.edgeKeyFactory.make(storyIndex, fromCell, toCell);
           if (openingDoor) {
             this.doorOpenedEdgeKeys.add(edgeKey);
             if (carvedEdgesLogged < maxCarvedEdgeLogs) {
@@ -596,7 +762,7 @@ export class NavigationBlockerRegistry {
   }
 
   private inferStoryIndex(mesh: AbstractMesh): number | null {
-    const bounds = getWorldBounds(mesh);
+    const bounds = this.meshBoundsReader.read(mesh);
     let bestStory: number | null = null;
     let bestDistance = Number.POSITIVE_INFINITY;
 
@@ -675,9 +841,9 @@ export class NavigationBlockerRegistry {
     }
 
     let invalidDoorEdges = 0;
-    const blockedKeys = new Set(this.blockedEdgeEntries.map((entry) => makeEdgeKey(entry.storyIndex, entry.a, entry.b)));
+    const blockedKeys = new Set(this.blockedEdgeEntries.map((entry) => this.edgeKeyFactory.make(entry.storyIndex, entry.a, entry.b)));
     for (const door of this.doorEdgeEntries) {
-      const key = makeEdgeKey(door.storyIndex, door.a, door.b);
+      const key = this.edgeKeyFactory.make(door.storyIndex, door.a, door.b);
       const aIn = this.grid.contains(door.a);
       const bIn = this.grid.contains(door.b);
       const isRelevant = blockedKeys.has(key) || (aIn && bIn);
@@ -691,116 +857,4 @@ export class NavigationBlockerRegistry {
       `[RectNavContractValidation] gridBounds=x=[${bounds.minX},${bounds.maxX}] z=[${bounds.minZ},${bounds.maxZ}] blockedEdgeOutOfBounds=${blockedOutOfBounds} blockedEdgeOutsideOrNonNeighbor=${blockedEdgeOutsideOrNonNeighbor} invalidDoorEdges=${invalidDoorEdges}`
     );
   }
-}
-
-export function circleIntersectsAabb2D(center: Point2D, radius: number, bounds: Bounds2D): boolean {
-  const closestX = clamp(center.x, bounds.minX, bounds.maxX);
-  const closestZ = clamp(center.z, bounds.minZ, bounds.maxZ);
-  const dx = center.x - closestX;
-  const dz = center.z - closestZ;
-  return dx * dx + dz * dz <= radius * radius;
-}
-
-export function segmentIntersectsAabb2D(from: Point2D, to: Point2D, bounds: Bounds2D): boolean {
-  if (pointInsideAabb2D(from, bounds) || pointInsideAabb2D(to, bounds)) {
-    return true;
-  }
-
-  let tMin = 0;
-  let tMax = 1;
-  const dx = to.x - from.x;
-  const dz = to.z - from.z;
-
-  const clip = (p: number, q: number): boolean => {
-    if (Math.abs(p) <= Number.EPSILON) {
-      return q >= 0;
-    }
-
-    const t = q / p;
-    if (p < 0) {
-      if (t > tMax) {
-        return false;
-      }
-      if (t > tMin) {
-        tMin = t;
-      }
-      return true;
-    }
-
-    if (t < tMin) {
-      return false;
-    }
-    if (t < tMax) {
-      tMax = t;
-    }
-    return true;
-  };
-
-  return clip(-dx, from.x - bounds.minX) &&
-    clip(dx, bounds.maxX - from.x) &&
-    clip(-dz, from.z - bounds.minZ) &&
-    clip(dz, bounds.maxZ - from.z);
-}
-
-function pointInsideAabb2D(point: Point2D, bounds: Bounds2D): boolean {
-  return point.x >= bounds.minX && point.x <= bounds.maxX && point.z >= bounds.minZ && point.z <= bounds.maxZ;
-}
-
-function inflateBounds(bounds: Bounds2D, epsilon: number): Bounds2D {
-  return {
-    minX: bounds.minX - epsilon,
-    maxX: bounds.maxX + epsilon,
-    minZ: bounds.minZ - epsilon,
-    maxZ: bounds.maxZ + epsilon
-  };
-}
-
-function toBounds2D(blocker: NavigationBlockerRecord): Bounds2D {
-  return {
-    minX: blocker.boundsMin.x,
-    maxX: blocker.boundsMax.x,
-    minZ: blocker.boundsMin.z,
-    maxZ: blocker.boundsMax.z
-  };
-}
-
-function toDoorBounds2D(door: NavigationDoorOpeningRecord): Bounds2D {
-  return {
-    minX: door.boundsMin.x,
-    maxX: door.boundsMax.x,
-    minZ: door.boundsMin.z,
-    maxZ: door.boundsMax.z
-  };
-}
-
-export function makeEdgeKey(storyIndex: number, first: GridCell, second: GridCell): string {
-  const firstKey = `${first.x}:${first.z}`;
-  const secondKey = `${second.x}:${second.z}`;
-  return firstKey < secondKey
-    ? `${storyIndex}:${firstKey}->${secondKey}`
-    : `${storyIndex}:${secondKey}->${firstKey}`;
-}
-
-function clamp(value: number, min: number, max: number): number {
-  return Math.max(min, Math.min(max, value));
-}
-
-function getWorldBounds(mesh: AbstractMesh): { readonly min: Vector3; readonly max: Vector3; readonly center: Vector3 } {
-  mesh.computeWorldMatrix(true);
-  const boundingBox = mesh.getBoundingInfo().boundingBox;
-  return {
-    min: boundingBox.minimumWorld.clone(),
-    max: boundingBox.maximumWorld.clone(),
-    center: boundingBox.centerWorld.clone()
-  };
-}
-
-function readRectNavDebugFlag(): boolean {
-  const g = globalThis as { readonly __RECT_NAV_DEBUG__?: unknown; readonly location?: { readonly search?: string } };
-  const raw = typeof g.__RECT_NAV_DEBUG__ === "string" ? g.__RECT_NAV_DEBUG__.toLowerCase() : "";
-  if (raw === "1" || raw === "true") {
-    return true;
-  }
-  const query = g.location?.search ?? "";
-  return query.includes("rectNavDebug=1") || query.includes("rectNavDebug=true");
 }

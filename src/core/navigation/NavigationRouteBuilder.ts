@@ -7,16 +7,48 @@ import {
 } from "./NavigationGraph";
 import type { SurfaceHeightResolver } from "../world/surface/SurfaceHeightResolver";
 
+/**
+ * Strategy для добавления route points с дедупликацией почти одинаковых координат.
+ *
+ * Лестничные polylines могут содержать endpoint'ы, совпадающие с grounded
+ * позициями graph nodes. Appender не дает таким точкам дублироваться в route.
+ */
+export class NavigationRoutePointAppender {
+  public appendIfFarEnough(
+    points: MovementRoutePoint[],
+    point: MovementRoutePoint,
+    epsilon = 0.05
+  ): void {
+    const previous = points[points.length - 1];
+    if (!previous || Vector3.Distance(previous.position, point.position) > epsilon) {
+      points.push({
+        position: point.position.clone(),
+        cell: point.cell,
+        storyIndex: point.storyIndex
+      });
+    }
+  }
+}
+
+/**
+ * Builder, который превращает graph edges в movement route segments.
+ *
+ * Graph знает только cells и edge kind, а builder добавляет grounded world
+ * positions через SurfaceHeightResolver и нормализует stair traversal points.
+ */
 export class NavigationRouteBuilder {
   private readonly graph: NavigationGraph;
   private readonly surfaceHeightResolver: Pick<SurfaceHeightResolver, "resolveGroundedPosition">;
+  private readonly pointAppender: NavigationRoutePointAppender;
 
   public constructor(
     graph: NavigationGraph,
-    surfaceHeightResolver: Pick<SurfaceHeightResolver, "resolveGroundedPosition">
+    surfaceHeightResolver: Pick<SurfaceHeightResolver, "resolveGroundedPosition">,
+    pointAppender: NavigationRoutePointAppender = new NavigationRoutePointAppender()
   ) {
     this.graph = graph;
     this.surfaceHeightResolver = surfaceHeightResolver;
+    this.pointAppender = pointAppender;
   }
 
   public build(edges: readonly NavigationEdge[]): MovementRouteSegment[] {
@@ -89,21 +121,21 @@ export class NavigationRouteBuilder {
       fallbackY: targetNode.worldPosition.y
     });
 
-    appendPointIfFarEnough(points, {
+    this.pointAppender.appendIfFarEnough(points, {
       position: sourcePosition,
       cell: sourceNode.cell,
       storyIndex: sourceNode.storyIndex
     });
 
     for (const position of edge.traversalPath ?? []) {
-      appendPointIfFarEnough(points, {
+      this.pointAppender.appendIfFarEnough(points, {
         position: position.clone(),
         cell: this.graph.getGrid().worldToCell(position),
         storyIndex: sourceNode.storyIndex
       });
     }
 
-    appendPointIfFarEnough(points, {
+    this.pointAppender.appendIfFarEnough(points, {
       position: targetPosition,
       cell: targetNode.cell,
       storyIndex: targetNode.storyIndex
@@ -123,20 +155,5 @@ export class NavigationRouteBuilder {
     }
 
     return points;
-  }
-}
-
-export function appendPointIfFarEnough(
-  points: MovementRoutePoint[],
-  point: MovementRoutePoint,
-  epsilon = 0.05
-): void {
-  const previous = points[points.length - 1];
-  if (!previous || Vector3.Distance(previous.position, point.position) > epsilon) {
-    points.push({
-      position: point.position.clone(),
-      cell: point.cell,
-      storyIndex: point.storyIndex
-    });
   }
 }

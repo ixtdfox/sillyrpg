@@ -4,11 +4,10 @@ import { validateAndRepairStairEndpointCells } from "../../../src/core/grid/Rect
 import { RectGrid } from "../../../src/core/grid/RectGrid";
 import { NavigationGraph } from "../../../src/core/navigation/NavigationGraph";
 import { MultiFloorPathfinder } from "../../../src/core/navigation/MultiFloorPathfinder";
-import { NavigationBlockerRegistry } from "../../../src/core/navigation/NavigationBlockerRegistry";
 import {
-  circleIntersectsAabb2D,
-  makeEdgeKey,
-  segmentIntersectsAabb2D
+  NavigationBlockerRegistry,
+  NavigationEdgeKeyFactory,
+  NavigationGeometry2D
 } from "../../../src/core/navigation/NavigationBlockerRegistry";
 
 const wallBounds = {
@@ -17,24 +16,26 @@ const wallBounds = {
   minZ: -0.2,
   maxZ: 0.2
 };
+const geometry = new NavigationGeometry2D();
+const edgeKeyFactory = new NavigationEdgeKeyFactory();
 
-assertEqual(circleIntersectsAabb2D({ x: 0.5, z: 0 }, 0.15, wallBounds), true);
-assertEqual(circleIntersectsAabb2D({ x: 2, z: 0 }, 0.15, wallBounds), false);
-assertEqual(segmentIntersectsAabb2D({ x: 0, z: 0 }, { x: 1, z: 0 }, wallBounds), true);
-assertEqual(segmentIntersectsAabb2D({ x: 0, z: 1 }, { x: 1, z: 1 }, wallBounds), false);
+assertEqual(geometry.circleIntersectsAabb({ x: 0.5, z: 0 }, 0.15, wallBounds), true);
+assertEqual(geometry.circleIntersectsAabb({ x: 2, z: 0 }, 0.15, wallBounds), false);
+assertEqual(geometry.segmentIntersectsAabb({ x: 0, z: 0 }, { x: 1, z: 0 }, wallBounds), true);
+assertEqual(geometry.segmentIntersectsAabb({ x: 0, z: 1 }, { x: 1, z: 1 }, wallBounds), false);
 
 const edgeA = new GridCell(0, -1);
 const edgeB = new GridCell(1, -1);
-const symmetricForward = makeEdgeKey(0, edgeA, edgeB);
-const symmetricReverse = makeEdgeKey(0, edgeB, edgeA);
+const symmetricForward = edgeKeyFactory.make(0, edgeA, edgeB);
+const symmetricReverse = edgeKeyFactory.make(0, edgeB, edgeA);
 assertEqual(symmetricForward, symmetricReverse);
-assertEqual(makeEdgeKey(0, new GridCell(-3, -11), new GridCell(-2, -11)), "0:-2:-11->-3:-11");
+assertEqual(edgeKeyFactory.make(0, new GridCell(-3, -11), new GridCell(-2, -11)), "0:-2:-11->-3:-11");
 
 const blockedEdges = new Set<string>([symmetricForward]);
-assertEqual(blockedEdges.has(makeEdgeKey(0, edgeA, edgeB)), true);
-assertEqual(blockedEdges.has(makeEdgeKey(0, edgeB, edgeA)), true);
+assertEqual(blockedEdges.has(edgeKeyFactory.make(0, edgeA, edgeB)), true);
+assertEqual(blockedEdges.has(edgeKeyFactory.make(0, edgeB, edgeA)), true);
 
-const doorEdgeKey = makeEdgeKey(0, new GridCell(5, 2), new GridCell(5, 3));
+const doorEdgeKey = edgeKeyFactory.make(0, new GridCell(5, 2), new GridCell(5, 3));
 const blockedWithDoor = new Set<string>([symmetricForward, doorEdgeKey]);
 blockedWithDoor.delete(doorEdgeKey);
 assertEqual(blockedWithDoor.has(symmetricForward), true);

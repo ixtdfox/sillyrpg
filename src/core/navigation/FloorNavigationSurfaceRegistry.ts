@@ -1,8 +1,8 @@
 import { Vector3, type AbstractMesh, type Node, type Scene } from "@babylonjs/core";
 import { GridCell } from "../grid/GridCell";
 import type { RectGrid } from "../grid/RectGrid";
-import { parseGameNavigationMetadata, parseStairCheckpointMetadata } from "./BuildingNavigationMetadata";
-import { mapGridNavigationContractsToRuntime } from "./GridNavigationContract";
+import { NavigationMetadataParser } from "./BuildingNavigationMetadata";
+import { GridNavigationContractService } from "./GridNavigationContract";
 
 export interface WalkableFloorSurface {
   readonly mesh: AbstractMesh;
@@ -20,10 +20,123 @@ export interface FloorNavigationSurfaceRegistryRebuildOptions {
   readonly forcedGroundMesh?: AbstractMesh;
 }
 
-export function makeStoryCellKey(storyIndex: number, cell: GridCell): string {
-  return `${storyIndex}:${cell.x}:${cell.z}`;
+/**
+ * Factory для ключей "story + cell".
+ *
+ * Один формат ключа используется surface, blocker и obstacle registry, поэтому
+ * его держит отдельный объектный сервис вместо разрозненных helper-функций.
+ */
+export class StoryCellKeyFactory {
+  public make(storyIndex: number, cell: GridCell): string {
+    return `${storyIndex}:${cell.x}:${cell.z}`;
+  }
 }
 
+/**
+ * Reader для world bounds Babylon mesh.
+ *
+ * Класс скрывает обязательный `computeWorldMatrix(true)` перед чтением bounding
+ * info, чтобы registry не дублировали эту Babylon-specific деталь.
+ */
+export class NavigationMeshBoundsReader {
+  public read(mesh: AbstractMesh): { readonly min: Vector3; readonly max: Vector3; readonly center: Vector3 } {
+    mesh.computeWorldMatrix(true);
+    const boundingBox = mesh.getBoundingInfo().boundingBox;
+    return {
+      min: boundingBox.minimumWorld.clone(),
+      max: boundingBox.maximumWorld.clone(),
+      center: boundingBox.centerWorld.clone()
+    };
+  }
+}
+
+/**
+ * Reader для plain metadata record с учетом GLTF `extras`.
+ *
+ * Surface registry нужна более мягкая проверка, чем gameplay parser: достаточно
+ * любого непустого metadata record из mesh или parent-chain.
+ */
+export class NavigationMeshMetadataReader {
+  public resolve(mesh: AbstractMesh): Record<string, unknown> | null {
+    let currentNode: Node | null = mesh;
+    while (currentNode) {
+      const metadata = currentNode.metadata;
+      if (metadata && typeof metadata === "object") {
+        const record = this.resolveExtrasRecord(metadata as Record<string, unknown>);
+        if (Object.keys(record).length > 0) {
+          return record;
+        }
+      }
+      currentNode = currentNode.parent;
+    }
+    return null;
+  }
+
+  public resolveExtrasRecord(metadata: Record<string, unknown>): Record<string, unknown> {
+    const gltfPayload = metadata.gltf;
+    if (gltfPayload && typeof gltfPayload === "object") {
+      const extrasPayload = (gltfPayload as Record<string, unknown>).extras;
+      if (extrasPayload && typeof extrasPayload === "object") {
+        return extrasPayload as Record<string, unknown>;
+      }
+    }
+    return metadata;
+  }
+}
+
+/**
+ * Набор нормализаторов для permissive navigation metadata.
+ *
+ * Эти методы принимают данные из разных exporter generations, поэтому строки
+ * обрезаются, а числовые строки приводятся к integer там, где это безопасно.
+ */
+export class NavigationMetadataValueReader {
+  public string(value: unknown): string | null {
+    if (typeof value !== "string") {
+      return null;
+    }
+    const trimmed = value.trim();
+    return trimmed.length > 0 ? trimmed : null;
+  }
+
+  public integer(value: unknown): number | null {
+    if (typeof value === "number" && Number.isFinite(value)) {
+      return Math.trunc(value);
+    }
+
+    if (typeof value === "string") {
+      const parsed = Number.parseInt(value, 10);
+      return Number.isFinite(parsed) ? parsed : null;
+    }
+
+    return null;
+  }
+}
+
+/**
+ * Naming policy для legacy walkable/blocking surface detection.
+ *
+ * Metadata имеет приоритет, но старые GLB все еще распознаются по именам mesh и
+ * building part. Поэтому regex-правила собраны в отдельную policy-стратегию.
+ */
+export class NavigationSurfaceNamePolicy {
+  public isWalkableSurfaceName(name: string): boolean {
+    return /(story[_ -]?floor|room[_ -]?floor|roof[_ -]?floor|floor|platform|landing|balcony|walkway|roof[_ -]?platform|stair[_ -]?landing|terrace|external[_ -]?stair[_ -]?landing)/i.test(name);
+  }
+
+  public isBlockedSurfaceName(name: string): boolean {
+    return /(wall|railing|rail|window|door|glass|frame|sill|reveal|border|fence|stair[_ -]?(tread|run)|checkpoint|pick[_ -]?proxy)/i.test(name);
+  }
+}
+
+/**
+ * Registry walkable floor surfaces and cells by story.
+ *
+ * Класс строит слой walkability из v3 grid navigation contract, explicit floor
+ * meshes и conservative legacy fallback. Все ключи/metadata/bounds обслуживаются
+ * объектными collaborators, чтобы логика rebuild не превращалась в набор
+ * процедурных helpers.
+ */
 export class FloorNavigationSurfaceRegistry {
   private readonly surfaces: WalkableFloorSurface[];
   private readonly cellsByStory: Map<number, Map<string, GridCell>>;
@@ -31,7 +144,15 @@ export class FloorNavigationSurfaceRegistry {
   private grid: RectGrid | null;
   private hasExplicitSurfaces: boolean;
 
-  public constructor() {
+  public constructor(
+    private readonly storyCellKeyFactory: StoryCellKeyFactory = new StoryCellKeyFactory(),
+    private readonly metadataParser: NavigationMetadataParser = NavigationMetadataParser.getShared(),
+    private readonly contractService: GridNavigationContractService = GridNavigationContractService.getShared(),
+    private readonly meshBoundsReader: NavigationMeshBoundsReader = new NavigationMeshBoundsReader(),
+    private readonly meshMetadataReader: NavigationMeshMetadataReader = new NavigationMeshMetadataReader(),
+    private readonly valueReader: NavigationMetadataValueReader = new NavigationMetadataValueReader(),
+    private readonly surfaceNamePolicy: NavigationSurfaceNamePolicy = new NavigationSurfaceNamePolicy()
+  ) {
     this.surfaces = [];
     this.cellsByStory = new Map();
     this.storyYByStory = new Map();
@@ -47,7 +168,7 @@ export class FloorNavigationSurfaceRegistry {
     this.hasExplicitSurfaces = false;
 
     const knownStoryY = this.collectKnownStoryY(scene);
-    const gridContracts = mapGridNavigationContractsToRuntime(scene, grid);
+    const gridContracts = this.contractService.mapToRuntime(scene, grid);
     let contractCellCount = 0;
     let contractSkippedOutOfBounds = 0;
     for (const contract of gridContracts) {
@@ -71,7 +192,7 @@ export class FloorNavigationSurfaceRegistry {
     }
 
     if (options.forcedGroundMesh && !options.forcedGroundMesh.isDisposed() && options.forcedGroundMesh.getTotalVertices() > 0) {
-      this.addWalkableSurface(grid, options.forcedGroundMesh, 0, getWorldBounds(options.forcedGroundMesh));
+      this.addWalkableSurface(grid, options.forcedGroundMesh, 0, this.meshBoundsReader.read(options.forcedGroundMesh));
     }
 
     for (const mesh of scene.meshes) {
@@ -83,7 +204,7 @@ export class FloorNavigationSurfaceRegistry {
         continue;
       }
 
-      const bounds = getWorldBounds(mesh);
+      const bounds = this.meshBoundsReader.read(mesh);
       const storyIndex = this.resolveSurfaceStoryIndex(mesh, bounds, knownStoryY);
       if (storyIndex === null) {
         console.warn(`[FloorNavigationSurfaceRegistry] skipped walkable-looking mesh '${mesh.name}': story metadata missing and story could not be inferred.`);
@@ -108,7 +229,7 @@ export class FloorNavigationSurfaceRegistry {
       return true;
     }
 
-    return this.cellsByStory.get(storyIndex)?.has(makeStoryCellKey(storyIndex, cell)) ?? false;
+    return this.cellsByStory.get(storyIndex)?.has(this.storyCellKeyFactory.make(storyIndex, cell)) ?? false;
   }
 
   public getWalkableCells(storyIndex: number): readonly GridCell[] {
@@ -204,14 +325,14 @@ export class FloorNavigationSurfaceRegistry {
 
   private addWalkableCell(cell: GridCell, storyIndex: number): void {
     const cells = this.cellsByStory.get(storyIndex) ?? new Map<string, GridCell>();
-    cells.set(makeStoryCellKey(storyIndex, cell), new GridCell(cell.x, cell.z));
+    cells.set(this.storyCellKeyFactory.make(storyIndex, cell), new GridCell(cell.x, cell.z));
     this.cellsByStory.set(storyIndex, cells);
   }
 
   private collectKnownStoryY(scene: Scene): Map<number, number> {
     const result = new Map<number, number>();
     for (const mesh of scene.meshes) {
-      const checkpoint = parseStairCheckpointMetadata(mesh);
+      const checkpoint = this.metadataParser.parseStairCheckpointMetadata(mesh);
       if (!checkpoint) {
         continue;
       }
@@ -231,13 +352,13 @@ export class FloorNavigationSurfaceRegistry {
     bounds: { readonly min: Vector3; readonly max: Vector3; readonly center: Vector3 },
     knownStoryY: ReadonlyMap<number, number>
   ): number | null {
-    const metadata = resolveMetadata(mesh);
+    const metadata = this.meshMetadataReader.resolve(mesh);
     const explicitStory =
-      normalizeInteger(metadata?.game_nav_story_index) ??
-      normalizeInteger(metadata?.storyIndex) ??
-      normalizeInteger(metadata?.story_index) ??
-      normalizeInteger(metadata?.floorIndex) ??
-      normalizeInteger(metadata?.game_story_index);
+      this.valueReader.integer(metadata?.game_nav_story_index) ??
+      this.valueReader.integer(metadata?.storyIndex) ??
+      this.valueReader.integer(metadata?.story_index) ??
+      this.valueReader.integer(metadata?.floorIndex) ??
+      this.valueReader.integer(metadata?.game_story_index);
     if (explicitStory !== null) {
       return explicitStory;
     }
@@ -260,7 +381,7 @@ export class FloorNavigationSurfaceRegistry {
   }
 
   private isWalkableFloorSurface(mesh: AbstractMesh): boolean {
-    const gameNavigationMetadata = parseGameNavigationMetadata(mesh);
+    const gameNavigationMetadata = this.metadataParser.parseGameNavigationMetadata(mesh);
     if (gameNavigationMetadata?.kind === "floor") {
       return true;
     }
@@ -268,23 +389,23 @@ export class FloorNavigationSurfaceRegistry {
       return false;
     }
 
-    const metadata = resolveMetadata(mesh);
-    const navKind = normalizeString(metadata?.nav_kind);
+    const metadata = this.meshMetadataReader.resolve(mesh);
+    const navKind = this.valueReader.string(metadata?.nav_kind);
     if (navKind === "stair_checkpoint" || navKind === "stair_pick_proxy") {
       return false;
     }
 
-    const part = normalizeString(metadata?.part) ?? normalizeString(metadata?.building_part) ?? normalizeString(metadata?.role);
+    const part = this.valueReader.string(metadata?.part) ?? this.valueReader.string(metadata?.building_part) ?? this.valueReader.string(metadata?.role);
     const name = mesh.name;
-    if (isBlockedSurfaceName(part ?? name) || isBlockedSurfaceName(name)) {
+    if (this.surfaceNamePolicy.isBlockedSurfaceName(part ?? name) || this.surfaceNamePolicy.isBlockedSurfaceName(name)) {
       return false;
     }
 
-    if (part && isWalkableSurfaceName(part)) {
+    if (part && this.surfaceNamePolicy.isWalkableSurfaceName(part)) {
       return true;
     }
 
-    return isWalkableSurfaceName(name) || this.isGroundLike(mesh);
+    return this.surfaceNamePolicy.isWalkableSurfaceName(name) || this.isGroundLike(mesh);
   }
 
   private isGroundLike(mesh: AbstractMesh): boolean {
@@ -313,67 +434,4 @@ export class FloorNavigationSurfaceRegistry {
       );
     }
   }
-}
-
-function getWorldBounds(mesh: AbstractMesh): { readonly min: Vector3; readonly max: Vector3; readonly center: Vector3 } {
-  mesh.computeWorldMatrix(true);
-  const boundingBox = mesh.getBoundingInfo().boundingBox;
-  return {
-    min: boundingBox.minimumWorld.clone(),
-    max: boundingBox.maximumWorld.clone(),
-    center: boundingBox.centerWorld.clone()
-  };
-}
-
-function resolveMetadata(mesh: AbstractMesh): Record<string, unknown> | null {
-  let currentNode: Node | null = mesh;
-  while (currentNode) {
-    const metadata = currentNode.metadata;
-    if (metadata && typeof metadata === "object") {
-      const record = resolveExtrasRecord(metadata as Record<string, unknown>);
-      if (Object.keys(record).length > 0) {
-        return record;
-      }
-    }
-    currentNode = currentNode.parent;
-  }
-  return null;
-}
-
-function resolveExtrasRecord(metadata: Record<string, unknown>): Record<string, unknown> {
-  const gltfPayload = metadata.gltf;
-  if (gltfPayload && typeof gltfPayload === "object") {
-    const extrasPayload = (gltfPayload as Record<string, unknown>).extras;
-    if (extrasPayload && typeof extrasPayload === "object") {
-      return extrasPayload as Record<string, unknown>;
-    }
-  }
-  return metadata;
-}
-
-function normalizeString(value: unknown): string | null {
-  if (typeof value !== "string") {
-    return null;
-  }
-  const trimmed = value.trim();
-  return trimmed.length > 0 ? trimmed : null;
-}
-
-function normalizeInteger(value: unknown): number | null {
-  if (typeof value === "number" && Number.isFinite(value)) {
-    return Math.trunc(value);
-  }
-  if (typeof value === "string") {
-    const parsed = Number.parseInt(value, 10);
-    return Number.isFinite(parsed) ? parsed : null;
-  }
-  return null;
-}
-
-function isWalkableSurfaceName(name: string): boolean {
-  return /(story[_ -]?floor|room[_ -]?floor|roof[_ -]?floor|floor|platform|landing|balcony|walkway|roof[_ -]?platform|stair[_ -]?landing|terrace|external[_ -]?stair[_ -]?landing)/i.test(name);
-}
-
-function isBlockedSurfaceName(name: string): boolean {
-  return /(wall|railing|rail|window|door|glass|frame|sill|reveal|border|fence|stair[_ -]?(tread|run)|checkpoint|pick[_ -]?proxy)/i.test(name);
 }

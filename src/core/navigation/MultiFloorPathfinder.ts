@@ -1,11 +1,31 @@
 import { GridCell } from "../grid/GridCell";
 import {
-  makeNavigationNodeId,
+  NavigationNodeIdFactory,
   type NavigationEdge,
   type NavigationGraph,
   type NavigationNode
 } from "./NavigationGraph";
 
+/**
+ * Factory для movement-target key, используемого UI и combat systems.
+ *
+ * Сейчас target key совпадает с navigation node id. Объектная фабрика сохраняет
+ * эту связь явно и не требует импортировать graph internals как helper-функцию.
+ */
+export class MovementTargetKeyFactory {
+  public constructor(private readonly nodeIdFactory: NavigationNodeIdFactory = new NavigationNodeIdFactory()) {}
+
+  public make(cell: GridCell, storyIndex: number): string {
+    return this.nodeIdFactory.make(storyIndex, cell);
+  }
+}
+
+/**
+ * A* pathfinder для multi-floor navigation graph.
+ *
+ * Эвристика пока нулевая, то есть алгоритм работает как Dijkstra. Это сохраняет
+ * корректность при произвольных stair costs и heterogeneous movement cost.
+ */
 export class MultiFloorPathfinder {
   private readonly graph: NavigationGraph;
   private readonly debugEnabled: boolean;
@@ -168,8 +188,4 @@ export class MultiFloorPathfinder {
       ].join("\n")
     );
   }
-}
-
-export function makeMovementTargetKey(cell: GridCell, storyIndex: number): string {
-  return makeNavigationNodeId(storyIndex, cell);
 }

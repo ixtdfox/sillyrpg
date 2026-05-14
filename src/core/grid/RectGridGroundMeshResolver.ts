@@ -1,5 +1,5 @@
 import type { AbstractMesh, Node, Scene } from "@babylonjs/core";
-import { isNavigationPickableSurface } from "../navigation/BuildingNavigationMetadata";
+import { NavigationMetadataParser } from "../navigation/BuildingNavigationMetadata";
 
 /**
  * Selection result for ground used by rect-grid sizing and mouse picking.
@@ -21,6 +21,7 @@ export interface RectGridGroundSelection {
 export class RectGridGroundMeshResolver {
   private static readonly EXACT_GROUND_NAMES = ["ground", "grid-ground", "terrain", "floor"];
   private static readonly KEYWORD_GROUND_NAMES = ["ground", "terrain", "floor", "walk", "tile"];
+  private readonly navigationMetadataParser = NavigationMetadataParser.getShared();
 
   /**
    * Resolves a stable ground selection using explicit conventions.
@@ -93,7 +94,7 @@ export class RectGridGroundMeshResolver {
   }
 
   private isNavigationPickableSurface(mesh: AbstractMesh): boolean {
-    return isNavigationPickableSurface(mesh);
+    return this.navigationMetadataParser.isNavigationPickableSurface(mesh);
   }
 
   private isMeshInGroundHierarchy(mesh: AbstractMesh, groundMesh: AbstractMesh): boolean {

@@ -3,7 +3,7 @@ import { GridCell } from "../../../src/core/grid/GridCell";
 import { RectGrid } from "../../../src/core/grid/RectGrid";
 import { BasicCombatAiService } from "../../../src/core/entity/systems/combat/BasicCombatAiService";
 import { GridNavigationPathService, type GridNavigationPathEnvironment } from "../../../src/core/navigation/GridNavigationPathService";
-import { BuildingNavigationRegistry, normalizeStairTacticalCost } from "../../../src/core/navigation/BuildingNavigationRegistry";
+import { BuildingNavigationRegistry, StairTacticalCostPolicy } from "../../../src/core/navigation/BuildingNavigationRegistry";
 import type { StairNavigationConnector } from "../../../src/core/navigation/NavigationGraph";
 
 function makeGrid(): RectGrid {
@@ -251,7 +251,7 @@ function testStairInteractionSelectsConnectorForCurrentStory(): void {
 }
 
 function testLegacyPathLengthStairCostFallsBackToTacticalCost(): void {
-  const cost = normalizeStairTacticalCost(8, 2, {
+  const cost = new StairTacticalCostPolicy().normalize(8, 2, {
     id: "legacy-external-stair",
     kind: "external",
     from: { storyIndex: 0, cell: new GridCell(1, 0) },

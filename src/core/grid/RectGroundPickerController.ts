@@ -2,7 +2,7 @@ import { Matrix, type AbstractMesh, type PickingInfo, type Ray, type Scene, Vect
 import { GridCell } from "./GridCell";
 import { RectGrid } from "./RectGrid";
 import { RectGridOverlay } from "./RectGridOverlay";
-import { parseStairPickMetadata } from "../navigation/BuildingNavigationMetadata";
+import { NavigationMetadataParser } from "../navigation/BuildingNavigationMetadata";
 
 export interface PickedNavigationCell {
   readonly cell: GridCell;
@@ -42,6 +42,7 @@ export class RectGroundPickerController {
   private hoveredNavigationTarget: PickedNavigationTarget | null;
   private warnedMissingStoryMetadataMeshIds: Set<number>;
   private fallbackStoryIndex: number;
+  private readonly navigationMetadataParser = NavigationMetadataParser.getShared();
 
   /**
    * Creates mouse-driven ground picking controller.
@@ -169,7 +170,7 @@ export class RectGroundPickerController {
       }
 
       const pickedMesh = pickResult.pickedMesh ?? null;
-      const stairPickMetadata = pickedMesh ? parseStairPickMetadata(pickedMesh) : null;
+      const stairPickMetadata = pickedMesh ? this.navigationMetadataParser.parseStairPickMetadata(pickedMesh) : null;
       if (stairPickMetadata?.isStairLike) {
         if (!isStairPickConnectedToStory(stairPickMetadata, this.fallbackStoryIndex)) {
           continue;

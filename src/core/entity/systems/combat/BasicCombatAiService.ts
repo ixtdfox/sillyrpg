@@ -8,7 +8,7 @@ import { RelationsComponent } from "../../components/RelationsComponent";
 import { VitalsComponent } from "../../components/VitalsComponent";
 import { GridCell } from "../../../grid/GridCell";
 import type { MovementSegment, NavigationNode } from "../../../navigation/NavigationGraph";
-import { GridNavigationPathService, isRectNavDebugEnabled } from "../../../navigation/GridNavigationPathService";
+import { GridNavigationPathService, RectNavigationDebugFlag } from "../../../navigation/GridNavigationPathService";
 import { getInGameSceneRuntimeContext, type InGameSceneRuntimeContext } from "../../../scene/in-game/InGameSceneRuntimeContext";
 import { CombatAttackTargetingService } from "./CombatAttackTargetingService";
 import { GridSpatialIndex } from "../grid/GridSpatialIndex";
@@ -339,7 +339,7 @@ export class BasicCombatAiService {
     }
 
     const selectedOption = bestCompleteOption ?? bestPartialOption;
-    if (isRectNavDebugEnabled()) {
+    if (new RectNavigationDebugFlag().isEnabled()) {
       console.debug("[BasicCombatAiService] AI approach", {
         activeAiEntityId,
         fromStory: activeStoryIndex,

@@ -14,7 +14,7 @@ import { GridMovementCostResolver } from "../grid/GridMovementCostResolver";
 import { GridSpatialIndex } from "../grid/GridSpatialIndex";
 import { CombatMoveRangeResolver } from "./CombatMoveRangeResolver";
 import { GridCell } from "../../../grid/GridCell";
-import { GridNavigationPathService, isRectNavDebugEnabled } from "../../../navigation/GridNavigationPathService";
+import { GridNavigationPathService, RectNavigationDebugFlag } from "../../../navigation/GridNavigationPathService";
 import type { MovementSegment, NavigationNode } from "../../../navigation/NavigationGraph";
 
 /**
@@ -172,7 +172,7 @@ export class CombatMovementPreviewSystem implements System {
     movementPoints: number,
     rangeResolution: ReturnType<CombatMoveRangeResolver["resolveReachableCells"]>
   ): void {
-    if (!isRectNavDebugEnabled()) {
+    if (!new RectNavigationDebugFlag().isEnabled()) {
       return;
     }
 
