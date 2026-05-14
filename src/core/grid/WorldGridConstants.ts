@@ -18,7 +18,7 @@ export const WORLD_TILE_SIZE_M = WORLD_TILE_SIZE;
 export const RECT_TILE_SIZE = WORLD_TILE_SIZE;
 
 /**
- * Общий origin логической grid-системы для editor и runtime.
+ * Общий origin логической grid-системы для всех потребителей core.
  *
  * Превью Blender рисует тот же origin в Blender X/Y, который после export
  * мапится в game X/Z. AABB земли только ограничивает количество клеток, но не

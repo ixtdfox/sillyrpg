@@ -81,7 +81,7 @@ function testDiagnosticsReportsBatchCasterAndReceiverCounts(): void {
   const terrain = MeshBuilder.CreateGround("terrain", { width: 4, height: 4 }, scene);
   const character = MeshBuilder.CreateBox("character", { size: 1 }, scene);
   const helper = MeshBuilder.CreateBox("debug-helper", { size: 1 }, scene);
-  helper.metadata = { editorHelper: true };
+  helper.metadata = { gameHelper: true };
 
   registry.setLighting(createLighting(true));
   registry.registerBatches([

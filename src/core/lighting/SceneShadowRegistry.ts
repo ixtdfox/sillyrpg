@@ -12,7 +12,7 @@ export interface ShadowMeshBatch {
   readonly meshes: readonly AbstractMesh[];
 }
 
-/** Snapshot состояния shadow-системы для editor UI, логов и тестов. */
+/** Snapshot состояния shadow-системы для diagnostics UI, логов и тестов. */
 export interface ShadowDiagnostics {
   readonly enabled: boolean;
   readonly hasGenerator: boolean;

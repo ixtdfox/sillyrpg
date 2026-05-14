@@ -35,13 +35,13 @@ function makeResolver(options: ResolverFixtureOptions = {}): SurfaceHeightResolv
     getMergedStoryYByStory: () => storyYByStory,
     getGrid: () => grid
   };
-  const terrainSurfaceRegistry = {
+  const terrainSurfaceSampler = {
     sampleWorldHeight: () => options.terrainY ?? null
   };
 
   return new SurfaceHeightResolver(
     gridRuntime,
-    terrainSurfaceRegistry,
+    terrainSurfaceSampler,
     options.strategies,
     options.debugLogger
   );

@@ -1,4 +1,4 @@
-import type { TerrainBrushSettings, TerrainBrushShape, TerrainEditToolId } from "../../core/world/terrain/editing/TerrainBrushTypes";
+import type { TerrainBrushSettings, TerrainBrushShape, TerrainEditToolId } from "../terrain/editing/TerrainBrushTypes";
 import { editorIconSvg, type EditorIconName } from "./EditorIcons";
 import type { TerrainToolsPanelCallbacks, TerrainToolsPanelViewModel } from "../terrain/tools/EditorTerrainToolState";
 

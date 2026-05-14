@@ -70,11 +70,8 @@ export class RenderableMeshResolver {
     }
 
     return (
-      metadata.editorHelper === true ||
       metadata.gameHelper === true ||
       metadata.isMetadata === true ||
-      metadata.editorTerrainBrushPreview === true ||
-      rawMetadata.editor_helper === true ||
       rawMetadata.game_helper === true ||
       rawMetadata.metadata_carrier === true ||
       rawMetadata.navigation_metadata === true

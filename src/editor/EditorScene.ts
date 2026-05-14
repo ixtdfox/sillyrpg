@@ -21,6 +21,7 @@ import { snapEditorPlacement } from "./EditorPlacementSnapping";
 import { EditorLightingController } from "./lighting/EditorLightingController";
 import { EditorSceneLoader } from "./EditorSceneLoader";
 import { EditorSceneRegistry } from "./EditorSceneRegistry";
+import { EditorLanguagePackRegistrar } from "./lang/EditorLanguagePacks";
 import { EditorSceneDocument } from "./state/EditorSceneDocument";
 import type { EditorMoveAxisMode } from "./state/EditorMoveAxisMode";
 import { saveSceneDescriptor, exportSceneDescriptorJson } from "./state/EditorScenePersistence";
@@ -87,6 +88,7 @@ export class EditorScene implements Scene {
     this.engine = engine;
     this.canvas = canvas;
     this.langManager = langManager;
+    new EditorLanguagePackRegistrar().register(this.langManager);
     this.onBackToMenu = onBackToMenu;
     this.scene = null;
     this.ui = null;

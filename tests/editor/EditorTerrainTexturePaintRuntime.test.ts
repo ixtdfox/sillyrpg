@@ -1,9 +1,9 @@
 import { MeshBuilder, NullEngine, Scene, StandardMaterial, TransformNode } from "@babylonjs/core";
 import { TerrainHeightField } from "../../src/core/world/terrain/TerrainHeightField";
-import { TerrainSplatMaterialBuilder, type TerrainSplatMaterialRuntime } from "../../src/core/world/terrain/TerrainSplatMaterialBuilder";
-import { TerrainSplatMap } from "../../src/core/world/terrain/editing/TerrainSplatMap";
+import { TerrainSplatMaterialBuilder, type TerrainSplatMaterialRuntime } from "../../src/editor/terrain/tools/EditorTerrainSplatMaterialBuilder";
+import { TerrainSplatMap } from "../../src/editor/terrain/editing/TerrainSplatMap";
 import type { SceneGeneratedTerrainDescriptor } from "../../src/core/world/scene/SceneDescriptor";
-import type { TerrainTextureLayerDescriptor } from "../../src/core/world/terrain/editing/TerrainTextureLayer";
+import type { TerrainTextureLayerDescriptor } from "../../src/editor/terrain/editing/TerrainTextureLayer";
 import { EditorTerrainTexturePaintRuntime } from "../../src/editor/terrain/tools/EditorTerrainTexturePaintRuntime";
 import type { EditorTerrainInstance } from "../../src/editor/types";
 

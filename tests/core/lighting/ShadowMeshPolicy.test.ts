@@ -99,7 +99,7 @@ function testHelperMeshesAreExcluded(): void {
   const mesh = MeshBuilder.CreateBox("debug-helper", { size: 1 }, scene);
   const policy = new ShadowMeshPolicy();
   const lighting = createLighting();
-  mesh.metadata = { editorHelper: true, shadowCaster: true, shadowReceiver: true };
+  mesh.metadata = { gameHelper: true, shadowCaster: true, shadowReceiver: true };
 
   assert(!policy.canCast(mesh, { lighting, source: "sceneObject" }), "Expected helper mesh not to cast.");
   assert(!policy.canReceive(mesh, { lighting, source: "sceneObject" }), "Expected helper mesh not to receive.");

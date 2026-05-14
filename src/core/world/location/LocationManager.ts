@@ -652,7 +652,7 @@ export class LocationManager {
       root,
       rootNamePrefix: "district",
       descriptorPath: sceneData.scene,
-      generatedTerrainVisualMode: "runtime"
+      generatedTerrainLodEnabled: true
     });
     for (const controller of importedContent.terrainLodControllers) {
       controller.setDebugEnabled(this.terrainLodDebugEnabled);

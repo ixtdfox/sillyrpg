@@ -1,4 +1,4 @@
-import type { TerrainTextureLayerDescriptor } from "../../../core/world/terrain/editing/TerrainTextureLayer";
+import type { TerrainTextureLayerDescriptor } from "../editing/TerrainTextureLayer";
 
 const terrainTextureModules = import.meta.glob<string>("../../../../assets/textures/terrain/*.png", {
   eager: true,

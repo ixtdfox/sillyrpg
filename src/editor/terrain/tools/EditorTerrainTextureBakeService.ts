@@ -1,7 +1,7 @@
 import type { SceneVector2Tuple } from "../../../core/world/scene/SceneDescriptor";
-import { TerrainSplatTileScalePolicy } from "../../../core/world/terrain/TerrainSplatMaterialBuilder";
-import type { TerrainSplatMap } from "../../../core/world/terrain/editing/TerrainSplatMap";
-import type { TerrainTextureLayerDescriptor } from "../../../core/world/terrain/editing/TerrainTextureLayer";
+import { TerrainSplatTileScalePolicy } from "./EditorTerrainSplatMaterialBuilder";
+import type { TerrainSplatMap } from "../editing/TerrainSplatMap";
+import type { TerrainTextureLayerDescriptor } from "../editing/TerrainTextureLayer";
 
 const DEFAULT_BAKE_PIXELS_PER_WORLD_UNIT = 32;
 const MIN_BAKE_RESOLUTION = 1024;

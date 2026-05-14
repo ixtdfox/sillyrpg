@@ -1,13 +1,13 @@
 import type { EditorSceneLoader } from "../EditorSceneLoader";
 import type { EditorSceneDocument } from "../state/EditorSceneDocument";
 import type { SceneGeneratedTerrainDescriptor, SceneTerrainDescriptor } from "../../core/world/scene/SceneDescriptor";
-import { TerrainGenerator } from "../../core/world/terrain/TerrainGenerator";
-import { TerrainGeneratorPresetCatalog } from "../../core/world/terrain/TerrainGeneratorPresets";
+import { TerrainGenerator } from "./generation/TerrainGenerator";
+import { TerrainGeneratorPresetCatalog } from "./generation/TerrainGeneratorPresets";
 import {
   DEFAULT_TERRAIN_PRESET,
   TerrainDescriptorCloner,
   TerrainResolutionNormalizer
-} from "../../core/world/terrain/TerrainTypes";
+} from "./generation/TerrainTypes";
 import type { TerrainGeneratorPanelViewModel } from "./EditorTerrainTypes";
 
 interface EditorTerrainControllerCallbacks {

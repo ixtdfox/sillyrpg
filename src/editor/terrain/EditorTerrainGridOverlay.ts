@@ -84,6 +84,7 @@ export class EditorTerrainGridOverlay {
     lineMesh.metadata = {
       ...(lineMesh.metadata as Record<string, unknown> | undefined),
       editorHelper: true,
+      gameHelper: true,
       editorSelectable: false,
       terrainDebugOnly: true,
       terrainVisualOnly: true,

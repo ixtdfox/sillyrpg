@@ -4,13 +4,13 @@ import {
   type SceneGeneratedTerrainDescriptor,
   type SceneTerrainDescriptor
 } from "../../../core/world/scene/SceneDescriptor";
-import { TerrainGenerator } from "../../../core/world/terrain/TerrainGenerator";
-import { DEFAULT_TERRAIN_TOOL_SETTINGS, TerrainBrushSettingsNormalizer } from "../../../core/world/terrain/editing/TerrainBrush";
-import { TerrainHeightEditor } from "../../../core/world/terrain/editing/TerrainHeightEditor";
-import { TerrainHeightSampler } from "../../../core/world/terrain/editing/TerrainHeightSampler";
-import { TerrainHeightFieldSerializer } from "../../../core/world/terrain/editing/TerrainHeightSerialization";
+import { TerrainGenerator } from "../generation/TerrainGenerator";
+import { DEFAULT_TERRAIN_TOOL_SETTINGS, TerrainBrushSettingsNormalizer } from "../editing/TerrainBrush";
+import { TerrainHeightEditor } from "../editing/TerrainHeightEditor";
+import { TerrainHeightSampler } from "../editing/TerrainHeightSampler";
+import { TerrainHeightFieldSerializer } from "../../../core/world/terrain/TerrainHeightFieldSerializer";
 import type { TerrainHeightField } from "../../../core/world/terrain/TerrainHeightField";
-import type { TerrainBrushCenter, TerrainBrushSettings, TerrainEditToolId, TerrainToolSettings } from "../../../core/world/terrain/editing/TerrainBrushTypes";
+import type { TerrainBrushCenter, TerrainBrushSettings, TerrainEditToolId, TerrainToolSettings } from "../editing/TerrainBrushTypes";
 import type { TerrainGeneratorPanelStats } from "../EditorTerrainTypes";
 import type { EditorSceneLoader } from "../../EditorSceneLoader";
 import { EditorTerrainBrushPreview } from "./EditorTerrainBrushPreview";

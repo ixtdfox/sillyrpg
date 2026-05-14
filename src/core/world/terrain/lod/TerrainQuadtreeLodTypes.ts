@@ -31,7 +31,7 @@ export interface TerrainQuadtreeLodDescriptor {
 }
 
 /**
- * Полностью нормализованный descriptor, готовый для runtime LOD controller.
+ * Полностью нормализованный descriptor, готовый для LOD controller.
  */
 export interface ResolvedTerrainQuadtreeLodDescriptor {
   readonly enabled: boolean;
@@ -155,7 +155,7 @@ export class TerrainQuadSizeCalculator {
  * Резолвер descriptor'а quadtree LOD.
  *
  * Поддерживает legacy поля `basePatchQuads` и `splitDistances`, но возвращает
- * уже нормализованный контракт для runtime controller.
+ * уже нормализованный контракт для LOD controller.
  */
 export class TerrainQuadtreeLodDescriptorResolver {
   private readonly nativeDepthResolver: TerrainNativeLodDepthResolver;
@@ -165,7 +165,7 @@ export class TerrainQuadtreeLodDescriptorResolver {
   }
 
   /**
-   * Превращает optional/legacy descriptor в полный runtime descriptor.
+   * Превращает optional/legacy descriptor в полный LOD descriptor.
    */
   public resolve(
     descriptor: TerrainQuadtreeLodDescriptor | null | undefined,

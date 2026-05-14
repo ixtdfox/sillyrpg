@@ -1,5 +1,5 @@
 import { parseSceneDescriptor } from "../../../src/core/world/scene/SceneDescriptor";
-import { TerrainHeightFieldSerializer } from "../../../src/core/world/terrain/editing/TerrainHeightSerialization";
+import { TerrainHeightFieldSerializer } from "../../../src/core/world/terrain/TerrainHeightFieldSerializer";
 import { TerrainHeightField } from "../../../src/core/world/terrain/TerrainHeightField";
 
 const heightFieldSerializer = new TerrainHeightFieldSerializer();

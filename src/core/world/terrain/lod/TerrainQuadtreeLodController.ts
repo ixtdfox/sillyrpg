@@ -22,7 +22,7 @@ import {
 } from "./TerrainQuadtreeLodTypes";
 
 /**
- * Dependency object для runtime TerrainQuadtreeLodController.
+ * Dependency object для TerrainQuadtreeLodController.
  */
 export interface TerrainQuadtreeLodControllerOptions {
   readonly scene: Scene;
@@ -77,7 +77,7 @@ class TerrainLodDebugFormatter {
 }
 
 /**
- * Controller runtime quadtree LOD meshes.
+ * Controller quadtree LOD meshes.
  *
  * Управляет жизненным циклом patch meshes, переключает видимость canonical mesh
  * и обновляет набор visible leaves относительно player/camera anchor.
@@ -309,7 +309,7 @@ export class TerrainQuadtreeLodController {
   }
 
   /**
-   * Скрывает визуальную canonical surface, оставляя ее pickable для gameplay/editor.
+   * Скрывает визуальную canonical surface, оставляя ее pickable для gameplay.
    */
   private hideCanonicalVisualSurface(): void {
     this.canonicalMesh.visibility = 0;

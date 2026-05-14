@@ -1,5 +1,5 @@
-import type { TerrainBrushSettings, TerrainEditToolId } from "../../../core/world/terrain/editing/TerrainBrushTypes";
-import type { TerrainTextureLayerDescriptor } from "../../../core/world/terrain/editing/TerrainTextureLayer";
+import type { TerrainBrushSettings, TerrainEditToolId } from "../editing/TerrainBrushTypes";
+import type { TerrainTextureLayerDescriptor } from "../editing/TerrainTextureLayer";
 import type { TerrainGeneratorPanelStats } from "../EditorTerrainTypes";
 
 export interface TerrainTextureLayerViewModel extends TerrainTextureLayerDescriptor {

@@ -3,7 +3,7 @@ import type { SceneGeneratedTerrainDescriptor } from "../scene/SceneDescriptor";
 import type { TerrainHeightField } from "./TerrainHeightField";
 
 /**
- * Каноническая terrain surface, доступная runtime systems для height sampling.
+ * Каноническая terrain surface, доступная runtime/editor системам для height sampling.
  */
 export interface TerrainSurface {
   readonly mesh: AbstractMesh;
@@ -31,7 +31,7 @@ class TerrainSurfaceWorldHeightMapper {
 }
 
 /**
- * Registry канонических terrain surfaces, доступных runtime-системам.
+ * Registry канонических terrain surfaces, доступных runtime/editor системам.
  */
 export class TerrainSurfaceRegistry {
   private readonly surfaces: TerrainSurface[];

@@ -16,7 +16,7 @@ export type GridEdgeBlockedPredicate = (fromCell: GridCell, toCell: GridCell) =>
  *
  * Реализация использует BFS Strategy для невзвешенной 4-связной сетки. Весовые
  * и многоэтажные маршруты живут в navigation-пакете, а этот класс остается
- * компактным grid-level pathfinder для простых систем и editor/runtime fallback.
+ * компактным grid-level pathfinder для простых систем и fallback-сценариев.
  */
 export class RectPathfinder {
   private readonly grid: RectGrid;

@@ -188,7 +188,7 @@ export class LightingPresetCatalog {
   public static readonly DEFAULT_PRESET_ID: LightingPresetId = "day";
   private static readonly shared = new LightingPresetCatalog();
 
-  /** Возвращает общий singleton-каталог для runtime/editor слоев без ручного wiring. */
+  /** Возвращает общий singleton-каталог для внешних слоев без ручного wiring. */
   public static getShared(): LightingPresetCatalog {
     return LightingPresetCatalog.shared;
   }

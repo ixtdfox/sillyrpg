@@ -23,12 +23,12 @@ interface ShadowMetadataDecision {
 /**
  * Reader для shadow-метаданных Babylon mesh.
  *
- * Класс изолирует знание о двух форматах метаданных: нормализованном editor
+ * Класс изолирует знание о двух форматах метаданных: нормализованном runtime
  * формате (`shadowCaster`, `shadowReceiver`, `shadowRole`) и raw snake_case
  * формате, который может прийти из импортированных GLTF/scene assets.
  */
 export class ShadowMetadataReader {
-  /** Возвращает shadow overrides, объединяя editor metadata и raw imported metadata. */
+  /** Возвращает shadow overrides, объединяя runtime metadata и raw imported metadata. */
   public read(mesh: AbstractMesh): ShadowMetadataDecision {
     const metadata = this.asRecord(mesh.metadata);
     const rawMetadata = this.asRecord(metadata.rawMetadata);
@@ -56,11 +56,8 @@ export class ShadowMetadataReader {
     }
 
     return (
-      metadata.editorHelper === true ||
       metadata.gameHelper === true ||
       metadata.isMetadata === true ||
-      metadata.editorTerrainBrushPreview === true ||
-      rawMetadata.editor_helper === true ||
       rawMetadata.game_helper === true ||
       rawMetadata.metadata_carrier === true ||
       rawMetadata.navigation_metadata === true

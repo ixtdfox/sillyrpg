@@ -1,7 +1,6 @@
 import { Vector3 } from "@babylonjs/core";
 import type { GridCell } from "../../grid/GridCell";
 import type { RectGridRuntime } from "../../grid/RectGridRuntime";
-import type { TerrainSurfaceRegistry } from "../terrain/TerrainSurfaceRegistry";
 
 /**
  * Источник итоговой высоты, выбранный SurfaceHeightResolver.
@@ -36,7 +35,27 @@ export interface SurfaceHeightResult {
  */
 export interface SurfaceHeightResolverContext {
   readonly gridRuntime: Pick<RectGridRuntime, "getMergedStoryYByStory" | "getGrid">;
-  readonly terrainSurfaceRegistry: Pick<TerrainSurfaceRegistry, "sampleWorldHeight">;
+  readonly terrainSurfaceSampler: SurfaceHeightSampler;
+}
+
+/**
+ * Минимальный объект-сэмплер поверхности terrain.
+ *
+ * Core не знает, как именно получена высота: runtime может вернуть null, а
+ * внешние слои могут подставить собственный sampler без зависимости от
+ * editor-only генератора terrain.
+ */
+export interface SurfaceHeightSampler {
+  sampleWorldHeight(x: number, z: number): number | null;
+}
+
+/**
+ * Null Object sampler для runtime-сцен без процедурного terrain.
+ */
+export class NullSurfaceHeightSampler implements SurfaceHeightSampler {
+  public sampleWorldHeight(_x: number, _z: number): number | null {
+    return null;
+  }
 }
 
 /**
@@ -68,7 +87,7 @@ export class TerrainHeightfieldSurfaceStrategy implements SurfaceHeightStrategy 
       return null;
     }
 
-    const terrainY = context.terrainSurfaceRegistry.sampleWorldHeight(input.position.x, input.position.z);
+    const terrainY = context.terrainSurfaceSampler.sampleWorldHeight(input.position.x, input.position.z);
     if (terrainY === null || !Number.isFinite(terrainY)) {
       return null;
     }
@@ -198,7 +217,7 @@ export class SurfaceHeightResolver {
 
   public constructor(
     gridRuntime: Pick<RectGridRuntime, "getMergedStoryYByStory" | "getGrid">,
-    terrainSurfaceRegistry: Pick<TerrainSurfaceRegistry, "sampleWorldHeight">,
+    terrainSurfaceSampler: SurfaceHeightSampler = new NullSurfaceHeightSampler(),
     strategies: readonly SurfaceHeightStrategy[] = [
       new TerrainHeightfieldSurfaceStrategy(),
       new NavigationStorySurfaceStrategy(),
@@ -209,7 +228,7 @@ export class SurfaceHeightResolver {
   ) {
     this.context = {
       gridRuntime,
-      terrainSurfaceRegistry
+      terrainSurfaceSampler
     };
     this.strategies = strategies;
     this.debugLogger = debugLogger;

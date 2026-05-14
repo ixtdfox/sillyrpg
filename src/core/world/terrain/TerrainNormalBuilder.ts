@@ -22,7 +22,7 @@ export interface TerrainNormalBuildResult {
 }
 
 /**
- * Диагностика массива нормалей для regression tests и runtime sanity checks.
+ * Диагностика массива нормалей для regression tests и runtime/editor sanity checks.
  */
 export interface TerrainNormalDiagnostics {
   readonly totalNormals: number;

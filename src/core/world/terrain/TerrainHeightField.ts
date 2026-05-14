@@ -60,7 +60,7 @@ class TerrainHeightFieldSampler {
  * Immutable heightfield generated или отредактированного terrain.
  *
  * Класс хранит размеры, resolution и Float32Array высот. Все операции, которые
- * меняют высоты, возвращают новый TerrainHeightField, чтобы редактор и runtime
+ * меняют высоты, возвращают новый TerrainHeightField, чтобы runtime и editor
  * могли безопасно сравнивать/переиспользовать ссылки.
  */
 export class TerrainHeightField {

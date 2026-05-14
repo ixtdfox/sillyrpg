@@ -1,7 +1,7 @@
 import { normalizeAssetPath } from "../../../core/model/SceneAssetPath";
 import type { SceneGeneratedTerrainEditedTextureMap, SceneVector2Tuple } from "../../../core/world/scene/SceneDescriptor";
-import { TerrainSplatMap } from "../../../core/world/terrain/editing/TerrainSplatMap";
-import type { TerrainTextureLayerDescriptor } from "../../../core/world/terrain/editing/TerrainTextureLayer";
+import { TerrainSplatMap } from "../editing/TerrainSplatMap";
+import type { TerrainTextureLayerDescriptor } from "../editing/TerrainTextureLayer";
 import type { EditorSceneSaveAsset } from "../../state/EditorScenePersistence";
 
 export interface SerializedTerrainTextureMapResult {

@@ -1,5 +1,5 @@
 import { Color3, MeshBuilder, TransformNode, Vector3, type LinesMesh, type Scene } from "@babylonjs/core";
-import type { TerrainBrushShape } from "../../../core/world/terrain/editing/TerrainBrushTypes";
+import type { TerrainBrushShape } from "../editing/TerrainBrushTypes";
 
 export class EditorTerrainBrushPreview {
   private readonly scene: Scene;
@@ -13,7 +13,8 @@ export class EditorTerrainBrushPreview {
     this.root = new TransformNode("editor-terrain-brush-preview-root", scene);
     this.root.metadata = {
       editorSelectable: false,
-      editorTerrainPreview: true
+      editorTerrainPreview: true,
+      gameHelper: true
     };
     this.root.setEnabled(false);
   }
@@ -28,7 +29,8 @@ export class EditorTerrainBrushPreview {
       this.outline.alwaysSelectAsActiveMesh = true;
       this.outline.metadata = {
         editorSelectable: false,
-        editorTerrainPreview: true
+        editorTerrainPreview: true,
+        gameHelper: true
       };
       this.outline.parent = this.root;
       this.currentShape = shape;

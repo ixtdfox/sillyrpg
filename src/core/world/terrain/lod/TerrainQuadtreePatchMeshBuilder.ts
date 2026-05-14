@@ -28,7 +28,7 @@ export interface TerrainQuadtreePatchVertexData {
 }
 
 /**
- * Command object для сборки одного runtime LOD patch mesh.
+ * Command object для сборки одного LOD patch mesh.
  */
 export interface TerrainQuadtreePatchBuildOptions {
   readonly node: TerrainQuadtreeNode;

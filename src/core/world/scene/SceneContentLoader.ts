@@ -15,8 +15,8 @@ import "@babylonjs/loaders/glTF";
 import { normalizeAssetPath, resolveSceneAssetPath } from "../../model/SceneAssetPath";
 import { LightingPresetCatalog } from "../../lighting/LightingPreset";
 import type { SceneLightingDescriptor } from "../../lighting/LightingTypes";
-import { TerrainGenerator } from "../terrain/TerrainGenerator";
 import type { TerrainHeightField } from "../terrain/TerrainHeightField";
+import { TerrainHeightFieldSerializer } from "../terrain/TerrainHeightFieldSerializer";
 import { TerrainMeshBuilder } from "../terrain/TerrainMeshBuilder";
 import { TerrainQuadtreeLodController } from "../terrain/lod/TerrainQuadtreeLodController";
 import { TerrainQuadtreeLodDescriptorResolver } from "../terrain/lod/TerrainQuadtreeLodTypes";
@@ -29,8 +29,6 @@ import type {
   SceneVector3Tuple
 } from "./SceneDescriptor";
 
-export type GeneratedTerrainVisualMode = "editor" | "runtime";
-
 export interface SceneContentImportOptions {
   readonly scene: Scene;
   readonly sceneId: string;
@@ -38,7 +36,7 @@ export interface SceneContentImportOptions {
   readonly rootNamePrefix: string;
   readonly descriptorPath?: string;
   readonly descriptor?: SceneDescriptor;
-  readonly generatedTerrainVisualMode?: GeneratedTerrainVisualMode;
+  readonly generatedTerrainLodEnabled?: boolean;
 }
 
 export interface ImportedSceneAssetNodes {
@@ -86,10 +84,10 @@ export interface SceneContentSummary {
 }
 
 interface ImportedAssetNodesInternal extends ImportedSceneAssetNodes {}
-const DEBUG_EDITOR_SCENE_IMPORTS = false;
-const GENERATED_TERRAIN_GENERATOR = new TerrainGenerator();
-const GENERATED_TERRAIN_MESH_BUILDER = new TerrainMeshBuilder();
-const GENERATED_TERRAIN_LOD_DESCRIPTOR_RESOLVER = new TerrainQuadtreeLodDescriptorResolver();
+const DEBUG_SCENE_IMPORTS = false;
+const RUNTIME_TERRAIN_HEIGHT_FIELD_SERIALIZER = new TerrainHeightFieldSerializer();
+const RUNTIME_TERRAIN_MESH_BUILDER = new TerrainMeshBuilder();
+const RUNTIME_TERRAIN_LOD_DESCRIPTOR_RESOLVER = new TerrainQuadtreeLodDescriptorResolver();
 
 export async function importSceneContent(options: SceneContentImportOptions): Promise<ImportedSceneContent> {
   const descriptorPath = options.descriptorPath;
@@ -106,7 +104,7 @@ export async function importSceneContent(options: SceneContentImportOptions): Pr
 
   if (descriptor.terrain) {
     importedTerrain = await importSceneTerrainContent(options.scene, descriptor.terrain, options.root, options.rootNamePrefix, {
-      generatedTerrainVisualMode: options.generatedTerrainVisualMode ?? "editor"
+      generatedTerrainLodEnabled: options.generatedTerrainLodEnabled ?? true
     });
     appendAggregate(aggregate, importedTerrain);
   }
@@ -153,16 +151,11 @@ export async function importSceneTerrainContent(
   descriptor: SceneTerrainDescriptor,
   parent: TransformNode,
   rootNamePrefix: string,
-  options: { readonly generatedTerrainVisualMode?: GeneratedTerrainVisualMode } = {}
+  options: { readonly generatedTerrainLodEnabled?: boolean } = {}
 ): Promise<ImportedSceneTerrainContent> {
   const terrainRoot = new TransformNode(`${rootNamePrefix}-terrain-root:${descriptor.id}`, scene);
   terrainRoot.setParent(parent, false);
   applyTransform(terrainRoot, descriptor);
-  terrainRoot.metadata = {
-    ...(terrainRoot.metadata as Record<string, unknown> | undefined),
-    editorTerrain: true,
-    editorSelectable: false
-  };
 
   if (descriptor.kind === "plane") {
     const ground = MeshBuilder.CreateGround(
@@ -171,11 +164,6 @@ export async function importSceneTerrainContent(
       scene
     );
     ground.setParent(terrainRoot, false);
-    ground.metadata = {
-      ...(ground.metadata as Record<string, unknown> | undefined),
-      editorTerrain: true,
-      editorSelectable: false
-    };
     ground.isPickable = true;
 
     const material = new StandardMaterial(`terrain-material:${descriptor.id}`, scene);
@@ -200,16 +188,16 @@ export async function importSceneTerrainContent(
   }
 
   if (descriptor.kind === "generated") {
-    return importGeneratedTerrainContent(scene, descriptor, terrainRoot, options.generatedTerrainVisualMode ?? "editor");
+    return importGeneratedTerrainContent(
+      scene,
+      descriptor,
+      terrainRoot,
+      options.generatedTerrainLodEnabled ?? true
+    );
   }
 
   const imported = await importSceneAsset(scene, descriptor.model, terrainRoot);
   for (const mesh of imported.renderableMeshes) {
-    mesh.metadata = {
-      ...(mesh.metadata as Record<string, unknown> | undefined),
-      editorTerrain: true,
-      editorSelectable: false
-    };
     mesh.isPickable = true;
   }
 
@@ -227,10 +215,17 @@ function importGeneratedTerrainContent(
   scene: Scene,
   descriptor: SceneGeneratedTerrainDescriptor,
   terrainRoot: TransformNode,
-  visualMode: GeneratedTerrainVisualMode
+  generatedTerrainLodEnabled: boolean
 ): ImportedSceneTerrainContent {
-  const heightField = GENERATED_TERRAIN_GENERATOR.generate(descriptor);
-  const mesh = GENERATED_TERRAIN_MESH_BUILDER.build(scene, descriptor, heightField);
+  const heightField = RUNTIME_TERRAIN_HEIGHT_FIELD_SERIALIZER.deserialize(descriptor);
+  if (!heightField) {
+    terrainRoot.dispose(false);
+    throw new Error(
+      `Generated terrain '${descriptor.id}' has no editedHeightMap. Runtime core can display baked generated terrain, but procedural generation belongs to the editor pipeline.`
+    );
+  }
+
+  const mesh = RUNTIME_TERRAIN_MESH_BUILDER.build(scene, descriptor, heightField);
   mesh.setParent(terrainRoot, false);
   mesh.metadata = {
     ...(mesh.metadata as Record<string, unknown> | undefined),
@@ -239,8 +234,8 @@ function importGeneratedTerrainContent(
     terrainSurfaceCanonical: true
   };
 
-  const lod = GENERATED_TERRAIN_LOD_DESCRIPTOR_RESOLVER.resolve(descriptor.lod, heightField);
-  const terrainLodControllers = visualMode === "runtime" && lod.enabled
+  const lod = RUNTIME_TERRAIN_LOD_DESCRIPTOR_RESOLVER.resolve(descriptor.lod, heightField);
+  const terrainLodControllers = generatedTerrainLodEnabled && lod.enabled
     ? [
         new TerrainQuadtreeLodController({
           scene,
@@ -278,8 +273,7 @@ export async function importSceneObjectContent(
   const runtimeObjectMetadata = {
     sceneObjectId: descriptor.id,
     sceneObjectType: descriptor.type,
-    buildingVisibilityInstanceId: descriptor.id,
-    editorSelectable: true
+    buildingVisibilityInstanceId: descriptor.id
   };
   const objectRoot = new TransformNode(`${rootNamePrefix}-scene-object-root:${descriptor.id}`, scene);
   objectRoot.setParent(parent, false);
@@ -381,8 +375,7 @@ async function importSceneAsset(scene: Scene, assetPath: string, parent: Transfo
     if (isMetadataHelperMesh(mesh)) {
       mesh.metadata = {
         ...(mesh.metadata as Record<string, unknown> | undefined),
-        editorHelper: true,
-        editorSelectable: false
+        gameHelper: true
       };
       mesh.isVisible = false;
       mesh.isPickable = false;
@@ -414,7 +407,8 @@ export function adoptImportedSceneNodes(
       continue;
     }
 
-    // Imported scene-object content must inherit the authored descriptor transform from its object root.
+    // Импортированный scene-object content должен наследовать transform,
+    // заданный descriptor'ом на root-узле объекта.
     transformNode.parent = parent;
   }
 
@@ -439,12 +433,11 @@ function isMetadataHelperMesh(mesh: AbstractMesh): boolean {
     return true;
   }
 
-  if (metadata.editorHelper === true || metadata.gameHelper === true || metadata.isMetadata === true) {
+  if (metadata.gameHelper === true || metadata.isMetadata === true) {
     return true;
   }
 
   if (
-    rawMetadata.editor_helper === true ||
     rawMetadata.game_helper === true ||
     rawMetadata.metadata_carrier === true
   ) {
@@ -489,7 +482,7 @@ export function debugLogImportedObjectTransform(
   root: TransformNode,
   renderableMeshes: readonly AbstractMesh[]
 ): void {
-  if (!DEBUG_EDITOR_SCENE_IMPORTS) {
+  if (!DEBUG_SCENE_IMPORTS) {
     return;
   }
 
@@ -499,7 +492,7 @@ export function debugLogImportedObjectTransform(
     ? `bounds=(${bounds.min.x.toFixed(2)},${bounds.min.y.toFixed(2)},${bounds.min.z.toFixed(2)}) -> (${bounds.max.x.toFixed(2)},${bounds.max.y.toFixed(2)},${bounds.max.z.toFixed(2)})`
     : "bounds=n/a";
   console.debug(
-    `[EditorSceneImport] object=${objectId} descriptorPos=${descriptor.position.join(",")} descriptorRot=${descriptor.rotation.join(",")} rootWorld=${root.getAbsolutePosition().toString()} ${boundsText}`
+    `[SceneImport] object=${objectId} descriptorPos=${descriptor.position.join(",")} descriptorRot=${descriptor.rotation.join(",")} rootWorld=${root.getAbsolutePosition().toString()} ${boundsText}`
   );
 }
 

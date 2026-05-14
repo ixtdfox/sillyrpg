@@ -1,7 +1,5 @@
 import { MeshBuilder, NullEngine, Scene, TransformNode, Vector3 } from "@babylonjs/core";
 import { adoptImportedSceneNodes, importSceneTerrainContent } from "../../../src/core/world/scene/SceneContentLoader";
-import { TerrainGeneratorPresetCatalog } from "../../../src/core/world/terrain/TerrainGeneratorPresets";
-const terrainPresetCatalog = new TerrainGeneratorPresetCatalog();
 
 function assert(condition: boolean, message: string): void {
   if (!condition) {
@@ -52,132 +50,80 @@ function testAdoptImportedSceneNodesPreservesLocalImportedTransforms(): void {
 
 async function run(): Promise<void> {
   testAdoptImportedSceneNodesPreservesLocalImportedTransforms();
-  await testGeneratedTerrainContentCreatesPickableMesh();
-  await testGeneratedTerrainRuntimeDefaultCreatesLodController();
-  await testGeneratedTerrainRuntimeLodKeepsCanonicalSurfaceSeparate();
-  await testGeneratedTerrainRuntimeLodDisabledUsesOnlyCanonicalSurface();
-  await testGeneratedTerrainContentUsesEditedHeightMap();
+  await testGeneratedTerrainWithBakedHeightMapImportsInCoreRuntime();
+  await testGeneratedTerrainWithoutBakedHeightMapIsRejectedByCoreRuntimeImport();
 }
 
-async function testGeneratedTerrainContentCreatesPickableMesh(): Promise<void> {
-  const engine = new NullEngine();
-  const scene = new Scene(engine);
-  const parent = new TransformNode("parent", scene);
-  const descriptor = terrainPresetCatalog.createDescriptor({ presetId: "urban-pad", seed: 55 });
-  const result = await importSceneTerrainContent(scene, descriptor, parent, "test");
-  assert(result.renderableMeshes.length === 1, "Generated terrain should create one renderable mesh.");
-  const mesh = result.renderableMeshes[0];
-  assert(mesh?.isPickable === true, "Generated terrain mesh should be pickable.");
-  assert(mesh?.metadata?.editorTerrain === true, "Generated terrain mesh should carry editorTerrain metadata.");
-  assert(result.terrainLodControllers.length === 0, "Editor/default generated terrain import should not create LOD controllers.");
-  scene.dispose();
-  engine.dispose();
-}
-
-async function testGeneratedTerrainRuntimeDefaultCreatesLodController(): Promise<void> {
-  const engine = new NullEngine();
-  const scene = new Scene(engine);
-  const parent = new TransformNode("parent", scene);
-  const descriptor = terrainPresetCatalog.createDescriptor({ presetId: "urban-pad", seed: 55, resolution: [65, 65] });
-  const result = await importSceneTerrainContent(scene, descriptor, parent, "test", {
-    generatedTerrainVisualMode: "runtime"
-  });
-
-  assert(result.renderableMeshes.length === 1, "Runtime default generated terrain should still expose canonical renderable mesh before update.");
-  assert(result.terrainSurfaceMeshes.length === 1, "Runtime default terrain surfaces should contain only canonical mesh.");
-  assert(result.terrainLodControllers.length === 1, "Runtime default generated terrain should create a terrain LOD controller.");
-
-  scene.dispose();
-  engine.dispose();
-}
-
-async function testGeneratedTerrainRuntimeLodKeepsCanonicalSurfaceSeparate(): Promise<void> {
+async function testGeneratedTerrainWithBakedHeightMapImportsInCoreRuntime(): Promise<void> {
   const engine = new NullEngine();
   const scene = new Scene(engine);
   const parent = new TransformNode("parent", scene);
   const descriptor = {
-    ...terrainPresetCatalog.createDescriptor({ presetId: "urban-pad", seed: 55, resolution: [65, 65] }),
-    lod: {
-      enabled: true,
-      strategy: "quadtree" as const,
-      maxDepth: 2,
-      targetPatchQuads: 16,
-      nearFullResolutionRadius: 20,
-      lodRings: [
-        { distance: 20, maxSampleStep: 1 },
-        { distance: 40, maxSampleStep: 2 }
-      ],
-      updateIntervalSeconds: 0.05,
-      skirtDepth: 1
-    }
-  };
-  const result = await importSceneTerrainContent(scene, descriptor, parent, "test", {
-    generatedTerrainVisualMode: "runtime"
-  });
-
-  assert(result.renderableMeshes.length === 1, "Runtime LOD import should initially expose only the canonical mesh.");
-  assert(result.terrainSurfaceMeshes.length === 1, "Runtime LOD terrain surfaces should contain the canonical mesh.");
-  assert(result.terrainLodControllers.length === 1, "Runtime LOD import should create a terrain LOD controller.");
-
-  const canonicalMesh = result.terrainSurfaceMeshes[0];
-  assert(canonicalMesh?.isPickable === true, "Canonical generated terrain should remain pickable.");
-  assert(canonicalMesh?.metadata?.terrainSurfaceCanonical === true, "Canonical terrain should be explicitly marked.");
-
-  result.terrainLodControllers[0]?.update(1, {
-    position: new Vector3(0, 0, 0),
-    source: "player"
-  });
-
-  const visualMeshes = scene.meshes.filter((mesh) => mesh.metadata?.terrainVisualOnly === true);
-  assert(visualMeshes.length > 0, "Runtime LOD update should create visual-only patch meshes.");
-  assert(visualMeshes.every((mesh) => mesh.isPickable === false), "Visual LOD patch meshes must not be pickable.");
-  assert(
-    visualMeshes.every((mesh) => mesh.metadata?.generatedTerrainHeightField === undefined),
-    "Visual LOD patch meshes must not carry terrain surface heightfield metadata."
-  );
-
-  scene.dispose();
-  engine.dispose();
-}
-
-async function testGeneratedTerrainRuntimeLodDisabledUsesOnlyCanonicalSurface(): Promise<void> {
-  const engine = new NullEngine();
-  const scene = new Scene(engine);
-  const parent = new TransformNode("parent", scene);
-  const descriptor = {
-    ...terrainPresetCatalog.createDescriptor({ presetId: "urban-pad", seed: 55, resolution: [65, 65] }),
-    lod: {
-      enabled: false
-    }
-  };
-  const result = await importSceneTerrainContent(scene, descriptor, parent, "test", {
-    generatedTerrainVisualMode: "runtime"
-  });
-
-  assert(result.renderableMeshes.length === 1, "Runtime LOD-disabled generated terrain should create one renderable mesh.");
-  assert(result.terrainSurfaceMeshes.length === 1, "LOD-disabled terrain surfaces should contain the canonical mesh.");
-  assert(result.terrainLodControllers.length === 0, "LOD-disabled generated terrain should not create a controller.");
-
-  scene.dispose();
-  engine.dispose();
-}
-
-async function testGeneratedTerrainContentUsesEditedHeightMap(): Promise<void> {
-  const engine = new NullEngine();
-  const scene = new Scene(engine);
-  const parent = new TransformNode("parent", scene);
-  const descriptor = {
-    ...terrainPresetCatalog.createDescriptor({ presetId: "urban-pad", seed: 55, size: [8, 8], resolution: [9, 9] }),
+    id: "terrain-generated",
+    kind: "generated" as const,
+    size: [16, 16] as const,
+    resolution: [5, 5] as const,
+    generator: {
+      preset: "urban-pad",
+      seed: 55,
+      height: {
+        base: 0,
+        amplitude: 0,
+        frequency: 1,
+        octaves: 1,
+        persistence: 0,
+        lacunarity: 2
+      }
+    },
     editedHeightMap: {
       encoding: "array" as const,
-      resolution: [9, 9] as const,
-      heights: Array.from({ length: 81 }, (_, index) => (index === 40 ? 5 : 0))
+      resolution: [5, 5] as const,
+      heights: Array.from({ length: 25 }, (_, index) => (index === 12 ? 3 : 0))
     }
   };
-  const result = await importSceneTerrainContent(scene, descriptor, parent, "test");
-  const mesh = result.renderableMeshes[0];
-  const bounds = mesh?.getBoundingInfo().boundingBox;
-  assert((bounds?.maximumWorld.y ?? 0) >= 5, "Edited heightmap should affect generated terrain mesh height.");
+  const content = await importSceneTerrainContent(scene, descriptor, parent, "test", {
+    generatedTerrainLodEnabled: false
+  });
+  const mesh = content.renderableMeshes[0];
+
+  assert(content.heightField !== undefined, "Runtime generated terrain should deserialize baked heightfield.");
+  assert(content.terrainLodControllers.length === 0, "Test import disables LOD controllers explicitly.");
+  assert(mesh?.metadata?.generatedTerrainHeightField === content.heightField, "Runtime terrain mesh should expose heightfield metadata.");
+  assert((mesh?.getBoundingInfo().boundingBox.maximumWorld.y ?? 0) >= 3, "Baked heightmap should affect runtime terrain mesh height.");
+  scene.dispose();
+  engine.dispose();
+}
+
+async function testGeneratedTerrainWithoutBakedHeightMapIsRejectedByCoreRuntimeImport(): Promise<void> {
+  const engine = new NullEngine();
+  const scene = new Scene(engine);
+  const parent = new TransformNode("parent", scene);
+  const descriptor = {
+    id: "terrain-generated",
+    kind: "generated" as const,
+    size: [16, 16] as const,
+    resolution: [5, 5] as const,
+    generator: {
+      preset: "urban-pad",
+      seed: 55,
+      height: {
+        base: 0,
+        amplitude: 0,
+        frequency: 1,
+        octaves: 1,
+        persistence: 0,
+        lacunarity: 2
+      }
+    }
+  };
+  let threw = false;
+  try {
+    await importSceneTerrainContent(scene, descriptor, parent, "test");
+  } catch (error) {
+    threw = error instanceof Error && error.message.includes("no editedHeightMap");
+  }
+
+  assert(threw, "Core runtime importer must reject generated terrain without baked heightmap.");
   scene.dispose();
   engine.dispose();
 }

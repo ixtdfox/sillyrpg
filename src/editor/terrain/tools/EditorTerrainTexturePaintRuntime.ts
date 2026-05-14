@@ -1,10 +1,10 @@
 import { Mesh, type Material, type Scene } from "@babylonjs/core";
-import { TerrainSplatMaterialBuilder, type TerrainSplatMaterialRuntime } from "../../../core/world/terrain/TerrainSplatMaterialBuilder";
+import { TerrainSplatMaterialBuilder, type TerrainSplatMaterialRuntime } from "./EditorTerrainSplatMaterialBuilder";
 import type { TerrainHeightField } from "../../../core/world/terrain/TerrainHeightField";
-import { TerrainSplatMap } from "../../../core/world/terrain/editing/TerrainSplatMap";
-import { TerrainTexturePainter, type TerrainTexturePaintResult } from "../../../core/world/terrain/editing/TerrainTexturePainter";
-import type { TerrainBrushCenter, TerrainBrushSettings } from "../../../core/world/terrain/editing/TerrainBrushTypes";
-import type { TerrainTextureLayerDescriptor } from "../../../core/world/terrain/editing/TerrainTextureLayer";
+import { TerrainSplatMap } from "../editing/TerrainSplatMap";
+import { TerrainTexturePainter, type TerrainTexturePaintResult } from "../editing/TerrainTexturePainter";
+import type { TerrainBrushCenter, TerrainBrushSettings } from "../editing/TerrainBrushTypes";
+import type { TerrainTextureLayerDescriptor } from "../editing/TerrainTextureLayer";
 import type { EditorTerrainInstance } from "../../types";
 
 export class EditorTerrainTexturePaintRuntime {

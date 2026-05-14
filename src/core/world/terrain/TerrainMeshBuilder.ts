@@ -35,7 +35,7 @@ export class TerrainMeshBuilder {
   }
 
   /**
-   * Создает Babylon Mesh, навешивает editor/runtime metadata и назначает материал.
+   * Создает Babylon Mesh, навешивает terrain metadata и назначает материал.
    */
   public build(scene: Scene, descriptor: SceneGeneratedTerrainDescriptor, heightField: TerrainHeightField): Mesh {
     const mesh = new Mesh(`terrain:${descriptor.id}`, scene);
@@ -49,8 +49,6 @@ export class TerrainMeshBuilder {
 
     mesh.metadata = {
       ...(mesh.metadata as Record<string, unknown> | undefined),
-      editorTerrain: true,
-      editorSelectable: false,
       terrainKind: "generated"
     };
     mesh.isPickable = true;
