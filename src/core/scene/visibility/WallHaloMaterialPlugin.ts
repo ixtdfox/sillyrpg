@@ -6,6 +6,7 @@ import {
   Vector3,
   type UniformBuffer
 } from "@babylonjs/core";
+import { SHADER_SOURCE_IDS, ShaderSourceLoader } from "../../rendering/shaders/ShaderSourceLoader";
 
 export type WallHaloShape = "cylinder" | "sphere";
 
@@ -25,28 +26,47 @@ const DEFAULT_SETTINGS: WallHaloSettings = {
   insideBuilding: false
 };
 
+/**
+ * Material plugin, который добавляет мягкое alpha-окно вокруг игрока.
+ *
+ * Класс оставляет Babylon material pipeline владельцем финального shader'а, но
+ * все GLSL-фрагменты берет через ShaderSourceLoader. Так runtime visibility
+ * логика остается в core, а сами shader source лежат в общей директории
+ * `shaders/visibility/wall-halo`.
+ */
 export class WallHaloMaterialPlugin extends MaterialPluginBase {
+  private readonly shaderSourceLoader: ShaderSourceLoader;
   private playerPosition: Vector3;
   private cameraPosition: Vector3;
   private settings: WallHaloSettings;
 
-  public constructor(material: Material) {
-    super(material, "WallHaloMaterialPlugin", 220, {}, true, true);
+  public constructor(material: Material, shaderSourceLoader = ShaderSourceLoader.getShared()) {
+    super(material, "WallHaloMaterialPlugin", 220, {}, false, false);
+    this.shaderSourceLoader = shaderSourceLoader;
     this.playerPosition = Vector3.Zero();
     this.cameraPosition = Vector3.Zero();
     this.settings = DEFAULT_SETTINGS;
+    this._pluginManager._addPlugin(this);
+    this._enable(true);
+    this.markAllDefinesAsDirty();
   }
 
   public override isCompatible(shaderLanguage: ShaderLanguage): boolean {
     return shaderLanguage === ShaderLanguage.GLSL;
   }
 
+  /**
+   * Обновляет параметры, которые попадут в uniform buffer перед отрисовкой.
+   */
   public update(playerPosition: Vector3, cameraPosition: Vector3, settings: Partial<WallHaloSettings> = {}): void {
     this.playerPosition.copyFrom(playerPosition);
     this.cameraPosition.copyFrom(cameraPosition);
     this.settings = { ...this.settings, ...settings };
   }
 
+  /**
+   * Регистрирует uniforms и fragment declarations для Babylon shader compiler.
+   */
   public override getUniforms(): {
     ubo?: Array<{ name: string; size?: number; type?: string; arraySize?: number }>;
     fragment?: string;
@@ -58,12 +78,7 @@ export class WallHaloMaterialPlugin extends MaterialPluginBase {
         { name: "wallHaloParams", size: 4, type: "vec4" },
         { name: "wallHaloState", size: 1, type: "float" }
       ],
-      fragment: `
-        uniform vec3 wallHaloPlayerPosition;
-        uniform vec3 wallHaloCameraPosition;
-        uniform vec4 wallHaloParams;
-        uniform float wallHaloState;
-      `
+      fragment: this.shaderSourceLoader.load(SHADER_SOURCE_IDS.visibility.wallHalo.uniforms)
     };
   }
 
@@ -80,42 +95,21 @@ export class WallHaloMaterialPlugin extends MaterialPluginBase {
     uniformBuffer.updateFloat("wallHaloState", this.settings.insideBuilding ? 1 : 0);
   }
 
+  /**
+   * Возвращает GLSL snippets для стандартных Babylon injection points.
+   */
   public override getCustomCode(shaderType: string, shaderLanguage = ShaderLanguage.GLSL): { [pointName: string]: string } | null {
     if (shaderType !== "fragment" || shaderLanguage !== ShaderLanguage.GLSL) {
       return null;
     }
 
     return {
-      CUSTOM_FRAGMENT_EXTENSION: `
-        #extension GL_OES_standard_derivatives : enable
-      `,
-      CUSTOM_FRAGMENT_UPDATE_ALPHA: `
-        float wallHaloDistanceCylinder = distance(vPositionW.xz, wallHaloPlayerPosition.xz);
-        float wallHaloDistanceSphere = distance(vPositionW.xyz, wallHaloPlayerPosition.xyz);
-        float wallHaloDistance = mix(wallHaloDistanceCylinder, wallHaloDistanceSphere, wallHaloParams.w);
-        float wallHaloFade = smoothstep(wallHaloParams.x, wallHaloParams.y, wallHaloDistance);
-        float wallHaloAlpha = mix(wallHaloParams.z, 1.0, wallHaloFade);
-        float wallHaloWallCameraDist = distance(vPositionW.xyz, wallHaloCameraPosition.xyz);
-        float wallHaloPlayerCameraDist = distance(wallHaloPlayerPosition.xyz, wallHaloCameraPosition.xyz);
-        float wallHaloInFrontOfPlayer = 1.0 - step(wallHaloPlayerCameraDist, wallHaloWallCameraDist);
-        float wallHaloMask = mix(wallHaloInFrontOfPlayer, 1.0, wallHaloState);
-        vec3 wallHaloDx = dFdx(vPositionW.xyz);
-        vec3 wallHaloDy = dFdy(vPositionW.xyz);
-        vec3 wallHaloGeomNormalW = normalize(cross(wallHaloDx, wallHaloDy));
-        float wallHaloUpAmount = abs(wallHaloGeomNormalW.y);
-        float wallHaloVerticalFace = 1.0 - smoothstep(0.15, 0.35, wallHaloUpAmount);
-        alpha *= mix(1.0, wallHaloAlpha, wallHaloMask * wallHaloVerticalFace);
-      `,
-      CUSTOM_FRAGMENT_BEFORE_FINALCOLORCOMPOSITION: `
-        alpha = max(alpha, 1.0 - wallHaloVerticalFace);
-      `,
-      CUSTOM_FRAGMENT_BEFORE_FRAGCOLOR: `
-        #ifdef PBR
-          finalColor.a = max(finalColor.a, 1.0 - wallHaloVerticalFace);
-        #else
-          color.a = max(color.a, 1.0 - wallHaloVerticalFace);
-        #endif
-      `
+      CUSTOM_FRAGMENT_EXTENSION: this.shaderSourceLoader.load(SHADER_SOURCE_IDS.visibility.wallHalo.fragmentExtension),
+      CUSTOM_FRAGMENT_UPDATE_ALPHA: this.shaderSourceLoader.load(SHADER_SOURCE_IDS.visibility.wallHalo.updateAlpha),
+      CUSTOM_FRAGMENT_BEFORE_FINALCOLORCOMPOSITION: this.shaderSourceLoader.load(
+        SHADER_SOURCE_IDS.visibility.wallHalo.finalColorComposition
+      ),
+      CUSTOM_FRAGMENT_BEFORE_FRAGCOLOR: this.shaderSourceLoader.load(SHADER_SOURCE_IDS.visibility.wallHalo.beforeFragColor)
     };
   }
 }

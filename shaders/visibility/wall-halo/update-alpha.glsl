@@ -1,0 +1,15 @@
+float wallHaloDistanceCylinder = distance(vPositionW.xz, wallHaloPlayerPosition.xz);
+float wallHaloDistanceSphere = distance(vPositionW.xyz, wallHaloPlayerPosition.xyz);
+float wallHaloDistance = mix(wallHaloDistanceCylinder, wallHaloDistanceSphere, wallHaloParams.w);
+float wallHaloFade = smoothstep(wallHaloParams.x, wallHaloParams.y, wallHaloDistance);
+float wallHaloAlpha = mix(wallHaloParams.z, 1.0, wallHaloFade);
+float wallHaloWallCameraDist = distance(vPositionW.xyz, wallHaloCameraPosition.xyz);
+float wallHaloPlayerCameraDist = distance(wallHaloPlayerPosition.xyz, wallHaloCameraPosition.xyz);
+float wallHaloInFrontOfPlayer = 1.0 - step(wallHaloPlayerCameraDist, wallHaloWallCameraDist);
+float wallHaloMask = mix(wallHaloInFrontOfPlayer, 1.0, wallHaloState);
+vec3 wallHaloDx = dFdx(vPositionW.xyz);
+vec3 wallHaloDy = dFdy(vPositionW.xyz);
+vec3 wallHaloGeomNormalW = normalize(cross(wallHaloDx, wallHaloDy));
+float wallHaloUpAmount = abs(wallHaloGeomNormalW.y);
+float wallHaloVerticalFace = 1.0 - smoothstep(0.15, 0.35, wallHaloUpAmount);
+alpha *= mix(1.0, wallHaloAlpha, wallHaloMask * wallHaloVerticalFace);

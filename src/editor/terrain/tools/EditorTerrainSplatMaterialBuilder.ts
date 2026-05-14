@@ -14,6 +14,12 @@ import {
 } from "@babylonjs/core";
 import { MaterialPluginBase } from "@babylonjs/core/Materials/materialPluginBase";
 import type { MaterialDefines } from "@babylonjs/core/Materials/materialDefines";
+import {
+  SHADER_SOURCE_IDS,
+  ShaderSourceLoader,
+  ShaderTemplateRenderer,
+  type ShaderSourceId
+} from "../../../core/rendering/shaders/ShaderSourceLoader";
 import type { TerrainSplatMap } from "../editing/TerrainSplatMap";
 import type { TerrainTextureLayerDescriptor } from "../editing/TerrainTextureLayer";
 
@@ -251,51 +257,100 @@ class TerrainLayerAtlasTextureFactory {
  * Factory GLSL-фрагментов для material plugin.
  */
 class TerrainSplatShaderSourceFactory {
+  private readonly shaderSourceLoader: ShaderSourceLoader;
+  private readonly templateRenderer: ShaderTemplateRenderer;
+
+  public constructor(
+    shaderSourceLoader = ShaderSourceLoader.getShared(),
+    templateRenderer = new ShaderTemplateRenderer()
+  ) {
+    this.shaderSourceLoader = shaderSourceLoader;
+    this.templateRenderer = templateRenderer;
+  }
+
   /**
    * Генерирует uniform declarations для splat map textures и layer atlas.
    */
   public generateSamplerDeclarations(splatTextureCount: number): string {
     const lines: string[] = [];
     for (let chunkIndex = 0; chunkIndex < splatTextureCount; chunkIndex += 1) {
-      lines.push(`uniform sampler2D terrainSplatMap${chunkIndex};`);
+      lines.push(
+        this.renderTemplate(SHADER_SOURCE_IDS.editorTerrain.splat.splatMapSamplerLine, {
+          samplerName: this.getSplatSamplerName(chunkIndex)
+        })
+      );
     }
-    lines.push("uniform sampler2D terrainLayerAtlas;");
-    return lines.join("\n");
+
+    return this.templateRenderer.render(
+      this.shaderSourceLoader.load(SHADER_SOURCE_IDS.editorTerrain.splat.samplerDeclarations),
+      {
+        terrainSplatMapSamplers: lines.join("\n")
+      }
+    );
   }
 
   /**
    * Генерирует GLSL функцию смешивания albedo по weights из splat map.
    */
   public generateSplatFunction(layerCount: number, splatTextureCount: number): string {
-    const lines: string[] = [
-      "vec2 terrainSplatAtlasUv(vec2 tiledUv, float layerIndex) {",
-      "  float column = mod(layerIndex, terrainLayerAtlasGrid.x);",
-      "  float row = floor(layerIndex / terrainLayerAtlasGrid.x);",
-      "  vec2 cellUv = clamp(fract(tiledUv), vec2(0.002), vec2(0.998));",
-      "  return (vec2(column, row) + cellUv) / terrainLayerAtlasGrid;",
-      "}",
-      "vec3 terrainSplatAlbedo(vec2 uv) {",
-      "  vec2 tiledUv = uv * terrainSplatTileScale;",
-      "  vec3 albedo = vec3(0.0);",
-      "  float totalWeight = 0.0;"
-    ];
+    const lines: string[] = [];
 
     for (let chunkIndex = 0; chunkIndex < splatTextureCount; chunkIndex += 1) {
-      lines.push(`  vec4 weights${chunkIndex} = texture2D(terrainSplatMap${chunkIndex}, uv);`);
+      const samplerName = this.getSplatSamplerName(chunkIndex);
+      const weightsVar = this.getSplatWeightsVarName(chunkIndex);
+      lines.push(
+        this.renderTemplate(SHADER_SOURCE_IDS.editorTerrain.splat.weightReadLine, {
+          samplerName,
+          weightsVar
+        })
+      );
       for (let channelIndex = 0; channelIndex < SPLAT_TEXTURE_CHANNEL_COUNT; channelIndex += 1) {
         const layerIndex = (chunkIndex * SPLAT_TEXTURE_CHANNEL_COUNT) + channelIndex;
         if (layerIndex >= layerCount) {
           continue;
         }
         const channelName = this.getSplatChannelName(channelIndex);
-        lines.push(`  albedo += texture2D(terrainLayerAtlas, terrainSplatAtlasUv(tiledUv, ${layerIndex}.0)).rgb * weights${chunkIndex}.${channelName};`);
-        lines.push(`  totalWeight += weights${chunkIndex}.${channelName};`);
+        lines.push(
+          this.renderTemplate(SHADER_SOURCE_IDS.editorTerrain.splat.albedoAccumulateLine, {
+            channelName,
+            layerIndex: `${layerIndex}`,
+            weightsVar
+          })
+        );
+        lines.push(
+          this.renderTemplate(SHADER_SOURCE_IDS.editorTerrain.splat.weightAccumulateLine, {
+            channelName,
+            weightsVar
+          })
+        );
       }
     }
 
-    lines.push("  return albedo / max(totalWeight, 0.0001);");
-    lines.push("}");
-    return lines.join("\n");
+    return this.templateRenderer.render(
+      this.shaderSourceLoader.load(SHADER_SOURCE_IDS.editorTerrain.splat.albedoFunction),
+      {
+        terrainSplatWeightSampling: lines.join("\n")
+      }
+    );
+  }
+
+  /**
+   * Возвращает fragment hook, который подменяет diffuse albedo terrain.
+   */
+  public generateDiffuseUpdate(): string {
+    return this.shaderSourceLoader.load(SHADER_SOURCE_IDS.editorTerrain.splat.updateDiffuse);
+  }
+
+  private renderTemplate(id: ShaderSourceId, values: Readonly<Record<string, string>>): string {
+    return this.templateRenderer.render(this.shaderSourceLoader.load(id), values);
+  }
+
+  private getSplatSamplerName(chunkIndex: number): string {
+    return `terrainSplatMap${chunkIndex}`;
+  }
+
+  private getSplatWeightsVarName(chunkIndex: number): string {
+    return `weights${chunkIndex}`;
   }
 
   private getSplatChannelName(channelIndex: number): string {
@@ -604,7 +659,7 @@ class TerrainSplatMaterialPlugin extends MaterialPluginBase {
         this.shaderSourceFactory.generateSamplerDeclarations(this.splatTextures.length),
         this.shaderSourceFactory.generateSplatFunction(this.layerCount, this.splatTextures.length)
       ].join("\n"),
-      CUSTOM_FRAGMENT_UPDATE_DIFFUSE: "baseColor.rgb = terrainSplatAlbedo(vMainUV1);"
+      CUSTOM_FRAGMENT_UPDATE_DIFFUSE: this.shaderSourceFactory.generateDiffuseUpdate()
     };
   }
 }
