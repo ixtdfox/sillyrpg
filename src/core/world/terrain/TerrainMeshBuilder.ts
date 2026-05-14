@@ -4,6 +4,9 @@ import type { TerrainHeightField } from "./TerrainHeightField";
 import { TerrainMaterialBuilder } from "./TerrainMaterialBuilder";
 import { TerrainNormalBuilder, type TerrainNormalMode } from "./TerrainNormalBuilder";
 
+/**
+ * DTO CPU-геометрии terrain mesh до передачи данных в Babylon VertexData.
+ */
 export interface TerrainVertexDataBuildResult {
   readonly positions: number[];
   readonly indices: number[];
@@ -12,6 +15,13 @@ export interface TerrainVertexDataBuildResult {
   readonly vertexHeights: number[];
 }
 
+/**
+ * Builder канонического generated terrain mesh.
+ *
+ * Класс разделяет сборку геометрии, расчет нормалей и создание материала через
+ * отдельные collaborators, чтобы mesh pipeline оставался расширяемым без
+ * процедурных helper-функций.
+ */
 export class TerrainMeshBuilder {
   private readonly materialBuilder: TerrainMaterialBuilder;
   private readonly normalBuilder: TerrainNormalBuilder;
@@ -24,6 +34,9 @@ export class TerrainMeshBuilder {
     this.normalBuilder = normalBuilder;
   }
 
+  /**
+   * Создает Babylon Mesh, навешивает editor/runtime metadata и назначает материал.
+   */
   public build(scene: Scene, descriptor: SceneGeneratedTerrainDescriptor, heightField: TerrainHeightField): Mesh {
     const mesh = new Mesh(`terrain:${descriptor.id}`, scene);
     const geometry = this.buildVertexData(heightField, descriptor.normalMode);
@@ -47,6 +60,9 @@ export class TerrainMeshBuilder {
     return mesh;
   }
 
+  /**
+   * Строит регулярную сетку вершин в локальных координатах terrain.
+   */
   public buildVertexData(
     heightField: TerrainHeightField,
     normalMode: TerrainNormalMode = "smooth"
@@ -76,10 +92,9 @@ export class TerrainMeshBuilder {
         const c = a + heightField.resolutionX;
         const d = c + 1;
 
-        // Match Babylon CreateGround convention:
-        // X = left/right, Z = depth with row 0 at positive Z, Y = height.
-        // These triangle indices produce upward normals and top-facing triangles
-        // that remain visible from cameras above the terrain with back-face culling on.
+        // Сохраняем ориентацию Babylon CreateGround:
+        // X отвечает за левый/правый край, Z у строки 0 смотрит в положительную
+        // глубину, а порядок индексов дает верхние нормали при back-face culling.
         indices.push(d, b, a);
         indices.push(c, d, a);
       }

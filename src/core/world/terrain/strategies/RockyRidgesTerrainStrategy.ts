@@ -2,9 +2,15 @@ import type { TerrainGenerationStrategy } from "../TerrainGenerationStrategy";
 import type { TerrainGenerationContext } from "../TerrainGenerationContext";
 import { TerrainHeightField } from "../TerrainHeightField";
 
+/**
+ * Стратегия скалистых гряд с ridged noise.
+ */
 export class RockyRidgesTerrainStrategy implements TerrainGenerationStrategy {
   public readonly id = "rockyRidges";
 
+  /**
+   * Генерирует резкие гребни и вторичный шум для каменистого профиля.
+   */
   public generate(context: TerrainGenerationContext): TerrainHeightField {
     const heights = new Float32Array(context.resolutionX * context.resolutionZ);
     for (let iz = 0; iz < context.resolutionZ; iz += 1) {

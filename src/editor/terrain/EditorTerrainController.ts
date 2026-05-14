@@ -2,17 +2,11 @@ import type { EditorSceneLoader } from "../EditorSceneLoader";
 import type { EditorSceneDocument } from "../state/EditorSceneDocument";
 import type { SceneGeneratedTerrainDescriptor, SceneTerrainDescriptor } from "../../core/world/scene/SceneDescriptor";
 import { TerrainGenerator } from "../../core/world/terrain/TerrainGenerator";
-import {
-  createGeneratedTerrainDescriptorFromPreset,
-  getTerrainGeneratorPreset,
-  getTerrainGeneratorPresets
-} from "../../core/world/terrain/TerrainGeneratorPresets";
+import { TerrainGeneratorPresetCatalog } from "../../core/world/terrain/TerrainGeneratorPresets";
 import {
   DEFAULT_TERRAIN_PRESET,
-  cloneGeneratedTerrainDescriptor,
-  cloneGeneratedTerrainMaterialDescriptor,
-  cloneTerrainGeneratorDescriptor,
-  normalizeTerrainResolution
+  TerrainDescriptorCloner,
+  TerrainResolutionNormalizer
 } from "../../core/world/terrain/TerrainTypes";
 import type { TerrainGeneratorPanelViewModel } from "./EditorTerrainTypes";
 
@@ -24,6 +18,9 @@ interface EditorTerrainControllerCallbacks {
 
 export class EditorTerrainController {
   private readonly generator: TerrainGenerator;
+  private readonly presetCatalog: TerrainGeneratorPresetCatalog;
+  private readonly descriptorCloner: TerrainDescriptorCloner;
+  private readonly resolutionNormalizer: TerrainResolutionNormalizer;
   private readonly callbacks: EditorTerrainControllerCallbacks;
   private document: EditorSceneDocument | null;
   private sceneLoader: EditorSceneLoader | null;
@@ -34,9 +31,18 @@ export class EditorTerrainController {
   private appliedSummary: string;
   private message: string;
 
-  public constructor(callbacks: EditorTerrainControllerCallbacks, generator = new TerrainGenerator()) {
+  public constructor(
+    callbacks: EditorTerrainControllerCallbacks,
+    generator = new TerrainGenerator(),
+    presetCatalog = new TerrainGeneratorPresetCatalog(),
+    descriptorCloner = new TerrainDescriptorCloner(),
+    resolutionNormalizer = new TerrainResolutionNormalizer()
+  ) {
     this.callbacks = callbacks;
     this.generator = generator;
+    this.presetCatalog = presetCatalog;
+    this.descriptorCloner = descriptorCloner;
+    this.resolutionNormalizer = resolutionNormalizer;
     this.document = null;
     this.sceneLoader = null;
     this.draft = null;
@@ -69,8 +75,8 @@ export class EditorTerrainController {
   public getViewModel(): TerrainGeneratorPanelViewModel {
     return {
       enabled: this.document !== null && this.sceneLoader !== null,
-      descriptor: this.draft ? cloneGeneratedTerrainDescriptor(this.draft) : null,
-      presets: getTerrainGeneratorPresets().map((preset) => ({
+      descriptor: this.draft ? this.descriptorCloner.cloneDescriptor(this.draft) : null,
+      presets: this.presetCatalog.getPresets().map((preset) => ({
         id: preset.id,
         label: preset.label,
         description: preset.description
@@ -108,10 +114,10 @@ export class EditorTerrainController {
       this.stats = this.computeStats(descriptorToApply);
       const stats = this.stats;
       await this.sceneLoader.setTerrain(descriptorToApply);
-      const appliedDescriptor = cloneGeneratedTerrainDescriptor(descriptorToApply);
+      const appliedDescriptor = this.descriptorCloner.cloneDescriptor(descriptorToApply);
       this.document.setTerrain(appliedDescriptor);
       this.appliedTerrain = appliedDescriptor;
-      this.draft = cloneGeneratedTerrainDescriptor(appliedDescriptor);
+      this.draft = this.descriptorCloner.cloneDescriptor(appliedDescriptor);
       this.appliedSummary = describeTerrain(appliedDescriptor);
       this.draftDirty = false;
       this.message = stats
@@ -132,15 +138,15 @@ export class EditorTerrainController {
       return;
     }
 
-    const preset = getTerrainGeneratorPreset(presetId);
+    const preset = this.presetCatalog.getPreset(presetId);
     this.updateDraft({
       ...this.draft,
       generator: {
-        ...cloneTerrainGeneratorDescriptor(preset.generator),
+        ...this.descriptorCloner.cloneGenerator(preset.generator),
         seed: this.draft.generator.seed,
         preset: preset.id
       },
-      material: cloneGeneratedTerrainMaterialDescriptor(preset.material)
+      material: this.descriptorCloner.cloneMaterial(preset.material)
     });
   }
 
@@ -165,15 +171,15 @@ export class EditorTerrainController {
       return;
     }
 
-    const basePreset = getTerrainGeneratorPreset("flat-gray");
+    const basePreset = this.presetCatalog.getPreset("flat-gray");
     this.updateDraft({
       ...this.draft,
       generator: {
-        ...cloneTerrainGeneratorDescriptor(basePreset.generator),
+        ...this.descriptorCloner.cloneGenerator(basePreset.generator),
         seed: this.draft.generator.seed,
         preset: "flat-gray"
       },
-      material: cloneGeneratedTerrainMaterialDescriptor(basePreset.material)
+      material: this.descriptorCloner.cloneMaterial(basePreset.material)
     });
     await this.generateNow();
   }
@@ -190,7 +196,7 @@ export class EditorTerrainController {
 
     if (terrain?.kind === "plane") {
       return this.normalizeDraft(
-        createGeneratedTerrainDescriptorFromPreset({
+        this.presetCatalog.createDescriptor({
           presetId: DEFAULT_TERRAIN_PRESET,
           id: terrain.id,
           size: terrain.size,
@@ -201,7 +207,7 @@ export class EditorTerrainController {
       );
     }
 
-    return this.normalizeDraft(createGeneratedTerrainDescriptorFromPreset());
+    return this.normalizeDraft(this.presetCatalog.createDescriptor());
   }
 
   private resolveDraftDirty(): boolean {
@@ -217,12 +223,12 @@ export class EditorTerrainController {
   }
 
   private normalizeDraft(descriptor: SceneGeneratedTerrainDescriptor): SceneGeneratedTerrainDescriptor {
-    const preset = getTerrainGeneratorPreset(descriptor.generator.preset);
-    const resolutionX = normalizeTerrainResolution(descriptor.resolution[0]);
-    const resolutionZ = normalizeTerrainResolution(descriptor.resolution[1]);
-    const presetMaterial = cloneGeneratedTerrainMaterialDescriptor(
+    const preset = this.presetCatalog.getPreset(descriptor.generator.preset);
+    const resolutionX = this.resolutionNormalizer.normalize(descriptor.resolution[0]);
+    const resolutionZ = this.resolutionNormalizer.normalize(descriptor.resolution[1]);
+    const presetMaterial = this.descriptorCloner.cloneMaterial(
       preset.material ??
-        getTerrainGeneratorPreset(DEFAULT_TERRAIN_PRESET).material
+        this.presetCatalog.getPreset(DEFAULT_TERRAIN_PRESET).material
     );
     const presetBands = presetMaterial?.kind === "heightBands" ? presetMaterial.bands : undefined;
     const material =
@@ -239,7 +245,7 @@ export class EditorTerrainController {
             emissive: descriptor.material?.emissive !== undefined ? descriptor.material.emissive : presetMaterial?.emissive
           };
     return {
-      ...cloneGeneratedTerrainDescriptor(descriptor),
+      ...this.descriptorCloner.cloneDescriptor(descriptor),
       size: [clampSize(descriptor.size[0]), clampSize(descriptor.size[1])] as const,
       resolution: [resolutionX, resolutionZ] as const,
       material,

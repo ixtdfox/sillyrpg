@@ -5,7 +5,8 @@ import { MountainsTerrainStrategy } from "../../../src/core/world/terrain/strate
 import { NoiseTerrainStrategy } from "../../../src/core/world/terrain/strategies/NoiseTerrainStrategy";
 import { RockyRidgesTerrainStrategy } from "../../../src/core/world/terrain/strategies/RockyRidgesTerrainStrategy";
 import { UrbanPadTerrainStrategy } from "../../../src/core/world/terrain/strategies/UrbanPadTerrainStrategy";
-import { createGeneratedTerrainDescriptorFromPreset } from "../../../src/core/world/terrain/TerrainGeneratorPresets";
+import { TerrainGeneratorPresetCatalog } from "../../../src/core/world/terrain/TerrainGeneratorPresets";
+const terrainPresetCatalog = new TerrainGeneratorPresetCatalog();
 
 function assert(condition: boolean, message: string): void {
   if (!condition) {
@@ -15,27 +16,27 @@ function assert(condition: boolean, message: string): void {
 
 function testEachStrategyProducesFiniteHeightField(): void {
   const cases = [
-    ["flat", new FlatTerrainStrategy(), createGeneratedTerrainDescriptorFromPreset({ presetId: "flat-gray", seed: 10 })],
-    ["noise", new NoiseTerrainStrategy(), createGeneratedTerrainDescriptorFromPreset({ presetId: "soft-hills", seed: 11 })],
+    ["flat", new FlatTerrainStrategy(), terrainPresetCatalog.createDescriptor({ presetId: "flat-gray", seed: 10 })],
+    ["noise", new NoiseTerrainStrategy(), terrainPresetCatalog.createDescriptor({ presetId: "soft-hills", seed: 11 })],
     [
       "urbanPad",
       new UrbanPadTerrainStrategy(),
-      createGeneratedTerrainDescriptorFromPreset({ presetId: "urban-pad", seed: 12 })
+      terrainPresetCatalog.createDescriptor({ presetId: "urban-pad", seed: 12 })
     ],
     [
       "islandPlateau",
       new IslandPlateauTerrainStrategy(),
-      createGeneratedTerrainDescriptorFromPreset({ presetId: "island-plateau", seed: 13 })
+      terrainPresetCatalog.createDescriptor({ presetId: "island-plateau", seed: 13 })
     ],
     [
       "rockyRidges",
       new RockyRidgesTerrainStrategy(),
-      createGeneratedTerrainDescriptorFromPreset({ presetId: "rocky-ridges", seed: 14 })
+      terrainPresetCatalog.createDescriptor({ presetId: "rocky-ridges", seed: 14 })
     ],
     [
       "mountains",
       new MountainsTerrainStrategy(),
-      createGeneratedTerrainDescriptorFromPreset({ presetId: "mountains", seed: 15 })
+      terrainPresetCatalog.createDescriptor({ presetId: "mountains", seed: 15 })
     ]
   ] as const;
 
@@ -60,7 +61,7 @@ function testEachStrategyProducesFiniteHeightField(): void {
 }
 
 function testIslandStrategyKeepsCenterHigherThanEdges(): void {
-  const descriptor = createGeneratedTerrainDescriptorFromPreset({ presetId: "island-plateau", seed: 77 });
+  const descriptor = terrainPresetCatalog.createDescriptor({ presetId: "island-plateau", seed: 77 });
   const context = new TerrainGenerationContext(descriptor, "islandPlateau");
   const field = new IslandPlateauTerrainStrategy().generate(context);
   const center = field.getHeight(Math.floor(field.resolutionX / 2), Math.floor(field.resolutionZ / 2));
@@ -69,7 +70,7 @@ function testIslandStrategyKeepsCenterHigherThanEdges(): void {
 }
 
 function testFlatStrategyVariationStaysSmall(): void {
-  const descriptor = createGeneratedTerrainDescriptorFromPreset({ presetId: "flat-gray", seed: 88 });
+  const descriptor = terrainPresetCatalog.createDescriptor({ presetId: "flat-gray", seed: 88 });
   const context = new TerrainGenerationContext(descriptor, "flat");
   const field = new FlatTerrainStrategy().generate(context);
   assert(field.maxHeight - field.minHeight < 0.5, "Flat strategy should stay near-flat.");

@@ -5,10 +5,10 @@ import {
   type SceneTerrainDescriptor
 } from "../../../core/world/scene/SceneDescriptor";
 import { TerrainGenerator } from "../../../core/world/terrain/TerrainGenerator";
-import { DEFAULT_TERRAIN_TOOL_SETTINGS, normalizeTerrainBrushSettings, normalizeTerrainToolSettings } from "../../../core/world/terrain/editing/TerrainBrush";
+import { DEFAULT_TERRAIN_TOOL_SETTINGS, TerrainBrushSettingsNormalizer } from "../../../core/world/terrain/editing/TerrainBrush";
 import { TerrainHeightEditor } from "../../../core/world/terrain/editing/TerrainHeightEditor";
 import { TerrainHeightSampler } from "../../../core/world/terrain/editing/TerrainHeightSampler";
-import { serializeTerrainHeightField } from "../../../core/world/terrain/editing/TerrainHeightSerialization";
+import { TerrainHeightFieldSerializer } from "../../../core/world/terrain/editing/TerrainHeightSerialization";
 import type { TerrainHeightField } from "../../../core/world/terrain/TerrainHeightField";
 import type { TerrainBrushCenter, TerrainBrushSettings, TerrainEditToolId, TerrainToolSettings } from "../../../core/world/terrain/editing/TerrainBrushTypes";
 import type { TerrainGeneratorPanelStats } from "../EditorTerrainTypes";
@@ -42,6 +42,8 @@ export class EditorTerrainToolController {
   private readonly generator: TerrainGenerator;
   private readonly heightEditor: TerrainHeightEditor;
   private readonly heightSampler: TerrainHeightSampler;
+  private readonly brushSettingsNormalizer: TerrainBrushSettingsNormalizer;
+  private readonly heightFieldSerializer: TerrainHeightFieldSerializer;
   private readonly picking: EditorTerrainPicking;
   private readonly preview: EditorTerrainBrushPreview;
   private readonly texturePaintRuntime: EditorTerrainTexturePaintRuntime;
@@ -69,6 +71,8 @@ export class EditorTerrainToolController {
     generator = new TerrainGenerator(),
     heightEditor = new TerrainHeightEditor(),
     heightSampler = new TerrainHeightSampler(),
+    brushSettingsNormalizer = new TerrainBrushSettingsNormalizer(),
+    heightFieldSerializer = new TerrainHeightFieldSerializer(),
     picking = new EditorTerrainPicking(),
     textureBakeService = new EditorTerrainTextureBakeService(),
     textureMapPersistence = new EditorTerrainTextureMapPersistence()
@@ -79,6 +83,8 @@ export class EditorTerrainToolController {
     this.generator = generator;
     this.heightEditor = heightEditor;
     this.heightSampler = heightSampler;
+    this.brushSettingsNormalizer = brushSettingsNormalizer;
+    this.heightFieldSerializer = heightFieldSerializer;
     this.picking = picking;
     this.preview = new EditorTerrainBrushPreview(scene);
     this.texturePaintRuntime = new EditorTerrainTexturePaintRuntime(scene, new EditorTerrainTextureLayerRegistry().getLayers());
@@ -140,7 +146,7 @@ export class EditorTerrainToolController {
 
   public selectTool(tool: TerrainEditToolId): void {
     const previousTool = this.settings.tool;
-    this.settings = normalizeTerrainToolSettings({
+    this.settings = this.brushSettingsNormalizer.normalizeTool({
       ...this.settings,
       tool
     });
@@ -174,15 +180,15 @@ export class EditorTerrainToolController {
   }
 
   public updateBrushSettings(settings: TerrainBrushSettings): void {
-    this.settings = normalizeTerrainToolSettings({
+    this.settings = this.brushSettingsNormalizer.normalizeTool({
       ...this.settings,
-      brush: normalizeTerrainBrushSettings(settings)
+      brush: this.brushSettingsNormalizer.normalizeBrush(settings)
     });
     this.callbacks.onChanged();
   }
 
   public updateTargetHeight(height: number): void {
-    this.settings = normalizeTerrainToolSettings({
+    this.settings = this.brushSettingsNormalizer.normalizeTool({
       ...this.settings,
       targetHeight: height
     });
@@ -366,7 +372,7 @@ export class EditorTerrainToolController {
       return;
     }
 
-    const workingSettings = normalizeTerrainToolSettings({
+    const workingSettings = this.brushSettingsNormalizer.normalizeTool({
       ...this.settings,
       brush: {
         ...this.settings.brush,
@@ -428,7 +434,7 @@ export class EditorTerrainToolController {
 
     const descriptor: SceneGeneratedTerrainDescriptor = {
       ...this.currentDescriptor,
-      editedHeightMap: serializeTerrainHeightField(this.visibleField)
+      editedHeightMap: this.heightFieldSerializer.serialize(this.visibleField)
     };
     this.document.setTerrain(descriptor);
     this.currentDescriptor = descriptor;

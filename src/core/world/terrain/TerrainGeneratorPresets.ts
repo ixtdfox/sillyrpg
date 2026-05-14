@@ -14,10 +14,12 @@ import {
   DEFAULT_TERRAIN_ROTATION,
   DEFAULT_TERRAIN_SCALE,
   DEFAULT_TERRAIN_SIZE,
-  cloneGeneratedTerrainMaterialDescriptor,
-  cloneTerrainGeneratorDescriptor
+  TerrainDescriptorCloner
 } from "./TerrainTypes";
 
+/**
+ * Immutable описание одного preset'а generated terrain.
+ */
 export interface TerrainGeneratorPreset {
   readonly id: string;
   readonly label: string;
@@ -251,39 +253,63 @@ const PRESETS: readonly TerrainGeneratorPreset[] = [
   }
 ] as const;
 
-export function getTerrainGeneratorPresets(): readonly TerrainGeneratorPreset[] {
-  return PRESETS;
-}
+/**
+ * Каталог terrain presets.
+ *
+ * Класс инкапсулирует доступ к immutable preset collection и создание готового
+ * generated terrain descriptor. Это заменяет процедурные factory-функции и
+ * оставляет все правила default/preset fallback в одном объекте.
+ */
+export class TerrainGeneratorPresetCatalog {
+  private readonly descriptorCloner: TerrainDescriptorCloner;
 
-export function getTerrainGeneratorPreset(presetId: string): TerrainGeneratorPreset {
-  return PRESETS.find((preset) => preset.id === presetId) ?? PRESETS.find((preset) => preset.id === DEFAULT_TERRAIN_PRESET)!;
-}
+  public constructor(descriptorCloner = new TerrainDescriptorCloner()) {
+    this.descriptorCloner = descriptorCloner;
+  }
 
-export function createGeneratedTerrainDescriptorFromPreset(options?: {
-  readonly presetId?: string;
-  readonly id?: string;
-  readonly size?: SceneVector2Tuple;
-  readonly resolution?: SceneVector2Tuple;
-  readonly position?: SceneVector3Tuple;
-  readonly rotation?: SceneVector3Tuple;
-  readonly scale?: SceneVector3Tuple;
-  readonly seed?: number;
-}): SceneGeneratedTerrainDescriptor {
-  const preset = getTerrainGeneratorPreset(options?.presetId ?? DEFAULT_TERRAIN_PRESET);
-  const generator = {
-    ...cloneTerrainGeneratorDescriptor(preset.generator),
-    seed: options?.seed ?? preset.generator.seed
-  };
+  /**
+   * Возвращает все доступные presets без передачи владения внутренним массивом.
+   */
+  public getPresets(): readonly TerrainGeneratorPreset[] {
+    return PRESETS;
+  }
 
-  return {
-    id: options?.id ?? DEFAULT_TERRAIN_ID,
-    kind: "generated",
-    size: options?.size ?? DEFAULT_TERRAIN_SIZE,
-    resolution: options?.resolution ?? DEFAULT_TERRAIN_RESOLUTION,
-    position: options?.position ?? DEFAULT_TERRAIN_POSITION,
-    rotation: options?.rotation ?? DEFAULT_TERRAIN_ROTATION,
-    scale: options?.scale ?? DEFAULT_TERRAIN_SCALE,
-    generator,
-    material: cloneGeneratedTerrainMaterialDescriptor(preset.material)
-  };
+  /**
+   * Ищет preset по id и возвращает default preset, если id неизвестен.
+   */
+  public getPreset(presetId: string): TerrainGeneratorPreset {
+    return PRESETS.find((preset) => preset.id === presetId) ?? PRESETS.find((preset) => preset.id === DEFAULT_TERRAIN_PRESET)!;
+  }
+
+  /**
+   * Собирает полный SceneGeneratedTerrainDescriptor из preset'а и overrides.
+   */
+  public createDescriptor(options?: {
+    readonly presetId?: string;
+    readonly id?: string;
+    readonly size?: SceneVector2Tuple;
+    readonly resolution?: SceneVector2Tuple;
+    readonly position?: SceneVector3Tuple;
+    readonly rotation?: SceneVector3Tuple;
+    readonly scale?: SceneVector3Tuple;
+    readonly seed?: number;
+  }): SceneGeneratedTerrainDescriptor {
+    const preset = this.getPreset(options?.presetId ?? DEFAULT_TERRAIN_PRESET);
+    const generator = {
+      ...this.descriptorCloner.cloneGenerator(preset.generator),
+      seed: options?.seed ?? preset.generator.seed
+    };
+
+    return {
+      id: options?.id ?? DEFAULT_TERRAIN_ID,
+      kind: "generated",
+      size: options?.size ?? DEFAULT_TERRAIN_SIZE,
+      resolution: options?.resolution ?? DEFAULT_TERRAIN_RESOLUTION,
+      position: options?.position ?? DEFAULT_TERRAIN_POSITION,
+      rotation: options?.rotation ?? DEFAULT_TERRAIN_ROTATION,
+      scale: options?.scale ?? DEFAULT_TERRAIN_SCALE,
+      generator,
+      material: this.descriptorCloner.cloneMaterial(preset.material)
+    };
+  }
 }

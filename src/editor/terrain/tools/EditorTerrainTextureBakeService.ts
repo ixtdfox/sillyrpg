@@ -1,5 +1,5 @@
 import type { SceneVector2Tuple } from "../../../core/world/scene/SceneDescriptor";
-import { resolveTerrainSplatTileScale } from "../../../core/world/terrain/TerrainSplatMaterialBuilder";
+import { TerrainSplatTileScalePolicy } from "../../../core/world/terrain/TerrainSplatMaterialBuilder";
 import type { TerrainSplatMap } from "../../../core/world/terrain/editing/TerrainSplatMap";
 import type { TerrainTextureLayerDescriptor } from "../../../core/world/terrain/editing/TerrainTextureLayer";
 
@@ -23,6 +23,12 @@ export interface EditorTerrainTextureBakeInput {
 }
 
 export class EditorTerrainTextureBakeService {
+  private readonly tileScalePolicy: TerrainSplatTileScalePolicy;
+
+  public constructor(tileScalePolicy = new TerrainSplatTileScalePolicy()) {
+    this.tileScalePolicy = tileScalePolicy;
+  }
+
   public async bakeToDataUrl(input: EditorTerrainTextureBakeInput): Promise<string> {
     if (input.layers.length === 0) {
       throw new Error("Terrain texture baking requires at least one texture layer.");
@@ -40,7 +46,7 @@ export class EditorTerrainTextureBakeService {
     }
 
     const imageData = context.createImageData(outputResolution[0], outputResolution[1]);
-    const tileScale = resolveTerrainSplatTileScale(input.terrainWidth, input.terrainDepth);
+    const tileScale = this.tileScalePolicy.resolve(input.terrainWidth, input.terrainDepth);
     const target = imageData.data;
 
     for (let y = 0; y < outputResolution[1]; y += 1) {

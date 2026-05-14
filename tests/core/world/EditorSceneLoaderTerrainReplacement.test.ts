@@ -1,6 +1,7 @@
 import { MeshBuilder, NullEngine, Scene, TransformNode, type AbstractMesh } from "@babylonjs/core";
 import { EditorSceneLoader } from "../../../src/editor/EditorSceneLoader";
-import { createGeneratedTerrainDescriptorFromPreset } from "../../../src/core/world/terrain/TerrainGeneratorPresets";
+import { TerrainGeneratorPresetCatalog } from "../../../src/core/world/terrain/TerrainGeneratorPresets";
+const terrainPresetCatalog = new TerrainGeneratorPresetCatalog();
 
 function assert(condition: boolean, message: string): void {
   if (!condition) {
@@ -79,7 +80,7 @@ async function testTerrainReplacementRemovesOldRefsAndPreservesObjects(): Promis
     descriptor: { id: "terrain-0", kind: "plane", size: [40, 40] }
   };
 
-  const descriptor = createGeneratedTerrainDescriptorFromPreset({ presetId: "soft-hills", seed: 88 });
+  const descriptor = terrainPresetCatalog.createDescriptor({ presetId: "soft-hills", seed: 88 });
   const nextTerrain = await loader.setTerrain(descriptor);
   const content = loader.getCurrentContent();
 

@@ -11,8 +11,8 @@ import type { TerrainHeightField } from "../TerrainHeightField";
 import { TerrainQuadtreeLodBuilder } from "./TerrainQuadtreeLodBuilder";
 import { TerrainQuadtreePatchMeshBuilder } from "./TerrainQuadtreePatchMeshBuilder";
 import {
-  computeTerrainQuadSize,
-  resolveTerrainQuadtreeLodDescriptor,
+  TerrainQuadSizeCalculator,
+  TerrainQuadtreeLodDescriptorResolver,
   type ResolvedTerrainQuadtreeLodDescriptor,
   type TerrainLodAnchor,
   type TerrainQuadtreeLeafSelection,
@@ -21,6 +21,9 @@ import {
   type TerrainQuadtreeNode
 } from "./TerrainQuadtreeLodTypes";
 
+/**
+ * Dependency object для runtime TerrainQuadtreeLodController.
+ */
 export interface TerrainQuadtreeLodControllerOptions {
   readonly scene: Scene;
   readonly terrainRoot: TransformNode;
@@ -30,6 +33,55 @@ export interface TerrainQuadtreeLodControllerOptions {
   readonly lod?: TerrainQuadtreeLodDescriptor | null;
 }
 
+/**
+ * Factory ключей meshes для выбранных quadtree leaves.
+ */
+class TerrainLeafMeshKeyFactory {
+  /**
+   * Создает стабильный ключ mesh по node id и sample step.
+   */
+  public make(leaf: TerrainQuadtreeLeafSelection): string {
+    return `${leaf.node.id}:step:${leaf.sampleStep}`;
+  }
+}
+
+/**
+ * Политика debug-цвета LOD patch.
+ */
+class TerrainLodDebugStyle {
+  /**
+   * Возвращает контрастный цвет patch по depth/sample step.
+   */
+  public resolveDebugColor(leaf: TerrainQuadtreeLeafSelection): Color3 {
+    const colors = [
+      new Color3(0.12, 0.78, 1),
+      new Color3(0.35, 1, 0.44),
+      new Color3(1, 0.85, 0.2),
+      new Color3(1, 0.48, 0.18),
+      new Color3(1, 0.22, 0.56)
+    ];
+    return colors[(leaf.node.depth + Math.round(Math.log2(leaf.sampleStep))) % colors.length] ?? Color3.White();
+  }
+}
+
+/**
+ * Formatter диагностических значений для TerrainLOD logs.
+ */
+class TerrainLodDebugFormatter {
+  /**
+   * Форматирует Vector3 компактно для console diagnostics.
+   */
+  public formatVector(vector: Vector3): string {
+    return `${vector.x.toFixed(2)},${vector.y.toFixed(2)},${vector.z.toFixed(2)}`;
+  }
+}
+
+/**
+ * Controller runtime quadtree LOD meshes.
+ *
+ * Управляет жизненным циклом patch meshes, переключает видимость canonical mesh
+ * и обновляет набор visible leaves относительно player/camera anchor.
+ */
 export class TerrainQuadtreeLodController {
   private readonly scene: Scene;
   private readonly terrainRoot: TransformNode;
@@ -39,6 +91,11 @@ export class TerrainQuadtreeLodController {
   private readonly lodDescriptor: ResolvedTerrainQuadtreeLodDescriptor;
   private readonly lodBuilder: TerrainQuadtreeLodBuilder;
   private readonly patchBuilder: TerrainQuadtreePatchMeshBuilder;
+  private readonly lodDescriptorResolver: TerrainQuadtreeLodDescriptorResolver;
+  private readonly quadSizeCalculator: TerrainQuadSizeCalculator;
+  private readonly leafMeshKeyFactory: TerrainLeafMeshKeyFactory;
+  private readonly debugStyle: TerrainLodDebugStyle;
+  private readonly debugFormatter: TerrainLodDebugFormatter;
   private readonly rootNode: TerrainQuadtreeNode;
   private readonly patchMeshes: Map<string, Mesh>;
   private readonly debugLineMeshes: Map<string, LinesMesh>;
@@ -55,16 +112,26 @@ export class TerrainQuadtreeLodController {
   public constructor(
     options: TerrainQuadtreeLodControllerOptions,
     lodBuilder = new TerrainQuadtreeLodBuilder(),
-    patchBuilder = new TerrainQuadtreePatchMeshBuilder()
+    patchBuilder = new TerrainQuadtreePatchMeshBuilder(),
+    lodDescriptorResolver = new TerrainQuadtreeLodDescriptorResolver(),
+    quadSizeCalculator = new TerrainQuadSizeCalculator(),
+    leafMeshKeyFactory = new TerrainLeafMeshKeyFactory(),
+    debugStyle = new TerrainLodDebugStyle(),
+    debugFormatter = new TerrainLodDebugFormatter()
   ) {
     this.scene = options.scene;
     this.terrainRoot = options.terrainRoot;
     this.canonicalMesh = options.canonicalMesh;
     this.terrainDescriptor = options.descriptor;
     this.heightField = options.heightField;
-    this.lodDescriptor = resolveTerrainQuadtreeLodDescriptor(options.lod, options.heightField);
+    this.lodDescriptorResolver = lodDescriptorResolver;
+    this.lodDescriptor = this.lodDescriptorResolver.resolve(options.lod, options.heightField);
     this.lodBuilder = lodBuilder;
     this.patchBuilder = patchBuilder;
+    this.quadSizeCalculator = quadSizeCalculator;
+    this.leafMeshKeyFactory = leafMeshKeyFactory;
+    this.debugStyle = debugStyle;
+    this.debugFormatter = debugFormatter;
     this.rootNode = this.lodBuilder.buildRoot(this.heightField, this.lodDescriptor.maxDepth);
     this.patchMeshes = new Map();
     this.debugLineMeshes = new Map();
@@ -80,6 +147,9 @@ export class TerrainQuadtreeLodController {
     this.warnLowSourceDensityIfNeeded();
   }
 
+  /**
+   * Обновляет набор видимых LOD patches относительно player/camera anchor.
+   */
   public update(deltaSeconds: number, anchor: TerrainLodAnchor): void {
     if (this.disposed || !this.lodDescriptor.enabled) {
       return;
@@ -116,6 +186,9 @@ export class TerrainQuadtreeLodController {
     this.maybeLogDiagnostics(anchor);
   }
 
+  /**
+   * Включает или выключает debug line meshes для активных leaves.
+   */
   public setDebugEnabled(enabled: boolean): void {
     if (this.disposed || this.debugEnabled === enabled) {
       return;
@@ -132,10 +205,16 @@ export class TerrainQuadtreeLodController {
     this.logDiagnostics("[TerrainLOD] debug disabled");
   }
 
+  /**
+   * Возвращает текущий debug mode.
+   */
   public isDebugEnabled(): boolean {
     return this.debugEnabled;
   }
 
+  /**
+   * Собирает диагностику текущего LOD selection.
+   */
   public getDiagnostics(): TerrainQuadtreeLodDiagnostics {
     const depthCounts = new Map<number, number>();
     const sampleStepCounts = new Map<number, number>();
@@ -164,6 +243,9 @@ export class TerrainQuadtreeLodController {
     };
   }
 
+  /**
+   * Освобождает созданные patch/debug meshes и восстанавливает canonical mesh.
+   */
   public dispose(): void {
     if (this.disposed) {
       return;
@@ -182,8 +264,11 @@ export class TerrainQuadtreeLodController {
     this.disposed = true;
   }
 
+  /**
+   * Синхронизирует кеш patch meshes с новым набором visible leaves.
+   */
   private applyVisibleLeaves(leaves: readonly TerrainQuadtreeLeafSelection[]): void {
-    const nextLeafKeys = new Set(leaves.map((leaf) => getLeafMeshKey(leaf)));
+    const nextLeafKeys = new Set(leaves.map((leaf) => this.leafMeshKeyFactory.make(leaf)));
     for (const [leafKey, mesh] of this.patchMeshes) {
       if (!nextLeafKeys.has(leafKey)) {
         mesh.setEnabled(false);
@@ -198,9 +283,12 @@ export class TerrainQuadtreeLodController {
     this.activeLeaves = leaves;
   }
 
+  /**
+   * Возвращает cached patch mesh или создает новый.
+   */
   private getOrCreatePatchMesh(leaf: TerrainQuadtreeLeafSelection): Mesh {
     const node = leaf.node;
-    const leafKey = getLeafMeshKey(leaf);
+    const leafKey = this.leafMeshKeyFactory.make(leaf);
     const cached = this.patchMeshes.get(leafKey);
     if (cached && !cached.isDisposed()) {
       return cached;
@@ -220,18 +308,24 @@ export class TerrainQuadtreeLodController {
     return mesh;
   }
 
+  /**
+   * Скрывает визуальную canonical surface, оставляя ее pickable для gameplay/editor.
+   */
   private hideCanonicalVisualSurface(): void {
     this.canonicalMesh.visibility = 0;
     this.canonicalMesh.isVisible = true;
     this.canonicalMesh.isPickable = true;
   }
 
+  /**
+   * Синхронизирует debug line meshes с active leaves.
+   */
   private syncDebugLineMeshes(): void {
     if (!this.debugEnabled) {
       return;
     }
 
-    const activeKeys = new Set(this.activeLeaves.map((leaf) => getLeafMeshKey(leaf)));
+    const activeKeys = new Set(this.activeLeaves.map((leaf) => this.leafMeshKeyFactory.make(leaf)));
     for (const [leafKey, lineMesh] of this.debugLineMeshes) {
       if (!activeKeys.has(leafKey)) {
         lineMesh.dispose(false);
@@ -241,7 +335,7 @@ export class TerrainQuadtreeLodController {
 
     for (const leaf of this.activeLeaves) {
       const node = leaf.node;
-      const leafKey = getLeafMeshKey(leaf);
+      const leafKey = this.leafMeshKeyFactory.make(leaf);
       let lineMesh = this.debugLineMeshes.get(leafKey);
       if (!lineMesh || lineMesh.isDisposed()) {
         lineMesh = this.patchBuilder.buildDebugLineMesh(this.scene, {
@@ -250,7 +344,7 @@ export class TerrainQuadtreeLodController {
           sampleStep: leaf.sampleStep,
           name: `terrain:${this.terrainDescriptor.id}:lod:debug:${node.depth}:${node.ix0}:${node.iz0}:${node.ix1}:${node.iz1}:step:${leaf.sampleStep}`
         });
-        lineMesh.color = resolveDebugColor(leaf);
+        lineMesh.color = this.debugStyle.resolveDebugColor(leaf);
         lineMesh.setParent(this.terrainRoot, false);
         this.debugLineMeshes.set(leafKey, lineMesh);
       }
@@ -258,6 +352,9 @@ export class TerrainQuadtreeLodController {
     }
   }
 
+  /**
+   * Удаляет все debug line meshes.
+   */
   private disposeDebugLineMeshes(): void {
     for (const lineMesh of this.debugLineMeshes.values()) {
       if (!lineMesh.isDisposed()) {
@@ -267,6 +364,9 @@ export class TerrainQuadtreeLodController {
     this.debugLineMeshes.clear();
   }
 
+  /**
+   * Периодически пишет diagnostic log в debug mode.
+   */
   private maybeLogDiagnostics(anchor: TerrainLodAnchor): void {
     if (!this.debugEnabled && !this.lodDescriptor.debug) {
       return;
@@ -278,10 +378,13 @@ export class TerrainQuadtreeLodController {
 
     this.debugLogAccumulatorSeconds = 0;
     this.logDiagnostics(
-      `[TerrainLOD] anchor=${anchor.source} position=${formatVector(anchor.position)}`
+      `[TerrainLOD] anchor=${anchor.source} position=${this.debugFormatter.formatVector(anchor.position)}`
     );
   }
 
+  /**
+   * Формирует и пишет одну строку LOD diagnostics.
+   */
   private logDiagnostics(prefix: string): void {
     const diagnostics = this.getDiagnostics();
     const depthSummary = Array.from(diagnostics.depthCounts.entries())
@@ -306,22 +409,31 @@ export class TerrainQuadtreeLodController {
     );
   }
 
+  /**
+   * Переводит world anchor в локальные координаты terrain root.
+   */
   private toTerrainLocal(position: Vector3): Vector3 {
     const inverseWorld = this.terrainRoot.computeWorldMatrix(true).clone().invert();
     return Vector3.TransformCoordinates(position, inverseWorld);
   }
 
+  /**
+   * Считает средний горизонтальный scale terrain root.
+   */
   private getHorizontalWorldScale(): number {
     const scale = this.terrainRoot.absoluteScaling ?? Vector3.One();
     return (Math.abs(scale.x) + Math.abs(scale.z)) * 0.5;
   }
 
+  /**
+   * Предупреждает, если исходный heightfield слишком разреженный для near LOD.
+   */
   private warnLowSourceDensityIfNeeded(): void {
     if (this.warnedLowSourceDensity) {
       return;
     }
 
-    const quadSize = computeTerrainQuadSize(this.heightField);
+    const quadSize = this.quadSizeCalculator.compute(this.heightField);
     if (quadSize <= 4) {
       return;
     }
@@ -333,23 +445,4 @@ export class TerrainQuadtreeLodController {
       "Near LOD can only match source heightfield, not add details."
     );
   }
-}
-
-function resolveDebugColor(leaf: TerrainQuadtreeLeafSelection): Color3 {
-  const colors = [
-    new Color3(0.12, 0.78, 1),
-    new Color3(0.35, 1, 0.44),
-    new Color3(1, 0.85, 0.2),
-    new Color3(1, 0.48, 0.18),
-    new Color3(1, 0.22, 0.56)
-  ];
-  return colors[(leaf.node.depth + Math.round(Math.log2(leaf.sampleStep))) % colors.length] ?? Color3.White();
-}
-
-function formatVector(vector: Vector3): string {
-  return `${vector.x.toFixed(2)},${vector.y.toFixed(2)},${vector.z.toFixed(2)}`;
-}
-
-function getLeafMeshKey(leaf: TerrainQuadtreeLeafSelection): string {
-  return `${leaf.node.id}:step:${leaf.sampleStep}`;
 }

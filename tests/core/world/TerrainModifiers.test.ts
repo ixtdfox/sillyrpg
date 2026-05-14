@@ -4,7 +4,8 @@ import { TerrainCenterFlattenModifier } from "../../../src/core/world/terrain/mo
 import { TerrainFalloffModifier } from "../../../src/core/world/terrain/modifiers/TerrainFalloffModifier";
 import { TerrainSmoothModifier } from "../../../src/core/world/terrain/modifiers/TerrainSmoothModifier";
 import { TerrainTerraceModifier } from "../../../src/core/world/terrain/modifiers/TerrainTerraceModifier";
-import { createGeneratedTerrainDescriptorFromPreset } from "../../../src/core/world/terrain/TerrainGeneratorPresets";
+import { TerrainGeneratorPresetCatalog } from "../../../src/core/world/terrain/TerrainGeneratorPresets";
+const terrainPresetCatalog = new TerrainGeneratorPresetCatalog();
 
 function assert(condition: boolean, message: string): void {
   if (!condition) {
@@ -13,7 +14,7 @@ function assert(condition: boolean, message: string): void {
 }
 
 function testModifiersKeepHeightsFinite(): void {
-  const descriptor = createGeneratedTerrainDescriptorFromPreset({ presetId: "rocky-ridges", seed: 301 });
+  const descriptor = terrainPresetCatalog.createDescriptor({ presetId: "rocky-ridges", seed: 301 });
   const context = new TerrainGenerationContext(descriptor, "rockyRidges");
   const heights = new Float32Array(context.resolutionX * context.resolutionZ);
   for (let iz = 0; iz < context.resolutionZ; iz += 1) {
@@ -37,7 +38,7 @@ function testModifiersKeepHeightsFinite(): void {
 }
 
 function testFalloffModifierLowersEdgesComparedToCenter(): void {
-  const descriptor = createGeneratedTerrainDescriptorFromPreset({ presetId: "island-plateau", seed: 401 });
+  const descriptor = terrainPresetCatalog.createDescriptor({ presetId: "island-plateau", seed: 401 });
   const context = new TerrainGenerationContext(descriptor, "islandPlateau");
   const source = TerrainHeightField.createFilled(context.width, context.depth, context.resolutionX, context.resolutionZ, 4);
   const modified = new TerrainFalloffModifier().apply(source, context);

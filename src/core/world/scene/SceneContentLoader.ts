@@ -19,7 +19,7 @@ import { TerrainGenerator } from "../terrain/TerrainGenerator";
 import type { TerrainHeightField } from "../terrain/TerrainHeightField";
 import { TerrainMeshBuilder } from "../terrain/TerrainMeshBuilder";
 import { TerrainQuadtreeLodController } from "../terrain/lod/TerrainQuadtreeLodController";
-import { resolveTerrainQuadtreeLodDescriptor } from "../terrain/lod/TerrainQuadtreeLodTypes";
+import { TerrainQuadtreeLodDescriptorResolver } from "../terrain/lod/TerrainQuadtreeLodTypes";
 import { loadSceneDescriptor } from "./SceneDescriptorLoader";
 import type {
   SceneDescriptor,
@@ -89,6 +89,7 @@ interface ImportedAssetNodesInternal extends ImportedSceneAssetNodes {}
 const DEBUG_EDITOR_SCENE_IMPORTS = false;
 const GENERATED_TERRAIN_GENERATOR = new TerrainGenerator();
 const GENERATED_TERRAIN_MESH_BUILDER = new TerrainMeshBuilder();
+const GENERATED_TERRAIN_LOD_DESCRIPTOR_RESOLVER = new TerrainQuadtreeLodDescriptorResolver();
 
 export async function importSceneContent(options: SceneContentImportOptions): Promise<ImportedSceneContent> {
   const descriptorPath = options.descriptorPath;
@@ -238,7 +239,7 @@ function importGeneratedTerrainContent(
     terrainSurfaceCanonical: true
   };
 
-  const lod = resolveTerrainQuadtreeLodDescriptor(descriptor.lod, heightField);
+  const lod = GENERATED_TERRAIN_LOD_DESCRIPTOR_RESOLVER.resolve(descriptor.lod, heightField);
   const terrainLodControllers = visualMode === "runtime" && lod.enabled
     ? [
         new TerrainQuadtreeLodController({

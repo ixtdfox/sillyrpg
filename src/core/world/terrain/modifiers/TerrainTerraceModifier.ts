@@ -2,9 +2,15 @@ import type { TerrainHeightModifier } from "../TerrainHeightModifier";
 import type { TerrainGenerationContext } from "../TerrainGenerationContext";
 import { TerrainHeightField } from "../TerrainHeightField";
 
+/**
+ * Modifier террасирования heightfield.
+ */
 export class TerrainTerraceModifier implements TerrainHeightModifier {
   public readonly id = "terrace";
 
+  /**
+   * Квантует относительную высоту к terrace steps из descriptor shaping.
+   */
   public apply(heightField: TerrainHeightField, context: TerrainGenerationContext): TerrainHeightField {
     const terraceSteps = Math.max(0, Math.round(context.descriptor.generator.shaping?.terraceSteps ?? 0));
     if (terraceSteps <= 1 || context.amplitude <= 0) {

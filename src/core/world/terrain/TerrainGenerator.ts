@@ -1,5 +1,5 @@
 import type { SceneGeneratedTerrainDescriptor } from "../scene/SceneDescriptor";
-import { deserializeTerrainHeightField } from "./editing/TerrainHeightSerialization";
+import { TerrainHeightFieldSerializer } from "./editing/TerrainHeightSerialization";
 import { TerrainGenerationContext } from "./TerrainGenerationContext";
 import { TerrainGenerationStrategyRegistry } from "./TerrainGenerationStrategyRegistry";
 import type { TerrainHeightModifier } from "./TerrainHeightModifier";
@@ -16,9 +16,17 @@ import { NoiseTerrainStrategy } from "./strategies/NoiseTerrainStrategy";
 import { RockyRidgesTerrainStrategy } from "./strategies/RockyRidgesTerrainStrategy";
 import { UrbanPadTerrainStrategy } from "./strategies/UrbanPadTerrainStrategy";
 
+/**
+ * Facade генерации terrain heightfield.
+ *
+ * Класс объединяет Strategy Registry, цепочку height modifiers и serializer
+ * отредактированных карт высот. Внешний код получает один объектный entry point
+ * вместо набора процедурных функций.
+ */
 export class TerrainGenerator {
   private readonly strategyRegistry: TerrainGenerationStrategyRegistry;
   private readonly modifiers: readonly TerrainHeightModifier[];
+  private readonly heightFieldSerializer: TerrainHeightFieldSerializer;
 
   public constructor(
     strategyRegistry = new TerrainGenerationStrategyRegistry([
@@ -35,14 +43,19 @@ export class TerrainGenerator {
       new TerrainTerraceModifier(),
       new TerrainSmoothModifier(),
       new TerrainHeightQuantizeModifier()
-    ]
+    ],
+    heightFieldSerializer = new TerrainHeightFieldSerializer()
   ) {
     this.strategyRegistry = strategyRegistry;
     this.modifiers = modifiers;
+    this.heightFieldSerializer = heightFieldSerializer;
   }
 
+  /**
+   * Возвращает edited heightfield из descriptor или генерирует новый terrain.
+   */
   public generate(descriptor: SceneGeneratedTerrainDescriptor): TerrainHeightField {
-    const editedHeightField = deserializeTerrainHeightField(descriptor);
+    const editedHeightField = this.heightFieldSerializer.deserialize(descriptor);
     if (editedHeightField) {
       return editedHeightField;
     }

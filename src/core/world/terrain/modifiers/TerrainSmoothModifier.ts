@@ -2,9 +2,15 @@ import type { TerrainHeightModifier } from "../TerrainHeightModifier";
 import type { TerrainGenerationContext } from "../TerrainGenerationContext";
 import { TerrainHeightField } from "../TerrainHeightField";
 
+/**
+ * Modifier сглаживания heightfield средним по соседним вершинам.
+ */
 export class TerrainSmoothModifier implements TerrainHeightModifier {
   public readonly id = "smooth";
 
+  /**
+   * Выполняет заданное число smoothing passes.
+   */
   public apply(heightField: TerrainHeightField, context: TerrainGenerationContext): TerrainHeightField {
     const smoothPasses = Math.max(0, Math.round(context.descriptor.generator.shaping?.smoothPasses ?? 0));
     if (smoothPasses <= 0) {

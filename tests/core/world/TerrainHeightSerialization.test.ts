@@ -1,9 +1,8 @@
 import { parseSceneDescriptor } from "../../../src/core/world/scene/SceneDescriptor";
-import {
-  deserializeTerrainHeightField,
-  serializeTerrainHeightField
-} from "../../../src/core/world/terrain/editing/TerrainHeightSerialization";
+import { TerrainHeightFieldSerializer } from "../../../src/core/world/terrain/editing/TerrainHeightSerialization";
 import { TerrainHeightField } from "../../../src/core/world/terrain/TerrainHeightField";
+
+const heightFieldSerializer = new TerrainHeightFieldSerializer();
 
 function assert(condition: boolean, message: string): void {
   if (!condition) {
@@ -13,7 +12,7 @@ function assert(condition: boolean, message: string): void {
 
 function testSerializationRoundTrip(): void {
   const field = TerrainHeightField.createFilled(8, 8, 5, 5, 2);
-  const serialized = serializeTerrainHeightField(field);
+  const serialized = heightFieldSerializer.serialize(field);
   const descriptor = parseSceneDescriptor(
     {
       schemaVersion: 2,
@@ -46,7 +45,7 @@ function testSerializationRoundTrip(): void {
   if (descriptor.terrain?.kind !== "generated") {
     throw new Error("Expected generated terrain descriptor.");
   }
-  const rehydrated = deserializeTerrainHeightField(descriptor.terrain);
+  const rehydrated = heightFieldSerializer.deserialize(descriptor.terrain);
   assert(rehydrated !== null, "Expected edited heightmap to deserialize.");
   assert((rehydrated?.heights[0] ?? 0) === 2, "Expected serialized height data to survive roundtrip.");
 }

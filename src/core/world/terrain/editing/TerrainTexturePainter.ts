@@ -1,9 +1,13 @@
-import { getBrushWeight } from "./TerrainBrushMask";
+import { TerrainScalarMath } from "../TerrainMath";
+import { TerrainBrushWeightCalculator } from "./TerrainBrushMask";
 import type { TerrainBrushCenter, TerrainBrushSettings } from "./TerrainBrushTypes";
 import type { TerrainSplatMap } from "./TerrainSplatMap";
 
 const TEXTURE_PAINT_STRENGTH_SCALE = 0.1;
 
+/**
+ * Полный command object одного мазка texture paint.
+ */
 export interface TerrainTexturePaintOptions {
   readonly center: TerrainBrushCenter;
   readonly terrainWidth: number;
@@ -13,17 +17,37 @@ export interface TerrainTexturePaintOptions {
   readonly deltaTime: number;
 }
 
+/**
+ * Результат paint операции для UI invalidation и тестов.
+ */
 export interface TerrainTexturePaintResult {
   readonly changedTexelCount: number;
 }
 
+/**
+ * Painter весов texture layers в splat map.
+ */
 export class TerrainTexturePainter {
+  private readonly scalarMath: TerrainScalarMath;
+  private readonly brushWeightCalculator: TerrainBrushWeightCalculator;
+
+  public constructor(
+    scalarMath = new TerrainScalarMath(),
+    brushWeightCalculator = new TerrainBrushWeightCalculator(scalarMath)
+  ) {
+    this.scalarMath = scalarMath;
+    this.brushWeightCalculator = brushWeightCalculator;
+  }
+
+  /**
+   * Наносит выбранный layer на texels, попавшие в brush mask.
+   */
   public paint(splatMap: TerrainSplatMap, options: TerrainTexturePaintOptions): TerrainTexturePaintResult {
     if (options.layerIndex < 0 || options.layerIndex >= splatMap.layerCount) {
       return { changedTexelCount: 0 };
     }
 
-    const paintAmount = clamp01(Math.abs(options.brush.strength) * TEXTURE_PAINT_STRENGTH_SCALE * clampDeltaTime(options.deltaTime));
+    const paintAmount = this.scalarMath.clamp01(Math.abs(options.brush.strength) * TEXTURE_PAINT_STRENGTH_SCALE * this.clampDeltaTime(options.deltaTime));
     if (paintAmount <= 0) {
       return { changedTexelCount: 0 };
     }
@@ -39,14 +63,14 @@ export class TerrainTexturePainter {
       for (let ix = 0; ix < splatMap.resolutionX; ix += 1) {
         const u = splatMap.resolutionX <= 1 ? 0.5 : ix / (splatMap.resolutionX - 1);
         const x = (u - 0.5) * terrainWidth;
-        const brushWeight = getBrushWeight(
+        const brushWeight = this.brushWeightCalculator.getWeight(
           options.brush.shape,
           x - options.center.x,
           z - options.center.z,
           radius,
           options.brush.falloff
         );
-        const influence = clamp01(brushWeight * paintAmount);
+        const influence = this.scalarMath.clamp01(brushWeight * paintAmount);
         if (influence <= 0) {
           continue;
         }
@@ -59,6 +83,10 @@ export class TerrainTexturePainter {
     return { changedTexelCount };
   }
 
+  /**
+   * Перераспределяет веса texel так, чтобы выбранный layer вырос, а остальные
+   * сохранили относительную пропорцию.
+   */
   private paintTexel(
     splatMap: TerrainSplatMap,
     ix: number,
@@ -67,7 +95,7 @@ export class TerrainTexturePainter {
     influence: number
   ): void {
     const currentSelectedWeight = splatMap.getWeight(ix, iz, selectedLayerIndex);
-    const nextSelectedWeight = clamp01(currentSelectedWeight + ((1 - currentSelectedWeight) * influence));
+    const nextSelectedWeight = this.scalarMath.clamp01(currentSelectedWeight + ((1 - currentSelectedWeight) * influence));
     const currentOtherWeight = 1 - currentSelectedWeight;
     const nextOtherWeight = 1 - nextSelectedWeight;
     const otherScale = currentOtherWeight > 0.000001 ? nextOtherWeight / currentOtherWeight : 0;
@@ -81,18 +109,11 @@ export class TerrainTexturePainter {
     }
     splatMap.normalizeTexel(ix, iz);
   }
-}
 
-function clampDeltaTime(value: number): number {
-  if (!Number.isFinite(value)) {
-    return 0;
+  private clampDeltaTime(value: number): number {
+    if (!Number.isFinite(value)) {
+      return 0;
+    }
+    return Math.max(0, Math.min(0.25, value));
   }
-  return Math.max(0, Math.min(0.25, value));
-}
-
-function clamp01(value: number): number {
-  if (!Number.isFinite(value)) {
-    return 0;
-  }
-  return Math.max(0, Math.min(1, value));
 }

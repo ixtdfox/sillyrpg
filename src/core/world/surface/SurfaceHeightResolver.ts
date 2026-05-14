@@ -3,12 +3,18 @@ import type { GridCell } from "../../grid/GridCell";
 import type { RectGridRuntime } from "../../grid/RectGridRuntime";
 import type { TerrainSurfaceRegistry } from "../terrain/TerrainSurfaceRegistry";
 
+/**
+ * Источник итоговой высоты, выбранный SurfaceHeightResolver.
+ */
 export type SurfaceHeightSource =
   | "terrain-heightfield"
   | "navigation-story"
   | "raycast"
   | "fallback";
 
+/**
+ * Запрос на высоту поверхности под world position.
+ */
 export interface SurfaceHeightRequest {
   readonly position: Vector3;
   readonly cell?: GridCell;
@@ -16,53 +22,151 @@ export interface SurfaceHeightRequest {
   readonly fallbackY?: number;
 }
 
+/**
+ * Результат выбора высоты вместе с источником для диагностики.
+ */
 export interface SurfaceHeightResult {
   readonly y: number;
   readonly source: SurfaceHeightSource;
   readonly storyIndex: number;
 }
 
-export class SurfaceHeightResolver {
-  private readonly gridRuntime: Pick<RectGridRuntime, "getMergedStoryYByStory" | "getGrid">;
-  private readonly terrainSurfaceRegistry: Pick<TerrainSurfaceRegistry, "sampleWorldHeight">;
+/**
+ * Минимальный контекст, который нужен стратегиям выбора surface height.
+ */
+export interface SurfaceHeightResolverContext {
+  readonly gridRuntime: Pick<RectGridRuntime, "getMergedStoryYByStory" | "getGrid">;
+  readonly terrainSurfaceRegistry: Pick<TerrainSurfaceRegistry, "sampleWorldHeight">;
+}
+
+/**
+ * Strategy выбора высоты из одного конкретного источника.
+ */
+export interface SurfaceHeightStrategy {
+  readonly source: SurfaceHeightSource;
+  resolve(input: SurfaceHeightRequest, context: SurfaceHeightResolverContext): SurfaceHeightResult | null;
+}
+
+/**
+ * Strategy terrain heightfield.
+ *
+ * Terrain используется только для storyIndex=0: верхние этажи должны оставаться
+ * привязанными к navigation stories, иначе персонажи на зданиях провалятся на
+ * рельеф под ними.
+ */
+export class TerrainHeightfieldSurfaceStrategy implements SurfaceHeightStrategy {
+  public readonly source = "terrain-heightfield";
+
+  /**
+   * Возвращает terrain world Y под X/Z или null, если terrain неприменим.
+   */
+  public resolve(
+    input: SurfaceHeightRequest,
+    context: SurfaceHeightResolverContext
+  ): SurfaceHeightResult | null {
+    if (input.storyIndex !== 0) {
+      return null;
+    }
+
+    const terrainY = context.terrainSurfaceRegistry.sampleWorldHeight(input.position.x, input.position.z);
+    if (terrainY === null || !Number.isFinite(terrainY)) {
+      return null;
+    }
+
+    return {
+      y: terrainY,
+      source: this.source,
+      storyIndex: input.storyIndex
+    };
+  }
+}
+
+/**
+ * Strategy высоты navigation story.
+ */
+export class NavigationStorySurfaceStrategy implements SurfaceHeightStrategy {
+  public readonly source = "navigation-story";
+
+  /**
+   * Берет высоту этажа из merged story map или origin Y сетки.
+   */
+  public resolve(
+    input: SurfaceHeightRequest,
+    context: SurfaceHeightResolverContext
+  ): SurfaceHeightResult | null {
+    const storyY =
+      context.gridRuntime.getMergedStoryYByStory().get(input.storyIndex) ??
+      context.gridRuntime.getGrid().getOrigin().y;
+
+    if (!Number.isFinite(storyY)) {
+      return null;
+    }
+
+    return {
+      y: storyY,
+      source: this.source,
+      storyIndex: input.storyIndex
+    };
+  }
+}
+
+/**
+ * Последняя Strategy цепочки: безопасный fallback на fallbackY или input.position.y.
+ */
+export class FallbackSurfaceHeightStrategy implements SurfaceHeightStrategy {
+  public readonly source = "fallback";
+
+  /**
+   * Всегда возвращает результат, чтобы resolver не оставался без высоты.
+   */
+  public resolve(input: SurfaceHeightRequest, _context?: SurfaceHeightResolverContext): SurfaceHeightResult {
+    return {
+      y: input.fallbackY ?? input.position.y,
+      source: this.source,
+      storyIndex: input.storyIndex
+    };
+  }
+}
+
+/**
+ * Политика включения debug-логов surface height.
+ */
+export class SurfaceHeightDebugPolicy {
+  private readonly storageKey: string;
+
+  public constructor(storageKey = "sillyrpg.debug.surfaceHeight") {
+    this.storageKey = storageKey;
+  }
+
+  /**
+   * Проверяет localStorage, не выбрасывая ошибки в headless/test окружениях.
+   */
+  public isEnabled(): boolean {
+    try {
+      return globalThis.localStorage?.getItem(this.storageKey) === "1";
+    } catch {
+      return false;
+    }
+  }
+}
+
+/**
+ * Logger diagnostic events для SurfaceHeightResolver.
+ */
+export class SurfaceHeightDebugLogger {
+  private readonly debugPolicy: SurfaceHeightDebugPolicy;
   private lastDebugKey: string | null;
 
-  public constructor(
-    gridRuntime: Pick<RectGridRuntime, "getMergedStoryYByStory" | "getGrid">,
-    terrainSurfaceRegistry: Pick<TerrainSurfaceRegistry, "sampleWorldHeight">
-  ) {
-    this.gridRuntime = gridRuntime;
-    this.terrainSurfaceRegistry = terrainSurfaceRegistry;
+  public constructor(debugPolicy = new SurfaceHeightDebugPolicy()) {
+    this.debugPolicy = debugPolicy;
     this.lastDebugKey = null;
   }
 
-  public resolveY(input: SurfaceHeightRequest): SurfaceHeightResult {
-    const storyY = this.gridRuntime.getMergedStoryYByStory().get(input.storyIndex) ?? this.gridRuntime.getGrid().getOrigin().y;
-    const terrainY = input.storyIndex === 0
-      ? this.terrainSurfaceRegistry.sampleWorldHeight(input.position.x, input.position.z)
-      : null;
-
-    const result = terrainY !== null
-      ? { y: terrainY, source: "terrain-heightfield" as const, storyIndex: input.storyIndex }
-      : Number.isFinite(storyY)
-        ? { y: storyY, source: "navigation-story" as const, storyIndex: input.storyIndex }
-        : { y: input.fallbackY ?? input.position.y, source: "fallback" as const, storyIndex: input.storyIndex };
-
-    this.debugLog(result, input);
-    return result;
-  }
-
-  public resolveGroundedPosition(input: SurfaceHeightRequest & { footOffset?: number }): Vector3 {
-    const resolved = this.resolveY(input);
-    return new Vector3(
-      input.position.x,
-      resolved.y + (input.footOffset ?? 0),
-      input.position.z
-    );
-  }
-
-  private debugLog(result: SurfaceHeightResult, input: SurfaceHeightRequest): void {
-    if (!isSurfaceHeightDebugEnabled()) {
+  /**
+   * Логирует только новые состояния, чтобы не шуметь одинаковыми кадрами.
+   */
+  public log(result: SurfaceHeightResult, input: SurfaceHeightRequest): void {
+    if (!this.debugPolicy.isEnabled()) {
       return;
     }
 
@@ -79,10 +183,68 @@ export class SurfaceHeightResolver {
   }
 }
 
-function isSurfaceHeightDebugEnabled(): boolean {
-  try {
-    return globalThis.localStorage?.getItem("sillyrpg.debug.surfaceHeight") === "1";
-  } catch {
-    return false;
+/**
+ * Facade выбора высоты поверхности для gameplay navigation.
+ *
+ * Класс использует Chain of Responsibility: стратегии вызываются по порядку и
+ * первая успешная возвращает SurfaceHeightResult. Так terrain, navigation story
+ * и fallback остаются независимыми объектами, но внешний код получает один API.
+ */
+export class SurfaceHeightResolver {
+  private readonly context: SurfaceHeightResolverContext;
+  private readonly strategies: readonly SurfaceHeightStrategy[];
+  private readonly fallbackStrategy: FallbackSurfaceHeightStrategy;
+  private readonly debugLogger: SurfaceHeightDebugLogger;
+
+  public constructor(
+    gridRuntime: Pick<RectGridRuntime, "getMergedStoryYByStory" | "getGrid">,
+    terrainSurfaceRegistry: Pick<TerrainSurfaceRegistry, "sampleWorldHeight">,
+    strategies: readonly SurfaceHeightStrategy[] = [
+      new TerrainHeightfieldSurfaceStrategy(),
+      new NavigationStorySurfaceStrategy(),
+      new FallbackSurfaceHeightStrategy()
+    ],
+    debugLogger = new SurfaceHeightDebugLogger(),
+    fallbackStrategy = new FallbackSurfaceHeightStrategy()
+  ) {
+    this.context = {
+      gridRuntime,
+      terrainSurfaceRegistry
+    };
+    this.strategies = strategies;
+    this.debugLogger = debugLogger;
+    this.fallbackStrategy = fallbackStrategy;
+  }
+
+  /**
+   * Возвращает высоту поверхности по приоритетной цепочке стратегий.
+   */
+  public resolveY(input: SurfaceHeightRequest): SurfaceHeightResult {
+    const result = this.resolveFromStrategies(input);
+    this.debugLogger.log(result, input);
+    return result;
+  }
+
+  /**
+   * Возвращает grounded world position с дополнительным foot offset.
+   */
+  public resolveGroundedPosition(input: SurfaceHeightRequest & { footOffset?: number }): Vector3 {
+    const resolved = this.resolveY(input);
+    return new Vector3(
+      input.position.x,
+      resolved.y + (input.footOffset ?? 0),
+      input.position.z
+    );
+  }
+
+  private resolveFromStrategies(input: SurfaceHeightRequest): SurfaceHeightResult {
+    for (const strategy of this.strategies) {
+      const result = strategy.resolve(input, this.context);
+      if (result) {
+        return result;
+      }
+    }
+
+    return this.fallbackStrategy.resolve(input, this.context);
   }
 }

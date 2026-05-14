@@ -1,6 +1,7 @@
 import { TerrainGenerator } from "../../../src/core/world/terrain/TerrainGenerator";
 import { WORLD_GRID_ORIGIN_Y, WORLD_VERTICAL_TILE_SIZE } from "../../../src/core/grid/WorldGridConstants";
-import { createGeneratedTerrainDescriptorFromPreset } from "../../../src/core/world/terrain/TerrainGeneratorPresets";
+import { TerrainGeneratorPresetCatalog } from "../../../src/core/world/terrain/TerrainGeneratorPresets";
+const terrainPresetCatalog = new TerrainGeneratorPresetCatalog();
 
 function assert(condition: boolean, message: string): void {
   if (!condition) {
@@ -15,7 +16,7 @@ function assertClose(actual: number, expected: number, message: string): void {
 
 function testSameSeedProducesSameHeights(): void {
   const generator = new TerrainGenerator();
-  const descriptor = createGeneratedTerrainDescriptorFromPreset({ presetId: "soft-hills", seed: 1234 });
+  const descriptor = terrainPresetCatalog.createDescriptor({ presetId: "soft-hills", seed: 1234 });
   const first = generator.generate(descriptor);
   const second = generator.generate(descriptor);
 
@@ -27,8 +28,8 @@ function testSameSeedProducesSameHeights(): void {
 
 function testDifferentSeedChangesTerrain(): void {
   const generator = new TerrainGenerator();
-  const first = generator.generate(createGeneratedTerrainDescriptorFromPreset({ presetId: "soft-hills", seed: 111 }));
-  const second = generator.generate(createGeneratedTerrainDescriptorFromPreset({ presetId: "soft-hills", seed: 222 }));
+  const first = generator.generate(terrainPresetCatalog.createDescriptor({ presetId: "soft-hills", seed: 111 }));
+  const second = generator.generate(terrainPresetCatalog.createDescriptor({ presetId: "soft-hills", seed: 222 }));
 
   let differenceCount = 0;
   for (let index = 0; index < first.heights.length; index += 1) {
@@ -42,14 +43,14 @@ function testDifferentSeedChangesTerrain(): void {
 
 function testFlatPresetStaysNearFlat(): void {
   const generator = new TerrainGenerator();
-  const field = generator.generate(createGeneratedTerrainDescriptorFromPreset({ presetId: "flat-gray", seed: 77 }));
+  const field = generator.generate(terrainPresetCatalog.createDescriptor({ presetId: "flat-gray", seed: 77 }));
   assert(field.maxHeight - field.minHeight < 0.5, "Flat preset should stay near-flat.");
 }
 
 function testSoftHillsHaveVisibleRange(): void {
   const generator = new TerrainGenerator();
   const field = generator.generate(
-    createGeneratedTerrainDescriptorFromPreset({
+    terrainPresetCatalog.createDescriptor({
       presetId: "soft-hills",
       seed: 91,
       size: [400, 400],
@@ -62,7 +63,7 @@ function testSoftHillsHaveVisibleRange(): void {
 function testRockyRidgesHaveLargeRange(): void {
   const generator = new TerrainGenerator();
   const field = generator.generate(
-    createGeneratedTerrainDescriptorFromPreset({
+    terrainPresetCatalog.createDescriptor({
       presetId: "rocky-ridges",
       seed: 92,
       size: [400, 400],
@@ -75,7 +76,7 @@ function testRockyRidgesHaveLargeRange(): void {
 function testMountainsHaveVeryLargeRange(): void {
   const generator = new TerrainGenerator();
   const field = generator.generate(
-    createGeneratedTerrainDescriptorFromPreset({
+    terrainPresetCatalog.createDescriptor({
       presetId: "mountains",
       seed: 93,
       size: [400, 400],
@@ -87,7 +88,7 @@ function testMountainsHaveVeryLargeRange(): void {
 
 function testUnknownStrategyFallsBackDeterministically(): void {
   const generator = new TerrainGenerator();
-  const descriptor = createGeneratedTerrainDescriptorFromPreset({ presetId: "urban-pad", seed: 909 });
+  const descriptor = terrainPresetCatalog.createDescriptor({ presetId: "urban-pad", seed: 909 });
   const withUnknownStrategy = {
     ...descriptor,
     generator: {
@@ -106,7 +107,7 @@ function testUnknownStrategyFallsBackDeterministically(): void {
 function testGeneratedHeightsAreQuantizedToVerticalGrid(): void {
   const generator = new TerrainGenerator();
   const field = generator.generate(
-    createGeneratedTerrainDescriptorFromPreset({
+    terrainPresetCatalog.createDescriptor({
       presetId: "rocky-ridges",
       seed: 404,
       size: [400, 400],

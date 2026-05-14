@@ -6,9 +6,12 @@ import { TerrainNormalBuilder } from "../../../src/core/world/terrain/TerrainNor
 import { TerrainQuadtreeLodBuilder } from "../../../src/core/world/terrain/lod/TerrainQuadtreeLodBuilder";
 import { TerrainQuadtreePatchMeshBuilder } from "../../../src/core/world/terrain/lod/TerrainQuadtreePatchMeshBuilder";
 import {
-  resolveNativeMaxDepth,
-  resolveTerrainQuadtreeLodDescriptor
+  TerrainNativeLodDepthResolver,
+  TerrainQuadtreeLodDescriptorResolver
 } from "../../../src/core/world/terrain/lod/TerrainQuadtreeLodTypes";
+
+const nativeLodDepthResolver = new TerrainNativeLodDepthResolver();
+const quadtreeLodDescriptorResolver = new TerrainQuadtreeLodDescriptorResolver();
 
 function assert(condition: boolean, message: string): void {
   if (!condition) {
@@ -346,14 +349,14 @@ function readNormal(normals: readonly number[], vertexIndex: number): Vector3 {
 }
 
 function testNativeMaxDepthResolvesFromHeightfield(): void {
-  assert(resolveNativeMaxDepth(TerrainHeightField.createFilled(400, 400, 65, 65, 0)) === 6, "65x65 should resolve native max depth 6.");
-  assert(resolveNativeMaxDepth(TerrainHeightField.createFilled(400, 400, 257, 257, 0)) === 8, "257x257 should resolve native max depth 8.");
+  assert(nativeLodDepthResolver.resolve(TerrainHeightField.createFilled(400, 400, 65, 65, 0)) === 6, "65x65 should resolve native max depth 6.");
+  assert(nativeLodDepthResolver.resolve(TerrainHeightField.createFilled(400, 400, 257, 257, 0)) === 8, "257x257 should resolve native max depth 8.");
 }
 
 function testQuadtreeSelectionRefinesNearAnchor(): void {
   const field = TerrainHeightField.createFilled(400, 400, 65, 65, 0);
   const builder = new TerrainQuadtreeLodBuilder();
-  const descriptor = resolveTerrainQuadtreeLodDescriptor(undefined, field);
+  const descriptor = quadtreeLodDescriptorResolver.resolve(undefined, field);
   const root = builder.buildRoot(field, descriptor.maxDepth);
   const leaves = builder.selectVisibleLeaves(root, Vector3.Zero(), descriptor, field);
   const maxDepth = leaves.reduce((currentMax, leaf) => Math.max(currentMax, leaf.node.depth), 0);
@@ -375,7 +378,7 @@ function testQuadtreeSelectionRefinesNearAnchor(): void {
 function testQuadtreeSelectionKeepsLargeTerrainPatchCountReasonable(): void {
   const field = TerrainHeightField.createFilled(1024, 1024, 257, 257, 0);
   const builder = new TerrainQuadtreeLodBuilder();
-  const descriptor = resolveTerrainQuadtreeLodDescriptor(undefined, field);
+  const descriptor = quadtreeLodDescriptorResolver.resolve(undefined, field);
   const root = builder.buildRoot(field, descriptor.maxDepth);
   const leaves = builder.selectVisibleLeaves(root, Vector3.Zero(), descriptor, field);
   const depths = new Set(leaves.map((leaf) => leaf.node.depth));

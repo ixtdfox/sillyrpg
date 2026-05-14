@@ -2,9 +2,15 @@ import type { TerrainGenerationStrategy } from "../TerrainGenerationStrategy";
 import type { TerrainGenerationContext } from "../TerrainGenerationContext";
 import { TerrainHeightField } from "../TerrainHeightField";
 
+/**
+ * Базовая fractal-noise стратегия холмистой поверхности.
+ */
 export class NoiseTerrainStrategy implements TerrainGenerationStrategy {
   public readonly id = "noise";
 
+  /**
+   * Генерирует primary/secondary noise blend для мягкого рельефа.
+   */
   public generate(context: TerrainGenerationContext): TerrainHeightField {
     const heights = new Float32Array(context.resolutionX * context.resolutionZ);
     for (let iz = 0; iz < context.resolutionZ; iz += 1) {

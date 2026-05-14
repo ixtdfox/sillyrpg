@@ -1,6 +1,7 @@
 import { MeshBuilder, NullEngine, Scene, TransformNode, Vector3 } from "@babylonjs/core";
 import { adoptImportedSceneNodes, importSceneTerrainContent } from "../../../src/core/world/scene/SceneContentLoader";
-import { createGeneratedTerrainDescriptorFromPreset } from "../../../src/core/world/terrain/TerrainGeneratorPresets";
+import { TerrainGeneratorPresetCatalog } from "../../../src/core/world/terrain/TerrainGeneratorPresets";
+const terrainPresetCatalog = new TerrainGeneratorPresetCatalog();
 
 function assert(condition: boolean, message: string): void {
   if (!condition) {
@@ -62,7 +63,7 @@ async function testGeneratedTerrainContentCreatesPickableMesh(): Promise<void> {
   const engine = new NullEngine();
   const scene = new Scene(engine);
   const parent = new TransformNode("parent", scene);
-  const descriptor = createGeneratedTerrainDescriptorFromPreset({ presetId: "urban-pad", seed: 55 });
+  const descriptor = terrainPresetCatalog.createDescriptor({ presetId: "urban-pad", seed: 55 });
   const result = await importSceneTerrainContent(scene, descriptor, parent, "test");
   assert(result.renderableMeshes.length === 1, "Generated terrain should create one renderable mesh.");
   const mesh = result.renderableMeshes[0];
@@ -77,7 +78,7 @@ async function testGeneratedTerrainRuntimeDefaultCreatesLodController(): Promise
   const engine = new NullEngine();
   const scene = new Scene(engine);
   const parent = new TransformNode("parent", scene);
-  const descriptor = createGeneratedTerrainDescriptorFromPreset({ presetId: "urban-pad", seed: 55, resolution: [65, 65] });
+  const descriptor = terrainPresetCatalog.createDescriptor({ presetId: "urban-pad", seed: 55, resolution: [65, 65] });
   const result = await importSceneTerrainContent(scene, descriptor, parent, "test", {
     generatedTerrainVisualMode: "runtime"
   });
@@ -95,7 +96,7 @@ async function testGeneratedTerrainRuntimeLodKeepsCanonicalSurfaceSeparate(): Pr
   const scene = new Scene(engine);
   const parent = new TransformNode("parent", scene);
   const descriptor = {
-    ...createGeneratedTerrainDescriptorFromPreset({ presetId: "urban-pad", seed: 55, resolution: [65, 65] }),
+    ...terrainPresetCatalog.createDescriptor({ presetId: "urban-pad", seed: 55, resolution: [65, 65] }),
     lod: {
       enabled: true,
       strategy: "quadtree" as const,
@@ -144,7 +145,7 @@ async function testGeneratedTerrainRuntimeLodDisabledUsesOnlyCanonicalSurface():
   const scene = new Scene(engine);
   const parent = new TransformNode("parent", scene);
   const descriptor = {
-    ...createGeneratedTerrainDescriptorFromPreset({ presetId: "urban-pad", seed: 55, resolution: [65, 65] }),
+    ...terrainPresetCatalog.createDescriptor({ presetId: "urban-pad", seed: 55, resolution: [65, 65] }),
     lod: {
       enabled: false
     }
@@ -166,7 +167,7 @@ async function testGeneratedTerrainContentUsesEditedHeightMap(): Promise<void> {
   const scene = new Scene(engine);
   const parent = new TransformNode("parent", scene);
   const descriptor = {
-    ...createGeneratedTerrainDescriptorFromPreset({ presetId: "urban-pad", seed: 55, size: [8, 8], resolution: [9, 9] }),
+    ...terrainPresetCatalog.createDescriptor({ presetId: "urban-pad", seed: 55, size: [8, 8], resolution: [9, 9] }),
     editedHeightMap: {
       encoding: "array" as const,
       resolution: [9, 9] as const,
