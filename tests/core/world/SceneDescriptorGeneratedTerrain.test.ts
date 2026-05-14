@@ -321,6 +321,104 @@ function testParserAcceptsEditedTextureMap(): void {
   );
 }
 
+function testParserAcceptsGeneratedTerrainLodDescriptor(): void {
+  const descriptor = parseSceneDescriptor(
+    {
+      schemaVersion: 2,
+      id: "lod-terrain-scene",
+      terrain: {
+        id: "terrain-0",
+        kind: "generated",
+        size: [40, 40],
+        resolution: [65, 65],
+        generator: {
+          preset: "urban-pad",
+          seed: 1,
+          height: {
+            base: 0,
+            amplitude: 1,
+            frequency: 0.1,
+            octaves: 3,
+            persistence: 0.4,
+            lacunarity: 2
+          }
+        },
+        lod: {
+          enabled: true,
+          strategy: "quadtree",
+          maxDepth: 4,
+          targetPatchQuads: 8,
+          nearFullResolutionPatchQuads: 4,
+          nearFullResolutionRadius: 48,
+          lodRings: [
+            { distance: 48, maxSampleStep: 1 },
+            { distance: 96, maxSampleStep: 2 },
+            { distance: 180, maxSampleStep: 4 },
+            { distance: 320, maxSampleStep: 8 }
+          ],
+          updateIntervalSeconds: 0.15,
+          skirtDepth: 2,
+          debug: false
+        }
+      },
+      objects: []
+    },
+    "lod terrain"
+  );
+
+  assert(descriptor.terrain?.kind === "generated", "Expected generated terrain kind.");
+  assert(
+    descriptor.terrain?.kind === "generated" &&
+      descriptor.terrain.lod?.strategy === "quadtree" &&
+      descriptor.terrain.lod.targetPatchQuads === 8 &&
+      descriptor.terrain.lod.nearFullResolutionPatchQuads === 4,
+    "Expected quadtree terrain LOD descriptor to parse."
+  );
+}
+
+function testParserRejectsUnsortedGeneratedTerrainLodRings(): void {
+  let threw = false;
+  try {
+    parseSceneDescriptor(
+      {
+        schemaVersion: 2,
+        id: "bad-lod-terrain-scene",
+        terrain: {
+          id: "terrain-0",
+          kind: "generated",
+          size: [40, 40],
+          resolution: [65, 65],
+          generator: {
+            preset: "urban-pad",
+            seed: 1,
+            height: {
+              base: 0,
+              amplitude: 1,
+              frequency: 0.1,
+              octaves: 3,
+              persistence: 0.4,
+              lacunarity: 2
+            }
+          },
+          lod: {
+            strategy: "quadtree",
+            lodRings: [
+              { distance: 90, maxSampleStep: 2 },
+              { distance: 45, maxSampleStep: 1 }
+            ]
+          }
+        },
+        objects: []
+      },
+      "bad lod terrain"
+    );
+  } catch (error) {
+    threw = (error as Error).message.includes("sorted");
+  }
+
+  assert(threw, "Expected unsorted LOD rings to throw.");
+}
+
 function testParserRejectsUnsafeBakedTexturePath(): void {
   let threw = false;
   try {
@@ -453,6 +551,8 @@ function run(): void {
   testParserAcceptsEditedHeightMap();
   testParserAcceptsBakedTextureTerrainMaterial();
   testParserAcceptsEditedTextureMap();
+  testParserAcceptsGeneratedTerrainLodDescriptor();
+  testParserRejectsUnsortedGeneratedTerrainLodRings();
   testParserRejectsUnsafeBakedTexturePath();
   testParserRejectsUnsafeEditedTextureMapPath();
   testParserRejectsMismatchedEditedHeightMapResolution();

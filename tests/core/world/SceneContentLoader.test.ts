@@ -52,6 +52,9 @@ function testAdoptImportedSceneNodesPreservesLocalImportedTransforms(): void {
 async function run(): Promise<void> {
   testAdoptImportedSceneNodesPreservesLocalImportedTransforms();
   await testGeneratedTerrainContentCreatesPickableMesh();
+  await testGeneratedTerrainRuntimeDefaultCreatesLodController();
+  await testGeneratedTerrainRuntimeLodKeepsCanonicalSurfaceSeparate();
+  await testGeneratedTerrainRuntimeLodDisabledUsesOnlyCanonicalSurface();
   await testGeneratedTerrainContentUsesEditedHeightMap();
 }
 
@@ -65,6 +68,95 @@ async function testGeneratedTerrainContentCreatesPickableMesh(): Promise<void> {
   const mesh = result.renderableMeshes[0];
   assert(mesh?.isPickable === true, "Generated terrain mesh should be pickable.");
   assert(mesh?.metadata?.editorTerrain === true, "Generated terrain mesh should carry editorTerrain metadata.");
+  assert(result.terrainLodControllers.length === 0, "Editor/default generated terrain import should not create LOD controllers.");
+  scene.dispose();
+  engine.dispose();
+}
+
+async function testGeneratedTerrainRuntimeDefaultCreatesLodController(): Promise<void> {
+  const engine = new NullEngine();
+  const scene = new Scene(engine);
+  const parent = new TransformNode("parent", scene);
+  const descriptor = createGeneratedTerrainDescriptorFromPreset({ presetId: "urban-pad", seed: 55, resolution: [65, 65] });
+  const result = await importSceneTerrainContent(scene, descriptor, parent, "test", {
+    generatedTerrainVisualMode: "runtime"
+  });
+
+  assert(result.renderableMeshes.length === 1, "Runtime default generated terrain should still expose canonical renderable mesh before update.");
+  assert(result.terrainSurfaceMeshes.length === 1, "Runtime default terrain surfaces should contain only canonical mesh.");
+  assert(result.terrainLodControllers.length === 1, "Runtime default generated terrain should create a terrain LOD controller.");
+
+  scene.dispose();
+  engine.dispose();
+}
+
+async function testGeneratedTerrainRuntimeLodKeepsCanonicalSurfaceSeparate(): Promise<void> {
+  const engine = new NullEngine();
+  const scene = new Scene(engine);
+  const parent = new TransformNode("parent", scene);
+  const descriptor = {
+    ...createGeneratedTerrainDescriptorFromPreset({ presetId: "urban-pad", seed: 55, resolution: [65, 65] }),
+    lod: {
+      enabled: true,
+      strategy: "quadtree" as const,
+      maxDepth: 2,
+      targetPatchQuads: 16,
+      nearFullResolutionRadius: 20,
+      lodRings: [
+        { distance: 20, maxSampleStep: 1 },
+        { distance: 40, maxSampleStep: 2 }
+      ],
+      updateIntervalSeconds: 0.05,
+      skirtDepth: 1
+    }
+  };
+  const result = await importSceneTerrainContent(scene, descriptor, parent, "test", {
+    generatedTerrainVisualMode: "runtime"
+  });
+
+  assert(result.renderableMeshes.length === 1, "Runtime LOD import should initially expose only the canonical mesh.");
+  assert(result.terrainSurfaceMeshes.length === 1, "Runtime LOD terrain surfaces should contain the canonical mesh.");
+  assert(result.terrainLodControllers.length === 1, "Runtime LOD import should create a terrain LOD controller.");
+
+  const canonicalMesh = result.terrainSurfaceMeshes[0];
+  assert(canonicalMesh?.isPickable === true, "Canonical generated terrain should remain pickable.");
+  assert(canonicalMesh?.metadata?.terrainSurfaceCanonical === true, "Canonical terrain should be explicitly marked.");
+
+  result.terrainLodControllers[0]?.update(1, {
+    position: new Vector3(0, 0, 0),
+    source: "player"
+  });
+
+  const visualMeshes = scene.meshes.filter((mesh) => mesh.metadata?.terrainVisualOnly === true);
+  assert(visualMeshes.length > 0, "Runtime LOD update should create visual-only patch meshes.");
+  assert(visualMeshes.every((mesh) => mesh.isPickable === false), "Visual LOD patch meshes must not be pickable.");
+  assert(
+    visualMeshes.every((mesh) => mesh.metadata?.generatedTerrainHeightField === undefined),
+    "Visual LOD patch meshes must not carry terrain surface heightfield metadata."
+  );
+
+  scene.dispose();
+  engine.dispose();
+}
+
+async function testGeneratedTerrainRuntimeLodDisabledUsesOnlyCanonicalSurface(): Promise<void> {
+  const engine = new NullEngine();
+  const scene = new Scene(engine);
+  const parent = new TransformNode("parent", scene);
+  const descriptor = {
+    ...createGeneratedTerrainDescriptorFromPreset({ presetId: "urban-pad", seed: 55, resolution: [65, 65] }),
+    lod: {
+      enabled: false
+    }
+  };
+  const result = await importSceneTerrainContent(scene, descriptor, parent, "test", {
+    generatedTerrainVisualMode: "runtime"
+  });
+
+  assert(result.renderableMeshes.length === 1, "Runtime LOD-disabled generated terrain should create one renderable mesh.");
+  assert(result.terrainSurfaceMeshes.length === 1, "LOD-disabled terrain surfaces should contain the canonical mesh.");
+  assert(result.terrainLodControllers.length === 0, "LOD-disabled generated terrain should not create a controller.");
+
   scene.dispose();
   engine.dispose();
 }

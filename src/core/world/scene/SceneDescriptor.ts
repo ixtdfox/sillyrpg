@@ -45,6 +45,28 @@ export type SceneGeneratedTerrainMaterialDescriptor =
   | SceneGeneratedTerrainHeightBandsMaterialDescriptor
   | SceneGeneratedTerrainBakedTextureMaterialDescriptor;
 
+export interface SceneGeneratedTerrainLodDescriptor {
+  readonly enabled?: boolean;
+  readonly strategy?: "quadtree";
+  readonly maxDepth?: number;
+  readonly targetPatchQuads?: number;
+  readonly nearFullResolutionPatchQuads?: number;
+  readonly nearFullResolutionRadius?: number;
+  readonly lodRings?: readonly SceneGeneratedTerrainLodRingDescriptor[];
+  /** @deprecated Use targetPatchQuads. */
+  readonly basePatchQuads?: number;
+  /** @deprecated Use lodRings. */
+  readonly splitDistances?: readonly number[];
+  readonly updateIntervalSeconds?: number;
+  readonly skirtDepth?: number;
+  readonly debug?: boolean;
+}
+
+export interface SceneGeneratedTerrainLodRingDescriptor {
+  readonly distance: number;
+  readonly maxSampleStep: number;
+}
+
 export interface SceneGeneratedTerrainEditedHeightMap {
   readonly encoding: "array";
   readonly resolution: SceneVector2Tuple;
@@ -116,6 +138,7 @@ export interface SceneGeneratedTerrainDescriptor {
   readonly normalMode?: SceneTerrainNormalMode;
   readonly generator: SceneTerrainGeneratorDescriptor;
   readonly material?: SceneGeneratedTerrainMaterialDescriptor;
+  readonly lod?: SceneGeneratedTerrainLodDescriptor;
   readonly editedHeightMap?: SceneGeneratedTerrainEditedHeightMap;
   readonly editedTextureMap?: SceneGeneratedTerrainEditedTextureMap;
 }
@@ -285,8 +308,67 @@ function parseGeneratedTerrainDescriptor(
     normalMode: parseTerrainNormalMode(record.normalMode, `${sourceLabel}.normalMode`),
     generator: parseTerrainGeneratorDescriptor(record.generator, `${sourceLabel}.generator`),
     material: parseGeneratedTerrainMaterial(record.material, `${sourceLabel}.material`),
+    lod: parseGeneratedTerrainLodDescriptor(record.lod, `${sourceLabel}.lod`),
     editedHeightMap: parseGeneratedTerrainEditedHeightMap(record.editedHeightMap, resolution, `${sourceLabel}.editedHeightMap`),
     editedTextureMap: parseGeneratedTerrainEditedTextureMap(record.editedTextureMap, `${sourceLabel}.editedTextureMap`)
+  };
+}
+
+function parseGeneratedTerrainLodDescriptor(
+  value: unknown,
+  sourceLabel: string
+): SceneGeneratedTerrainLodDescriptor | undefined {
+  if (value === undefined) {
+    return undefined;
+  }
+
+  const record = requireRecord(value, `${sourceLabel} must be an object.`);
+  const strategy = parseGeneratedTerrainLodStrategy(record.strategy, `${sourceLabel}.strategy`);
+
+  return {
+    enabled: optionalBoolean(record.enabled, `${sourceLabel}.enabled must be a boolean if provided.`),
+    strategy,
+    maxDepth:
+      record.maxDepth === undefined
+        ? undefined
+        : parseFiniteIntegerInRange(record.maxDepth, `${sourceLabel}.maxDepth`, 0, 8),
+    targetPatchQuads:
+      record.targetPatchQuads === undefined
+        ? undefined
+        : parseFiniteIntegerInRange(record.targetPatchQuads, `${sourceLabel}.targetPatchQuads`, 1, 128),
+    nearFullResolutionPatchQuads:
+      record.nearFullResolutionPatchQuads === undefined
+        ? undefined
+        : parseFiniteIntegerInRange(
+            record.nearFullResolutionPatchQuads,
+            `${sourceLabel}.nearFullResolutionPatchQuads`,
+            1,
+            128
+          ),
+    nearFullResolutionRadius:
+      record.nearFullResolutionRadius === undefined
+        ? undefined
+        : parseFiniteNumberInRange(
+            record.nearFullResolutionRadius,
+            `${sourceLabel}.nearFullResolutionRadius`,
+            0.0001,
+            Number.POSITIVE_INFINITY
+          ),
+    lodRings: parseGeneratedTerrainLodRings(record.lodRings, `${sourceLabel}.lodRings`),
+    basePatchQuads:
+      record.basePatchQuads === undefined
+        ? undefined
+        : parseFiniteIntegerInRange(record.basePatchQuads, `${sourceLabel}.basePatchQuads`, 8, 128),
+    splitDistances: parseGeneratedTerrainLodSplitDistances(record.splitDistances, `${sourceLabel}.splitDistances`),
+    updateIntervalSeconds:
+      record.updateIntervalSeconds === undefined
+        ? undefined
+        : parseFiniteNumberInRange(record.updateIntervalSeconds, `${sourceLabel}.updateIntervalSeconds`, 0.05, 2),
+    skirtDepth:
+      record.skirtDepth === undefined
+        ? undefined
+        : parseFiniteNumberInRange(record.skirtDepth, `${sourceLabel}.skirtDepth`, 0, Number.POSITIVE_INFINITY),
+    debug: optionalBoolean(record.debug, `${sourceLabel}.debug must be a boolean if provided.`)
   };
 }
 
@@ -691,6 +773,81 @@ function parseTerrainNormalMode(value: unknown, sourceLabel: string): SceneTerra
   }
 
   return value;
+}
+
+function parseGeneratedTerrainLodStrategy(value: unknown, sourceLabel: string): "quadtree" | undefined {
+  if (value === undefined) {
+    return undefined;
+  }
+
+  if (value !== "quadtree") {
+    throw new Error(`${sourceLabel} must be 'quadtree'.`);
+  }
+
+  return value;
+}
+
+function parseGeneratedTerrainLodSplitDistances(
+  value: unknown,
+  sourceLabel: string
+): readonly number[] | undefined {
+  if (value === undefined) {
+    return undefined;
+  }
+
+  if (!Array.isArray(value) || value.length === 0) {
+    throw new Error(`${sourceLabel} must be a non-empty sorted array of positive numbers.`);
+  }
+
+  const distances = value.map((entry, index) =>
+    parseFiniteNumberInRange(entry, `${sourceLabel}[${index}]`, 0.0001, Number.POSITIVE_INFINITY)
+  );
+  for (let index = 1; index < distances.length; index += 1) {
+    if ((distances[index] ?? 0) < (distances[index - 1] ?? 0)) {
+      throw new Error(`${sourceLabel} must be sorted in ascending order.`);
+    }
+  }
+
+  return distances;
+}
+
+function parseGeneratedTerrainLodRings(
+  value: unknown,
+  sourceLabel: string
+): readonly SceneGeneratedTerrainLodRingDescriptor[] | undefined {
+  if (value === undefined) {
+    return undefined;
+  }
+
+  if (!Array.isArray(value) || value.length === 0) {
+    throw new Error(`${sourceLabel} must be a non-empty sorted array.`);
+  }
+
+  const rings = value.map((item, index) => {
+    const record = requireRecord(item, `${sourceLabel}[${index}] must be an object.`);
+    return {
+      distance: parseFiniteNumberInRange(
+        record.distance,
+        `${sourceLabel}[${index}].distance`,
+        0.0001,
+        Number.POSITIVE_INFINITY
+      ),
+      maxSampleStep: parseFiniteIntegerInRange(
+        record.maxSampleStep,
+        `${sourceLabel}[${index}].maxSampleStep`,
+        1,
+        128
+      )
+    };
+  });
+
+  for (let index = 1; index < rings.length; index += 1) {
+    if ((rings[index]?.distance ?? 0) < (rings[index - 1]?.distance ?? 0)) {
+      throw new Error(`${sourceLabel} must be sorted in ascending distance order.`);
+    }
+  }
+
+  return rings;
 }
 
 function requireRecord(value: unknown, errorMessage: string): Record<string, unknown> {

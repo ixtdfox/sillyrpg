@@ -1,7 +1,14 @@
-import { NullEngine, Scene, StandardMaterial } from "@babylonjs/core";
+import { NullEngine, Scene, StandardMaterial, Vector3 } from "@babylonjs/core";
 import { TerrainHeightField } from "../../../src/core/world/terrain/TerrainHeightField";
+import { TerrainHeightFieldNormalSampler } from "../../../src/core/world/terrain/TerrainHeightFieldNormalSampler";
 import { TerrainMeshBuilder } from "../../../src/core/world/terrain/TerrainMeshBuilder";
 import { TerrainNormalBuilder } from "../../../src/core/world/terrain/TerrainNormalBuilder";
+import { TerrainQuadtreeLodBuilder } from "../../../src/core/world/terrain/lod/TerrainQuadtreeLodBuilder";
+import { TerrainQuadtreePatchMeshBuilder } from "../../../src/core/world/terrain/lod/TerrainQuadtreePatchMeshBuilder";
+import {
+  resolveNativeMaxDepth,
+  resolveTerrainQuadtreeLodDescriptor
+} from "../../../src/core/world/terrain/lod/TerrainQuadtreeLodTypes";
 
 function assert(condition: boolean, message: string): void {
   if (!condition) {
@@ -12,6 +19,12 @@ function assert(condition: boolean, message: string): void {
 function assertClose(actual: number, expected: number, message: string): void {
   const epsilon = 1e-6;
   assert(Math.abs(actual - expected) <= epsilon, `${message}: expected ${expected}, received ${actual}`);
+}
+
+function assertVectorClose(actual: Vector3, expected: Vector3, message: string): void {
+  assertClose(actual.x, expected.x, `${message} X`);
+  assertClose(actual.y, expected.y, `${message} Y`);
+  assertClose(actual.z, expected.z, `${message} Z`);
 }
 
 function testVertexDataMatchesBabylonGroundOrientation(): void {
@@ -67,6 +80,25 @@ function testNormalsRecomputeAfterEditedHeightFieldRebuild(): void {
     JSON.stringify(flatGeometry.normals) !== JSON.stringify(editedGeometry.normals),
     "Expected terrain normals to change when edited heights are rebuilt."
   );
+}
+
+function testHeightFieldNormalSamplerUsesWorldSpaceSlopes(): void {
+  const field = new TerrainHeightField(
+    2,
+    2,
+    3,
+    3,
+    new Float32Array([
+      2, 3, 4,
+      1, 2, 3,
+      0, 1, 2
+    ])
+  );
+  const normal = new TerrainHeightFieldNormalSampler(field).sampleNormal(1, 1);
+  const expected = new Vector3(-1, 1, -1).normalize();
+
+  assertVectorClose(normal, expected, "Canonical terrain normal should follow world X/Z height slopes.");
+  assert(normal.y > 0, "Canonical terrain normal should face upward.");
 }
 
 function testFlatNormalModeDuplicatesVerticesForFacetedNormals(): void {
@@ -174,9 +206,16 @@ function run(): void {
   testNormalsArrayMatchesPositionsArray();
   testNonFlatTerrainNormalsAreValidAndDirectional();
   testNormalsRecomputeAfterEditedHeightFieldRebuild();
+  testHeightFieldNormalSamplerUsesWorldSpaceSlopes();
   testFlatNormalModeDuplicatesVerticesForFacetedNormals();
   testFlatTerrainMeshBoundsStayOnGroundPlane();
   testBakedTextureTerrainUsesDiffuseTextureMaterial();
+  testQuadtreePatchUsesGlobalUvsAndSkirts();
+  testQuadtreePatchUsesCanonicalNormalsAcrossLodLevelsAndSkirts();
+  testQuadtreePatchSampleStepOneMatchesCanonicalWindingAndMetadata();
+  testNativeMaxDepthResolvesFromHeightfield();
+  testQuadtreeSelectionRefinesNearAnchor();
+  testQuadtreeSelectionKeepsLargeTerrainPatchCountReasonable();
 }
 
 run();
@@ -194,4 +233,205 @@ function createRaisedCenterHeightField(): TerrainHeightField {
       0, 0, 0
     ])
   );
+}
+
+function testQuadtreePatchUsesGlobalUvsAndSkirts(): void {
+  const field = TerrainHeightField.createFilled(8, 8, 9, 9, 0);
+  const root = new TerrainQuadtreeLodBuilder().buildRoot(field, 0);
+  const geometry = new TerrainQuadtreePatchMeshBuilder().buildVertexData(
+    field,
+    root,
+    createFlatTerrainDescriptor(8, 8, 9, 9),
+    1,
+    2
+  );
+  const uvValues = geometry.uvs;
+  const minU = Math.min(...uvValues.filter((_value, index) => index % 2 === 0));
+  const maxU = Math.max(...uvValues.filter((_value, index) => index % 2 === 0));
+  const minV = Math.min(...uvValues.filter((_value, index) => index % 2 === 1));
+  const maxV = Math.max(...uvValues.filter((_value, index) => index % 2 === 1));
+  const yValues = geometry.positions.filter((_value, index) => index % 3 === 1);
+
+  assertClose(minU, 0, "Patch UVs should keep global minimum U.");
+  assertClose(maxU, 1, "Patch UVs should keep global maximum U.");
+  assertClose(minV, 0, "Patch UVs should keep global minimum V.");
+  assertClose(maxV, 1, "Patch UVs should keep global maximum V.");
+  assert(Math.min(...yValues) <= -2, "Patch skirts should extend below the terrain edge.");
+}
+
+function testQuadtreePatchUsesCanonicalNormalsAcrossLodLevelsAndSkirts(): void {
+  const field = new TerrainHeightField(
+    8,
+    8,
+    5,
+    5,
+    new Float32Array([
+      2, 3, 4, 5, 6,
+      1, 3, 5, 5, 4,
+      0, 2, 6, 4, 2,
+      1, 1, 3, 3, 1,
+      2, 2, 2, 1, 0
+    ])
+  );
+  const root = new TerrainQuadtreeLodBuilder().buildRoot(field, 1);
+  const child = root.children[3]!;
+  const descriptor = createFlatTerrainDescriptor(8, 8, 5, 5);
+  const builder = new TerrainQuadtreePatchMeshBuilder();
+  const sampler = new TerrainHeightFieldNormalSampler(field);
+  const rootGeometryWithoutSkirts = builder.buildVertexData(field, root, descriptor, 2, 0);
+  const rootGeometryWithSkirts = builder.buildVertexData(field, root, descriptor, 2, 1);
+  const childGeometryWithSkirts = builder.buildVertexData(field, child, descriptor, 1, 1);
+  const canonicalNormal = sampler.sampleNormal(2, 2);
+
+  assertVectorClose(
+    readNormal(rootGeometryWithoutSkirts.normals, 4),
+    canonicalNormal,
+    "Root LOD patch should use canonical normal for shared center vertex"
+  );
+  assertVectorClose(
+    readNormal(rootGeometryWithSkirts.normals, 4),
+    canonicalNormal,
+    "Root LOD patch skirt triangles should not alter top vertex normals"
+  );
+  assertVectorClose(
+    readNormal(childGeometryWithSkirts.normals, 0),
+    canonicalNormal,
+    "Child LOD patch should reuse the same canonical normal for the shared vertex"
+  );
+
+  const topVertexCount = 9;
+  for (let vertexIndex = 0; vertexIndex < topVertexCount; vertexIndex += 1) {
+    assertVectorClose(
+      readNormal(rootGeometryWithSkirts.normals, vertexIndex),
+      readNormal(rootGeometryWithoutSkirts.normals, vertexIndex),
+      `Skirts should not change top vertex normal ${vertexIndex}`
+    );
+  }
+}
+
+function testQuadtreePatchSampleStepOneMatchesCanonicalWindingAndMetadata(): void {
+  const engine = new NullEngine();
+  const scene = new Scene(engine);
+  const field = TerrainHeightField.createFilled(2, 2, 2, 2, 0);
+  const root = new TerrainQuadtreeLodBuilder().buildRoot(field, 0);
+  const descriptor = createFlatTerrainDescriptor(2, 2, 2, 2);
+  const builder = new TerrainQuadtreePatchMeshBuilder();
+  const geometry = builder.buildVertexData(field, root, descriptor, 1, 0);
+
+  assert(JSON.stringify(geometry.indices) === JSON.stringify([3, 1, 0, 2, 3, 0]), "Patch winding should match canonical terrain winding.");
+  assertClose(geometry.positions[0] ?? 0, -1, "Patch first vertex X should match canonical coordinates.");
+  assertClose(geometry.positions[2] ?? 0, 1, "Patch first vertex Z should match canonical coordinates.");
+
+  const mesh = builder.buildPatchMesh(scene, {
+    node: root,
+    heightField: field,
+    descriptor,
+    sampleStep: 1,
+    skirtDepth: 0,
+    material: null,
+    name: "test-lod-patch"
+  });
+
+  assert(mesh.isPickable === false, "LOD patch mesh should not be pickable.");
+  assert(mesh.checkCollisions === false, "LOD patch mesh should not participate in collisions.");
+  assert(mesh.metadata?.terrainVisualOnly === true, "LOD patch mesh should be visual-only.");
+  assert(mesh.metadata?.terrainSurfaceCanonical === false, "LOD patch mesh should be non-canonical.");
+  scene.dispose();
+  engine.dispose();
+}
+
+function readNormal(normals: readonly number[], vertexIndex: number): Vector3 {
+  const offset = vertexIndex * 3;
+  return new Vector3(normals[offset] ?? 0, normals[offset + 1] ?? 0, normals[offset + 2] ?? 0);
+}
+
+function testNativeMaxDepthResolvesFromHeightfield(): void {
+  assert(resolveNativeMaxDepth(TerrainHeightField.createFilled(400, 400, 65, 65, 0)) === 6, "65x65 should resolve native max depth 6.");
+  assert(resolveNativeMaxDepth(TerrainHeightField.createFilled(400, 400, 257, 257, 0)) === 8, "257x257 should resolve native max depth 8.");
+}
+
+function testQuadtreeSelectionRefinesNearAnchor(): void {
+  const field = TerrainHeightField.createFilled(400, 400, 65, 65, 0);
+  const builder = new TerrainQuadtreeLodBuilder();
+  const descriptor = resolveTerrainQuadtreeLodDescriptor(undefined, field);
+  const root = builder.buildRoot(field, descriptor.maxDepth);
+  const leaves = builder.selectVisibleLeaves(root, Vector3.Zero(), descriptor, field);
+  const maxDepth = leaves.reduce((currentMax, leaf) => Math.max(currentMax, leaf.node.depth), 0);
+  const nearLeaves = leaves.filter((leaf) => leaf.distanceToAnchor <= descriptor.nearFullResolutionRadius);
+
+  assert(leaves.length > 1, "Quadtree LOD should split visible leaves near the anchor.");
+  assert(maxDepth > 0, "Quadtree LOD should produce more detailed leaves near the anchor.");
+  assert(nearLeaves.length > 0, "Quadtree LOD should produce leaves inside the near full-resolution radius.");
+  assert(nearLeaves.every((leaf) => leaf.sampleStep === 1), "Near quadtree leaves should use source full-resolution sampleStep=1.");
+  assert(
+    nearLeaves.every((leaf) =>
+      Math.max(leaf.node.ix1 - leaf.node.ix0, leaf.node.iz1 - leaf.node.iz0) <=
+      descriptor.nearFullResolutionPatchQuads
+    ),
+    "Near full-resolution leaves should split to the near patch quad budget, not the coarser far patch budget."
+  );
+}
+
+function testQuadtreeSelectionKeepsLargeTerrainPatchCountReasonable(): void {
+  const field = TerrainHeightField.createFilled(1024, 1024, 257, 257, 0);
+  const builder = new TerrainQuadtreeLodBuilder();
+  const descriptor = resolveTerrainQuadtreeLodDescriptor(undefined, field);
+  const root = builder.buildRoot(field, descriptor.maxDepth);
+  const leaves = builder.selectVisibleLeaves(root, Vector3.Zero(), descriptor, field);
+  const depths = new Set(leaves.map((leaf) => leaf.node.depth));
+  const sampleSteps = new Set(leaves.map((leaf) => leaf.sampleStep));
+  const coveredQuadCount = leaves.reduce((sum, leaf) => {
+    const node = leaf.node;
+    assert(node.ix0 >= 0 && node.iz0 >= 0, "Leaf node should not start outside the heightfield.");
+    assert(node.ix1 <= field.resolutionX - 1, "Leaf node X range should not exceed the heightfield.");
+    assert(node.iz1 <= field.resolutionZ - 1, "Leaf node Z range should not exceed the heightfield.");
+    assert(node.ix1 > node.ix0 && node.iz1 > node.iz0, "Leaf node should have a valid non-empty quad range.");
+    return sum + ((node.ix1 - node.ix0) * (node.iz1 - node.iz0));
+  }, 0);
+
+  assert(leaves.length < 1024, "Large terrain LOD should not force every max-depth patch visible.");
+  assert(
+    coveredQuadCount === (field.resolutionX - 1) * (field.resolutionZ - 1),
+    "Selected quadtree leaves should cover the terrain quads without gaps or duplicate quad ranges."
+  );
+  assert(sampleSteps.has(1), "Large terrain LOD should keep full-resolution sampleStep=1 near the anchor.");
+  assert(
+    Array.from(sampleSteps).some((sampleStep) => sampleStep > 1),
+    "Large terrain LOD should use coarser sample steps away from the anchor."
+  );
+  assert(
+    Array.from(depths).some((depth) => depth < descriptor.maxDepth),
+    "Large terrain LOD should keep coarser patches away from the anchor."
+  );
+}
+
+function createFlatTerrainDescriptor(
+  width: number,
+  depth: number,
+  resolutionX: number,
+  resolutionZ: number
+) {
+  return {
+    id: "terrain-0",
+    kind: "generated" as const,
+    size: [width, depth] as const,
+    resolution: [resolutionX, resolutionZ] as const,
+    generator: {
+      preset: "flat-gray",
+      strategy: "flat",
+      seed: 1,
+      height: {
+        base: 0,
+        amplitude: 0,
+        frequency: 0.1,
+        octaves: 1,
+        persistence: 0.5,
+        lacunarity: 2
+      }
+    },
+    material: {
+      kind: "flat" as const,
+      color: "#8D9298"
+    }
+  };
 }

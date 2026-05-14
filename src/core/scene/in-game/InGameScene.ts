@@ -21,6 +21,7 @@ import type { Scene } from "../Scene";
 import { LocationTriggerSystem } from "../../game/trigger/LocationTriggerSystem";
 import { SceneLightingController } from "../../lighting/SceneLightingController";
 import { SceneShadowRegistry } from "../../lighting/SceneShadowRegistry";
+import type { TerrainLodAnchor } from "../../world/terrain/lod/TerrainQuadtreeLodTypes";
 
 /**
  * Implements the in-game scene that loads a default world location district.
@@ -108,6 +109,7 @@ export class InGameScene implements Scene {
       }
     );
     locationTriggerSystem.initialize();
+    let inGameTopPanelUi: InGameTopPanelUi;
     const streamingController = new DistrictSceneStreamingController(
       scene,
       this.entityManager,
@@ -121,11 +123,21 @@ export class InGameScene implements Scene {
         }
         shadowRegistry.registerBatches(this.locationManager.getShadowMeshBatches());
         locationTriggerSystem.refresh();
+        inGameTopPanelUi.setTerrainLodDebugAvailable(this.locationManager.hasTerrainLodControllers());
+        inGameTopPanelUi.setTerrainLodDebugEnabled(this.locationManager.getTerrainLodDebugEnabled());
       }
     );
-    const inGameTopPanelUi = new InGameTopPanelUi(scene, () => {
+    inGameTopPanelUi = new InGameTopPanelUi(scene, () => {
       const isEnabled = gridRuntime.toggleDebug();
       inGameTopPanelUi.setRectGridDebugEnabled(isEnabled);
+    }, () => {
+      if (!this.locationManager.hasTerrainLodControllers()) {
+        console.info("[TerrainLOD] No terrain LOD controller is active for the current runtime scene.");
+        return;
+      }
+
+      const isEnabled = this.locationManager.toggleTerrainLodDebug();
+      inGameTopPanelUi.setTerrainLodDebugEnabled(isEnabled);
     });
     attachInGameSceneRuntimeContext(scene, {
       gridRuntime,
@@ -136,9 +148,16 @@ export class InGameScene implements Scene {
       shadowRegistry
     });
     inGameTopPanelUi.setRectGridDebugEnabled(gridRuntime.getIsDebugEnabled());
+    inGameTopPanelUi.setTerrainLodDebugAvailable(this.locationManager.hasTerrainLodControllers());
+    inGameTopPanelUi.setTerrainLodDebugEnabled(this.locationManager.getTerrainLodDebugEnabled());
     const triggerObserver = scene.onBeforeRenderObservable.add(() => {
+      const deltaSeconds = scene.getEngine().getDeltaTime() / 1000;
       streamingController.update();
       locationTriggerSystem.update();
+      const lodAnchor = this.resolveTerrainLodAnchor(scene);
+      if (lodAnchor) {
+        this.locationManager.updateTerrainLodControllers(deltaSeconds, lodAnchor);
+      }
     });
 
     scene.onDisposeObservable.addOnce(() => {
@@ -256,5 +275,26 @@ export class InGameScene implements Scene {
   private resolveLocalPlayer(): Entity | null {
     const candidates = this.entityManager.query(LocalPlayerComponent, TransformComponent);
     return candidates[0] ?? null;
+  }
+
+  private resolveTerrainLodAnchor(scene: BabylonScene): TerrainLodAnchor | null {
+    const localPlayer = this.resolveLocalPlayer();
+    const playerTransform = localPlayer?.tryGetComponent(TransformComponent);
+    if (playerTransform) {
+      return {
+        position: playerTransform.value.clone(),
+        source: "player"
+      };
+    }
+
+    const camera = scene.activeCamera;
+    if (!camera) {
+      return null;
+    }
+
+    return {
+      position: camera.globalPosition?.clone() ?? camera.position.clone(),
+      source: "camera-fallback"
+    };
   }
 }

@@ -34,7 +34,9 @@ export class RectGridGroundMeshResolver {
    */
   public resolve(scene: Scene, preferredMeshes: readonly AbstractMesh[] = []): RectGridGroundSelection {
     const scopeSource = preferredMeshes.length > 0 ? preferredMeshes : scene.meshes;
-    const meshes = scopeSource.filter((mesh) => mesh.getTotalVertices() > 0 && !mesh.isDisposed());
+    const meshes = scopeSource.filter((mesh) =>
+      mesh.getTotalVertices() > 0 && !mesh.isDisposed() && !isTerrainVisualOnlyMesh(mesh)
+    );
     console.debug(
       `[RectGridGroundMeshResolver] Ground resolution started meshCount=${meshes.length} preferredScope=${preferredMeshes.length > 0}.`
     );
@@ -140,4 +142,8 @@ export class RectGridGroundMeshResolver {
       );
     }
   }
+}
+
+function isTerrainVisualOnlyMesh(mesh: AbstractMesh): boolean {
+  return (mesh.metadata as { terrainVisualOnly?: unknown } | null | undefined)?.terrainVisualOnly === true;
 }

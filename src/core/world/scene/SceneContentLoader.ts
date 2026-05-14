@@ -18,6 +18,8 @@ import type { SceneLightingDescriptor } from "../../lighting/LightingTypes";
 import { TerrainGenerator } from "../terrain/TerrainGenerator";
 import type { TerrainHeightField } from "../terrain/TerrainHeightField";
 import { TerrainMeshBuilder } from "../terrain/TerrainMeshBuilder";
+import { TerrainQuadtreeLodController } from "../terrain/lod/TerrainQuadtreeLodController";
+import { resolveTerrainQuadtreeLodDescriptor } from "../terrain/lod/TerrainQuadtreeLodTypes";
 import { loadSceneDescriptor } from "./SceneDescriptorLoader";
 import type {
   SceneDescriptor,
@@ -27,6 +29,8 @@ import type {
   SceneVector3Tuple
 } from "./SceneDescriptor";
 
+export type GeneratedTerrainVisualMode = "editor" | "runtime";
+
 export interface SceneContentImportOptions {
   readonly scene: Scene;
   readonly sceneId: string;
@@ -34,6 +38,7 @@ export interface SceneContentImportOptions {
   readonly rootNamePrefix: string;
   readonly descriptorPath?: string;
   readonly descriptor?: SceneDescriptor;
+  readonly generatedTerrainVisualMode?: GeneratedTerrainVisualMode;
 }
 
 export interface ImportedSceneAssetNodes {
@@ -57,6 +62,8 @@ export interface ImportedSceneTerrainContent extends ImportedSceneAssetNodes {
   readonly root: TransformNode;
   readonly descriptor: SceneTerrainDescriptor;
   readonly heightField?: TerrainHeightField;
+  readonly terrainSurfaceMeshes: readonly AbstractMesh[];
+  readonly terrainLodControllers: readonly TerrainQuadtreeLodController[];
 }
 
 export interface ImportedSceneContent extends ImportedSceneAssetNodes {
@@ -65,6 +72,7 @@ export interface ImportedSceneContent extends ImportedSceneAssetNodes {
   readonly terrainContent?: ImportedSceneTerrainContent | null;
   readonly terrainRoot?: TransformNode;
   readonly terrainMeshes: readonly AbstractMesh[];
+  readonly terrainLodControllers: readonly TerrainQuadtreeLodController[];
   readonly terrainDescriptor?: SceneTerrainDescriptor | null;
   readonly lightingDescriptor: SceneLightingDescriptor;
   readonly summary: SceneContentSummary;
@@ -96,7 +104,9 @@ export async function importSceneContent(options: SceneContentImportOptions): Pr
   let importedTerrain: ImportedSceneTerrainContent | null = null;
 
   if (descriptor.terrain) {
-    importedTerrain = await importSceneTerrainContent(options.scene, descriptor.terrain, options.root, options.rootNamePrefix);
+    importedTerrain = await importSceneTerrainContent(options.scene, descriptor.terrain, options.root, options.rootNamePrefix, {
+      generatedTerrainVisualMode: options.generatedTerrainVisualMode ?? "editor"
+    });
     appendAggregate(aggregate, importedTerrain);
   }
 
@@ -124,7 +134,8 @@ export async function importSceneContent(options: SceneContentImportOptions): Pr
     sceneObjects,
     terrainContent: importedTerrain,
     terrainRoot: importedTerrain?.root,
-    terrainMeshes: importedTerrain?.renderableMeshes ?? [],
+    terrainMeshes: importedTerrain?.terrainSurfaceMeshes ?? [],
+    terrainLodControllers: importedTerrain?.terrainLodControllers ?? [],
     terrainDescriptor: descriptor.terrain,
     lightingDescriptor: descriptor.lighting ?? createDefaultSceneLightingDescriptor(),
     summary: {
@@ -140,7 +151,8 @@ export async function importSceneTerrainContent(
   scene: Scene,
   descriptor: SceneTerrainDescriptor,
   parent: TransformNode,
-  rootNamePrefix: string
+  rootNamePrefix: string,
+  options: { readonly generatedTerrainVisualMode?: GeneratedTerrainVisualMode } = {}
 ): Promise<ImportedSceneTerrainContent> {
   const terrainRoot = new TransformNode(`${rootNamePrefix}-terrain-root:${descriptor.id}`, scene);
   terrainRoot.setParent(parent, false);
@@ -176,6 +188,8 @@ export async function importSceneTerrainContent(
       heightField: undefined,
       meshes: [ground],
       renderableMeshes: [ground],
+      terrainSurfaceMeshes: [ground],
+      terrainLodControllers: [],
       helperMeshes: [],
       transformNodes: [],
       skeletons: [],
@@ -185,7 +199,7 @@ export async function importSceneTerrainContent(
   }
 
   if (descriptor.kind === "generated") {
-    return importGeneratedTerrainContent(scene, descriptor, terrainRoot);
+    return importGeneratedTerrainContent(scene, descriptor, terrainRoot, options.generatedTerrainVisualMode ?? "editor");
   }
 
   const imported = await importSceneAsset(scene, descriptor.model, terrainRoot);
@@ -202,6 +216,8 @@ export async function importSceneTerrainContent(
     root: terrainRoot,
     descriptor,
     heightField: undefined,
+    terrainSurfaceMeshes: imported.renderableMeshes,
+    terrainLodControllers: [],
     ...imported
   };
 }
@@ -209,7 +225,8 @@ export async function importSceneTerrainContent(
 function importGeneratedTerrainContent(
   scene: Scene,
   descriptor: SceneGeneratedTerrainDescriptor,
-  terrainRoot: TransformNode
+  terrainRoot: TransformNode,
+  visualMode: GeneratedTerrainVisualMode
 ): ImportedSceneTerrainContent {
   const heightField = GENERATED_TERRAIN_GENERATOR.generate(descriptor);
   const mesh = GENERATED_TERRAIN_MESH_BUILDER.build(scene, descriptor, heightField);
@@ -217,8 +234,23 @@ function importGeneratedTerrainContent(
   mesh.metadata = {
     ...(mesh.metadata as Record<string, unknown> | undefined),
     generatedTerrainDescriptor: descriptor,
-    generatedTerrainHeightField: heightField
+    generatedTerrainHeightField: heightField,
+    terrainSurfaceCanonical: true
   };
+
+  const lod = resolveTerrainQuadtreeLodDescriptor(descriptor.lod, heightField);
+  const terrainLodControllers = visualMode === "runtime" && lod.enabled
+    ? [
+        new TerrainQuadtreeLodController({
+          scene,
+          terrainRoot,
+          canonicalMesh: mesh,
+          descriptor,
+          heightField,
+          lod: descriptor.lod
+        })
+      ]
+    : [];
 
   return {
     root: terrainRoot,
@@ -226,6 +258,8 @@ function importGeneratedTerrainContent(
     heightField,
     meshes: [mesh],
     renderableMeshes: [mesh],
+    terrainSurfaceMeshes: [mesh],
+    terrainLodControllers,
     helperMeshes: [],
     transformNodes: [],
     skeletons: [],

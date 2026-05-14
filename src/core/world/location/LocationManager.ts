@@ -29,6 +29,8 @@ import { GameDistrict } from "./district/GameDistrict";
 import { importSceneContent } from "../scene/SceneContentLoader";
 import type { SceneLightingDescriptor } from "../../lighting/LightingTypes";
 import type { ShadowMeshBatch } from "../../lighting/SceneShadowRegistry";
+import type { TerrainQuadtreeLodController } from "../terrain/lod/TerrainQuadtreeLodController";
+import type { TerrainLodAnchor } from "../terrain/lod/TerrainQuadtreeLodTypes";
 
 interface LoadedDistrictSceneContent {
   readonly sceneId: string;
@@ -37,6 +39,7 @@ interface LoadedDistrictSceneContent {
   readonly meshes: AbstractMesh[];
   readonly renderableMeshes: AbstractMesh[];
   readonly terrainMeshes: AbstractMesh[];
+  readonly terrainLodControllers: TerrainQuadtreeLodController[];
   readonly sceneObjectMeshes: AbstractMesh[];
   readonly transformNodes: TransformNode[];
   readonly skeletons: Skeleton[];
@@ -78,6 +81,7 @@ export class LocationManager {
 
   /** Global lighting descriptor from the district initial chunk. */
   private activeLightingDescriptor: SceneLightingDescriptor | null;
+  private terrainLodDebugEnabled: boolean;
 
   /**
    * Creates a location manager.
@@ -90,6 +94,7 @@ export class LocationManager {
     this.activeDistrict = null;
     this.activeDistrictScenes = new Map();
     this.activeLightingDescriptor = null;
+    this.terrainLodDebugEnabled = false;
   }
 
   /**
@@ -251,7 +256,9 @@ export class LocationManager {
    * @returns Active district meshes across all loaded chunks.
    */
   public getActiveDistrictMeshes(): readonly AbstractMesh[] {
-    return Array.from(this.activeDistrictScenes.values()).flatMap((content) => content.meshes);
+    return Array.from(this.activeDistrictScenes.values())
+      .flatMap((content) => content.meshes)
+      .filter((mesh) => !isTerrainVisualOnlyMesh(mesh));
   }
 
   public getActiveDistrictTerrainMeshes(): readonly AbstractMesh[] {
@@ -291,9 +298,35 @@ export class LocationManager {
   public getActiveDistrictNodes(): readonly Node[] {
     return Array.from(this.activeDistrictScenes.values()).flatMap((content) => [
       content.root,
-      ...content.meshes,
+      ...content.meshes.filter((mesh) => !isTerrainVisualOnlyMesh(mesh)),
       ...content.transformNodes
     ]);
+  }
+
+  public updateTerrainLodControllers(deltaSeconds: number, anchor: TerrainLodAnchor): void {
+    for (const content of this.activeDistrictScenes.values()) {
+      for (const controller of content.terrainLodControllers) {
+        controller.update(deltaSeconds, anchor);
+      }
+    }
+  }
+
+  public hasTerrainLodControllers(): boolean {
+    return Array.from(this.activeDistrictScenes.values()).some((content) => content.terrainLodControllers.length > 0);
+  }
+
+  public toggleTerrainLodDebug(): boolean {
+    this.terrainLodDebugEnabled = !this.terrainLodDebugEnabled;
+    for (const content of this.activeDistrictScenes.values()) {
+      for (const controller of content.terrainLodControllers) {
+        controller.setDebugEnabled(this.terrainLodDebugEnabled);
+      }
+    }
+    return this.terrainLodDebugEnabled;
+  }
+
+  public getTerrainLodDebugEnabled(): boolean {
+    return this.terrainLodDebugEnabled;
   }
 
   /**
@@ -571,6 +604,10 @@ export class LocationManager {
   }
 
   private disposeLoadedDistrictScene(content: LoadedDistrictSceneContent): void {
+    for (const controller of content.terrainLodControllers) {
+      controller.dispose();
+    }
+
     for (const animationGroup of content.animationGroups) {
       animationGroup.dispose();
     }
@@ -614,8 +651,12 @@ export class LocationManager {
       sceneId: sceneData.id,
       root,
       rootNamePrefix: "district",
-      descriptorPath: sceneData.scene
+      descriptorPath: sceneData.scene,
+      generatedTerrainVisualMode: "runtime"
     });
+    for (const controller of importedContent.terrainLodControllers) {
+      controller.setDebugEnabled(this.terrainLodDebugEnabled);
+    }
 
     return {
       sceneId: sceneData.id,
@@ -624,6 +665,7 @@ export class LocationManager {
       meshes: [...importedContent.meshes],
       renderableMeshes: [...importedContent.renderableMeshes],
       terrainMeshes: [...importedContent.terrainMeshes],
+      terrainLodControllers: [...importedContent.terrainLodControllers],
       sceneObjectMeshes: importedContent.sceneObjects.flatMap((object) => object.renderableMeshes),
       transformNodes: [...importedContent.transformNodes],
       skeletons: [...importedContent.skeletons],
@@ -659,4 +701,8 @@ export class LocationManager {
 
     return batches;
   }
+}
+
+function isTerrainVisualOnlyMesh(mesh: AbstractMesh): boolean {
+  return (mesh.metadata as { terrainVisualOnly?: unknown } | null | undefined)?.terrainVisualOnly === true;
 }

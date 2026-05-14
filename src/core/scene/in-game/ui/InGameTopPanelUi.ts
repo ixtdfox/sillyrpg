@@ -12,6 +12,7 @@ export class InGameTopPanelUi {
   private readonly combatBanner: Rectangle;
   private readonly phoneDialogUi: PhoneDialogUi;
   private readonly phoneToggleButton: Button;
+  private readonly terrainLodDebugButton: Button;
 
   /**
    * Creates root top-panel HUD and mounts grid debug widget into it.
@@ -19,7 +20,11 @@ export class InGameTopPanelUi {
    * @param scene - Active in-game scene.
    * @param onRectGridToggleRequested - Callback for grid debug toggle clicks.
    */
-  public constructor(scene: Scene, onRectGridToggleRequested: () => void) {
+  public constructor(
+    scene: Scene,
+    onRectGridToggleRequested: () => void,
+    onTerrainLodDebugToggleRequested?: () => void
+  ) {
     this.texture = AdvancedDynamicTexture.CreateFullscreenUI("in-game-ui", true, scene);
 
     const topPanel = new Rectangle("in-game-top-panel");
@@ -40,6 +45,22 @@ export class InGameTopPanelUi {
 
     this.gridDebugControl = new GridDebugToggleControl(onRectGridToggleRequested);
     content.addControl(this.gridDebugControl.getControl());
+
+    this.terrainLodDebugButton = Button.CreateSimpleButton("in-game-terrain-lod-debug-toggle", "LOD Grid");
+    this.terrainLodDebugButton.width = "92px";
+    this.terrainLodDebugButton.height = "38px";
+    this.terrainLodDebugButton.cornerRadius = 4;
+    this.terrainLodDebugButton.color = "#E7EDF9";
+    this.terrainLodDebugButton.background = "#1F2937";
+    this.terrainLodDebugButton.thickness = 1;
+    this.terrainLodDebugButton.paddingLeft = "8px";
+    this.terrainLodDebugButton.fontSize = 14;
+    this.terrainLodDebugButton.isVisible = onTerrainLodDebugToggleRequested !== undefined;
+    this.terrainLodDebugButton.isEnabled = onTerrainLodDebugToggleRequested !== undefined;
+    this.terrainLodDebugButton.onPointerUpObservable.add(() => {
+      onTerrainLodDebugToggleRequested?.();
+    });
+    content.addControl(this.terrainLodDebugButton);
 
     this.phoneToggleButton = Button.CreateSimpleButton("in-game-phone-toggle", "📱");
     this.phoneToggleButton.width = "52px";
@@ -82,6 +103,16 @@ export class InGameTopPanelUi {
    */
   public setRectGridDebugEnabled(isEnabled: boolean): void {
     this.gridDebugControl.setDebugEnabled(isEnabled);
+  }
+
+  public setTerrainLodDebugAvailable(isAvailable: boolean): void {
+    this.terrainLodDebugButton.isVisible = isAvailable;
+    this.terrainLodDebugButton.isEnabled = isAvailable;
+  }
+
+  public setTerrainLodDebugEnabled(isEnabled: boolean): void {
+    this.terrainLodDebugButton.background = isEnabled ? "#2563EB" : "#1F2937";
+    this.terrainLodDebugButton.color = isEnabled ? "#FFFFFF" : "#E7EDF9";
   }
 
   public setCombatBannerVisible(isVisible: boolean): void {

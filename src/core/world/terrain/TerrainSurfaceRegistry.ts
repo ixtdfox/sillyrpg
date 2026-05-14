@@ -11,6 +11,8 @@ export interface TerrainSurface {
 interface GeneratedTerrainMeshMetadata {
   readonly generatedTerrainDescriptor?: SceneGeneratedTerrainDescriptor;
   readonly generatedTerrainHeightField?: TerrainHeightField;
+  readonly terrainSurfaceCanonical?: boolean;
+  readonly terrainVisualOnly?: boolean;
 }
 
 export class TerrainSurfaceRegistry {
@@ -37,6 +39,10 @@ export class TerrainSurfaceRegistry {
 
     for (const mesh of meshes) {
       const metadata = mesh.metadata as GeneratedTerrainMeshMetadata | null | undefined;
+      if (metadata?.terrainVisualOnly === true || metadata?.terrainSurfaceCanonical === false) {
+        continue;
+      }
+
       const descriptor = metadata?.generatedTerrainDescriptor;
       const heightField = metadata?.generatedTerrainHeightField;
       if (!descriptor || !heightField) {

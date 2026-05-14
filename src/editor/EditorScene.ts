@@ -25,6 +25,7 @@ import { EditorSceneDocument } from "./state/EditorSceneDocument";
 import type { EditorMoveAxisMode } from "./state/EditorMoveAxisMode";
 import { saveSceneDescriptor, exportSceneDescriptorJson } from "./state/EditorScenePersistence";
 import { EditorSelectionState } from "./state/EditorSelectionState";
+import { EditorTerrainGridOverlay } from "./terrain/EditorTerrainGridOverlay";
 import type { EditorTransformMode } from "./state/EditorTransformMode";
 import { EditorTerrainController } from "./terrain/EditorTerrainController";
 import { EditorTerrainToolController } from "./terrain/tools/EditorTerrainToolController";
@@ -54,6 +55,7 @@ export class EditorScene implements Scene {
   private highlightLayer: HighlightLayer | null;
   private thumbnailService: BuildingThumbnailService | null;
   private editorLightingController: EditorLightingController | null;
+  private terrainGridOverlay: EditorTerrainGridOverlay | null;
   private terrainController: EditorTerrainController | null;
   private terrainToolController: EditorTerrainToolController | null;
   private readonly selectionState: EditorSelectionState;
@@ -94,6 +96,7 @@ export class EditorScene implements Scene {
     this.highlightLayer = null;
     this.thumbnailService = null;
     this.editorLightingController = null;
+    this.terrainGridOverlay = null;
     this.terrainController = null;
     this.terrainToolController = null;
     this.selectionState = new EditorSelectionState();
@@ -141,6 +144,7 @@ export class EditorScene implements Scene {
       }
     });
     this.sceneLoader = new EditorSceneLoader(scene);
+    this.terrainGridOverlay = new EditorTerrainGridOverlay(scene);
     this.editorLightingController = new EditorLightingController(new SceneShadowRegistry(new SceneLightingController(scene)), {
       onChanged: () => {
         this.refreshUi();
@@ -156,6 +160,7 @@ export class EditorScene implements Scene {
       },
       onTerrainApplied: () => {
         this.gridOverlay?.refreshFromMeshes(this.sceneLoader?.getRenderableMeshes() ?? []);
+        this.refreshTerrainGridOverlay();
         this.editorLightingController?.synchronizeSceneMeshes();
         this.terrainToolController?.synchronizeFromTerrain(this.document?.descriptor.terrain ?? null);
         this.refreshUi();
@@ -171,6 +176,7 @@ export class EditorScene implements Scene {
       },
       onTerrainApplied: (terrain, message) => {
         this.gridOverlay?.refreshFromMeshes(this.sceneLoader?.getRenderableMeshes() ?? []);
+        this.refreshTerrainGridOverlay();
         this.editorLightingController?.synchronizeSceneMeshes();
         this.terrainController?.synchronizeAppliedTerrain(terrain, message);
         this.statusMessage = message;
@@ -189,6 +195,9 @@ export class EditorScene implements Scene {
       },
       onToggleGrid: () => {
         this.toggleGridVisibility();
+      },
+      onToggleTerrainGrid: () => {
+        this.toggleTerrainGridVisibility();
       },
       onToggleAxes: () => {
         this.toggleAxesVisibility();
@@ -279,6 +288,8 @@ export class EditorScene implements Scene {
     });
 
     this.ui.setGridVisible(true);
+    this.ui.setTerrainGridAvailable(false);
+    this.ui.setTerrainGridVisible(false);
     this.ui.setAxesVisible(true);
     this.ui.setMoveAxisMode(this.moveAxisMode);
 
@@ -300,6 +311,8 @@ export class EditorScene implements Scene {
       this.thumbnailService = null;
       this.editorLightingController?.dispose();
       this.editorLightingController = null;
+      this.terrainGridOverlay?.dispose();
+      this.terrainGridOverlay = null;
       this.sceneLoader?.dispose();
       this.sceneLoader = null;
       this.terrainController?.dispose();
@@ -402,6 +415,7 @@ export class EditorScene implements Scene {
       this.objectMoveController.cancelMove();
       this.clearSelection();
       this.gridOverlay.refreshFromMeshes(this.sceneLoader.getRenderableMeshes());
+      this.refreshTerrainGridOverlay();
       this.statusMessage = "";
       if (frameAfterLoad) {
         this.frameCurrentScene();
@@ -410,6 +424,7 @@ export class EditorScene implements Scene {
       console.error("Failed to load editor scene.", error);
       this.statusMessage = error instanceof Error ? error.message : String(error);
       this.sceneLoader.clear();
+      this.terrainGridOverlay?.clear();
       this.terrainController?.bind(null, null);
       this.terrainToolController?.bind(null, null);
       this.editorLightingController?.bind(null, null);
@@ -759,6 +774,8 @@ export class EditorScene implements Scene {
       }
     );
     this.ui?.setSelectedObject(this.selectionState.getSelectedObjectId() ? this.document?.getObject(this.selectionState.getSelectedObjectId()!) ?? null : null);
+    this.ui?.setTerrainGridAvailable(this.canShowTerrainGrid());
+    this.ui?.setTerrainGridVisible(this.terrainGridOverlay?.getGridVisible() ?? false);
     this.ui?.setTransformMode(this.transformMode);
     this.ui?.setMoveAxisMode(this.moveAxisMode);
   }
@@ -835,6 +852,46 @@ export class EditorScene implements Scene {
 
     this.gridOverlay.setGridVisible(!this.gridOverlay.getGridVisible());
     this.ui.setGridVisible(this.gridOverlay.getGridVisible());
+  }
+
+  private toggleTerrainGridVisibility(): void {
+    if (!this.terrainGridOverlay || !this.sceneLoader || !this.ui) {
+      return;
+    }
+
+    const terrainMeshes = this.sceneLoader.getTerrainRenderableMeshes();
+    if (!this.terrainGridOverlay.getCanShowTerrainGrid(terrainMeshes)) {
+      this.statusMessage = "Terrain grid is available for generated terrain only.";
+      this.ui.setTerrainGridAvailable(false);
+      this.ui.setTerrainGridVisible(false);
+      this.refreshUi();
+      return;
+    }
+
+    const isVisible = this.terrainGridOverlay.setGridVisible(!this.terrainGridOverlay.getGridVisible(), terrainMeshes);
+    this.ui.setTerrainGridAvailable(true);
+    this.ui.setTerrainGridVisible(isVisible);
+    this.statusMessage = `Terrain grid ${isVisible ? "shown" : "hidden"}.`;
+    this.refreshUi();
+  }
+
+  private refreshTerrainGridOverlay(): void {
+    if (!this.terrainGridOverlay || !this.sceneLoader || !this.ui) {
+      return;
+    }
+
+    const terrainMeshes = this.sceneLoader.getTerrainRenderableMeshes();
+    this.terrainGridOverlay.refreshFromTerrainMeshes(terrainMeshes);
+    this.ui.setTerrainGridAvailable(this.terrainGridOverlay.getCanShowTerrainGrid(terrainMeshes));
+    this.ui.setTerrainGridVisible(this.terrainGridOverlay.getGridVisible());
+  }
+
+  private canShowTerrainGrid(): boolean {
+    if (!this.terrainGridOverlay || !this.sceneLoader) {
+      return false;
+    }
+
+    return this.terrainGridOverlay.getCanShowTerrainGrid(this.sceneLoader.getTerrainRenderableMeshes());
   }
 
   private toggleAxesVisibility(): void {

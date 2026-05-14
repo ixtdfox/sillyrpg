@@ -18,6 +18,7 @@ interface EditorUiCallbacks {
   readonly onReloadScene: () => void;
   readonly onFrameScene: () => void;
   readonly onToggleGrid: () => void;
+  readonly onToggleTerrainGrid: () => void;
   readonly onToggleAxes: () => void;
   readonly onSelectTab: (tab: EditorBrowserTab) => void;
   readonly onSelectScene: (sceneId: string) => void;
@@ -75,6 +76,7 @@ export class EditorUi {
   private readonly messageBadge: HTMLDivElement;
   private readonly dirtyBadge: HTMLDivElement;
   private readonly gridButton: HTMLButtonElement;
+  private readonly terrainGridButton: HTMLButtonElement;
   private readonly axesButton: HTMLButtonElement;
   private readonly addTerrainButton: HTMLButtonElement;
   private readonly selectToolButton: HTMLButtonElement;
@@ -176,6 +178,14 @@ export class EditorUi {
       onClick: callbacks.onToggleGrid
     });
     toolbarButtons.appendChild(this.gridButton);
+    this.terrainGridButton = this.createIconButton({
+      className: "editor-toolbar-button",
+      label: "Terrain Grid",
+      tooltip: "Show generated terrain source mesh grid",
+      icon: "grid",
+      onClick: callbacks.onToggleTerrainGrid
+    });
+    toolbarButtons.appendChild(this.terrainGridButton);
     this.axesButton = this.createIconButton({
       className: "editor-toolbar-button",
       label: "Axes On",
@@ -634,6 +644,19 @@ export class EditorUi {
   public setGridVisible(isVisible: boolean): void {
     this.setButtonLabel(this.gridButton, `Grid ${isVisible ? "On" : "Off"}`, `Toggle grid overlay. Grid is ${isVisible ? "on" : "off"}.`);
     this.gridButton.classList.toggle("is-active", isVisible);
+  }
+
+  public setTerrainGridAvailable(isAvailable: boolean): void {
+    this.terrainGridButton.disabled = !isAvailable;
+  }
+
+  public setTerrainGridVisible(isVisible: boolean): void {
+    this.setButtonLabel(
+      this.terrainGridButton,
+      `Terrain Grid ${isVisible ? "On" : "Off"}`,
+      `Show generated terrain source mesh grid. Terrain grid is ${isVisible ? "on" : "off"}.`
+    );
+    this.terrainGridButton.classList.toggle("is-active", isVisible);
   }
 
   public setAxesVisible(isVisible: boolean): void {
