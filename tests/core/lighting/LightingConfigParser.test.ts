@@ -1,4 +1,7 @@
-import { parseSceneLightingDescriptor } from "../../../src/core/lighting/LightingConfigParser";
+import { LightingConfigParser } from "../../../src/core/lighting/LightingConfigParser";
+import { LightingPresetCatalog } from "../../../src/core/lighting/LightingPreset";
+
+const parser = new LightingConfigParser();
 
 function assert(condition: boolean, message: string): void {
   if (!condition) {
@@ -18,7 +21,7 @@ function assertThrows(action: () => void, expectedMessagePart: string, message: 
 }
 
 function testMissingLightingUsesDefaultDay(): void {
-  const descriptor = parseSceneLightingDescriptor(undefined, "missing lighting");
+  const descriptor = parser.parseSceneLightingDescriptor(undefined, "missing lighting");
 
   assert(descriptor.preset === "day", "Expected missing lighting to use day preset.");
   assert(descriptor.clearColor === "#8DB7D6", "Expected default day clear color.");
@@ -29,7 +32,7 @@ function testMissingLightingUsesDefaultDay(): void {
 }
 
 function testValidOverrideMergesWithPreset(): void {
-  const descriptor = parseSceneLightingDescriptor(
+  const descriptor = parser.parseSceneLightingDescriptor(
     {
       preset: "day",
       ambient: {
@@ -70,9 +73,45 @@ function testValidOverrideMergesWithPreset(): void {
   assert(descriptor.shadows?.includeCharacters === false, "Expected character include override.");
 }
 
+function testLegacyShadowFilterFlagsMapToFilterMode(): void {
+  const pcfDescriptor = parser.parseSceneLightingDescriptor(
+    {
+      shadows: {
+        usePercentageCloserFiltering: true
+      }
+    },
+    "pcf legacy lighting"
+  );
+  const disabledDescriptor = parser.parseSceneLightingDescriptor(
+    {
+      shadows: {
+        usePercentageCloserFiltering: false
+      }
+    },
+    "disabled legacy lighting"
+  );
+
+  assert(pcfDescriptor.shadows?.filter === "pcf", "Expected legacy PCF flag to map to pcf filter.");
+  assert(disabledDescriptor.shadows?.filter === "none", "Expected false legacy filter flag to map to none filter.");
+}
+
+function testPresetCatalogReturnsIsolatedClones(): void {
+  const catalog = LightingPresetCatalog.getShared();
+  const first = catalog.get("day");
+  const second = catalog.get("day");
+  const mutableDirection = first.ambient?.direction as unknown as [number, number, number] | undefined;
+
+  if (mutableDirection) {
+    mutableDirection[0] = 99;
+  }
+
+  assert(second.ambient?.direction?.[0] === 0, "Expected preset catalog to protect shared preset vectors from mutation.");
+  assert(first !== second, "Expected preset catalog to return distinct descriptor objects.");
+}
+
 function testInvalidPresetThrows(): void {
   assertThrows(
-    () => parseSceneLightingDescriptor({ preset: "storm" }, "bad preset"),
+    () => parser.parseSceneLightingDescriptor({ preset: "storm" }, "bad preset"),
     "preset",
     "Expected invalid preset to throw."
   );
@@ -80,7 +119,7 @@ function testInvalidPresetThrows(): void {
 
 function testInvalidColorThrows(): void {
   assertThrows(
-    () => parseSceneLightingDescriptor({ ambient: { diffuse: "white" } }, "bad color"),
+    () => parser.parseSceneLightingDescriptor({ ambient: { diffuse: "white" } }, "bad color"),
     "#RRGGBB",
     "Expected invalid color to throw."
   );
@@ -88,7 +127,7 @@ function testInvalidColorThrows(): void {
 
 function testInvalidVectorLengthThrows(): void {
   assertThrows(
-    () => parseSceneLightingDescriptor({ sun: { direction: [0, -1] } }, "bad vector"),
+    () => parser.parseSceneLightingDescriptor({ sun: { direction: [0, -1] } }, "bad vector"),
     "[x, y, z]",
     "Expected invalid vector length to throw."
   );
@@ -96,7 +135,7 @@ function testInvalidVectorLengthThrows(): void {
 
 function testInvalidIntensityTypeThrows(): void {
   assertThrows(
-    () => parseSceneLightingDescriptor({ ambient: { intensity: "bright" } }, "bad intensity"),
+    () => parser.parseSceneLightingDescriptor({ ambient: { intensity: "bright" } }, "bad intensity"),
     "intensity",
     "Expected invalid intensity type to throw."
   );
@@ -104,7 +143,7 @@ function testInvalidIntensityTypeThrows(): void {
 
 function testInvalidShadowModeThrows(): void {
   assertThrows(
-    () => parseSceneLightingDescriptor({ shadows: { receiverMode: "buildingsOnly" } }, "bad shadow mode"),
+    () => parser.parseSceneLightingDescriptor({ shadows: { receiverMode: "buildingsOnly" } }, "bad shadow mode"),
     "receiverMode",
     "Expected invalid shadow receiver mode to throw."
   );
@@ -113,6 +152,8 @@ function testInvalidShadowModeThrows(): void {
 function run(): void {
   testMissingLightingUsesDefaultDay();
   testValidOverrideMergesWithPreset();
+  testLegacyShadowFilterFlagsMapToFilterMode();
+  testPresetCatalogReturnsIsolatedClones();
   testInvalidPresetThrows();
   testInvalidColorThrows();
   testInvalidVectorLengthThrows();

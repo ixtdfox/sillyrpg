@@ -1,8 +1,4 @@
-import {
-  cloneSceneLightingDescriptor,
-  DEFAULT_LIGHTING_PRESET_ID,
-  getLightingPreset
-} from "../../core/lighting/LightingPreset";
+import { LightingPresetCatalog } from "../../core/lighting/LightingPreset";
 import { SceneShadowRegistry } from "../../core/lighting/SceneShadowRegistry";
 import type {
   DirectionalLightingDescriptor,
@@ -39,6 +35,7 @@ export class EditorLightingController {
   private document: EditorSceneDocument | null = null;
   private sceneLoader: EditorSceneLoader | null = null;
   private message = "";
+  private readonly presetCatalog = LightingPresetCatalog.getShared();
 
   public constructor(
     private readonly shadowRegistry: SceneShadowRegistry,
@@ -71,12 +68,15 @@ export class EditorLightingController {
   }
 
   public selectPreset(presetId: LightingPresetId): void {
-    this.commit(this.normalizeLighting(getLightingPreset(presetId)), `Lighting preset changed to ${presetId}.`);
+    this.commit(this.normalizeLighting(this.presetCatalog.get(presetId)), `Lighting preset changed to ${presetId}.`);
   }
 
   public updateClearColor(value: string): void {
     const current = this.getCurrentLighting();
-    const nextColor = normalizeHexColor(value, current.clearColor ?? getLightingPreset(DEFAULT_LIGHTING_PRESET_ID).clearColor ?? "#8DB7D6");
+    const nextColor = normalizeHexColor(
+      value,
+      current.clearColor ?? this.presetCatalog.get(LightingPresetCatalog.DEFAULT_PRESET_ID).clearColor ?? "#8DB7D6"
+    );
     this.commit(
       this.normalizeLighting({
         ...current,
@@ -129,7 +129,7 @@ export class EditorLightingController {
   }
 
   public resetToPreset(): void {
-    const currentPreset = this.getCurrentLighting().preset ?? DEFAULT_LIGHTING_PRESET_ID;
+    const currentPreset = this.getCurrentLighting().preset ?? LightingPresetCatalog.DEFAULT_PRESET_ID;
     this.selectPreset(currentPreset);
   }
 
@@ -143,7 +143,7 @@ export class EditorLightingController {
 
   private applyCurrentLighting(): void {
     if (!this.document) {
-      this.shadowRegistry.setLighting(getLightingPreset(DEFAULT_LIGHTING_PRESET_ID));
+      this.shadowRegistry.setLighting(this.presetCatalog.get(LightingPresetCatalog.DEFAULT_PRESET_ID));
       return;
     }
 
@@ -169,18 +169,18 @@ export class EditorLightingController {
   }
 
   private getCurrentLighting(): SceneLightingDescriptor {
-    return this.normalizeLighting(this.document?.descriptor.lighting ?? getLightingPreset(DEFAULT_LIGHTING_PRESET_ID));
+    return this.normalizeLighting(this.document?.descriptor.lighting ?? this.presetCatalog.get(LightingPresetCatalog.DEFAULT_PRESET_ID));
   }
 
   private normalizeLighting(descriptor: SceneLightingDescriptor): SceneLightingDescriptor {
-    const presetId = descriptor.preset ?? DEFAULT_LIGHTING_PRESET_ID;
-    const preset = getLightingPreset(presetId);
+    const presetId = descriptor.preset ?? LightingPresetCatalog.DEFAULT_PRESET_ID;
+    const preset = this.presetCatalog.get(presetId);
     const ambient = descriptor.ambient ?? preset.ambient ?? {};
     const sun = descriptor.sun ?? preset.sun ?? {};
     const shadows = descriptor.shadows ?? preset.shadows ?? {};
     const filter = normalizeShadowFilterMode(shadows);
 
-    return cloneSceneLightingDescriptor({
+    return this.presetCatalog.clone({
       preset: presetId,
       clearColor: normalizeHexColor(descriptor.clearColor, preset.clearColor ?? "#8DB7D6"),
       ambient: {

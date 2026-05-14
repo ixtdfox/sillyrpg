@@ -13,7 +13,7 @@ import {
 } from "@babylonjs/core";
 import "@babylonjs/loaders/glTF";
 import { normalizeAssetPath, resolveSceneAssetPath } from "../../model/SceneAssetPath";
-import { createDefaultSceneLightingDescriptor } from "../../lighting/LightingPreset";
+import { LightingPresetCatalog } from "../../lighting/LightingPreset";
 import type { SceneLightingDescriptor } from "../../lighting/LightingTypes";
 import { TerrainGenerator } from "../terrain/TerrainGenerator";
 import type { TerrainHeightField } from "../terrain/TerrainHeightField";
@@ -137,7 +137,7 @@ export async function importSceneContent(options: SceneContentImportOptions): Pr
     terrainMeshes: importedTerrain?.terrainSurfaceMeshes ?? [],
     terrainLodControllers: importedTerrain?.terrainLodControllers ?? [],
     terrainDescriptor: descriptor.terrain,
-    lightingDescriptor: descriptor.lighting ?? createDefaultSceneLightingDescriptor(),
+    lightingDescriptor: descriptor.lighting ?? LightingPresetCatalog.getShared().createDefault(),
     summary: {
       descriptorPath,
       descriptorUrl,

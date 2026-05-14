@@ -17,7 +17,15 @@ const DEFAULT_AMBIENT_DIRECTION: LightingVector3Tuple = [0, 1, 0];
 const DEFAULT_SUN_DIRECTION: LightingVector3Tuple = [-0.55, -1.0, -0.35];
 const DEFAULT_SUN_POSITION: LightingVector3Tuple = [60, 90, 40];
 
+/**
+ * Factory Method для создания `LightingRig` из доменного descriptor'а.
+ *
+ * Класс концентрирует Babylon-specific детали: создание lights, выбор стандартного
+ * или cascaded shadow generator, нормализацию цветов/векторов и применение
+ * shadow-фильтров. Остальные слои работают только с descriptor и готовым rig.
+ */
 export class LightingRigFactory {
+  /** Создает полный runtime rig и пропускает ресурсы, отключенные descriptor'ом. */
   public create(scene: Scene, descriptor: SceneLightingDescriptor): LightingRig {
     const ambientLight = descriptor.ambient?.enabled === false ? null : this.createAmbientLight(scene, descriptor);
     const sunLight = descriptor.sun?.enabled === false ? null : this.createSunLight(scene, descriptor);
@@ -26,6 +34,7 @@ export class LightingRigFactory {
     return new LightingRig(ambientLight, sunLight, shadowGenerator);
   }
 
+  /** Создает hemispheric light с fallback-значениями, безопасными для пустого partial descriptor'а. */
   private createAmbientLight(scene: Scene, descriptor: SceneLightingDescriptor): HemisphericLight {
     const ambient = descriptor.ambient;
     const light = new HemisphericLight(
@@ -40,6 +49,7 @@ export class LightingRigFactory {
     return light;
   }
 
+  /** Создает directional sun light и отдельно задает position, нужный shadow generator'у. */
   private createSunLight(scene: Scene, descriptor: SceneLightingDescriptor): DirectionalLight {
     const sun = descriptor.sun;
     const light = new DirectionalLight(
@@ -54,6 +64,7 @@ export class LightingRigFactory {
     return light;
   }
 
+  /** Выбирает реализацию generator'а по descriptor'у и возможностям текущего Babylon runtime. */
   private createShadowGenerator(
     descriptor: SceneLightingDescriptor,
     sunLight: DirectionalLight | null
@@ -72,6 +83,7 @@ export class LightingRigFactory {
     return generator;
   }
 
+  /** Применяет общие параметры качества/смещения теней независимо от типа generator'а. */
   private configureShadowGenerator(generator: SceneShadowGenerator, descriptor: SceneLightingDescriptor): void {
     const shadows = descriptor.shadows;
     if (!shadows) {
@@ -91,6 +103,12 @@ export class LightingRigFactory {
     }
   }
 
+  /**
+   * Применяет доменный `ShadowFilterMode` к Babylon-флагам.
+   *
+   * CascadedShadowGenerator в Babylon не поддерживает те же filter constants, что
+   * обычный ShadowGenerator, поэтому CSM получает только совместимый PCF-флаг.
+   */
   private applyShadowFilter(generator: SceneShadowGenerator, filter: ShadowFilterMode): void {
     generator.filter = ShadowGenerator.FILTER_NONE;
 
@@ -110,6 +128,7 @@ export class LightingRigFactory {
     }
   }
 
+  /** Сводит explicit `filter` и legacy boolean-флаги к единому режиму фильтрации. */
   private resolveShadowFilterMode(shadows: NonNullable<SceneLightingDescriptor["shadows"]>): ShadowFilterMode {
     if (shadows.filter === "none" || shadows.filter === "pcf" || shadows.filter === "esm" || shadows.filter === "blurEsm") {
       return shadows.filter;
@@ -126,11 +145,13 @@ export class LightingRigFactory {
     return "none";
   }
 
+  /** Переводит tuple descriptor'а в Babylon Vector3 без мутации исходного массива. */
   private toVector3(value: LightingVector3Tuple | undefined, fallback: LightingVector3Tuple): Vector3 {
     const source = value ?? fallback;
     return new Vector3(source[0], source[1], source[2]);
   }
 
+  /** Нормализует direction-вектор и защищается от нулевого направления. */
   private toDirectionVector3(value: LightingVector3Tuple | undefined, fallback: LightingVector3Tuple): Vector3 {
     const vector = this.toVector3(value, fallback);
     if (vector.lengthSquared() <= 0.000001) {
@@ -140,27 +161,31 @@ export class LightingRigFactory {
     return vector.normalize();
   }
 
+  /** Создает Babylon Color3 и откатывается к fallback, если runtime descriptor собран не парсером. */
   private toColor3(value: string | undefined, fallback: string): Color3 {
     if (value) {
       try {
         return Color3.FromHexString(value);
       } catch {
-        // Runtime descriptors can be assembled outside the JSON parser; keep Babylon resource creation resilient.
+        // Runtime descriptor может быть собран в обход JSON-парсера, поэтому Babylon-ресурс получает fallback.
       }
     }
 
     return Color3.FromHexString(fallback);
   }
 
+  /** Ограничивает интенсивность света диапазоном, безопасным для игрового runtime. */
   private clampIntensity(value: number | undefined, fallback: number): number {
     return this.clampNumber(value, fallback, 0, 10);
   }
 
+  /** Ограничивает размер shadow map практичным диапазоном качества/памяти. */
   private toShadowMapSize(value: number | undefined): number {
     const parsed = this.clampNumber(value, 2048, 512, 4096);
     return Math.round(parsed);
   }
 
+  /** Общий числовой clamp для descriptor'ов, которые могли быть собраны вручную. */
   private clampNumber(value: number | undefined, fallback: number, min: number, max: number): number {
     if (typeof value !== "number" || !Number.isFinite(value)) {
       return fallback;

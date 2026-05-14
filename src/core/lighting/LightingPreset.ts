@@ -6,8 +6,6 @@ import type {
   ShadowLightingDescriptor
 } from "./LightingTypes";
 
-export const DEFAULT_LIGHTING_PRESET_ID: LightingPresetId = "day";
-
 const SAFE_OUTDOOR_SHADOWS: ShadowLightingDescriptor = {
   enabled: true,
   generator: "cascaded",
@@ -28,7 +26,7 @@ const SAFE_OUTDOOR_SHADOWS: ShadowLightingDescriptor = {
   includeTerrain: false
 };
 
-export const LIGHTING_PRESETS: Readonly<Record<LightingPresetId, SceneLightingDescriptor>> = {
+const LIGHTING_PRESETS: Readonly<Record<LightingPresetId, SceneLightingDescriptor>> = {
   day: {
     preset: "day",
     clearColor: "#8DB7D6",
@@ -126,53 +124,92 @@ export const LIGHTING_PRESETS: Readonly<Record<LightingPresetId, SceneLightingDe
   }
 };
 
-export function getLightingPreset(presetId: LightingPresetId): SceneLightingDescriptor {
-  return cloneSceneLightingDescriptor(LIGHTING_PRESETS[presetId]);
-}
-
-export function createDefaultSceneLightingDescriptor(): SceneLightingDescriptor {
-  return getLightingPreset(DEFAULT_LIGHTING_PRESET_ID);
-}
-
-export function cloneSceneLightingDescriptor(descriptor: SceneLightingDescriptor): SceneLightingDescriptor {
-  return {
-    preset: descriptor.preset,
-    clearColor: descriptor.clearColor,
-    ambient: cloneHemisphericLightingDescriptor(descriptor.ambient),
-    sun: cloneDirectionalLightingDescriptor(descriptor.sun),
-    shadows: cloneShadowLightingDescriptor(descriptor.shadows)
-  };
-}
-
-function cloneHemisphericLightingDescriptor(
-  descriptor: HemisphericLightingDescriptor | undefined
-): HemisphericLightingDescriptor | undefined {
-  if (!descriptor) {
-    return undefined;
+/**
+ * Prototype helper для безопасного копирования lighting descriptor'ов.
+ *
+ * Пресеты используются как шаблоны. Любой потребитель получает отдельный объект,
+ * чтобы редактор, парсер или runtime-контроллер не могли случайно мутировать
+ * общий preset singleton.
+ */
+export class SceneLightingDescriptorCloner {
+  /** Создает глубокий клон descriptor на уровне всех вложенных lighting-объектов. */
+  public clone(descriptor: SceneLightingDescriptor): SceneLightingDescriptor {
+    return {
+      preset: descriptor.preset,
+      clearColor: descriptor.clearColor,
+      ambient: this.cloneHemisphericLightingDescriptor(descriptor.ambient),
+      sun: this.cloneDirectionalLightingDescriptor(descriptor.sun),
+      shadows: this.cloneShadowLightingDescriptor(descriptor.shadows)
+    };
   }
 
-  return {
-    ...descriptor,
-    direction: descriptor.direction ? ([...descriptor.direction] as const) : undefined
-  };
-}
+  private cloneHemisphericLightingDescriptor(
+    descriptor: HemisphericLightingDescriptor | undefined
+  ): HemisphericLightingDescriptor | undefined {
+    if (!descriptor) {
+      return undefined;
+    }
 
-function cloneDirectionalLightingDescriptor(
-  descriptor: DirectionalLightingDescriptor | undefined
-): DirectionalLightingDescriptor | undefined {
-  if (!descriptor) {
-    return undefined;
+    return {
+      ...descriptor,
+      direction: descriptor.direction ? ([...descriptor.direction] as const) : undefined
+    };
   }
 
-  return {
-    ...descriptor,
-    direction: descriptor.direction ? ([...descriptor.direction] as const) : undefined,
-    position: descriptor.position ? ([...descriptor.position] as const) : undefined
-  };
+  private cloneDirectionalLightingDescriptor(
+    descriptor: DirectionalLightingDescriptor | undefined
+  ): DirectionalLightingDescriptor | undefined {
+    if (!descriptor) {
+      return undefined;
+    }
+
+    return {
+      ...descriptor,
+      direction: descriptor.direction ? ([...descriptor.direction] as const) : undefined,
+      position: descriptor.position ? ([...descriptor.position] as const) : undefined
+    };
+  }
+
+  private cloneShadowLightingDescriptor(
+    descriptor: ShadowLightingDescriptor | undefined
+  ): ShadowLightingDescriptor | undefined {
+    return descriptor ? { ...descriptor } : undefined;
+  }
 }
 
-function cloneShadowLightingDescriptor(
-  descriptor: ShadowLightingDescriptor | undefined
-): ShadowLightingDescriptor | undefined {
-  return descriptor ? { ...descriptor } : undefined;
+/**
+ * Repository/Singleton для доменных пресетов освещения.
+ *
+ * Класс скрывает storage-пресетов и всегда возвращает клоны. В результате
+ * остальные слои работают с объектным сервисом, а не с набором свободных
+ * функций вокруг глобального словаря.
+ */
+export class LightingPresetCatalog {
+  public static readonly DEFAULT_PRESET_ID: LightingPresetId = "day";
+  private static readonly shared = new LightingPresetCatalog();
+
+  /** Возвращает общий singleton-каталог для runtime/editor слоев без ручного wiring. */
+  public static getShared(): LightingPresetCatalog {
+    return LightingPresetCatalog.shared;
+  }
+
+  public constructor(
+    private readonly presets: Readonly<Record<LightingPresetId, SceneLightingDescriptor>> = LIGHTING_PRESETS,
+    private readonly cloner: SceneLightingDescriptorCloner = new SceneLightingDescriptorCloner()
+  ) {}
+
+  /** Возвращает клон выбранного preset-шаблона. */
+  public get(presetId: LightingPresetId): SceneLightingDescriptor {
+    return this.cloner.clone(this.presets[presetId]);
+  }
+
+  /** Возвращает клон дефолтного preset-шаблона. */
+  public createDefault(): SceneLightingDescriptor {
+    return this.get(LightingPresetCatalog.DEFAULT_PRESET_ID);
+  }
+
+  /** Явно копирует произвольный descriptor тем же prototype-механизмом. */
+  public clone(descriptor: SceneLightingDescriptor): SceneLightingDescriptor {
+    return this.cloner.clone(descriptor);
+  }
 }

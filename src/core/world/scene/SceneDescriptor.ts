@@ -1,4 +1,4 @@
-import { parseSceneLightingDescriptor } from "../../lighting/LightingConfigParser";
+import { LightingConfigParser } from "../../lighting/LightingConfigParser";
 import type { SceneLightingDescriptor } from "../../lighting/LightingTypes";
 
 export type SceneVector2Tuple = readonly [number, number];
@@ -170,6 +170,7 @@ export interface SceneDescriptor {
 const DEFAULT_POSITION: SceneVector3Tuple = [0, 0, 0];
 const DEFAULT_ROTATION: SceneVector3Tuple = [0, 0, 0];
 const DEFAULT_SCALE: SceneVector3Tuple = [1, 1, 1];
+const LIGHTING_CONFIG_PARSER = new LightingConfigParser();
 
 export function parseSceneDescriptor(payload: unknown, sourceLabel: string): SceneDescriptor {
   if (!payload || typeof payload !== "object" || Array.isArray(payload)) {
@@ -184,7 +185,7 @@ export function parseSceneDescriptor(payload: unknown, sourceLabel: string): Sce
   const id = requireString(record.id, `${sourceLabel} id must be a string.`);
   const title = optionalString(record.title, `${sourceLabel} title must be a string if provided.`);
   const chunkCoord = parseChunkCoord(record.chunkCoord, `${sourceLabel} chunkCoord`);
-  const lighting = parseSceneLightingDescriptor(record.lighting, `${sourceLabel} lighting`);
+  const lighting = LIGHTING_CONFIG_PARSER.parseSceneLightingDescriptor(record.lighting, `${sourceLabel} lighting`);
   const terrain = parseTerrainDescriptor(record.terrain, `${sourceLabel} terrain`);
   const objects = parseObjectDescriptors(record.objects, `${sourceLabel} objects`);
 

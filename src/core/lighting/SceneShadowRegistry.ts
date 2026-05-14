@@ -5,12 +5,14 @@ import type { SceneLightingDescriptor } from "./LightingTypes";
 
 export type { ShadowMeshSource } from "./ShadowMeshPolicy";
 
+/** Batch meshes от одного владельца сцены, например terrain, object или character entity. */
 export interface ShadowMeshBatch {
   readonly ownerId: string;
   readonly source: ShadowMeshSource;
   readonly meshes: readonly AbstractMesh[];
 }
 
+/** Snapshot состояния shadow-системы для editor UI, логов и тестов. */
 export interface ShadowDiagnostics {
   readonly enabled: boolean;
   readonly hasGenerator: boolean;
@@ -27,6 +29,13 @@ export interface ShadowDiagnostics {
   }[];
 }
 
+/**
+ * Registry/Coordinator для синхронизации shadow casters и receivers.
+ *
+ * Registry хранит batches meshes по владельцам, применяет `ShadowMeshPolicy` и
+ * через `SceneLightingController` приводит Babylon-сцену к текущему lighting
+ * descriptor'у. Это отделяет правила выбора meshes от lifecycle освещения.
+ */
 export class SceneShadowRegistry {
   private lighting: SceneLightingDescriptor | null = null;
   private readonly batchesByOwnerId = new Map<string, ShadowMeshBatch>();
@@ -37,12 +46,14 @@ export class SceneShadowRegistry {
     private readonly policy: ShadowMeshPolicy = new ShadowMeshPolicy()
   ) {}
 
+  /** Применяет новый lighting descriptor и сразу пересинхронизирует все известные batches. */
   public setLighting(descriptor: SceneLightingDescriptor): void {
     this.lighting = descriptor;
     this.lightingController.apply(descriptor);
     this.synchronize();
   }
 
+  /** Регистрирует или заменяет batch одного владельца и пересобирает shadow state. */
   public registerBatch(batch: ShadowMeshBatch): void {
     this.batchesByOwnerId.set(batch.ownerId, {
       ownerId: batch.ownerId,
@@ -52,6 +63,7 @@ export class SceneShadowRegistry {
     this.synchronize();
   }
 
+  /** Регистрирует несколько batches одной операцией, чтобы синхронизация прошла один раз. */
   public registerBatches(batches: readonly ShadowMeshBatch[]): void {
     for (const batch of batches) {
       this.batchesByOwnerId.set(batch.ownerId, {
@@ -64,6 +76,12 @@ export class SceneShadowRegistry {
     this.synchronize();
   }
 
+  /**
+   * Полностью заменяет набор batches.
+   *
+   * Перед заменой registry снимает receiver-флаги с прежних meshes, чтобы удаленные
+   * из сцены объекты не оставались в визуально устаревшем состоянии.
+   */
   public replaceBatches(batches: readonly ShadowMeshBatch[]): void {
     this.clearKnownReceivers();
     this.batchesByOwnerId.clear();
@@ -78,6 +96,7 @@ export class SceneShadowRegistry {
     this.synchronize();
   }
 
+  /** Удаляет владельца из registry и очищает receiver-флаги на его meshes. */
   public unregisterOwner(ownerId: string): void {
     const batch = this.batchesByOwnerId.get(ownerId);
     if (batch) {
@@ -93,6 +112,7 @@ export class SceneShadowRegistry {
     this.synchronize();
   }
 
+  /** Собирает диагностический отчет по текущим batches без изменения состояния сцены. */
   public getDiagnostics(): ShadowDiagnostics {
     const lighting = this.lighting;
     const enabled = lighting?.shadows?.enabled === true;
@@ -143,6 +163,12 @@ export class SceneShadowRegistry {
     };
   }
 
+  /**
+   * Пересобирает caster render list и receiver-флаги по текущей policy.
+   *
+   * Метод всегда начинается с очистки старого состояния, потому что lighting
+   * descriptor, batches и metadata meshes могут меняться независимо друг от друга.
+   */
   public synchronize(): void {
     this.lightingController.clearShadowCasters();
     this.clearKnownReceivers();
@@ -169,6 +195,7 @@ export class SceneShadowRegistry {
     }
   }
 
+  /** Очищает runtime shadow state и забывает все batches, не уничтожая сам controller. */
   public dispose(): void {
     this.lightingController.clearShadowCasters();
     this.clearKnownReceivers();
@@ -176,6 +203,7 @@ export class SceneShadowRegistry {
     this.lighting = null;
   }
 
+  /** Снимает `receiveShadows` только с meshes, которые registry ранее пометил receiver'ами. */
   private clearKnownReceivers(): void {
     for (const batch of this.batchesByOwnerId.values()) {
       for (const mesh of batch.meshes) {

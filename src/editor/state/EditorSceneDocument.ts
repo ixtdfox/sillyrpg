@@ -1,6 +1,6 @@
 import type { Vector3 } from "@babylonjs/core";
 import type { EditorBuildingAssetOption } from "../types";
-import { cloneSceneLightingDescriptor } from "../../core/lighting/LightingPreset";
+import { LightingPresetCatalog } from "../../core/lighting/LightingPreset";
 import type { SceneLightingDescriptor } from "../../core/lighting/LightingTypes";
 import {
   cloneSceneDescriptor,
@@ -61,7 +61,7 @@ export class EditorSceneDocument {
   public updateLighting(lighting: SceneLightingDescriptor): void {
     this.descriptor = {
       ...this.descriptor,
-      lighting: cloneSceneLightingDescriptor(lighting)
+      lighting: LightingPresetCatalog.getShared().clone(lighting)
     };
     this.dirty = true;
   }
