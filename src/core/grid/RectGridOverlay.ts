@@ -17,28 +17,47 @@ interface GridCellHighlightSpec {
   readonly color: Color4;
 }
 
+/**
+ * Клетка с привязкой к этажу для многоэтажного overlay.
+ */
 export interface StoryGridCell {
   readonly cell: GridCell;
   readonly storyIndex: number;
 }
 
+/**
+ * Пул meshes для одного типа подсветки.
+ *
+ * Слой overlay часто обновляется во время hover/combat preview, поэтому meshes
+ * переиспользуются вместо постоянного create/dispose.
+ */
 interface GridHighlightPool {
   readonly name: string;
   readonly meshes: Mesh[];
 }
 
+/**
+ * Ребро между двумя клетками на конкретном этаже.
+ */
 export interface StoryGridEdge {
   readonly storyIndex: number;
   readonly a: GridCell;
   readonly b: GridCell;
 }
 
+/**
+ * Ребро двери расширяет обычное ребро состоянием двери.
+ */
 export interface StoryDoorGridEdge extends StoryGridEdge {
   readonly isOpen: boolean;
 }
 
 /**
- * Handles rendering for debug grid grid and hovered-cell highlight visuals.
+ * Рендерер debug-сетки, hover-клетки и tactical highlights.
+ *
+ * Класс является View/Presenter для RectGridRuntime: он не решает, какие клетки
+ * walkable или blocked, а только получает готовые DTO и поддерживает Babylon
+ * meshes/materials в актуальном состоянии.
  */
 export class RectGridOverlay {
   private readonly scene: Scene;
@@ -72,7 +91,7 @@ export class RectGridOverlay {
   private doorNavigationEdges: StoryDoorGridEdge[];
 
   /**
-   * Creates visual overlay meshes for grid debug and hover cell.
+   * Создает визуальные meshes для debug grid и hover-клетки.
    */
   public constructor(scene: Scene, grid: RectGrid, verticalOffset: number) {
     this.scene = scene;
@@ -120,21 +139,33 @@ export class RectGridOverlay {
     this.refreshHighlights();
   }
 
+  /**
+   * Задает клетки, видимые системой perception.
+   */
   public setVisionCells(cells: readonly GridCell[]): void {
     this.visionCells = [...cells];
     this.refreshHighlights();
   }
 
+  /**
+   * Задает клетки patrol target подсветки.
+   */
   public setPatrolTargetCells(cells: readonly GridCell[]): void {
     this.patrolTargetCells = [...cells];
     this.refreshHighlights();
   }
 
+  /**
+   * Задает клетки обнаружения с индивидуальным цветом/приоритетом.
+   */
   public setDetectedCells(cells: readonly GridCellHighlightSpec[]): void {
     this.detectedCells = [...cells];
     this.refreshHighlights();
   }
 
+  /**
+   * Очищает transient debug-подсветки perception/patrol/detection.
+   */
   public clearDebugHighlights(): void {
     this.visionCells = [];
     this.patrolTargetCells = [];
@@ -142,30 +173,45 @@ export class RectGridOverlay {
     this.refreshHighlights();
   }
 
+  /**
+   * Задает одноэтажный combat move range для legacy callers.
+   */
   public setMoveRangeCells(cells: readonly GridCell[]): void {
     this.moveRangeCells = [...cells];
     this.moveRangeNavigationCells = [];
     this.refreshHighlights();
   }
 
+  /**
+   * Задает одноэтажный combat path для legacy callers.
+   */
   public setMovePathCells(cells: readonly GridCell[]): void {
     this.movePathCells = [...cells];
     this.movePathNavigationCells = [];
     this.refreshHighlights();
   }
 
+  /**
+   * Задает многоэтажный combat move range.
+   */
   public setMoveRangeNavigationCells(cells: readonly StoryGridCell[]): void {
     this.moveRangeCells = [];
     this.moveRangeNavigationCells = [...cells];
     this.refreshHighlights();
   }
 
+  /**
+   * Задает многоэтажный combat path.
+   */
   public setMovePathNavigationCells(cells: readonly StoryGridCell[]): void {
     this.movePathCells = [];
     this.movePathNavigationCells = [...cells];
     this.refreshHighlights();
   }
 
+  /**
+   * Сбрасывает все combat preview highlights.
+   */
   public clearCombatMovementPreview(): void {
     this.moveRangeCells = [];
     this.movePathCells = [];
@@ -174,10 +220,16 @@ export class RectGridOverlay {
     this.refreshHighlights();
   }
 
+  /**
+   * Фасад для старых вызовов: подсвечивает клетку на нулевом этаже.
+   */
   public setHoveredCell(cell: GridCell): void {
     this.setHoveredNavigationCell(cell, 0);
   }
 
+  /**
+   * Подсвечивает наведенную navigation-клетку на конкретном этаже.
+   */
   public setHoveredNavigationCell(cell: GridCell, storyIndex: number): void {
     if (!this.isCellOverlayAllowed(cell, storyIndex)) {
       this.hideHoveredCell();
@@ -190,12 +242,18 @@ export class RectGridOverlay {
     this.hoverMesh.isVisible = true;
   }
 
+  /**
+   * Обновляет высоты этажей, используемые для вертикального размещения overlay.
+   */
   public setStoryYByStory(storyYByStory: ReadonlyMap<number, number>): void {
     this.storyYByStory = new Map(storyYByStory);
     this.rebuildCurrentStoryGridMesh();
     this.refreshHighlights();
   }
 
+  /**
+   * Переключает этаж, для которого рисуется current-story grid.
+   */
   public setCurrentStoryIndex(storyIndex: number): void {
     if (this.currentStoryIndex === storyIndex) {
       return;
@@ -206,31 +264,49 @@ export class RectGridOverlay {
     this.refreshHighlights();
   }
 
+  /**
+   * Обновляет список walkable клеток и пересобирает сетку текущего этажа.
+   */
   public setWalkableNavigationCells(cells: readonly StoryGridCell[]): void {
     this.walkableNavigationCells = [...cells];
     this.rebuildCurrentStoryGridMesh();
     this.refreshHighlights();
   }
 
+  /**
+   * Обновляет blocked-cell overlay.
+   */
   public setBlockedNavigationCells(cells: readonly StoryGridCell[]): void {
     this.blockedNavigationCells = [...cells];
     this.refreshHighlights();
   }
 
+  /**
+   * Обновляет blocked-edge overlay.
+   */
   public setBlockedNavigationEdges(edges: readonly StoryGridEdge[]): void {
     this.blockedNavigationEdges = [...edges];
     this.refreshHighlights();
   }
 
+  /**
+   * Обновляет door-edge overlay.
+   */
   public setDoorNavigationEdges(edges: readonly StoryDoorGridEdge[]): void {
     this.doorNavigationEdges = [...edges];
     this.refreshHighlights();
   }
 
+  /**
+   * Скрывает hover mesh, когда pointer ушел с валидной navigation-клетки.
+   */
   public hideHoveredCell(): void {
     this.hoverMesh.isVisible = false;
   }
 
+  /**
+   * Освобождает Babylon meshes/materials, созданные overlay.
+   */
   public dispose(): void {
     this.gridMesh.dispose();
     this.currentStoryGridMesh?.dispose();
@@ -246,10 +322,10 @@ export class RectGridOverlay {
   }
 
   /**
-   * Builds static debug line mesh for all logical cells within the bounded grid area.
+   * Строит статический line mesh для всех клеток bounded grid.
    *
-   * Limitation: this first pass still renders a bounded rectangular rectangular footprint
-   * derived from ground extents rather than terrain-aware walkable cells.
+   * Ограничение: это fallback-сетка по прямоугольным bounds. Когда доступны
+   * walkableNavigationCells, current-story mesh заменяет ее этажной сеткой.
    */
   private buildGridMesh(): LinesMesh {
     const lines: Vector3[][] = [];
@@ -273,6 +349,9 @@ export class RectGridOverlay {
     return MeshBuilder.CreateLines("grid-hover-overlay", { points, updatable: false }, this.scene);
   }
 
+  /**
+   * Строит контур клетки в мировых координатах.
+   */
   private buildRectPoints(cell: GridCell, y: number, yOffset: number): Vector3[] {
     const bounds = this.grid.cellBounds(cell);
     const lineY = y + yOffset;
@@ -285,6 +364,9 @@ export class RectGridOverlay {
     ];
   }
 
+  /**
+   * Создает pool для однотипных highlight meshes.
+   */
   private createHighlightPool(name: string): GridHighlightPool {
     return {
       name,
@@ -292,6 +374,9 @@ export class RectGridOverlay {
     };
   }
 
+  /**
+   * Главная синхронизация всех highlight pools с текущим состоянием overlay.
+   */
   private refreshHighlights(): void {
     if (!this.isDebugVisible) {
       this.setPoolVisibility(this.visionPool, 0);
@@ -365,6 +450,9 @@ export class RectGridOverlay {
     );
   }
 
+  /**
+   * Пересобирает визуализацию blocked/open door ребер текущего этажа.
+   */
   private refreshEdgeMeshes(): void {
     const blockedEdges = this.blockedNavigationEdges.filter((entry) => entry.storyIndex === this.currentStoryIndex);
     const openDoorEdges = this.doorNavigationEdges.filter((entry) => entry.storyIndex === this.currentStoryIndex && entry.isOpen);
@@ -389,6 +477,9 @@ export class RectGridOverlay {
     }
   }
 
+  /**
+   * Доращивает pool edge meshes до нужного размера.
+   */
   private ensureEdgeMeshCapacity(meshes: LinesMesh[], desiredSize: number, prefix: string, color: Color3): void {
     while (meshes.length < desiredSize) {
       const mesh = MeshBuilder.CreateLines(
@@ -406,6 +497,9 @@ export class RectGridOverlay {
     }
   }
 
+  /**
+   * Обновляет line mesh ребра так, чтобы линия лежала поперек границы клеток.
+   */
   private updateEdgeMesh(mesh: LinesMesh, edge: StoryGridEdge, yOffset: number): void {
     const y = this.getStoryY(edge.storyIndex) + yOffset;
     const a = this.grid.cellToWorld(edge.a, y);
@@ -422,12 +516,18 @@ export class RectGridOverlay {
     MeshBuilder.CreateLines("", { points: [start, end], instance: mesh });
   }
 
+  /**
+   * Массово переключает видимость edge meshes.
+   */
   private setEdgeMeshVisibility(meshes: readonly LinesMesh[], visible: boolean): void {
     for (const mesh of meshes) {
       mesh.isVisible = visible;
     }
   }
 
+  /**
+   * Освобождает edge meshes и очищает массив pool.
+   */
   private disposeEdgeMeshes(meshes: LinesMesh[]): void {
     for (const mesh of meshes) {
       mesh.dispose();
@@ -435,6 +535,9 @@ export class RectGridOverlay {
     meshes.length = 0;
   }
 
+  /**
+   * Обновляет pool плоских highlight meshes.
+   */
   private updatePool(
     pool: GridHighlightPool,
     highlights: readonly GridCellHighlightSpec[],
@@ -461,6 +564,9 @@ export class RectGridOverlay {
     this.setPoolVisibility(pool, filteredHighlights.length);
   }
 
+  /**
+   * Доращивает highlight pool без пересоздания уже существующих meshes.
+   */
   private ensurePoolCapacity(pool: GridHighlightPool, desiredSize: number): void {
     while (pool.meshes.length < desiredSize) {
       const index = pool.meshes.length;
@@ -479,6 +585,9 @@ export class RectGridOverlay {
     }
   }
 
+  /**
+   * Создает или возвращает материал highlight mesh.
+   */
   private getOrCreateHighlightMaterial(mesh: Mesh, name: string): StandardMaterial {
     const existingMaterial = mesh.material;
     if (existingMaterial instanceof StandardMaterial) {
@@ -492,12 +601,18 @@ export class RectGridOverlay {
     return material;
   }
 
+  /**
+   * Показывает первые visibleCount meshes pool и скрывает остальные.
+   */
   private setPoolVisibility(pool: GridHighlightPool, visibleCount: number): void {
     for (let index = 0; index < pool.meshes.length; index += 1) {
       pool.meshes[index].isVisible = index < visibleCount;
     }
   }
 
+  /**
+   * Освобождает meshes/materials одного highlight pool.
+   */
   private disposePool(pool: GridHighlightPool): void {
     for (const mesh of pool.meshes) {
       mesh.material?.dispose();
@@ -506,10 +621,16 @@ export class RectGridOverlay {
     pool.meshes.length = 0;
   }
 
+  /**
+   * Возвращает Y этажа с fallback на origin сетки.
+   */
   private getStoryY(storyIndex: number): number {
     return this.storyYByStory.get(storyIndex) ?? this.grid.getOrigin().y;
   }
 
+  /**
+   * Пересобирает line mesh только для walkable клеток текущего этажа.
+   */
   private rebuildCurrentStoryGridMesh(): void {
     this.currentStoryGridMesh?.dispose();
     this.currentStoryGridMesh = null;
@@ -538,6 +659,9 @@ export class RectGridOverlay {
     this.refreshGridVisibility();
   }
 
+  /**
+   * Синхронизирует видимость fallback/current-story сетки.
+   */
   private refreshGridVisibility(): void {
     const hasWalkableCells = this.walkableNavigationCells.length > 0;
     this.gridMesh.isVisible = this.isDebugVisible && !hasWalkableCells;
@@ -546,6 +670,9 @@ export class RectGridOverlay {
     }
   }
 
+  /**
+   * Не дает overlay показывать клетки, которых нет в walkable navigation set.
+   */
   private isCellOverlayAllowed(cell: GridCell, storyIndex: number): boolean {
     if (this.walkableNavigationCells.length === 0) {
       return true;

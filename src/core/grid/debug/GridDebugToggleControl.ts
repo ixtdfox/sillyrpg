@@ -1,15 +1,18 @@
 import { Button, Control, TextBlock } from "@babylonjs/gui";
 
 /**
- * Grid-specific debug toggle control that can be embedded into any parent HUD layout.
+ * Графический GUI-контрол переключения debug-сетки.
+ *
+ * Класс инкапсулирует Babylon GUI Button и оставляет внешнему HUD только два
+ * действия: получить root Control и обновить визуальное состояние.
  */
 export class GridDebugToggleControl {
   private readonly toggleButton: Button;
 
   /**
-   * Creates reusable grid debug toggle button.
+   * Создает переиспользуемую кнопку debug grid.
    *
-   * @param onToggleRequested - Callback invoked on click.
+   * @param onToggleRequested - Callback, который вызывается при клике.
    */
   public constructor(onToggleRequested: () => void) {
     this.toggleButton = Button.CreateSimpleButton("toggle-grid-debug", "On/Off Grid Debug");
@@ -27,14 +30,14 @@ export class GridDebugToggleControl {
   }
 
   /**
-   * Returns root GUI control for this grid debug widget.
+   * Возвращает root GUI control для встраивания в HUD.
    */
   public getControl(): Control {
     return this.toggleButton;
   }
 
   /**
-   * Updates control visual state.
+   * Обновляет визуальный стиль под текущее состояние debug-сетки.
    */
   public setDebugEnabled(isEnabled: boolean): void {
     this.toggleButton.background = isEnabled ? "#304D2C" : "#1F2937";

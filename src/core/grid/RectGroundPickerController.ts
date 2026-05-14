@@ -4,6 +4,9 @@ import { RectGrid } from "./RectGrid";
 import { RectGridOverlay } from "./RectGridOverlay";
 import { NavigationMetadataParser } from "../navigation/BuildingNavigationMetadata";
 
+/**
+ * Объект передачи данных наведенной navigation-клетки.
+ */
 export interface PickedNavigationCell {
   readonly cell: GridCell;
   readonly storyIndex: number;
@@ -13,6 +16,9 @@ export interface PickedNavigationCell {
   readonly pickedMeshUniqueId?: number;
 }
 
+/**
+ * Объединение результата picking: обычная клетка или интерактивная лестница.
+ */
 export type PickedNavigationTarget =
   | ({
       readonly kind: "cell";
@@ -27,7 +33,55 @@ export type PickedNavigationTarget =
     };
 
 /**
- * Integrates mouse picking with logical grid snapping and hovered-cell highlight.
+ * Политика видимости stair pick для текущего этажа.
+ *
+ * Меш лестницы может иметь from/to story metadata. Если metadata отсутствует,
+ * mesh считается legacy-compatible и остается pickable на любом этаже.
+ */
+export class StairPickStoryPolicy {
+  public isConnectedToStory(
+    metadata: { readonly fromStory?: number; readonly toStory?: number },
+    currentStoryIndex: number
+  ): boolean {
+    const hasFrom = metadata.fromStory !== undefined;
+    const hasTo = metadata.toStory !== undefined;
+
+    if (!hasFrom && !hasTo) {
+      return true;
+    }
+
+    return metadata.fromStory === currentStoryIndex || metadata.toStory === currentStoryIndex;
+  }
+}
+
+/**
+ * Пересекатель луча с горизонтальной плоскостью.
+ *
+ * Выбор нижних/текущих этажей работает не по mesh hit, а по воображаемой
+ * плоскости этажа. Отдельный объект делает эту геометрию тестируемой и не
+ * смешивает ее с состоянием pointer hover.
+ */
+export class HorizontalPlaneRayIntersector {
+  public intersect(ray: Ray, y: number): Vector3 | null {
+    if (Math.abs(ray.direction.y) < 0.00001) {
+      return null;
+    }
+
+    const t = (y - ray.origin.y) / ray.direction.y;
+    if (t < 0) {
+      return null;
+    }
+
+    return ray.origin.add(ray.direction.scale(t));
+  }
+}
+
+/**
+ * Интегрирует Babylon pointer picking с логической сеткой и hover overlay.
+ *
+ * Контроллер выступает Mediator между Scene, RectGrid, overlay и navigation
+ * metadata parser. Он не принимает решений о walkability сам, а получает
+ * predicate снаружи от RectGridRuntime.
  */
 export class RectGroundPickerController {
   private readonly scene: Scene;
@@ -42,17 +96,22 @@ export class RectGroundPickerController {
   private hoveredNavigationTarget: PickedNavigationTarget | null;
   private warnedMissingStoryMetadataMeshIds: Set<number>;
   private fallbackStoryIndex: number;
-  private readonly navigationMetadataParser = NavigationMetadataParser.getShared();
+  private readonly navigationMetadataParser: NavigationMetadataParser;
+  private readonly stairPickStoryPolicy: StairPickStoryPolicy;
+  private readonly planeRayIntersector: HorizontalPlaneRayIntersector;
 
   /**
-   * Creates mouse-driven ground picking controller.
+   * Создает mouse-driven controller для выбора navigation target.
    */
   public constructor(
     scene: Scene,
     isGroundPick: (mesh: AbstractMesh) => boolean,
     grid: RectGrid,
     overlay: RectGridOverlay,
-    isWalkableCell: (cell: GridCell, storyIndex: number) => boolean = () => true
+    isWalkableCell: (cell: GridCell, storyIndex: number) => boolean = () => true,
+    navigationMetadataParser = NavigationMetadataParser.getShared(),
+    stairPickStoryPolicy = new StairPickStoryPolicy(),
+    planeRayIntersector = new HorizontalPlaneRayIntersector()
   ) {
     this.scene = scene;
     this.isGroundPick = isGroundPick;
@@ -66,6 +125,9 @@ export class RectGroundPickerController {
     this.hoveredNavigationTarget = null;
     this.warnedMissingStoryMetadataMeshIds = new Set();
     this.fallbackStoryIndex = 0;
+    this.navigationMetadataParser = navigationMetadataParser;
+    this.stairPickStoryPolicy = stairPickStoryPolicy;
+    this.planeRayIntersector = planeRayIntersector;
 
     this.scene.onBeforeRenderObservable.add(this.updateHoverFromPointer);
   }
@@ -75,7 +137,7 @@ export class RectGroundPickerController {
   }
 
   /**
-   * Returns currently hovered cell derived from pointer pick, if any.
+   * Возвращает наведенную клетку, если текущий target является клеткой.
    */
   public getHoveredCell(): GridCell | null {
     return this.hoveredCell;
@@ -172,7 +234,7 @@ export class RectGroundPickerController {
       const pickedMesh = pickResult.pickedMesh ?? null;
       const stairPickMetadata = pickedMesh ? this.navigationMetadataParser.parseStairPickMetadata(pickedMesh) : null;
       if (stairPickMetadata?.isStairLike) {
-        if (!isStairPickConnectedToStory(stairPickMetadata, this.fallbackStoryIndex)) {
+        if (!this.stairPickStoryPolicy.isConnectedToStory(stairPickMetadata, this.fallbackStoryIndex)) {
           continue;
         }
 
@@ -232,7 +294,7 @@ export class RectGroundPickerController {
       return null;
     }
 
-    const planePoint = this.intersectRayWithHorizontalPlane(ray, this.storyYResolver(storyIndex));
+    const planePoint = this.planeRayIntersector.intersect(ray, this.storyYResolver(storyIndex));
     if (!planePoint) {
       return null;
     }
@@ -265,31 +327,4 @@ export class RectGroundPickerController {
       camera
     );
   }
-
-  private intersectRayWithHorizontalPlane(ray: Ray, y: number): Vector3 | null {
-    if (Math.abs(ray.direction.y) < 0.00001) {
-      return null;
-    }
-
-    const t = (y - ray.origin.y) / ray.direction.y;
-    if (t < 0) {
-      return null;
-    }
-
-    return ray.origin.add(ray.direction.scale(t));
-  }
-}
-
-function isStairPickConnectedToStory(
-  metadata: { readonly fromStory?: number; readonly toStory?: number },
-  currentStoryIndex: number
-): boolean {
-  const hasFrom = metadata.fromStory !== undefined;
-  const hasTo = metadata.toStory !== undefined;
-
-  if (!hasFrom && !hasTo) {
-    return true;
-  }
-
-  return metadata.fromStory === currentStoryIndex || metadata.toStory === currentStoryIndex;
 }

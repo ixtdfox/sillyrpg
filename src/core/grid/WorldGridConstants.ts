@@ -1,28 +1,28 @@
 /**
- * One generated building floor/wall module in world units.
+ * Размер одного generated floor/wall модуля в мировых единицах.
  *
- * Shared contract with procedural_floorplan_ru_v2/game_grid.py:
+ * Общий контракт с procedural_floorplan_ru_v2/game_grid.py:
  * 1 Blender meter = 1 Babylon world unit.
  * 1 building tile/module = 1 game grid tile diameter.
- * Wall thickness is visual geometry and never changes the logical grid size.
+ * Толщина стен считается визуальной геометрией и не меняет логический размер сетки.
  */
 export const WORLD_TILE_SIZE = 1.0;
 export const WORLD_TILE_SIZE_M = WORLD_TILE_SIZE;
 
 /**
- * Grid tile diameter on the XZ plane should match one building tile.
+ * Диаметр grid tile в XZ-плоскости должен совпадать с building tile.
  *
- * RectGrid.tileSize is the tile size (center-to-corner), so the tactical
- * grid radius is half of the generator's 1m tile/module size.
+ * Сейчас RectGrid хранит tileSize как полный размер клетки, поэтому tactical
+ * сетка прямо совпадает с 1m module из генератора.
  */
 export const RECT_TILE_SIZE = WORLD_TILE_SIZE;
 
 /**
- * Shared editor/runtime origin for the logical game grid.
+ * Общий origin логической grid-системы для editor и runtime.
  *
- * Blender preview draws this same origin in Blender X/Y, which maps to game X/Z
- * after export. Ground AABBs only bound how many cells are built; they do not
- * move the grid contract.
+ * Превью Blender рисует тот же origin в Blender X/Y, который после export
+ * мапится в game X/Z. AABB земли только ограничивает количество клеток, но не
+ * переносит контракт координат.
  */
 export const WORLD_GRID_ORIGIN_X = 0;
 export const WORLD_GRID_ORIGIN_Y = 0;

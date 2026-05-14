@@ -1,6 +1,6 @@
 import { NullEngine, Scene, TransformNode, Vector3 } from "@babylonjs/core";
 import { GridCell } from "../../../src/core/grid/GridCell";
-import { validateAndRepairStairEndpointCells } from "../../../src/core/grid/RectGridRuntime";
+import { StairEndpointCellRepairService } from "../../../src/core/grid/RectGridRuntime";
 import { RectGrid } from "../../../src/core/grid/RectGrid";
 import { NavigationGraph } from "../../../src/core/navigation/NavigationGraph";
 import { MultiFloorPathfinder } from "../../../src/core/navigation/MultiFloorPathfinder";
@@ -193,7 +193,7 @@ assertEqual(endpointCleanupRegistry.isCellBlocked(new GridCell(2, -1), 0), false
 assertEqual(endpointCleanupRegistry.isCellBlocked(new GridCell(3, -1), 0), true);
 
 const cleanValidationCalls: string[] = [];
-const cleanValidationRepairs = validateAndRepairStairEndpointCells(
+const cleanValidationRepairs = new StairEndpointCellRepairService().validateAndRepair(
   [
     {
       stairId: "clean-stair",

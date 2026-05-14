@@ -2,41 +2,129 @@ import type { AbstractMesh, Node, Scene } from "@babylonjs/core";
 import { NavigationMetadataParser } from "../navigation/BuildingNavigationMetadata";
 
 /**
- * Selection result for ground used by rect-grid sizing and mouse picking.
+ * Результат выбора земли для размера RectGrid и picking.
  */
 export interface RectGridGroundSelection {
-  /** Primary ground mesh used for bounds/origin setup. */
+  /** Основной меш земли, от которого начинается sizing/debug naming. */
   readonly groundMesh: AbstractMesh;
 
-  /** All candidate ground meshes participating in grid bounds/picking. */
+  /** Все meshes, которые участвуют в bounds и ground picking. */
   readonly groundMeshes: readonly AbstractMesh[];
 
-  /** Predicate used by scene picking to accept valid ground hits. */
+  /** Предикат для Babylon picking: какие hits считаются попаданием в землю. */
   readonly isGroundPick: (mesh: AbstractMesh) => boolean;
 }
 
 /**
- * Resolves the scene ground mesh for rect-grid initialization.
+ * Политика отбраковки визуальных terrain meshes.
+ *
+ * Такие meshes нужны для картинки, но не должны становиться базой tactical grid:
+ * их bounding box может быть шире логической земли, а picking должен идти по
+ * настоящим navigation/floor surfaces.
  */
-export class RectGridGroundMeshResolver {
+export class TerrainVisualOnlyMeshPolicy {
+  public isVisualOnly(mesh: AbstractMesh): boolean {
+    return (mesh.metadata as { terrainVisualOnly?: unknown } | null | undefined)?.terrainVisualOnly === true;
+  }
+}
+
+/**
+ * Политика имен для ground meshes.
+ *
+ * Сцены приходят из разных источников, поэтому resolver поддерживает несколько
+ * naming conventions: строгие имена для авторской земли и keyword fallback для
+ * generated/imported контента.
+ */
+export class GroundMeshNamePolicy {
   private static readonly EXACT_GROUND_NAMES = ["ground", "grid-ground", "terrain", "floor"];
   private static readonly KEYWORD_GROUND_NAMES = ["ground", "terrain", "floor", "walk", "tile"];
-  private readonly navigationMetadataParser = NavigationMetadataParser.getShared();
+
+  public isExactGroundName(name: string): boolean {
+    return GroundMeshNamePolicy.EXACT_GROUND_NAMES.includes(this.normalize(name));
+  }
+
+  public isKeywordGroundName(name: string): boolean {
+    const normalizedName = this.normalize(name);
+    return GroundMeshNamePolicy.KEYWORD_GROUND_NAMES.some((token) => normalizedName.includes(token));
+  }
 
   /**
-   * Resolves a stable ground selection using explicit conventions.
+   * Убирает Blender-style suffix `.001`, чтобы дубликаты meshes не ломали convention.
+   */
+  public normalize(name: string): string {
+    return name.toLowerCase().replace(/\.[0-9]+$/u, "");
+  }
+}
+
+/**
+ * Сортировщик meshes по горизонтальному footprint.
+ *
+ * Это отдельная стратегия выбора, потому что fallback "самый большой" должен
+ * быть детерминированным и одинаковым для metadata/exact/keyword веток.
+ */
+export class GroundMeshFootprintRanker {
+  public selectLargestHorizontalMesh(meshes: readonly AbstractMesh[]): AbstractMesh {
+    const [bestMesh] = [...meshes].sort((left, right) => {
+      const leftArea = this.measureHorizontalFootprint(left);
+      const rightArea = this.measureHorizontalFootprint(right);
+
+      if (leftArea !== rightArea) {
+        return rightArea - leftArea;
+      }
+
+      return left.name.localeCompare(right.name);
+    });
+
+    return bestMesh;
+  }
+
+  public measureHorizontalFootprint(mesh: AbstractMesh): number {
+    const bounds = mesh.getBoundingInfo().boundingBox.extendSizeWorld;
+    return (bounds.x * 2) * (bounds.z * 2);
+  }
+}
+
+/**
+ * Резолвер scene ground mesh для инициализации rect-grid.
+ *
+ * Класс работает как Chain of Responsibility: metadata -> exact name ->
+ * keyword name -> largest footprint fallback. Каждый шаг явно отделен политиками,
+ * чтобы правила можно было тестировать без создания полного RectGridRuntime.
+ */
+export class RectGridGroundMeshResolver {
+  private readonly navigationMetadataParser: NavigationMetadataParser;
+  private readonly visualOnlyPolicy: TerrainVisualOnlyMeshPolicy;
+  private readonly namePolicy: GroundMeshNamePolicy;
+  private readonly footprintRanker: GroundMeshFootprintRanker;
+
+  public constructor(
+    navigationMetadataParser = NavigationMetadataParser.getShared(),
+    visualOnlyPolicy = new TerrainVisualOnlyMeshPolicy(),
+    namePolicy = new GroundMeshNamePolicy(),
+    footprintRanker = new GroundMeshFootprintRanker()
+  ) {
+    this.navigationMetadataParser = navigationMetadataParser;
+    this.visualOnlyPolicy = visualOnlyPolicy;
+    this.namePolicy = namePolicy;
+    this.footprintRanker = footprintRanker;
+  }
+
+  /**
+   * Выбирает стабильную ground selection по явным convention.
    *
-   * Resolution order:
+   * Порядок:
    * 1) metadata marker `metadata.isGround === true`
    * 2) exact naming convention (`ground`, `terrain`, `floor`, `grid-ground`)
-   * 3) single conservative keyword candidate (`ground` or `terrain` in name)
+   * 3) keyword fallback (`ground`, `terrain`, `floor`, `walk`, `tile`)
+   * 4) largest horizontal footprint как последний defensive fallback
    *
-   * This intentionally avoids selecting arbitrary "largest" meshes.
+   * Первые три шага намеренно предпочтительнее "largest", потому что большие
+   * декоративные meshes не всегда являются навигационной землей.
    */
   public resolve(scene: Scene, preferredMeshes: readonly AbstractMesh[] = []): RectGridGroundSelection {
     const scopeSource = preferredMeshes.length > 0 ? preferredMeshes : scene.meshes;
     const meshes = scopeSource.filter((mesh) =>
-      mesh.getTotalVertices() > 0 && !mesh.isDisposed() && !isTerrainVisualOnlyMesh(mesh)
+      mesh.getTotalVertices() > 0 && !mesh.isDisposed() && !this.visualOnlyPolicy.isVisualOnly(mesh)
     );
     console.debug(
       `[RectGridGroundMeshResolver] Ground resolution started meshCount=${meshes.length} preferredScope=${preferredMeshes.length > 0}.`
@@ -50,26 +138,20 @@ export class RectGridGroundMeshResolver {
 
     const metadataMatches = meshes.filter((mesh) => (mesh.metadata as { isGround?: unknown } | null | undefined)?.isGround === true);
     if (metadataMatches.length > 0) {
-      return this.createSelection(this.selectLargestHorizontalMesh(metadataMatches), metadataMatches, "metadata.isGround=true");
+      return this.createSelection(this.footprintRanker.selectLargestHorizontalMesh(metadataMatches), metadataMatches, "metadata.isGround=true");
     }
 
-    const exactNameMatches = meshes.filter((mesh) => {
-      const normalizedName = this.normalizeName(mesh.name);
-      return RectGridGroundMeshResolver.EXACT_GROUND_NAMES.includes(normalizedName);
-    });
+    const exactNameMatches = meshes.filter((mesh) => this.namePolicy.isExactGroundName(mesh.name));
     if (exactNameMatches.length > 0) {
-      return this.createSelection(this.selectLargestHorizontalMesh(exactNameMatches), exactNameMatches, "exact-name-match");
+      return this.createSelection(this.footprintRanker.selectLargestHorizontalMesh(exactNameMatches), exactNameMatches, "exact-name-match");
     }
 
-    const keywordMatches = meshes.filter((mesh) => {
-      const normalizedName = this.normalizeName(mesh.name);
-      return RectGridGroundMeshResolver.KEYWORD_GROUND_NAMES.some((token) => normalizedName.includes(token));
-    });
+    const keywordMatches = meshes.filter((mesh) => this.namePolicy.isKeywordGroundName(mesh.name));
     if (keywordMatches.length > 0) {
-      return this.createSelection(this.selectLargestHorizontalMesh(keywordMatches), keywordMatches, "keyword-name-match");
+      return this.createSelection(this.footprintRanker.selectLargestHorizontalMesh(keywordMatches), keywordMatches, "keyword-name-match");
     }
 
-    const fallback = this.selectLargestHorizontalMesh(meshes);
+    const fallback = this.footprintRanker.selectLargestHorizontalMesh(meshes);
     if (fallback) {
       return this.createSelection(fallback, meshes, "largest-horizontal-footprint-fallback");
     }
@@ -80,6 +162,9 @@ export class RectGridGroundMeshResolver {
     );
   }
 
+  /**
+   * Собирает DTO выбора и predicate для picking.
+   */
   private createSelection(groundMesh: AbstractMesh, groundMeshes: readonly AbstractMesh[], reason: string): RectGridGroundSelection {
     console.debug(
       `[RectGridGroundMeshResolver] Ground selected mesh='${groundMesh.name}' id='${groundMesh.id}' reason=${reason}.`
@@ -93,10 +178,16 @@ export class RectGridGroundMeshResolver {
     };
   }
 
+  /**
+   * Делегирует navigation metadata parser политику pickable floor surfaces.
+   */
   private isNavigationPickableSurface(mesh: AbstractMesh): boolean {
     return this.navigationMetadataParser.isNavigationPickableSurface(mesh);
   }
 
+  /**
+   * Проверяет, что hit mesh является выбранной землей или ее дочерним mesh.
+   */
   private isMeshInGroundHierarchy(mesh: AbstractMesh, groundMesh: AbstractMesh): boolean {
     let current: AbstractMesh | null = mesh;
 
@@ -112,39 +203,16 @@ export class RectGridGroundMeshResolver {
     return false;
   }
 
-  private selectLargestHorizontalMesh(meshes: readonly AbstractMesh[]): AbstractMesh {
-    const [bestMesh] = [...meshes].sort((left, right) => {
-      const leftBounds = left.getBoundingInfo().boundingBox.extendSizeWorld;
-      const rightBounds = right.getBoundingInfo().boundingBox.extendSizeWorld;
-      const leftArea = (leftBounds.x * 2) * (leftBounds.z * 2);
-      const rightArea = (rightBounds.x * 2) * (rightBounds.z * 2);
-
-      if (leftArea !== rightArea) {
-        return rightArea - leftArea;
-      }
-
-      return left.name.localeCompare(right.name);
-    });
-
-    return bestMesh;
-  }
-
-  private normalizeName(name: string): string {
-    return name.toLowerCase().replace(/\.[0-9]+$/u, "");
-  }
-
+  /**
+   * Логирует кандидатов, чтобы ошибки импорта сцены было проще диагностировать.
+   */
   private logCandidateMeshes(meshes: readonly AbstractMesh[]): void {
     for (const mesh of meshes) {
-      const bounds = mesh.getBoundingInfo().boundingBox.extendSizeWorld;
-      const area = (bounds.x * 2) * (bounds.z * 2);
+      const area = this.footprintRanker.measureHorizontalFootprint(mesh);
       const metadataGround = (mesh.metadata as { isGround?: unknown } | null | undefined)?.isGround === true;
       console.debug(
         `[RectGridGroundMeshResolver] Candidate mesh='${mesh.name}' id='${mesh.id}' metadataGround=${metadataGround} footprint=${area.toFixed(2)}.`
       );
     }
   }
-}
-
-function isTerrainVisualOnlyMesh(mesh: AbstractMesh): boolean {
-  return (mesh.metadata as { terrainVisualOnly?: unknown } | null | undefined)?.terrainVisualOnly === true;
 }

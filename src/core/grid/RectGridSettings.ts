@@ -1,24 +1,24 @@
 import { RECT_TILE_SIZE } from "./WorldGridConstants";
 
 /**
- * Runtime settings for the logical grid ground system.
+ * Настройки runtime-системы прямоугольной сетки.
  */
 export interface RectGridSettings {
-  /** Rectangular tile size in world units. */
+  /** Размер прямоугольного тайла в мировых единицах. */
   readonly tileSize: number;
 
-  /** Vertical overlay offset to avoid z-fighting. */
+  /** Вертикальный offset overlay, чтобы debug-плоскости не мерцали с землей. */
   readonly overlayVerticalOffset: number;
 
-  /** Initial state of debug grid visibility. */
+  /** Начальное состояние видимости debug-сетки. */
   readonly debugEnabledByDefault: boolean;
 }
 
 /**
- * Default settings for tactical ground grid.
+ * Настройки тактической grid-системы по умолчанию.
  *
- * `tileSize` intentionally comes from world-grid constants so the game grid overlay
- * stays aligned with the generated building tile/module size.
+ * `tileSize` намеренно берется из world-grid constants: так runtime overlay,
+ * pathfinding и generated building modules остаются в одном масштабе.
  */
 export const DEFAULT_RECT_GRID_SETTINGS: RectGridSettings = {
   tileSize: RECT_TILE_SIZE,

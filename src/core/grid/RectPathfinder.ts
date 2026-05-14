@@ -2,13 +2,21 @@ import { GridCell } from "./GridCell";
 import { RectGrid } from "./RectGrid";
 
 /**
- * Optional rule used to reject traversal through blocked cells.
+ * Правило, которое запрещает вход в конкретную клетку.
  */
 export type GridCellBlockedPredicate = (cell: GridCell) => boolean;
+
+/**
+ * Правило, которое запрещает переход между двумя соседними клетками.
+ */
 export type GridEdgeBlockedPredicate = (fromCell: GridCell, toCell: GridCell) => boolean;
 
 /**
- * Computes deterministic shortest paths across bounded grid grids.
+ * Сервис поиска кратчайшего пути по bounded RectGrid.
+ *
+ * Реализация использует BFS Strategy для невзвешенной 4-связной сетки. Весовые
+ * и многоэтажные маршруты живут в navigation-пакете, а этот класс остается
+ * компактным grid-level pathfinder для простых систем и editor/runtime fallback.
  */
 export class RectPathfinder {
   private readonly grid: RectGrid;
@@ -16,11 +24,11 @@ export class RectPathfinder {
   private readonly isEdgeBlocked: GridEdgeBlockedPredicate;
 
   /**
-   * Creates a new pathfinder for a specific grid.
+   * Создает pathfinder для конкретной сетки.
    *
-   * @param grid - Logical grid grid.
-   * @param isCellBlocked - Optional blocked-cell predicate.
-   * @param isEdgeBlocked - Optional blocked-edge predicate.
+   * @param grid - Логическая RectGrid.
+   * @param isCellBlocked - Внешняя политика блокировки клеток.
+   * @param isEdgeBlocked - Внешняя политика блокировки ребер.
    */
   public constructor(
     grid: RectGrid,
@@ -33,9 +41,9 @@ export class RectPathfinder {
   }
 
   /**
-   * Finds a shortest path from start to goal.
+   * Ищет кратчайший путь от start до goal.
    *
-   * @returns Inclusive cell list [start..goal], or null when unreachable/invalid.
+   * @returns Список клеток [start..goal] включительно или null, если путь невозможен.
    */
   public findPath(start: GridCell, goal: GridCell): GridCell[] | null {
     if (!this.grid.contains(start) || !this.grid.contains(goal)) {
@@ -84,6 +92,9 @@ export class RectPathfinder {
     return null;
   }
 
+  /**
+   * Восстанавливает путь по parent map, созданной BFS.
+   */
   private reconstructPath(start: GridCell, goal: GridCell, parentByKey: Map<string, GridCell>): GridCell[] {
     const path: GridCell[] = [goal];
     let current = goal;
@@ -102,6 +113,9 @@ export class RectPathfinder {
     return path;
   }
 
+  /**
+   * Единая точка построения ключа клетки для visited/parent maps.
+   */
   private cellKey(cell: GridCell): string {
     return cell.key();
   }
