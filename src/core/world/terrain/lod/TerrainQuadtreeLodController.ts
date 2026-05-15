@@ -236,9 +236,10 @@ export class TerrainQuadtreeLodController {
   public getDiagnostics(): TerrainQuadtreeLodDiagnostics {
     const depthCounts = new Map<number, number>();
     const sampleStepCounts = new Map<number, number>();
+    const approxTrianglesBySampleStep = new Map<number, number>();
     const horizontalWorldScale = this.getHorizontalWorldScale();
     const sourceQuadSize = this.quadSizeCalculator.compute(this.heightField) * horizontalWorldScale;
-    const approxVisibleTriangles = this.computeApproxVisibleTriangles();
+    let approxVisibleTriangles = 0;
     let maxDepth = 0;
     let minLeafWorldSize: number | null = null;
     let maxLeafWorldSize: number | null = null;
@@ -249,8 +250,14 @@ export class TerrainQuadtreeLodController {
     for (const leaf of this.activeLeaves) {
       const node = leaf.node;
       const leafWorldSize = Math.max(node.sizeWorldX, node.sizeWorldZ) * horizontalWorldScale;
+      const leafApproxTriangles = this.computeLeafApproxVisibleTriangles(leaf);
+      approxVisibleTriangles += leafApproxTriangles;
       depthCounts.set(node.depth, (depthCounts.get(node.depth) ?? 0) + 1);
       sampleStepCounts.set(leaf.sampleStep, (sampleStepCounts.get(leaf.sampleStep) ?? 0) + 1);
+      approxTrianglesBySampleStep.set(
+        leaf.sampleStep,
+        (approxTrianglesBySampleStep.get(leaf.sampleStep) ?? 0) + leafApproxTriangles
+      );
       maxDepth = Math.max(maxDepth, node.depth);
       minLeafWorldSize = minLeafWorldSize === null ? leafWorldSize : Math.min(minLeafWorldSize, leafWorldSize);
       maxLeafWorldSize = maxLeafWorldSize === null ? leafWorldSize : Math.max(maxLeafWorldSize, leafWorldSize);
@@ -272,6 +279,7 @@ export class TerrainQuadtreeLodController {
       anchorSource: this.lastAnchorSource,
       depthCounts,
       sampleStepCounts,
+      approxTrianglesBySampleStep,
       sourceQuadSize,
       desiredNearPatchWorldSize: this.lodDescriptor.nearPatchWorldSize,
       activePatchMeshCount: this.activeLeaves.length,
@@ -399,7 +407,7 @@ export class TerrainQuadtreeLodController {
     }
 
     const lineMesh = MeshBuilder.CreateLineSystem(
-      `terrain:${this.terrainDescriptor.id}:lod:debug:aggregate`,
+      `terrain:${this.terrainDescriptor.id}:lod:debug:${debugMode}`,
       { lines },
       this.scene
     );
@@ -413,6 +421,7 @@ export class TerrainQuadtreeLodController {
       terrainSurfaceCanonical: false,
       terrainKind: "generated-lod-debug",
       terrainQuadtreeDebugMode: debugMode,
+      terrainQuadtreeDebugDescription: debugMode === "fullPatchGrid" ? "actual decimated geometry grid" : "patch borders only",
       terrainDebugLeafCount: this.activeLeaves.length
     };
     lineMesh.setParent(this.terrainRoot, false);
@@ -462,6 +471,10 @@ export class TerrainQuadtreeLodController {
       .sort(([left], [right]) => left - right)
       .map(([sampleStep, count]) => `${sampleStep}:${count}`)
       .join(",");
+    const trianglesByStepSummary = Array.from(diagnostics.approxTrianglesBySampleStep.entries())
+      .sort(([left], [right]) => left - right)
+      .map(([sampleStep, triangleCount]) => `${sampleStep}:${triangleCount}`)
+      .join(",");
     const distanceRange =
       diagnostics.minDistanceToAnchor === null || diagnostics.maxDistanceToAnchor === null
         ? "n/a"
@@ -475,11 +488,12 @@ export class TerrainQuadtreeLodController {
         ? "n/a"
         : `${diagnostics.minNearLeafWorldSize.toFixed(2)}..${diagnostics.maxNearLeafWorldSize.toFixed(2)}`;
     console.debug(
-      `${prefix} visibleLeaves=${diagnostics.visibleLeafCount} maxDepth=${diagnostics.maxDepth} ` +
+      `${prefix} leaves=${diagnostics.visibleLeafCount} maxDepth=${diagnostics.maxDepth} ` +
       `patchMeshes=${diagnostics.activePatchMeshCount} debugLineMeshes=${diagnostics.activeDebugLineMeshCount} ` +
       `approxTriangles=${diagnostics.approxVisibleTriangles} debugMode=${diagnostics.debugMode} ` +
       `anchor=${diagnostics.anchorSource ?? "none"} depths=[${depthSummary}] ` +
-      `sampleSteps=[${sampleStepSummary}] skirtDepth=${this.lodDescriptor.skirtDepth.toFixed(2)} ` +
+      `samples=[${sampleStepSummary}] trisByStep=[${trianglesByStepSummary}] ` +
+      `skirtDepth=${this.lodDescriptor.skirtDepth.toFixed(2)} ` +
       `sourceQuad=${diagnostics.sourceQuadSize.toFixed(2)} ` +
       `nearRadius=${this.lodDescriptor.nearFullResolutionRadius.toFixed(1)} ` +
       `nearPatchWorldSize=${diagnostics.desiredNearPatchWorldSize.toFixed(2)} ` +
@@ -541,17 +555,12 @@ export class TerrainQuadtreeLodController {
     return this.debugLineMesh && !this.debugLineMesh.isDisposed() && this.debugLineMesh.isEnabled() ? 1 : 0;
   }
 
-  /**
-   * Оценивает видимые triangles для текущего LOD selection.
-   */
-  private computeApproxVisibleTriangles(): number {
-    return this.activeLeaves.reduce((sum, leaf) => {
-      const xSegments = Math.max(1, Math.ceil((leaf.node.ix1 - leaf.node.ix0) / leaf.sampleStep));
-      const zSegments = Math.max(1, Math.ceil((leaf.node.iz1 - leaf.node.iz0) / leaf.sampleStep));
-      const topTriangles = xSegments * zSegments * 2;
-      const skirtTriangles = this.lodDescriptor.skirtDepth > 0 ? (xSegments + zSegments) * 4 : 0;
-      return sum + topTriangles + skirtTriangles;
-    }, 0);
+  private computeLeafApproxVisibleTriangles(leaf: TerrainQuadtreeLeafSelection): number {
+    const xSegments = Math.max(1, Math.ceil((leaf.node.ix1 - leaf.node.ix0) / leaf.sampleStep));
+    const zSegments = Math.max(1, Math.ceil((leaf.node.iz1 - leaf.node.iz0) / leaf.sampleStep));
+    const topTriangles = xSegments * zSegments * 2;
+    const skirtTriangles = this.lodDescriptor.skirtDepth > 0 ? (xSegments + zSegments) * 4 : 0;
+    return topTriangles + skirtTriangles;
   }
 
   /**

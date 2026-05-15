@@ -74,6 +74,7 @@ export interface SceneGeneratedTerrainLodDescriptor {
 
 export interface SceneGeneratedTerrainLodRingDescriptor {
   readonly distance: number;
+  /** Desired decimation step for this ring. Name kept for JSON compatibility. */
   readonly maxSampleStep: number;
 }
 

@@ -279,6 +279,15 @@ export class RuntimePerformanceSampler {
     ) {
       warnings.push({ severity: "warning", message: "Near LOD patches are very small with many leaves" });
     }
+    if (
+      (snapshot.terrainLod.maxDistanceToAnchor ?? 0) > thresholds.farTerrainDistanceWarning &&
+      this.resolveMaxSampleStep(snapshot.terrainLod.sampleStepCounts) < thresholds.farTerrainExpectedSampleStep
+    ) {
+      warnings.push({
+        severity: "warning",
+        message: `Far terrain visible but no sampleStep >= ${thresholds.farTerrainExpectedSampleStep}`
+      });
+    }
     if (snapshot.shadows.casterCount > thresholds.shadowCastersWarning) {
       warnings.push({ severity: "warning", message: `Shadow casters over ${thresholds.shadowCastersWarning}` });
     }
@@ -291,5 +300,15 @@ export class RuntimePerformanceSampler {
 
   private isLineMesh(mesh: AbstractMesh): boolean {
     return mesh.getClassName() === "LinesMesh";
+  }
+
+  private resolveMaxSampleStep(sampleStepCounts: ReadonlyMap<number, number>): number {
+    let maxSampleStep = 0;
+    for (const [sampleStep, count] of sampleStepCounts) {
+      if (count > 0) {
+        maxSampleStep = Math.max(maxSampleStep, sampleStep);
+      }
+    }
+    return maxSampleStep;
   }
 }

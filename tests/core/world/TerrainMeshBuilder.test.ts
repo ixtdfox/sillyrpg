@@ -3,7 +3,7 @@ import { TerrainHeightField } from "../../../src/core/world/terrain/TerrainHeigh
 import { TerrainHeightFieldNormalSampler } from "../../../src/core/world/terrain/TerrainHeightFieldNormalSampler";
 import { TerrainMeshBuilder } from "../../../src/core/world/terrain/TerrainMeshBuilder";
 import { TerrainNormalBuilder } from "../../../src/core/world/terrain/TerrainNormalBuilder";
-import { TerrainQuadtreeLodBuilder } from "../../../src/core/world/terrain/lod/TerrainQuadtreeLodBuilder";
+import { TerrainQuadtreeLodBuilder, TerrainQuadtreeSampleStepPolicy } from "../../../src/core/world/terrain/lod/TerrainQuadtreeLodBuilder";
 import { TerrainQuadtreePatchMeshBuilder } from "../../../src/core/world/terrain/lod/TerrainQuadtreePatchMeshBuilder";
 import {
   TerrainNativeLodDepthResolver,
@@ -224,8 +224,12 @@ function run(): void {
   testQuadtreePatchSampleStepOneMatchesCanonicalWindingAndMetadata();
   testGeneratedTerrainDefaultResolutionFollowsGridStep();
   testNativeMaxDepthResolvesFromHeightfield();
+  testQuadtreeSampleStepPolicyTreatsRingStepAsMinimumDecimation();
+  testQuadtreeSampleStepPolicyKeepsNaturalBudgetFloor();
   testQuadtreeSelectionKeepsNearFullResolutionInLargerPatches();
   testQuadtreeSelectionKeepsFarTerrainCoarse();
+  testQuadtreeDefaultRingsSelectHighFarSampleSteps();
+  testQuadtreeFarSampleStepsReduceApproximateTriangleCount();
   testLegacyNearLeafWorldSizeMigratesToPatchWorldSizeDefault();
   testSourceDensityWarningPolicyUsesDesiredNearGridSize();
 }
@@ -420,6 +424,30 @@ function testQuadtreeSelectionKeepsNearFullResolutionInLargerPatches(): void {
   );
 }
 
+function testQuadtreeSampleStepPolicyTreatsRingStepAsMinimumDecimation(): void {
+  const field = TerrainHeightField.createFilled(64, 64, 65, 65, 0);
+  const node = new TerrainQuadtreeLodBuilder().buildRoot(field, 0);
+  const policy = new TerrainQuadtreeSampleStepPolicy();
+
+  assert(policy.computeNaturalSampleStep(node, 32) === 2, "Test setup should produce natural sampleStep=2.");
+  assert(
+    policy.computePatchSampleStep(node, 32, 16) === 16,
+    "Far ring desired sampleStep=16 should not be reduced to the natural sampleStep=2."
+  );
+}
+
+function testQuadtreeSampleStepPolicyKeepsNaturalBudgetFloor(): void {
+  const field = TerrainHeightField.createFilled(128, 128, 129, 129, 0);
+  const node = new TerrainQuadtreeLodBuilder().buildRoot(field, 0);
+  const policy = new TerrainQuadtreeSampleStepPolicy();
+
+  assert(policy.computeNaturalSampleStep(node, 32) === 4, "Test setup should produce natural sampleStep=4.");
+  assert(
+    policy.computePatchSampleStep(node, 32, 1) === 4,
+    "Near desired sampleStep=1 should still be raised when the patch exceeds the mesh quad budget."
+  );
+}
+
 function testQuadtreeSelectionKeepsFarTerrainCoarse(): void {
   const field = TerrainHeightField.createFilled(512, 512, 513, 513, 0);
   const builder = new TerrainQuadtreeLodBuilder();
@@ -455,6 +483,48 @@ function testQuadtreeSelectionKeepsFarTerrainCoarse(): void {
     "Large terrain LOD should keep coarser patches away from the anchor."
   );
   assert(maxDepthLeaves.length < leaves.length, "Large terrain LOD should not make every selected leaf a max-depth leaf.");
+}
+
+function testQuadtreeDefaultRingsSelectHighFarSampleSteps(): void {
+  const field = TerrainHeightField.createFilled(512, 512, 513, 513, 0);
+  const builder = new TerrainQuadtreeLodBuilder();
+  const descriptor = quadtreeLodDescriptorResolver.resolve(undefined, field);
+  const root = builder.buildRoot(field, descriptor.maxDepth);
+  const leaves = builder.selectVisibleLeaves(root, Vector3.Zero(), descriptor, field);
+  const farLeaves = leaves.filter((leaf) => leaf.distanceToAnchor > 160);
+  const farSampleSteps = new Set(farLeaves.map((leaf) => leaf.sampleStep));
+
+  assert(farLeaves.length > 0, "512m terrain should produce visible leaves beyond 160m.");
+  assert(
+    Array.from(farSampleSteps).some((sampleStep) => sampleStep >= 8),
+    `Default LOD rings should produce sampleStep>=8 for far nodes, received [${Array.from(farSampleSteps).join(",")}].`
+  );
+}
+
+function testQuadtreeFarSampleStepsReduceApproximateTriangleCount(): void {
+  const field = TerrainHeightField.createFilled(512, 512, 513, 513, 0);
+  const builder = new TerrainQuadtreeLodBuilder();
+  const highDecimationDescriptor = quadtreeLodDescriptorResolver.resolve(undefined, field);
+  const lowDecimationDescriptor = quadtreeLodDescriptorResolver.resolve({
+    lodRings: [
+      { distance: 40, maxSampleStep: 1 },
+      { distance: 80, maxSampleStep: 1 },
+      { distance: 160, maxSampleStep: 1 },
+      { distance: 320, maxSampleStep: 1 },
+      { distance: 640, maxSampleStep: 1 },
+      { distance: 1280, maxSampleStep: 1 }
+    ]
+  }, field);
+  const root = builder.buildRoot(field, highDecimationDescriptor.maxDepth);
+  const highDecimationLeaves = builder.selectVisibleLeaves(root, Vector3.Zero(), highDecimationDescriptor, field);
+  const lowDecimationLeaves = builder.selectVisibleLeaves(root, Vector3.Zero(), lowDecimationDescriptor, field);
+  const highDecimationTriangleCount = estimateLodTriangleCount(highDecimationLeaves, highDecimationDescriptor.skirtDepth);
+  const lowDecimationTriangleCount = estimateLodTriangleCount(lowDecimationLeaves, lowDecimationDescriptor.skirtDepth);
+
+  assert(
+    highDecimationTriangleCount < lowDecimationTriangleCount * 0.75,
+    `Far LOD rings should substantially reduce visible triangles: high=${highDecimationTriangleCount}, low=${lowDecimationTriangleCount}.`
+  );
 }
 
 function testSourceDensityWarningPolicyUsesDesiredNearGridSize(): void {
@@ -518,4 +588,17 @@ function createFlatTerrainDescriptor(
       color: "#8D9298"
     }
   };
+}
+
+function estimateLodTriangleCount(
+  leaves: readonly { readonly node: { readonly ix0: number; readonly ix1: number; readonly iz0: number; readonly iz1: number }; readonly sampleStep: number }[],
+  skirtDepth: number
+): number {
+  return leaves.reduce((sum, leaf) => {
+    const xSegments = Math.max(1, Math.ceil((leaf.node.ix1 - leaf.node.ix0) / leaf.sampleStep));
+    const zSegments = Math.max(1, Math.ceil((leaf.node.iz1 - leaf.node.iz0) / leaf.sampleStep));
+    const topTriangles = xSegments * zSegments * 2;
+    const skirtTriangles = skirtDepth > 0 ? (xSegments + zSegments) * 4 : 0;
+    return sum + topTriangles + skirtTriangles;
+  }, 0);
 }

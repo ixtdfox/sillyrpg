@@ -40,6 +40,15 @@ class TerrainQuadtreeNodeGeometry {
     const dz = anchorLocal.z < minZ ? minZ - anchorLocal.z : anchorLocal.z > maxZ ? anchorLocal.z - maxZ : 0;
     return Math.sqrt((dx * dx) + (dz * dz));
   }
+
+  /**
+   * Считает горизонтальную дистанцию от anchor до центра quadtree node.
+   */
+  public computeHorizontalDistanceToNodeCenter(node: TerrainQuadtreeNode, anchorLocal: Vector3): number {
+    const dx = anchorLocal.x - node.centerLocalX;
+    const dz = anchorLocal.z - node.centerLocalZ;
+    return Math.sqrt((dx * dx) + (dz * dz));
+  }
 }
 
 /**
@@ -56,18 +65,28 @@ export class TerrainQuadtreeSampleStepPolicy {
   }
 
   /**
-   * Ограничивает natural sample step желаемым LOD уровнем для текущей дистанции.
+   * Выбирает итоговый sample step.
+   *
+   * Ring sample step является минимальной decimation-целью для дистанции, а
+   * natural step может только увеличить разрежение, если patch иначе превысит
+   * бюджет quad'ов.
    */
   public computePatchSampleStep(
     node: TerrainQuadtreeNode,
     targetPatchQuads: number,
-    desiredMaxSampleStep: number
+    desiredSampleStep: number
   ): number {
-    return Math.max(1, Math.min(this.computeNaturalSampleStep(node, targetPatchQuads), Math.max(1, desiredMaxSampleStep)));
+    return Math.max(
+      1,
+      Math.max(
+        this.computeNaturalSampleStep(node, targetPatchQuads),
+        Math.max(1, Math.round(desiredSampleStep))
+      )
+    );
   }
 
   /**
-   * Выбирает максимально допустимый sample step по LOD rings.
+   * Выбирает желаемый sample step по LOD rings.
    */
   public resolveDesiredSampleStep(
     distanceToNode: number,
@@ -91,6 +110,13 @@ export class TerrainQuadtreeSampleStepPolicy {
    */
   public computeNearPatchWorldSize(descriptor: ResolvedTerrainQuadtreeLodDescriptor): number {
     return Math.max(0.0001, descriptor.nearPatchWorldSize);
+  }
+
+  public computeEffectiveSegmentCount(node: TerrainQuadtreeNode, sampleStep: number): number {
+    const resolvedStep = Math.max(1, Math.round(sampleStep));
+    const nodeQuadsX = Math.max(1, node.ix1 - node.ix0);
+    const nodeQuadsZ = Math.max(1, node.iz1 - node.iz0);
+    return Math.max(Math.ceil(nodeQuadsX / resolvedStep), Math.ceil(nodeQuadsZ / resolvedStep));
   }
 }
 
@@ -189,21 +215,23 @@ export class TerrainQuadtreeLodBuilder {
     horizontalWorldScale: number,
     leaves: TerrainQuadtreeLeafSelection[]
   ): void {
-    const distanceToNode = this.nodeGeometry.computeHorizontalDistanceToNodeAabb(node, anchorLocal) * horizontalWorldScale;
-    const desiredMaxSampleStep = this.sampleStepPolicy.resolveDesiredSampleStep(distanceToNode, descriptor);
-    const naturalSampleStep = this.sampleStepPolicy.computeNaturalSampleStep(node, descriptor.targetPatchQuads);
-    const sampleStep = this.sampleStepPolicy.computePatchSampleStep(node, descriptor.targetPatchQuads, desiredMaxSampleStep);
+    const distanceToNodeAabb = this.nodeGeometry.computeHorizontalDistanceToNodeAabb(node, anchorLocal) * horizontalWorldScale;
+    const distanceToNodeCenter = this.nodeGeometry.computeHorizontalDistanceToNodeCenter(node, anchorLocal) * horizontalWorldScale;
+    const nodeInsideNearFullResolutionRadius = distanceToNodeAabb <= descriptor.nearFullResolutionRadius;
+    const lodRingDistance = nodeInsideNearFullResolutionRadius ? distanceToNodeAabb : distanceToNodeCenter;
+    const desiredSampleStep = this.sampleStepPolicy.resolveDesiredSampleStep(lodRingDistance, descriptor);
+    const sampleStep = this.sampleStepPolicy.computePatchSampleStep(node, descriptor.targetPatchQuads, desiredSampleStep);
     const patchWorldSize = Math.max(node.sizeWorldX, node.sizeWorldZ) * horizontalWorldScale;
-    const nodeInsideNearFullResolutionRadius = distanceToNode <= descriptor.nearFullResolutionRadius;
     const nearPatchTooLarge =
       nodeInsideNearFullResolutionRadius &&
       patchWorldSize > this.sampleStepPolicy.computeNearPatchWorldSize(descriptor);
-    const patchWouldExceedSampleBudget = naturalSampleStep > desiredMaxSampleStep;
+    const exceedsPatchQuadBudget =
+      this.sampleStepPolicy.computeEffectiveSegmentCount(node, sampleStep) > descriptor.targetPatchQuads;
     const shouldSplit =
       node.children.length > 0 &&
       node.depth < descriptor.maxDepth &&
       (
-        patchWouldExceedSampleBudget ||
+        exceedsPatchQuadBudget ||
         nearPatchTooLarge
       );
 
@@ -211,8 +239,9 @@ export class TerrainQuadtreeLodBuilder {
       leaves.push({
         node,
         sampleStep,
-        desiredMaxSampleStep,
-        distanceToAnchor: distanceToNode
+        desiredSampleStep,
+        desiredMaxSampleStep: desiredSampleStep,
+        distanceToAnchor: distanceToNodeAabb
       });
       return;
     }

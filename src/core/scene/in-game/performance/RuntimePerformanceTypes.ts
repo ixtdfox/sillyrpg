@@ -73,6 +73,8 @@ export const RUNTIME_PERFORMANCE_WARNING_THRESHOLDS = {
   totalTrianglesWarning: 1_000_000,
   terrainVisibleLeavesWarning: 500,
   terrainVisibleLeavesCritical: 1000,
+  farTerrainDistanceWarning: 160,
+  farTerrainExpectedSampleStep: 8,
   shadowCastersWarning: 200,
   tinyNearLeafWorldSize: 1.25
 } as const;

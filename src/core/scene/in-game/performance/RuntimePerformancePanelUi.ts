@@ -135,9 +135,11 @@ export class RuntimePerformancePanelUi {
       "",
       "TERRAIN LOD",
       `controllers: ${snapshot.terrainLod.controllerCount}   leaves: ${snapshot.terrainLod.visibleLeafCount}${terrainWarning}   patches: ${snapshot.terrainLod.patchMeshEstimate}   lines: ${snapshot.terrainLod.activeDebugLineMeshCount}`,
-      `sample steps: ${this.formatMap(snapshot.terrainLod.sampleStepCounts)}`,
+      `sample steps: ${this.formatSampleStepMap(snapshot.terrainLod.sampleStepCounts)}`,
+      `tris by step: ${this.formatSampleStepMap(snapshot.terrainLod.approxTrianglesBySampleStep, true)}`,
       `depths: ${this.formatMap(snapshot.terrainLod.depthCounts)}`,
       `leaf size: ${this.formatRange(snapshot.terrainLod.minLeafWorldSize, snapshot.terrainLod.maxLeafWorldSize)}   near: ${this.formatRange(snapshot.terrainLod.minNearLeafWorldSize, snapshot.terrainLod.maxNearLeafWorldSize)}${nearLeafWarning}`,
+      `distance: ${this.formatRange(snapshot.terrainLod.minDistanceToAnchor, snapshot.terrainLod.maxDistanceToAnchor)}   debug mode: ${snapshot.terrainLod.debugMode}`,
       `source quad: ${this.formatRange(snapshot.terrainLod.sourceQuadSizeMin, snapshot.terrainLod.sourceQuadSizeMax)}   LOD tris: ${this.formatNumber(snapshot.terrainLod.approxVisibleTriangles)}`,
       "",
       "SHADOWS",
@@ -187,6 +189,17 @@ export class RuntimePerformancePanelUi {
       .sort(([left], [right]) => left - right)
       .slice(0, 8)
       .map(([key, value]) => `${key}:${value}`)
+      .join(" ");
+  }
+
+  private formatSampleStepMap(map: ReadonlyMap<number, number>, compactValues = false): string {
+    const expectedSteps = [1, 2, 4, 8, 16, 32];
+    const keys = Array.from(new Set([
+      ...expectedSteps,
+      ...map.keys()
+    ])).sort((left, right) => left - right);
+    return keys
+      .map((key) => `${key}:${compactValues ? this.formatNumber(map.get(key) ?? 0) : map.get(key) ?? 0}`)
       .join(" ");
   }
 

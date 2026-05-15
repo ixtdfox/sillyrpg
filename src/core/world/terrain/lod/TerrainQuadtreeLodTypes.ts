@@ -4,7 +4,11 @@ export type TerrainQuadtreeLodStrategy = "quadtree";
 export type TerrainQuadtreeLodDebugMode = "off" | "patchBorders" | "fullPatchGrid";
 
 /**
- * Один порог LOD: до указанной дистанции patch может использовать этот sample step.
+ * Один порог LOD: до указанной дистанции patch использует этот желаемый sample step.
+ *
+ * Поле называется `maxSampleStep` для совместимости с существующими scene JSON,
+ * но в runtime это минимальная decimation-цель кольца: far rings не могут быть
+ * случайно возвращены к более плотному sampleStep из-за маленького patch node.
  */
 export interface TerrainQuadtreeLodRing {
   readonly distance: number;
@@ -79,6 +83,8 @@ export interface TerrainQuadtreeNode {
 export interface TerrainQuadtreeLeafSelection {
   readonly node: TerrainQuadtreeNode;
   readonly sampleStep: number;
+  readonly desiredSampleStep: number;
+  /** @deprecated Use desiredSampleStep. */
   readonly desiredMaxSampleStep: number;
   readonly distanceToAnchor: number;
 }
@@ -100,6 +106,7 @@ export interface TerrainQuadtreeLodDiagnostics {
   readonly anchorSource: TerrainLodAnchor["source"] | null;
   readonly depthCounts: ReadonlyMap<number, number>;
   readonly sampleStepCounts: ReadonlyMap<number, number>;
+  readonly approxTrianglesBySampleStep: ReadonlyMap<number, number>;
   readonly sourceQuadSize: number;
   readonly desiredNearPatchWorldSize: number;
   readonly activePatchMeshCount: number;
@@ -133,7 +140,8 @@ export const DEFAULT_TERRAIN_QUADTREE_LOD = {
     { distance: 80, maxSampleStep: 2 },
     { distance: 160, maxSampleStep: 4 },
     { distance: 320, maxSampleStep: 8 },
-    { distance: 640, maxSampleStep: 16 }
+    { distance: 640, maxSampleStep: 16 },
+    { distance: 1280, maxSampleStep: 32 }
   ],
   updateIntervalSeconds: 0.25,
   updateMovementThreshold: 2,

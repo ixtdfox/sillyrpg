@@ -30,7 +30,7 @@ import { importSceneContent } from "../scene/SceneContentLoader";
 import type { SceneLightingDescriptor } from "../../lighting/LightingTypes";
 import type { ShadowMeshBatch } from "../../lighting/SceneShadowRegistry";
 import type { TerrainQuadtreeLodController } from "../terrain/lod/TerrainQuadtreeLodController";
-import type { TerrainLodAnchor } from "../terrain/lod/TerrainQuadtreeLodTypes";
+import type { TerrainLodAnchor, TerrainQuadtreeLodDebugMode } from "../terrain/lod/TerrainQuadtreeLodTypes";
 
 interface LoadedDistrictSceneContent {
   readonly sceneId: string;
@@ -65,6 +65,7 @@ export interface TerrainLodRuntimeDiagnostics {
   readonly anchorSource: TerrainLodAnchor["source"] | "mixed" | null;
   readonly depthCounts: ReadonlyMap<number, number>;
   readonly sampleStepCounts: ReadonlyMap<number, number>;
+  readonly approxTrianglesBySampleStep: ReadonlyMap<number, number>;
   readonly minLeafWorldSize: number | null;
   readonly maxLeafWorldSize: number | null;
   readonly minNearLeafWorldSize: number | null;
@@ -75,6 +76,7 @@ export interface TerrainLodRuntimeDiagnostics {
   readonly sourceQuadSizeMax: number | null;
   readonly desiredNearPatchWorldSizeMin: number | null;
   readonly desiredNearPatchWorldSizeMax: number | null;
+  readonly debugMode: TerrainQuadtreeLodDebugMode | "mixed";
 }
 
 export interface DistrictRuntimeDiagnostics {
@@ -366,6 +368,7 @@ export class LocationManager {
   public getTerrainLodDiagnostics(): TerrainLodRuntimeDiagnostics {
     const depthCounts = new Map<number, number>();
     const sampleStepCounts = new Map<number, number>();
+    const approxTrianglesBySampleStep = new Map<number, number>();
     let controllerCount = 0;
     let visibleLeafCount = 0;
     let patchMeshEstimate = 0;
@@ -383,6 +386,7 @@ export class LocationManager {
     let sourceQuadSizeMax: number | null = null;
     let desiredNearPatchWorldSizeMin: number | null = null;
     let desiredNearPatchWorldSizeMax: number | null = null;
+    let debugMode: TerrainLodRuntimeDiagnostics["debugMode"] | null = null;
 
     for (const content of this.activeDistrictScenes.values()) {
       for (const controller of content.terrainLodControllers) {
@@ -394,8 +398,10 @@ export class LocationManager {
         approxVisibleTriangles += diagnostics.approxVisibleTriangles;
         maxDepth = Math.max(maxDepth, diagnostics.maxDepth);
         anchorSource = this.mergeTerrainLodAnchorSource(anchorSource, diagnostics.anchorSource);
+        debugMode = this.mergeTerrainLodDebugMode(debugMode, diagnostics.debugMode);
         this.mergeCountMap(depthCounts, diagnostics.depthCounts);
         this.mergeCountMap(sampleStepCounts, diagnostics.sampleStepCounts);
+        this.mergeCountMap(approxTrianglesBySampleStep, diagnostics.approxTrianglesBySampleStep);
         minLeafWorldSize = this.minNullable(minLeafWorldSize, diagnostics.minLeafWorldSize);
         maxLeafWorldSize = this.maxNullable(maxLeafWorldSize, diagnostics.maxLeafWorldSize);
         minNearLeafWorldSize = this.minNullable(minNearLeafWorldSize, diagnostics.minNearLeafWorldSize);
@@ -425,6 +431,7 @@ export class LocationManager {
       anchorSource,
       depthCounts,
       sampleStepCounts,
+      approxTrianglesBySampleStep,
       minLeafWorldSize,
       maxLeafWorldSize,
       minNearLeafWorldSize,
@@ -434,7 +441,8 @@ export class LocationManager {
       sourceQuadSizeMin,
       sourceQuadSizeMax,
       desiredNearPatchWorldSizeMin,
-      desiredNearPatchWorldSizeMax
+      desiredNearPatchWorldSizeMax,
+      debugMode: debugMode ?? "off"
     };
   }
 
@@ -765,6 +773,21 @@ export class LocationManager {
     }
 
     if (current === null || current === next) {
+      return next;
+    }
+
+    return "mixed";
+  }
+
+  private mergeTerrainLodDebugMode(
+    current: TerrainLodRuntimeDiagnostics["debugMode"] | null,
+    next: TerrainQuadtreeLodDebugMode
+  ): TerrainLodRuntimeDiagnostics["debugMode"] {
+    if (current === null) {
+      return next;
+    }
+
+    if (current === next) {
       return next;
     }
 
