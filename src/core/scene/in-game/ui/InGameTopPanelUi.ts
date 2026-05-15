@@ -13,6 +13,7 @@ export class InGameTopPanelUi {
   private readonly phoneDialogUi: PhoneDialogUi;
   private readonly phoneToggleButton: Button;
   private readonly terrainLodDebugButton: Button;
+  private readonly terrainLodTuningButton: Button;
   private readonly performanceDebugButton: Button;
 
   /**
@@ -25,6 +26,7 @@ export class InGameTopPanelUi {
     scene: Scene,
     onRectGridToggleRequested: () => void,
     onTerrainLodDebugToggleRequested?: () => void,
+    onTerrainLodTuningToggleRequested?: () => void,
     onPerformanceDebugToggleRequested?: () => void
   ) {
     this.texture = AdvancedDynamicTexture.CreateFullscreenUI("in-game-ui", true, scene);
@@ -63,6 +65,22 @@ export class InGameTopPanelUi {
       onTerrainLodDebugToggleRequested?.();
     });
     content.addControl(this.terrainLodDebugButton);
+
+    this.terrainLodTuningButton = Button.CreateSimpleButton("in-game-terrain-lod-tuning-toggle", "LOD Dist");
+    this.terrainLodTuningButton.width = "86px";
+    this.terrainLodTuningButton.height = "38px";
+    this.terrainLodTuningButton.cornerRadius = 4;
+    this.terrainLodTuningButton.color = "#E7EDF9";
+    this.terrainLodTuningButton.background = "#1F2937";
+    this.terrainLodTuningButton.thickness = 1;
+    this.terrainLodTuningButton.paddingLeft = "8px";
+    this.terrainLodTuningButton.fontSize = 14;
+    this.terrainLodTuningButton.isVisible = onTerrainLodTuningToggleRequested !== undefined;
+    this.terrainLodTuningButton.isEnabled = onTerrainLodTuningToggleRequested !== undefined;
+    this.terrainLodTuningButton.onPointerUpObservable.add(() => {
+      onTerrainLodTuningToggleRequested?.();
+    });
+    content.addControl(this.terrainLodTuningButton);
 
     this.performanceDebugButton = Button.CreateSimpleButton("in-game-performance-debug-toggle", "Perf");
     this.performanceDebugButton.width = "66px";
@@ -135,6 +153,16 @@ export class InGameTopPanelUi {
   public setTerrainLodDebugEnabled(isEnabled: boolean): void {
     this.terrainLodDebugButton.background = isEnabled ? "#2563EB" : "#1F2937";
     this.terrainLodDebugButton.color = isEnabled ? "#FFFFFF" : "#E7EDF9";
+  }
+
+  public setTerrainLodTuningAvailable(isAvailable: boolean): void {
+    this.terrainLodTuningButton.isVisible = isAvailable;
+    this.terrainLodTuningButton.isEnabled = isAvailable;
+  }
+
+  public setTerrainLodTuningEnabled(isEnabled: boolean): void {
+    this.terrainLodTuningButton.background = isEnabled ? "#0891B2" : "#1F2937";
+    this.terrainLodTuningButton.color = isEnabled ? "#FFFFFF" : "#E7EDF9";
   }
 
   public setPerformanceDebugEnabled(isEnabled: boolean): void {

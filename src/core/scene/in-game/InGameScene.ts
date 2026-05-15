@@ -16,6 +16,7 @@ import type { LangManager } from "../../lang/LangManager";
 import { LocationManager } from "../../world/location/LocationManager";
 import { DistrictSceneStreamingController } from "../../world/location/district/DistrictSceneStreamingController";
 import { InGameTopPanelUi } from "./ui/InGameTopPanelUi";
+import { TerrainLodTuningPanelUi } from "./ui/TerrainLodTuningPanelUi";
 import { attachInGameSceneRuntimeContext } from "./InGameSceneRuntimeContext";
 import type { Scene } from "../Scene";
 import { LocationTriggerSystem } from "../../game/trigger/LocationTriggerSystem";
@@ -113,6 +114,7 @@ export class InGameScene implements Scene {
     locationTriggerSystem.initialize();
     let inGameTopPanelUi: InGameTopPanelUi;
     let performancePanel: RuntimePerformancePanelUi | null = null;
+    let terrainLodTuningPanel: TerrainLodTuningPanelUi | null = null;
     const streamingController = new DistrictSceneStreamingController(
       scene,
       this.entityManager,
@@ -126,7 +128,13 @@ export class InGameScene implements Scene {
         }
         shadowRegistry.registerBatches(this.locationManager.getShadowMeshBatches());
         locationTriggerSystem.refresh();
-        inGameTopPanelUi.setTerrainLodDebugAvailable(this.locationManager.hasTerrainLodControllers());
+        const hasTerrainLodControllers = this.locationManager.hasTerrainLodControllers();
+        inGameTopPanelUi.setTerrainLodDebugAvailable(hasTerrainLodControllers);
+        inGameTopPanelUi.setTerrainLodTuningAvailable(hasTerrainLodControllers);
+        if (!hasTerrainLodControllers) {
+          terrainLodTuningPanel?.setVisible(false);
+          inGameTopPanelUi.setTerrainLodTuningEnabled(false);
+        }
         inGameTopPanelUi.setTerrainLodDebugEnabled(this.locationManager.getTerrainLodDebugEnabled());
       }
     );
@@ -142,6 +150,9 @@ export class InGameScene implements Scene {
       const isEnabled = this.locationManager.toggleTerrainLodDebug();
       inGameTopPanelUi.setTerrainLodDebugEnabled(isEnabled);
     }, () => {
+      const isEnabled = terrainLodTuningPanel?.toggle() ?? false;
+      inGameTopPanelUi.setTerrainLodTuningEnabled(isEnabled);
+    }, () => {
       const isEnabled = performancePanel?.toggle() ?? false;
       inGameTopPanelUi.setPerformanceDebugEnabled(isEnabled);
     });
@@ -153,6 +164,13 @@ export class InGameScene implements Scene {
       shadowRegistry
     });
     performancePanel = new RuntimePerformancePanelUi(inGameTopPanelUi.getTexture(), performanceSampler);
+    terrainLodTuningPanel = new TerrainLodTuningPanelUi(
+      inGameTopPanelUi.getTexture(),
+      this.locationManager.getTerrainLodRuntimeTuning(),
+      (tuning) => {
+        this.locationManager.setTerrainLodRuntimeTuning(tuning);
+      }
+    );
     attachInGameSceneRuntimeContext(scene, {
       gridRuntime,
       locationManager: this.locationManager,
@@ -163,7 +181,9 @@ export class InGameScene implements Scene {
     });
     inGameTopPanelUi.setRectGridDebugEnabled(gridRuntime.getIsDebugEnabled());
     inGameTopPanelUi.setTerrainLodDebugAvailable(this.locationManager.hasTerrainLodControllers());
+    inGameTopPanelUi.setTerrainLodTuningAvailable(this.locationManager.hasTerrainLodControllers());
     inGameTopPanelUi.setTerrainLodDebugEnabled(this.locationManager.getTerrainLodDebugEnabled());
+    inGameTopPanelUi.setTerrainLodTuningEnabled(false);
     inGameTopPanelUi.setPerformanceDebugEnabled(false);
     let isPerformanceToggleKeyDown = false;
     const performanceKeyboardObserver = scene.onKeyboardObservable.add((keyboardInfo) => {
@@ -197,6 +217,7 @@ export class InGameScene implements Scene {
     });
 
     scene.onDisposeObservable.addOnce(() => {
+      terrainLodTuningPanel?.dispose();
       performancePanel?.dispose();
       shadowRegistry.dispose();
       lightingController.dispose();

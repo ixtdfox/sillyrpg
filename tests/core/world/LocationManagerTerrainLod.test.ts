@@ -1,6 +1,7 @@
 import { NullEngine, Scene, TransformNode, Vector3 } from "@babylonjs/core";
 import { LangManager } from "../../../src/core/lang/LangManager";
 import { LocationManager } from "../../../src/core/world/location/LocationManager";
+import type { TerrainQuadtreeLodRuntimeTuning } from "../../../src/core/world/terrain/lod/TerrainQuadtreeLodTypes";
 
 function assert(condition: boolean, message: string): void {
   if (!condition) {
@@ -12,6 +13,10 @@ class FakeTerrainLodController {
   public debugEnabled = false;
   public disposeCount = 0;
   public updateCount = 0;
+  public runtimeTuning: TerrainQuadtreeLodRuntimeTuning = {
+    lod0Distance: 40,
+    lod1Distance: 80
+  };
 
   public setDebugEnabled(enabled: boolean): void {
     this.debugEnabled = enabled;
@@ -19,6 +24,14 @@ class FakeTerrainLodController {
 
   public update(): void {
     this.updateCount += 1;
+  }
+
+  public setRuntimeLodTuning(tuning: TerrainQuadtreeLodRuntimeTuning): void {
+    this.runtimeTuning = tuning;
+  }
+
+  public getRuntimeLodTuning(): TerrainQuadtreeLodRuntimeTuning {
+    return this.runtimeTuning;
   }
 
   public dispose(): void {
@@ -63,6 +76,27 @@ function testTerrainLodControllersDisposeWhenChunkUnloads(): void {
   engine.dispose();
 }
 
+function testTerrainLodRuntimeTuningPropagation(): void {
+  const engine = new NullEngine();
+  const scene = new Scene(engine);
+  const manager = new LocationManager(new LangManager());
+  const controller = new FakeTerrainLodController();
+  installLoadedContent(manager, scene, controller);
+
+  manager.setTerrainLodRuntimeTuning({
+    lod0Distance: 72,
+    lod1Distance: 144
+  });
+  const tuning = manager.getTerrainLodRuntimeTuning();
+
+  assert(controller.runtimeTuning.lod0Distance === 72, "Expected LOD0 runtime tuning to propagate to active controller.");
+  assert(controller.runtimeTuning.lod1Distance === 144, "Expected LOD1 runtime tuning to propagate to active controller.");
+  assert(tuning.lod0Distance === 72 && tuning.lod1Distance === 144, "Expected manager to retain runtime LOD tuning.");
+
+  scene.dispose();
+  engine.dispose();
+}
+
 function installLoadedContent(
   manager: LocationManager,
   scene: Scene,
@@ -93,6 +127,7 @@ function installLoadedContent(
 function run(): void {
   testTerrainLodDebugAndUpdatePropagation();
   testTerrainLodControllersDisposeWhenChunkUnloads();
+  testTerrainLodRuntimeTuningPropagation();
 }
 
 run();

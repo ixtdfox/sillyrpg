@@ -24,6 +24,7 @@ import {
   type TerrainQuadtreeLodDescriptor,
   type TerrainQuadtreeLodDebugMode,
   type TerrainQuadtreeLodDiagnostics,
+  type TerrainQuadtreeLodRuntimeTuning,
   type TerrainQuadtreeNode
 } from "./TerrainQuadtreeLodTypes";
 
@@ -89,6 +90,9 @@ class TerrainLodDebugFormatter {
  * относительно player/camera anchor.
  */
 export class TerrainQuadtreeLodController {
+  private static readonly CAMERA_GUARD_RADIUS_MULTIPLIER = 1.15;
+  private static readonly CAMERA_GUARD_MAX_NEAR_RADIUS_MULTIPLIER = 3;
+
   private readonly scene: Scene;
   private readonly terrainRoot: TransformNode;
   private readonly canonicalPickMesh: Mesh | null;
@@ -123,6 +127,9 @@ export class TerrainQuadtreeLodController {
   private lastAnchorSource: TerrainLodAnchor["source"] | null;
   private lastSelectionAnchorLocal: Vector3 | null;
   private lastSelectionDebugMode: TerrainQuadtreeLodDebugMode;
+  private lastSelectionNearFullResolutionRadius: number | null;
+  private activeNearFullResolutionRadius: number;
+  private runtimeTuning: TerrainQuadtreeLodRuntimeTuning | null;
 
   public constructor(
     options: TerrainQuadtreeLodControllerOptions,
@@ -170,6 +177,9 @@ export class TerrainQuadtreeLodController {
     this.lastAnchorSource = null;
     this.lastSelectionAnchorLocal = null;
     this.lastSelectionDebugMode = "off";
+    this.lastSelectionNearFullResolutionRadius = null;
+    this.activeNearFullResolutionRadius = this.lodDescriptor.nearFullResolutionRadius;
+    this.runtimeTuning = null;
     this.warnLowSourceDensityIfNeeded();
   }
 
@@ -199,7 +209,8 @@ export class TerrainQuadtreeLodController {
 
     const anchorLocal = this.toTerrainLocal(anchor.position);
     const debugMode = this.getActiveDebugMode();
-    if (this.shouldSkipLodSelection(anchorLocal, debugMode)) {
+    const selectionDescriptor = this.createSelectionLodDescriptor(anchorLocal, anchor.source);
+    if (this.shouldSkipLodSelection(anchorLocal, debugMode, selectionDescriptor.nearFullResolutionRadius)) {
       this.updateAccumulatorSeconds = 0;
       this.maybeLogDiagnostics(anchor);
       return;
@@ -209,15 +220,17 @@ export class TerrainQuadtreeLodController {
     const leaves = this.lodBuilder.selectVisibleLeaves(
       this.rootNode,
       anchorLocal,
-      this.lodDescriptor,
+      selectionDescriptor,
       this.heightField,
       this.getHorizontalWorldScale()
     );
     this.applyVisibleLeaves(leaves);
+    this.activeNearFullResolutionRadius = selectionDescriptor.nearFullResolutionRadius;
     this.hideCanonicalVisualSurface();
     this.syncDebugLineMeshes();
     this.lastSelectionAnchorLocal = anchorLocal.clone();
     this.lastSelectionDebugMode = debugMode;
+    this.lastSelectionNearFullResolutionRadius = selectionDescriptor.nearFullResolutionRadius;
     this.maybeLogDiagnostics(anchor);
   }
 
@@ -247,6 +260,20 @@ export class TerrainQuadtreeLodController {
     return this.debugEnabled;
   }
 
+  public setRuntimeLodTuning(tuning: TerrainQuadtreeLodRuntimeTuning | null): void {
+    const nextTuning = tuning ? this.normalizeRuntimeTuning(tuning) : null;
+    if (this.areRuntimeTuningsEqual(this.runtimeTuning, nextTuning)) {
+      return;
+    }
+
+    this.runtimeTuning = nextTuning;
+    this.invalidateLodSelection();
+  }
+
+  public getRuntimeLodTuning(): TerrainQuadtreeLodRuntimeTuning {
+    return this.runtimeTuning ?? this.createBaseRuntimeTuning();
+  }
+
   /**
    * Собирает диагностику текущего LOD selection.
    */
@@ -258,6 +285,7 @@ export class TerrainQuadtreeLodController {
     const approxTrianglesByBuildSampleStep = new Map<number, number>();
     const horizontalWorldScale = this.getHorizontalWorldScale();
     const sourceQuadSize = this.quadSizeCalculator.compute(this.heightField) * horizontalWorldScale;
+    const effectiveNearFullResolutionRadius = this.activeNearFullResolutionRadius;
     const patchStats = this.measurePatchMeshes();
     const canonicalStats = this.measureCanonicalMesh();
     let approxVisibleTriangles = 0;
@@ -294,7 +322,7 @@ export class TerrainQuadtreeLodController {
       maxDepth = Math.max(maxDepth, node.depth);
       minLeafWorldSize = minLeafWorldSize === null ? leafWorldSize : Math.min(minLeafWorldSize, leafWorldSize);
       maxLeafWorldSize = maxLeafWorldSize === null ? leafWorldSize : Math.max(maxLeafWorldSize, leafWorldSize);
-      if (leaf.distanceToAnchor <= this.lodDescriptor.nearFullResolutionRadius) {
+      if (leaf.distanceToAnchor <= effectiveNearFullResolutionRadius) {
         minNearLeafWorldSize =
           minNearLeafWorldSize === null ? leafWorldSize : Math.min(minNearLeafWorldSize, leafWorldSize);
         maxNearLeafWorldSize =
@@ -320,6 +348,7 @@ export class TerrainQuadtreeLodController {
       sourceResolutionZ: this.heightField.resolutionZ,
       sourceQuadCount: Math.max(0, (this.heightField.resolutionX - 1) * (this.heightField.resolutionZ - 1)),
       desiredNearPatchWorldSize: this.lodDescriptor.nearPatchWorldSize,
+      effectiveNearFullResolutionRadius,
       activePatchMeshCount: patchStats.activeCount,
       cachedPatchMeshCount: patchStats.cachedCount,
       inactiveCachedPatchMeshCount: patchStats.inactiveCount,
@@ -641,7 +670,7 @@ export class TerrainQuadtreeLodController {
       `maxNeighborRatio=${diagnostics.maxNeighborSampleStepRatio?.toFixed(1) ?? "n/a"} ` +
       `trisByBuildStep=[${trianglesByStepSummary}] ` +
       `sourceQuad=${diagnostics.sourceQuadSize.toFixed(2)} ` +
-      `nearRadius=${this.lodDescriptor.nearFullResolutionRadius.toFixed(1)} ` +
+      `nearRadius=${this.activeNearFullResolutionRadius.toFixed(1)} ` +
       `nearPatchWorldSize=${diagnostics.desiredNearPatchWorldSize.toFixed(2)} ` +
       `legacyNearPatchQuads=${this.lodDescriptor.nearFullResolutionPatchQuads} ` +
       `targetPatchQuads=${this.lodDescriptor.targetPatchQuads} ` +
@@ -663,12 +692,23 @@ export class TerrainQuadtreeLodController {
   /**
    * Проверяет, можно ли пропустить пересбор selection после малого движения anchor.
    */
-  private shouldSkipLodSelection(anchorLocal: Vector3, debugMode: TerrainQuadtreeLodDebugMode): boolean {
+  private shouldSkipLodSelection(
+    anchorLocal: Vector3,
+    debugMode: TerrainQuadtreeLodDebugMode,
+    nextNearFullResolutionRadius: number
+  ): boolean {
     if (this.activeLeaves.length === 0 || !this.lastSelectionAnchorLocal) {
       return false;
     }
 
     if (debugMode !== this.lastSelectionDebugMode) {
+      return false;
+    }
+
+    if (
+      this.lastSelectionNearFullResolutionRadius === null ||
+      Math.abs(nextNearFullResolutionRadius - this.lastSelectionNearFullResolutionRadius) > 1
+    ) {
       return false;
     }
 
@@ -680,6 +720,142 @@ export class TerrainQuadtreeLodController {
     const dx = anchorLocal.x - this.lastSelectionAnchorLocal.x;
     const dz = anchorLocal.z - this.lastSelectionAnchorLocal.z;
     return Math.sqrt((dx * dx) + (dz * dz)) < threshold;
+  }
+
+  private createSelectionLodDescriptor(
+    anchorLocal: Vector3,
+    anchorSource: TerrainLodAnchor["source"]
+  ): ResolvedTerrainQuadtreeLodDescriptor {
+    const runtimeDescriptor = this.createRuntimeTunedLodDescriptor();
+    const nearFullResolutionRadius = this.resolveEffectiveNearFullResolutionRadius(
+      anchorLocal,
+      anchorSource,
+      runtimeDescriptor
+    );
+    if (Math.abs(nearFullResolutionRadius - runtimeDescriptor.nearFullResolutionRadius) <= 1e-6) {
+      return runtimeDescriptor;
+    }
+
+    return {
+      ...runtimeDescriptor,
+      nearFullResolutionRadius,
+      lodRings: this.scaleLodRingsForNearRadius(runtimeDescriptor, nearFullResolutionRadius)
+    };
+  }
+
+  private resolveEffectiveNearFullResolutionRadius(
+    anchorLocal: Vector3,
+    anchorSource: TerrainLodAnchor["source"],
+    descriptor: ResolvedTerrainQuadtreeLodDescriptor
+  ): number {
+    const baseRadius = Math.max(0.0001, descriptor.nearFullResolutionRadius);
+    if (anchorSource !== "player") {
+      return baseRadius;
+    }
+
+    const camera = this.scene.activeCamera;
+    if (!camera) {
+      return baseRadius;
+    }
+
+    camera.getViewMatrix();
+    const cameraLocal = this.toTerrainLocal(camera.globalPosition.clone());
+    const dx = cameraLocal.x - anchorLocal.x;
+    const dz = cameraLocal.z - anchorLocal.z;
+    const cameraHorizontalDistance = Math.sqrt((dx * dx) + (dz * dz));
+    const cameraGuardRadius = cameraHorizontalDistance * TerrainQuadtreeLodController.CAMERA_GUARD_RADIUS_MULTIPLIER;
+    const maxGuardRadius = baseRadius * TerrainQuadtreeLodController.CAMERA_GUARD_MAX_NEAR_RADIUS_MULTIPLIER;
+    return Math.max(baseRadius, Math.min(maxGuardRadius, cameraGuardRadius));
+  }
+
+  private scaleLodRingsForNearRadius(
+    descriptor: ResolvedTerrainQuadtreeLodDescriptor,
+    nearFullResolutionRadius: number
+  ): ResolvedTerrainQuadtreeLodDescriptor["lodRings"] {
+    const baseRadius = Math.max(0.0001, descriptor.nearFullResolutionRadius);
+    const scale = Math.max(1, nearFullResolutionRadius / baseRadius);
+    let previousDistance = 0;
+    return descriptor.lodRings.map((ring) => {
+      const distance = Math.max(
+        nearFullResolutionRadius,
+        ring.distance * scale,
+        previousDistance + 0.0001
+      );
+      previousDistance = distance;
+      return {
+        ...ring,
+        distance
+      };
+    });
+  }
+
+  private createRuntimeTunedLodDescriptor(): ResolvedTerrainQuadtreeLodDescriptor {
+    if (!this.runtimeTuning) {
+      return this.lodDescriptor;
+    }
+
+    const tuning = this.normalizeRuntimeTuning(this.runtimeTuning);
+    let previousDistance = 0;
+    const baseRings = this.lodDescriptor.lodRings.length > 0
+      ? this.lodDescriptor.lodRings
+      : [
+          { distance: tuning.lod0Distance, maxSampleStep: 1 },
+          { distance: tuning.lod1Distance, maxSampleStep: 2 }
+        ];
+    const lodRings = baseRings.map((ring, index) => {
+      const requestedDistance =
+        index === 0
+          ? tuning.lod0Distance
+          : index === 1
+            ? tuning.lod1Distance
+            : ring.distance;
+      const distance = Math.max(requestedDistance, previousDistance + 0.0001);
+      previousDistance = distance;
+      return {
+        ...ring,
+        distance
+      };
+    });
+
+    return {
+      ...this.lodDescriptor,
+      nearFullResolutionRadius: tuning.lod0Distance,
+      lodRings
+    };
+  }
+
+  private createBaseRuntimeTuning(): TerrainQuadtreeLodRuntimeTuning {
+    return this.normalizeRuntimeTuning({
+      lod0Distance: this.lodDescriptor.nearFullResolutionRadius,
+      lod1Distance: this.lodDescriptor.lodRings[1]?.distance ?? (this.lodDescriptor.nearFullResolutionRadius * 2)
+    });
+  }
+
+  private normalizeRuntimeTuning(tuning: TerrainQuadtreeLodRuntimeTuning): TerrainQuadtreeLodRuntimeTuning {
+    const lod0Distance = Math.max(0.0001, tuning.lod0Distance);
+    const lod1Distance = Math.max(lod0Distance + 0.0001, tuning.lod1Distance);
+    return {
+      lod0Distance,
+      lod1Distance
+    };
+  }
+
+  private areRuntimeTuningsEqual(
+    left: TerrainQuadtreeLodRuntimeTuning | null,
+    right: TerrainQuadtreeLodRuntimeTuning | null
+  ): boolean {
+    if (left === null || right === null) {
+      return left === right;
+    }
+
+    return Math.abs(left.lod0Distance - right.lod0Distance) <= 1e-6 &&
+      Math.abs(left.lod1Distance - right.lod1Distance) <= 1e-6;
+  }
+
+  private invalidateLodSelection(): void {
+    this.lastSelectionAnchorLocal = null;
+    this.lastSelectionNearFullResolutionRadius = null;
+    this.updateAccumulatorSeconds = this.lodDescriptor.updateIntervalSeconds;
   }
 
   /**

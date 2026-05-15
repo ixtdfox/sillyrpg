@@ -60,6 +60,14 @@ export interface ResolvedTerrainQuadtreeLodDescriptor {
 }
 
 /**
+ * Runtime-only tuning override for the first terrain LOD transition distances.
+ */
+export interface TerrainQuadtreeLodRuntimeTuning {
+  readonly lod0Distance: number;
+  readonly lod1Distance: number;
+}
+
+/**
  * Узел quadtree в индексах heightfield и локальных world размерах patch.
  */
 export interface TerrainQuadtreeNode {
@@ -146,6 +154,7 @@ export interface TerrainQuadtreeLodDiagnostics {
   readonly sourceResolutionZ: number;
   readonly sourceQuadCount: number;
   readonly desiredNearPatchWorldSize: number;
+  readonly effectiveNearFullResolutionRadius: number;
   readonly activePatchMeshCount: number;
   readonly cachedPatchMeshCount: number;
   readonly inactiveCachedPatchMeshCount: number;

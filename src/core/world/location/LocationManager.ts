@@ -30,10 +30,12 @@ import { importSceneContent } from "../scene/SceneContentLoader";
 import type { SceneLightingDescriptor } from "../../lighting/LightingTypes";
 import type { ShadowMeshBatch } from "../../lighting/SceneShadowRegistry";
 import type { TerrainQuadtreeLodController } from "../terrain/lod/TerrainQuadtreeLodController";
-import type {
-  TerrainCanonicalMeshMode,
-  TerrainLodAnchor,
-  TerrainQuadtreeLodDebugMode
+import {
+  DEFAULT_TERRAIN_QUADTREE_LOD,
+  type TerrainQuadtreeLodRuntimeTuning,
+  type TerrainCanonicalMeshMode,
+  type TerrainLodAnchor,
+  type TerrainQuadtreeLodDebugMode
 } from "../terrain/lod/TerrainQuadtreeLodTypes";
 
 interface LoadedDistrictSceneContent {
@@ -139,6 +141,7 @@ export class LocationManager {
   /** Global lighting descriptor from the district initial chunk. */
   private activeLightingDescriptor: SceneLightingDescriptor | null;
   private terrainLodDebugEnabled: boolean;
+  private terrainLodRuntimeTuning: TerrainQuadtreeLodRuntimeTuning | null;
 
   /**
    * Creates a location manager.
@@ -152,6 +155,7 @@ export class LocationManager {
     this.activeDistrictScenes = new Map();
     this.activeLightingDescriptor = null;
     this.terrainLodDebugEnabled = false;
+    this.terrainLodRuntimeTuning = null;
   }
 
   /**
@@ -384,6 +388,34 @@ export class LocationManager {
 
   public getTerrainLodDebugEnabled(): boolean {
     return this.terrainLodDebugEnabled;
+  }
+
+  public setTerrainLodRuntimeTuning(tuning: TerrainQuadtreeLodRuntimeTuning): void {
+    this.terrainLodRuntimeTuning = this.normalizeTerrainLodRuntimeTuning(tuning);
+    for (const content of this.activeDistrictScenes.values()) {
+      for (const controller of content.terrainLodControllers) {
+        controller.setRuntimeLodTuning(this.terrainLodRuntimeTuning);
+      }
+    }
+  }
+
+  public getTerrainLodRuntimeTuning(): TerrainQuadtreeLodRuntimeTuning {
+    if (this.terrainLodRuntimeTuning) {
+      return this.terrainLodRuntimeTuning;
+    }
+
+    for (const content of this.activeDistrictScenes.values()) {
+      const controller = content.terrainLodControllers[0];
+      if (controller) {
+        return controller.getRuntimeLodTuning();
+      }
+    }
+
+    return this.normalizeTerrainLodRuntimeTuning({
+      lod0Distance: DEFAULT_TERRAIN_QUADTREE_LOD.nearFullResolutionRadius,
+      lod1Distance: DEFAULT_TERRAIN_QUADTREE_LOD.lodRings[1]?.distance ??
+        (DEFAULT_TERRAIN_QUADTREE_LOD.nearFullResolutionRadius * 2)
+    });
   }
 
   public getTerrainLodDiagnostics(): TerrainLodRuntimeDiagnostics {
@@ -942,6 +974,9 @@ export class LocationManager {
     });
     for (const controller of importedContent.terrainLodControllers) {
       controller.setDebugEnabled(this.terrainLodDebugEnabled);
+      if (this.terrainLodRuntimeTuning) {
+        controller.setRuntimeLodTuning(this.terrainLodRuntimeTuning);
+      }
     }
 
     return {
@@ -986,6 +1021,15 @@ export class LocationManager {
     }
 
     return batches;
+  }
+
+  private normalizeTerrainLodRuntimeTuning(tuning: TerrainQuadtreeLodRuntimeTuning): TerrainQuadtreeLodRuntimeTuning {
+    const lod0Distance = Math.max(0.0001, tuning.lod0Distance);
+    const lod1Distance = Math.max(lod0Distance + 0.0001, tuning.lod1Distance);
+    return {
+      lod0Distance,
+      lod1Distance
+    };
   }
 }
 

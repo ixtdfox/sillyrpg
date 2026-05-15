@@ -254,7 +254,7 @@ export class TerrainQuadtreePatchMeshBuilder {
         heightField,
         ix,
         iz,
-        heightField.getHeight(ix, iz),
+        this.resolveTerrainHeightAtGridPoint(heightField, node, ix, iz, resolvedSampleStep, seamInfo),
         normalSampler.sampleNormal(ix, iz)
       );
       topVertexIndexByKey.set(key, vertexIndex);
@@ -306,6 +306,26 @@ export class TerrainQuadtreePatchMeshBuilder {
     };
   }
 
+  private resolveTerrainHeightAtGridPoint(
+    heightField: TerrainHeightField,
+    node: TerrainQuadtreeNode,
+    ix: number,
+    iz: number,
+    sampleStep: number,
+    seamInfo: TerrainPatchSeamInfo | undefined
+  ): number {
+    const baseHeight = this.sampleHeightAtGridPoint(heightField, ix, iz);
+    return this.resolveSeamMorphedHeight(heightField, node, ix, iz, baseHeight, sampleStep, seamInfo);
+  }
+
+  private sampleHeightAtGridPoint(heightField: TerrainHeightField, ix: number, iz: number): number {
+    const u = heightField.resolutionX <= 1 ? 0 : ix / (heightField.resolutionX - 1);
+    const v = heightField.resolutionZ <= 1 ? 0 : iz / (heightField.resolutionZ - 1);
+    const x = (u - 0.5) * heightField.width;
+    const z = (0.5 - v) * heightField.depth;
+    return heightField.sampleBilinearLocal(x, z) ?? 0;
+  }
+
   private buildStitchedEdgeIndices(
     start: number,
     end: number,
@@ -349,6 +369,92 @@ export class TerrainQuadtreePatchMeshBuilder {
     indices.add(start);
     indices.add(end);
     return [...indices].sort((left, right) => left - right);
+  }
+
+  private resolveSeamMorphedHeight(
+    heightField: TerrainHeightField,
+    node: TerrainQuadtreeNode,
+    ix: number,
+    iz: number,
+    baseHeight: number,
+    sampleStep: number,
+    seamInfo: TerrainPatchSeamInfo | undefined
+  ): number {
+    if (ix === node.ix0 || ix === node.ix1 || iz === node.iz0 || iz === node.iz1) {
+      return baseHeight;
+    }
+
+    const influences: { readonly height: number; readonly weight: number }[] = [];
+
+    this.appendSeamHeightInfluence(influences, baseHeight, node.ix0, ix, this.sampleHeightAtGridPoint(heightField, node.ix0, iz), sampleStep, seamInfo?.west, iz);
+    this.appendSeamHeightInfluence(influences, baseHeight, ix, node.ix1, this.sampleHeightAtGridPoint(heightField, node.ix1, iz), sampleStep, seamInfo?.east, iz);
+    this.appendSeamHeightInfluence(influences, baseHeight, node.iz0, iz, this.sampleHeightAtGridPoint(heightField, ix, node.iz0), sampleStep, seamInfo?.north, ix);
+    this.appendSeamHeightInfluence(influences, baseHeight, iz, node.iz1, this.sampleHeightAtGridPoint(heightField, ix, node.iz1), sampleStep, seamInfo?.south, ix);
+
+    if (influences.length === 0) {
+      return baseHeight;
+    }
+
+    const totalWeight = influences.reduce((sum, influence) => sum + influence.weight, 0);
+    const targetHeight = influences.reduce((sum, influence) => sum + (influence.height * influence.weight), 0) / totalWeight;
+    const blendWeight = Math.min(1, totalWeight);
+    return baseHeight + ((targetHeight - baseHeight) * blendWeight);
+  }
+
+  private appendSeamHeightInfluence(
+    influences: { readonly height: number; readonly weight: number }[],
+    baseHeight: number,
+    nearIndex: number,
+    farIndex: number,
+    edgeHeight: number,
+    sampleStep: number,
+    edgeInfo: TerrainPatchSeamInfo[TerrainPatchEdge] | undefined,
+    edgeAxisIndex: number
+  ): void {
+    if (!this.shouldMorphHeightToFinerEdge(edgeInfo, edgeAxisIndex)) {
+      return;
+    }
+
+    const distance = Math.abs(farIndex - nearIndex);
+    const morphBand = Math.max(1, Math.round(sampleStep)) * 4;
+    if (distance > morphBand) {
+      return;
+    }
+
+    const heightDelta = Math.abs(edgeHeight - baseHeight);
+    if (heightDelta <= 1e-6) {
+      return;
+    }
+
+    const weight = (morphBand - distance) / morphBand;
+    if (weight <= 0) {
+      return;
+    }
+
+    influences.push({
+      height: edgeHeight,
+      weight
+    });
+  }
+
+  private shouldMorphHeightToFinerEdge(
+    edgeInfo: TerrainPatchSeamInfo[TerrainPatchEdge] | undefined,
+    edgeAxisIndex: number
+  ): boolean {
+    if (!edgeInfo) {
+      return false;
+    }
+
+    const segments = edgeInfo.segments ?? [];
+    if (segments.length === 0) {
+      return edgeInfo.mode === "stitch-to-finer";
+    }
+
+    return segments.some((segment) =>
+      segment.mode === "stitch-to-finer" &&
+      edgeAxisIndex >= segment.startIndex &&
+      edgeAxisIndex <= segment.endIndex
+    );
   }
 
   private selectAxisIndices(axisIndices: readonly number[], start: number, end: number): number[] {
@@ -463,10 +569,6 @@ export class TerrainQuadtreePatchMeshBuilder {
 
   private isSameGridPoint(left: TerrainGridPoint, right: TerrainGridPoint): boolean {
     return left.ix === right.ix && left.iz === right.iz;
-  }
-
-  private hasIndexRangeOverlap(leftStart: number, leftEnd: number, rightStart: number, rightEnd: number): boolean {
-    return Math.max(leftStart, rightStart) < Math.min(leftEnd, rightEnd);
   }
 
   /**

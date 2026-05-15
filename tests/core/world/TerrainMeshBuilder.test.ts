@@ -1,4 +1,4 @@
-import { NullEngine, Scene, StandardMaterial, TransformNode, Vector3 } from "@babylonjs/core";
+import { FreeCamera, NullEngine, Scene, StandardMaterial, TransformNode, Vector3 } from "@babylonjs/core";
 import { TerrainHeightField } from "../../../src/core/world/terrain/TerrainHeightField";
 import { TerrainHeightFieldNormalSampler } from "../../../src/core/world/terrain/TerrainHeightFieldNormalSampler";
 import { TerrainMeshBuilder } from "../../../src/core/world/terrain/TerrainMeshBuilder";
@@ -229,6 +229,7 @@ function run(): void {
   testQuadtreePatchMeshKeepsLogicalGridAndBuildDiagnostics();
   testQuadtreePatchSeamRefinementMatchesSharedEdgeVertices();
   testQuadtreePatchEdgeFansBridgeMixedLodWithoutSkirts();
+  testQuadtreePatchMorphsCoarseInteriorHeightTowardFinerEdge();
   testGeneratedTerrainDefaultResolutionFollowsGridStep();
   testNativeMaxDepthResolvesFromHeightfield();
   testQuadtreeLodHasNoSkirtDepth();
@@ -240,6 +241,8 @@ function run(): void {
   testQuadtreeDefaultRingsSelectHighFarSampleSteps();
   testQuadtreeFarSampleStepsReduceApproximateTriangleCount();
   testQuadtreeLodControllerDisposesInactivePatchMeshes();
+  testQuadtreeLodControllerExpandsNearRadiusForDistantPlayerCamera();
+  testQuadtreeLodControllerAppliesRuntimeDistanceTuning();
   testLegacyNearLeafWorldSizeMigratesToPatchWorldSizeDefault();
   testSourceDensityWarningPolicyUsesDesiredNearGridSize();
 }
@@ -687,6 +690,48 @@ function testQuadtreePatchEdgeFansBridgeMixedLodWithoutSkirts(): void {
   assert(Math.min(...edgeFanYValues) === 0 && Math.max(...edgeFanYValues) === 0, "Edge-fan seam geometry should stay on the terrain surface without skirt drop vertices.");
 }
 
+function testQuadtreePatchMorphsCoarseInteriorHeightTowardFinerEdge(): void {
+  const heights = new Float32Array(17 * 17);
+  for (let iz = 0; iz < 17; iz += 1) {
+    heights[(iz * 17) + 8] = 100;
+  }
+  const field = new TerrainHeightField(16, 16, 17, 17, heights);
+  const root = new TerrainQuadtreeLodBuilder().buildRoot(field, 1);
+  const coarseNode = root.children[0]!;
+  const fineNode = root.children[1]!;
+  const descriptor = createFlatTerrainDescriptor(16, 16, 17, 17);
+  const [coarseLeaf, fineLeaf] = new TerrainQuadtreeLodSeamResolver().applySeamCompatibility([
+    createTestLeaf(coarseNode, 4),
+    createTestLeaf(fineNode, 1)
+  ]);
+  const builder = new TerrainQuadtreePatchMeshBuilder();
+  const coarseGeometry = builder.buildVertexData(field, coarseNode, descriptor, 4, coarseLeaf?.seamInfo);
+  const fineGeometry = builder.buildVertexData(field, fineNode, descriptor, 1, fineLeaf?.seamInfo);
+  const sharedX = heightFieldIndexToLocalX(field, 8);
+  const interiorX = heightFieldIndexToLocalX(field, 4);
+  const sampleZ = heightFieldIndexToLocalZ(field, 4);
+  const coarseBoundaryHeight = findVertexYAt(coarseGeometry.positions, sharedX, sampleZ);
+  const fineBoundaryHeight = findVertexYAt(fineGeometry.positions, sharedX, sampleZ);
+  const morphedInteriorHeight = findVertexYAt(coarseGeometry.positions, interiorX, sampleZ);
+
+  assert(coarseBoundaryHeight === 100 && fineBoundaryHeight === 100, "Shared seam boundary should keep exact height on both LODs.");
+  assert(
+    morphedInteriorHeight !== null && morphedInteriorHeight > 0 && morphedInteriorHeight < 100,
+    `Coarse interior vertex near a finer seam should morph toward the seam height, received ${morphedInteriorHeight}.`
+  );
+}
+
+function findVertexYAt(positions: readonly number[], expectedX: number, expectedZ: number): number | null {
+  for (let offset = 0; offset < positions.length; offset += 3) {
+    const x = positions[offset] ?? 0;
+    const z = positions[offset + 2] ?? 0;
+    if (Math.abs(x - expectedX) <= 1e-6 && Math.abs(z - expectedZ) <= 1e-6) {
+      return positions[offset + 1] ?? 0;
+    }
+  }
+  return null;
+}
+
 function readNormal(normals: readonly number[], vertexIndex: number): Vector3 {
   const offset = vertexIndex * 3;
   return new Vector3(normals[offset] ?? 0, normals[offset + 1] ?? 0, normals[offset + 2] ?? 0);
@@ -1039,6 +1084,101 @@ function testQuadtreeLodControllerDisposesInactivePatchMeshes(): void {
   assert(secondDiagnostics.cachedPatchMeshCount === secondDiagnostics.activePatchMeshCount, "Patch cache should be bounded to the current visible selection.");
   assert(secondDiagnostics.cachedPatchVertices === secondDiagnostics.activePatchVertices, "Cached patch geometry should not include inactive vertices.");
   assert(scenePatchMeshCount === secondDiagnostics.activePatchMeshCount, "Disposed inactive patch meshes should be removed from the scene.");
+
+  controller.dispose();
+  scene.dispose();
+  engine.dispose();
+}
+
+function testQuadtreeLodControllerExpandsNearRadiusForDistantPlayerCamera(): void {
+  const engine = new NullEngine();
+  const scene = new Scene(engine);
+  const camera = new FreeCamera("lod-camera", new Vector3(0, 16, -100), scene);
+  scene.activeCamera = camera;
+  const terrainRoot = new TransformNode("terrain-root", scene);
+  const field = createSlopedHeightField(128, 128, 129, 129);
+  const descriptor = createFlatTerrainDescriptor(128, 128, 129, 129);
+  const controller = new TerrainQuadtreeLodController({
+    scene,
+    terrainRoot,
+    descriptor,
+    heightField: field,
+    lod: {
+      enabled: true,
+      maxDepth: 5,
+      targetPatchQuads: 8,
+      nearPatchWorldSize: 8,
+      nearFullResolutionRadius: 16,
+      lodRings: [
+        { distance: 16, maxSampleStep: 1 },
+        { distance: 32, maxSampleStep: 2 },
+        { distance: 64, maxSampleStep: 4 },
+        { distance: 128, maxSampleStep: 8 }
+      ],
+      updateIntervalSeconds: 0,
+      updateMovementThreshold: 0
+    },
+    material: null,
+    canonicalPickMesh: null
+  });
+
+  controller.update(1, { position: Vector3.Zero(), source: "player" });
+  const diagnostics = controller.getDiagnostics();
+
+  assert(
+    diagnostics.effectiveNearFullResolutionRadius > 16,
+    `Distant player camera should expand near full-resolution terrain radius, received ${diagnostics.effectiveNearFullResolutionRadius}.`
+  );
+  assert(
+    diagnostics.effectiveNearFullResolutionRadius <= 48,
+    `Camera guard radius should stay capped by 3x base near radius, received ${diagnostics.effectiveNearFullResolutionRadius}.`
+  );
+
+  controller.dispose();
+  scene.dispose();
+  engine.dispose();
+}
+
+function testQuadtreeLodControllerAppliesRuntimeDistanceTuning(): void {
+  const engine = new NullEngine();
+  const scene = new Scene(engine);
+  const terrainRoot = new TransformNode("terrain-root", scene);
+  const field = createSlopedHeightField(128, 128, 129, 129);
+  const descriptor = createFlatTerrainDescriptor(128, 128, 129, 129);
+  const controller = new TerrainQuadtreeLodController({
+    scene,
+    terrainRoot,
+    descriptor,
+    heightField: field,
+    lod: {
+      enabled: true,
+      maxDepth: 5,
+      targetPatchQuads: 8,
+      nearPatchWorldSize: 8,
+      nearFullResolutionRadius: 16,
+      lodRings: [
+        { distance: 16, maxSampleStep: 1 },
+        { distance: 32, maxSampleStep: 2 },
+        { distance: 64, maxSampleStep: 4 },
+        { distance: 128, maxSampleStep: 8 }
+      ],
+      updateIntervalSeconds: 0,
+      updateMovementThreshold: 0
+    },
+    material: null,
+    canonicalPickMesh: null
+  });
+
+  controller.setRuntimeLodTuning({
+    lod0Distance: 48,
+    lod1Distance: 96
+  });
+  controller.update(1, { position: Vector3.Zero(), source: "player" });
+  const diagnostics = controller.getDiagnostics();
+  const tuning = controller.getRuntimeLodTuning();
+
+  assert(tuning.lod0Distance === 48 && tuning.lod1Distance === 96, "Runtime LOD tuning should be retained by the controller.");
+  assertClose(diagnostics.effectiveNearFullResolutionRadius, 48, "Runtime LOD0 tuning should override the near full-resolution radius.");
 
   controller.dispose();
   scene.dispose();
