@@ -11,6 +11,7 @@ import type { SceneGeneratedTerrainDescriptor } from "../../scene/SceneDescripto
 import type { TerrainHeightField } from "../TerrainHeightField";
 import { TerrainQuadtreeLodBuilder } from "./TerrainQuadtreeLodBuilder";
 import { TerrainQuadtreePatchMeshBuilder } from "./TerrainQuadtreePatchMeshBuilder";
+import { TerrainQuadtreeLodSeamResolver } from "./TerrainQuadtreeLodSeamResolver";
 import {
   TerrainQuadSizeCalculator,
   TerrainQuadtreeLodDescriptorResolver,
@@ -40,11 +41,17 @@ export interface TerrainQuadtreeLodControllerOptions {
  * Factory ключей meshes для выбранных quadtree leaves.
  */
 class TerrainLeafMeshKeyFactory {
+  private readonly seamResolver: TerrainQuadtreeLodSeamResolver;
+
+  public constructor(seamResolver = new TerrainQuadtreeLodSeamResolver()) {
+    this.seamResolver = seamResolver;
+  }
+
   /**
-   * Создает стабильный ключ mesh по node id и sample step.
+   * Создает стабильный ключ mesh по node id, logical sample step, and seam-adjusted build shape.
    */
   public make(leaf: TerrainQuadtreeLeafSelection): string {
-    return `${leaf.node.id}:step:${leaf.sampleStep}`;
+    return `${leaf.node.id}:logical:${leaf.sampleStep}:build:${leaf.buildSampleStep ?? leaf.sampleStep}:seam:${this.seamResolver.createSignature(leaf.seamInfo)}`;
   }
 }
 
@@ -87,6 +94,7 @@ export class TerrainQuadtreeLodController {
   private readonly lodDescriptor: ResolvedTerrainQuadtreeLodDescriptor;
   private readonly lodBuilder: TerrainQuadtreeLodBuilder;
   private readonly patchBuilder: TerrainQuadtreePatchMeshBuilder;
+  private readonly seamResolver: TerrainQuadtreeLodSeamResolver;
   private readonly lodDescriptorResolver: TerrainQuadtreeLodDescriptorResolver;
   private readonly quadSizeCalculator: TerrainQuadSizeCalculator;
   private readonly sourceDensityWarningPolicy: TerrainSourceDensityWarningPolicy;
@@ -115,6 +123,7 @@ export class TerrainQuadtreeLodController {
     options: TerrainQuadtreeLodControllerOptions,
     lodBuilder = new TerrainQuadtreeLodBuilder(),
     patchBuilder = new TerrainQuadtreePatchMeshBuilder(),
+    seamResolver = new TerrainQuadtreeLodSeamResolver(),
     lodDescriptorResolver = new TerrainQuadtreeLodDescriptorResolver(),
     quadSizeCalculator = new TerrainQuadSizeCalculator(),
     sourceDensityWarningPolicy = new TerrainSourceDensityWarningPolicy(),
@@ -131,6 +140,7 @@ export class TerrainQuadtreeLodController {
     this.lodDescriptor = this.lodDescriptorResolver.resolve(options.lod, options.heightField);
     this.lodBuilder = lodBuilder;
     this.patchBuilder = patchBuilder;
+    this.seamResolver = seamResolver;
     this.quadSizeCalculator = quadSizeCalculator;
     this.sourceDensityWarningPolicy = sourceDensityWarningPolicy;
     this.leafMeshKeyFactory = leafMeshKeyFactory;
@@ -236,10 +246,14 @@ export class TerrainQuadtreeLodController {
   public getDiagnostics(): TerrainQuadtreeLodDiagnostics {
     const depthCounts = new Map<number, number>();
     const sampleStepCounts = new Map<number, number>();
+    const buildSampleStepCounts = new Map<number, number>();
     const approxTrianglesBySampleStep = new Map<number, number>();
+    const approxTrianglesByBuildSampleStep = new Map<number, number>();
     const horizontalWorldScale = this.getHorizontalWorldScale();
     const sourceQuadSize = this.quadSizeCalculator.compute(this.heightField) * horizontalWorldScale;
     let approxVisibleTriangles = 0;
+    let seamAdjustedPatchCount = 0;
+    let maxNeighborSampleStepRatio: number | null = null;
     let maxDepth = 0;
     let minLeafWorldSize: number | null = null;
     let maxLeafWorldSize: number | null = null;
@@ -249,15 +263,25 @@ export class TerrainQuadtreeLodController {
     let maxDistanceToAnchor: number | null = null;
     for (const leaf of this.activeLeaves) {
       const node = leaf.node;
+      const buildSampleStep = leaf.buildSampleStep ?? leaf.sampleStep;
       const leafWorldSize = Math.max(node.sizeWorldX, node.sizeWorldZ) * horizontalWorldScale;
       const leafApproxTriangles = this.computeLeafApproxVisibleTriangles(leaf);
       approxVisibleTriangles += leafApproxTriangles;
       depthCounts.set(node.depth, (depthCounts.get(node.depth) ?? 0) + 1);
       sampleStepCounts.set(leaf.sampleStep, (sampleStepCounts.get(leaf.sampleStep) ?? 0) + 1);
+      buildSampleStepCounts.set(buildSampleStep, (buildSampleStepCounts.get(buildSampleStep) ?? 0) + 1);
       approxTrianglesBySampleStep.set(
         leaf.sampleStep,
         (approxTrianglesBySampleStep.get(leaf.sampleStep) ?? 0) + leafApproxTriangles
       );
+      approxTrianglesByBuildSampleStep.set(
+        buildSampleStep,
+        (approxTrianglesByBuildSampleStep.get(buildSampleStep) ?? 0) + leafApproxTriangles
+      );
+      if (buildSampleStep < leaf.sampleStep) {
+        seamAdjustedPatchCount += 1;
+      }
+      maxNeighborSampleStepRatio = this.resolveMaxNeighborSampleStepRatio(leaf, maxNeighborSampleStepRatio);
       maxDepth = Math.max(maxDepth, node.depth);
       minLeafWorldSize = minLeafWorldSize === null ? leafWorldSize : Math.min(minLeafWorldSize, leafWorldSize);
       maxLeafWorldSize = maxLeafWorldSize === null ? leafWorldSize : Math.max(maxLeafWorldSize, leafWorldSize);
@@ -279,12 +303,16 @@ export class TerrainQuadtreeLodController {
       anchorSource: this.lastAnchorSource,
       depthCounts,
       sampleStepCounts,
+      buildSampleStepCounts,
       approxTrianglesBySampleStep,
+      approxTrianglesByBuildSampleStep,
       sourceQuadSize,
       desiredNearPatchWorldSize: this.lodDescriptor.nearPatchWorldSize,
       activePatchMeshCount: this.activeLeaves.length,
       activeDebugLineMeshCount: this.getActiveDebugLineMeshCount(),
       approxVisibleTriangles,
+      seamAdjustedPatchCount,
+      maxNeighborSampleStepRatio,
       debugMode: this.getActiveDebugMode(),
       minLeafWorldSize,
       maxLeafWorldSize,
@@ -322,19 +350,20 @@ export class TerrainQuadtreeLodController {
    * Синхронизирует кеш patch meshes с новым набором visible leaves.
    */
   private applyVisibleLeaves(leaves: readonly TerrainQuadtreeLeafSelection[]): void {
-    const nextLeafKeys = new Set(leaves.map((leaf) => this.leafMeshKeyFactory.make(leaf)));
+    const seamCompatibleLeaves = this.seamResolver.applySeamCompatibility(leaves);
+    const nextLeafKeys = new Set(seamCompatibleLeaves.map((leaf) => this.leafMeshKeyFactory.make(leaf)));
     for (const [leafKey, mesh] of this.patchMeshes) {
       if (!nextLeafKeys.has(leafKey)) {
         mesh.setEnabled(false);
       }
     }
 
-    for (const leaf of leaves) {
+    for (const leaf of seamCompatibleLeaves) {
       const mesh = this.getOrCreatePatchMesh(leaf);
       mesh.setEnabled(true);
     }
 
-    this.activeLeaves = leaves;
+    this.activeLeaves = seamCompatibleLeaves;
   }
 
   /**
@@ -353,9 +382,12 @@ export class TerrainQuadtreeLodController {
       heightField: this.heightField,
       descriptor: this.terrainDescriptor,
       sampleStep: leaf.sampleStep,
+      logicalSampleStep: leaf.sampleStep,
+      buildSampleStep: leaf.buildSampleStep ?? leaf.sampleStep,
+      seamInfo: leaf.seamInfo,
       skirtDepth: this.lodDescriptor.skirtDepth,
       material: this.canonicalMesh.material,
-      name: `terrain:${this.terrainDescriptor.id}:lod:node:${node.depth}:${node.ix0}:${node.iz0}:${node.ix1}:${node.iz1}:step:${leaf.sampleStep}`
+      name: `terrain:${this.terrainDescriptor.id}:lod:node:${node.depth}:${node.ix0}:${node.iz0}:${node.ix1}:${node.iz1}:logical:${leaf.sampleStep}:build:${leaf.buildSampleStep ?? leaf.sampleStep}`
     });
     mesh.setParent(this.terrainRoot, false);
     this.patchMeshes.set(leafKey, mesh);
@@ -421,7 +453,9 @@ export class TerrainQuadtreeLodController {
       terrainSurfaceCanonical: false,
       terrainKind: "generated-lod-debug",
       terrainQuadtreeDebugMode: debugMode,
-      terrainQuadtreeDebugDescription: debugMode === "fullPatchGrid" ? "actual decimated geometry grid" : "patch borders only",
+      terrainQuadtreeDebugDescription: debugMode === "fullPatchGrid"
+        ? "logical decimated patch grid; stitched borders may add surface vertices"
+        : "patch borders only",
       terrainDebugLeafCount: this.activeLeaves.length
     };
     lineMesh.setParent(this.terrainRoot, false);
@@ -471,7 +505,11 @@ export class TerrainQuadtreeLodController {
       .sort(([left], [right]) => left - right)
       .map(([sampleStep, count]) => `${sampleStep}:${count}`)
       .join(",");
-    const trianglesByStepSummary = Array.from(diagnostics.approxTrianglesBySampleStep.entries())
+    const buildStepSummary = Array.from(diagnostics.buildSampleStepCounts.entries())
+      .sort(([left], [right]) => left - right)
+      .map(([sampleStep, count]) => `${sampleStep}:${count}`)
+      .join(",");
+    const trianglesByStepSummary = Array.from(diagnostics.approxTrianglesByBuildSampleStep.entries())
       .sort(([left], [right]) => left - right)
       .map(([sampleStep, triangleCount]) => `${sampleStep}:${triangleCount}`)
       .join(",");
@@ -492,7 +530,10 @@ export class TerrainQuadtreeLodController {
       `patchMeshes=${diagnostics.activePatchMeshCount} debugLineMeshes=${diagnostics.activeDebugLineMeshCount} ` +
       `approxTriangles=${diagnostics.approxVisibleTriangles} debugMode=${diagnostics.debugMode} ` +
       `anchor=${diagnostics.anchorSource ?? "none"} depths=[${depthSummary}] ` +
-      `samples=[${sampleStepSummary}] trisByStep=[${trianglesByStepSummary}] ` +
+      `samples=[${sampleStepSummary}] buildSamples=[${buildStepSummary}] ` +
+      `seamAdjusted=${diagnostics.seamAdjustedPatchCount}/${diagnostics.visibleLeafCount} ` +
+      `maxNeighborRatio=${diagnostics.maxNeighborSampleStepRatio?.toFixed(1) ?? "n/a"} ` +
+      `trisByBuildStep=[${trianglesByStepSummary}] ` +
       `skirtDepth=${this.lodDescriptor.skirtDepth.toFixed(2)} ` +
       `sourceQuad=${diagnostics.sourceQuadSize.toFixed(2)} ` +
       `nearRadius=${this.lodDescriptor.nearFullResolutionRadius.toFixed(1)} ` +
@@ -556,11 +597,29 @@ export class TerrainQuadtreeLodController {
   }
 
   private computeLeafApproxVisibleTriangles(leaf: TerrainQuadtreeLeafSelection): number {
-    const xSegments = Math.max(1, Math.ceil((leaf.node.ix1 - leaf.node.ix0) / leaf.sampleStep));
-    const zSegments = Math.max(1, Math.ceil((leaf.node.iz1 - leaf.node.iz0) / leaf.sampleStep));
+    const buildSampleStep = Math.max(1, Math.round(leaf.buildSampleStep ?? leaf.sampleStep));
+    const xSegments = Math.max(1, Math.ceil((leaf.node.ix1 - leaf.node.ix0) / buildSampleStep));
+    const zSegments = Math.max(1, Math.ceil((leaf.node.iz1 - leaf.node.iz0) / buildSampleStep));
     const topTriangles = xSegments * zSegments * 2;
     const skirtTriangles = this.lodDescriptor.skirtDepth > 0 ? (xSegments + zSegments) * 4 : 0;
     return topTriangles + skirtTriangles;
+  }
+
+  private resolveMaxNeighborSampleStepRatio(
+    leaf: TerrainQuadtreeLeafSelection,
+    current: number | null
+  ): number | null {
+    let maxRatio = current;
+    for (const stitchInfo of Object.values(leaf.seamInfo ?? {})) {
+      if (!stitchInfo) {
+        continue;
+      }
+      const ownSampleStep = Math.max(1, Math.round(stitchInfo.ownSampleStep));
+      const neighborSampleStep = Math.max(1, Math.round(stitchInfo.neighborSampleStep));
+      const ratio = Math.max(ownSampleStep, neighborSampleStep) / Math.min(ownSampleStep, neighborSampleStep);
+      maxRatio = maxRatio === null ? ratio : Math.max(maxRatio, ratio);
+    }
+    return maxRatio;
   }
 
   /**

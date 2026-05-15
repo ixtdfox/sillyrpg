@@ -135,8 +135,10 @@ export class RuntimePerformancePanelUi {
       "",
       "TERRAIN LOD",
       `controllers: ${snapshot.terrainLod.controllerCount}   leaves: ${snapshot.terrainLod.visibleLeafCount}${terrainWarning}   patches: ${snapshot.terrainLod.patchMeshEstimate}   lines: ${snapshot.terrainLod.activeDebugLineMeshCount}`,
-      `sample steps: ${this.formatSampleStepMap(snapshot.terrainLod.sampleStepCounts)}`,
-      `tris by step: ${this.formatSampleStepMap(snapshot.terrainLod.approxTrianglesBySampleStep, true)}`,
+      `sample steps: logical ${this.formatSampleStepMap(snapshot.terrainLod.sampleStepCounts)}`,
+      `build steps:   actual  ${this.formatSampleStepMap(snapshot.terrainLod.buildSampleStepCounts)}`,
+      `seams: adjusted patches ${snapshot.terrainLod.seamAdjustedPatchCount} / ${snapshot.terrainLod.visibleLeafCount}   max ratio: ${this.formatNullableFloat(snapshot.terrainLod.maxNeighborSampleStepRatio)}`,
+      `tris by build: ${this.formatSampleStepMap(snapshot.terrainLod.approxTrianglesByBuildSampleStep, true)}`,
       `depths: ${this.formatMap(snapshot.terrainLod.depthCounts)}`,
       `leaf size: ${this.formatRange(snapshot.terrainLod.minLeafWorldSize, snapshot.terrainLod.maxLeafWorldSize)}   near: ${this.formatRange(snapshot.terrainLod.minNearLeafWorldSize, snapshot.terrainLod.maxNearLeafWorldSize)}${nearLeafWarning}`,
       `distance: ${this.formatRange(snapshot.terrainLod.minDistanceToAnchor, snapshot.terrainLod.maxDistanceToAnchor)}   debug mode: ${snapshot.terrainLod.debugMode}`,
@@ -218,6 +220,10 @@ export class RuntimePerformancePanelUi {
 
   private formatNullableNumber(value: number | null): string {
     return value === null ? "n/a" : this.formatNumber(value);
+  }
+
+  private formatNullableFloat(value: number | null): string {
+    return value === null ? "n/a" : this.formatCompactFloat(value);
   }
 
   private formatNumber(value: number): string {

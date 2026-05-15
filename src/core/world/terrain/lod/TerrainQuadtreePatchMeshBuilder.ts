@@ -14,7 +14,7 @@ import type { SceneGeneratedTerrainDescriptor, SceneTerrainMaterialBandDescripto
 import { TerrainColorResolver } from "../TerrainColorResolver";
 import type { TerrainHeightField } from "../TerrainHeightField";
 import { TerrainHeightFieldNormalSampler } from "../TerrainHeightFieldNormalSampler";
-import type { TerrainQuadtreeNode } from "./TerrainQuadtreeLodTypes";
+import type { TerrainPatchEdge, TerrainPatchSeamInfo, TerrainQuadtreeNode } from "./TerrainQuadtreeLodTypes";
 
 export type TerrainQuadtreePatchDebugLineMode = "patchBorders" | "fullPatchGrid";
 
@@ -37,6 +37,9 @@ export interface TerrainQuadtreePatchBuildOptions {
   readonly heightField: TerrainHeightField;
   readonly descriptor: SceneGeneratedTerrainDescriptor;
   readonly sampleStep: number;
+  readonly logicalSampleStep?: number;
+  readonly buildSampleStep?: number;
+  readonly seamInfo?: TerrainPatchSeamInfo;
   readonly skirtDepth: number;
   readonly material: Material | null;
   readonly name: string;
@@ -64,7 +67,16 @@ interface SkirtAppendInput {
   readonly normalSampler: TerrainHeightFieldNormalSampler;
   readonly xIndices: readonly number[];
   readonly zIndices: readonly number[];
+  readonly northXIndices: readonly number[];
+  readonly southXIndices: readonly number[];
+  readonly westZIndices: readonly number[];
+  readonly eastZIndices: readonly number[];
   readonly skirtDepth: number;
+}
+
+interface TerrainGridPoint {
+  readonly ix: number;
+  readonly iz: number;
 }
 
 /**
@@ -137,9 +149,9 @@ class TerrainQuadtreeSkirtAppender {
 
   private appendNorth(input: SkirtAppendInput): void {
     const iz = input.zIndices[0] ?? 0;
-    for (let xGridIndex = 0; xGridIndex < input.xIndices.length - 1; xGridIndex += 1) {
-      const ix0 = input.xIndices[xGridIndex] ?? 0;
-      const ix1 = input.xIndices[xGridIndex + 1] ?? ix0;
+    for (let xGridIndex = 0; xGridIndex < input.northXIndices.length - 1; xGridIndex += 1) {
+      const ix0 = input.northXIndices[xGridIndex] ?? 0;
+      const ix1 = input.northXIndices[xGridIndex + 1] ?? ix0;
       const top0 = this.appendSkirtVertex(input, ix0, iz, 0);
       const top1 = this.appendSkirtVertex(input, ix1, iz, 0);
       const bottom0 = this.appendSkirtVertex(input, ix0, iz, -input.skirtDepth);
@@ -151,9 +163,9 @@ class TerrainQuadtreeSkirtAppender {
 
   private appendSouth(input: SkirtAppendInput): void {
     const iz = input.zIndices[input.zIndices.length - 1] ?? 0;
-    for (let xGridIndex = 0; xGridIndex < input.xIndices.length - 1; xGridIndex += 1) {
-      const ix0 = input.xIndices[xGridIndex] ?? 0;
-      const ix1 = input.xIndices[xGridIndex + 1] ?? ix0;
+    for (let xGridIndex = 0; xGridIndex < input.southXIndices.length - 1; xGridIndex += 1) {
+      const ix0 = input.southXIndices[xGridIndex] ?? 0;
+      const ix1 = input.southXIndices[xGridIndex + 1] ?? ix0;
       const top0 = this.appendSkirtVertex(input, ix0, iz, 0);
       const top1 = this.appendSkirtVertex(input, ix1, iz, 0);
       const bottom0 = this.appendSkirtVertex(input, ix0, iz, -input.skirtDepth);
@@ -165,9 +177,9 @@ class TerrainQuadtreeSkirtAppender {
 
   private appendWest(input: SkirtAppendInput): void {
     const ix = input.xIndices[0] ?? 0;
-    for (let zGridIndex = 0; zGridIndex < input.zIndices.length - 1; zGridIndex += 1) {
-      const iz0 = input.zIndices[zGridIndex] ?? 0;
-      const iz1 = input.zIndices[zGridIndex + 1] ?? iz0;
+    for (let zGridIndex = 0; zGridIndex < input.westZIndices.length - 1; zGridIndex += 1) {
+      const iz0 = input.westZIndices[zGridIndex] ?? 0;
+      const iz1 = input.westZIndices[zGridIndex + 1] ?? iz0;
       const top0 = this.appendSkirtVertex(input, ix, iz0, 0);
       const top1 = this.appendSkirtVertex(input, ix, iz1, 0);
       const bottom0 = this.appendSkirtVertex(input, ix, iz0, -input.skirtDepth);
@@ -179,9 +191,9 @@ class TerrainQuadtreeSkirtAppender {
 
   private appendEast(input: SkirtAppendInput): void {
     const ix = input.xIndices[input.xIndices.length - 1] ?? 0;
-    for (let zGridIndex = 0; zGridIndex < input.zIndices.length - 1; zGridIndex += 1) {
-      const iz0 = input.zIndices[zGridIndex] ?? 0;
-      const iz1 = input.zIndices[zGridIndex + 1] ?? iz0;
+    for (let zGridIndex = 0; zGridIndex < input.eastZIndices.length - 1; zGridIndex += 1) {
+      const iz0 = input.eastZIndices[zGridIndex] ?? 0;
+      const iz1 = input.eastZIndices[zGridIndex + 1] ?? iz0;
       const top0 = this.appendSkirtVertex(input, ix, iz0, 0);
       const top1 = this.appendSkirtVertex(input, ix, iz1, 0);
       const bottom0 = this.appendSkirtVertex(input, ix, iz0, -input.skirtDepth);
@@ -286,12 +298,15 @@ export class TerrainQuadtreePatchMeshBuilder {
    */
   public buildPatchMesh(scene: Scene, options: TerrainQuadtreePatchBuildOptions): Mesh {
     const mesh = new Mesh(options.name, scene);
+    const logicalSampleStep = Math.max(1, Math.round(options.logicalSampleStep ?? options.sampleStep));
+    const buildSampleStep = Math.max(1, Math.round(options.buildSampleStep ?? options.sampleStep));
     const geometry = this.buildVertexData(
       options.heightField,
       options.node,
       options.descriptor,
-      options.sampleStep,
-      options.skirtDepth
+      logicalSampleStep,
+      options.skirtDepth,
+      options.seamInfo
     );
     const vertexData = new VertexData();
     vertexData.positions = geometry.positions;
@@ -311,7 +326,9 @@ export class TerrainQuadtreePatchMeshBuilder {
       terrainKind: "generated-lod-visual",
       terrainQuadtreeNodeId: options.node.id,
       terrainQuadtreeDepth: options.node.depth,
-      terrainQuadtreeSampleStep: options.sampleStep
+      terrainQuadtreeSampleStep: logicalSampleStep,
+      terrainQuadtreeLogicalSampleStep: logicalSampleStep,
+      terrainQuadtreeBuildSampleStep: buildSampleStep
     };
     this.heightBandColorApplicator.apply(mesh, options.descriptor, geometry.vertexHeights);
     mesh.refreshBoundingInfo();
@@ -326,7 +343,8 @@ export class TerrainQuadtreePatchMeshBuilder {
     node: TerrainQuadtreeNode,
     descriptor: SceneGeneratedTerrainDescriptor,
     sampleStep: number,
-    skirtDepth: number
+    skirtDepth: number,
+    seamInfo?: TerrainPatchSeamInfo
   ): TerrainQuadtreePatchVertexData {
     const positions: number[] = [];
     const indices: number[] = [];
@@ -337,36 +355,66 @@ export class TerrainQuadtreePatchMeshBuilder {
     const normalSampler = new TerrainHeightFieldNormalSampler(heightField);
     const xIndices = this.axisIndexBuilder.build(node.ix0, node.ix1, resolvedSampleStep);
     const zIndices = this.axisIndexBuilder.build(node.iz0, node.iz1, resolvedSampleStep);
-    const topVertexIndexByGrid: number[][] = [];
+    const northXIndices = this.buildStitchedEdgeIndices(node.ix0, node.ix1, resolvedSampleStep, seamInfo, "north");
+    const southXIndices = this.buildStitchedEdgeIndices(node.ix0, node.ix1, resolvedSampleStep, seamInfo, "south");
+    const westZIndices = this.buildStitchedEdgeIndices(node.iz0, node.iz1, resolvedSampleStep, seamInfo, "west");
+    const eastZIndices = this.buildStitchedEdgeIndices(node.iz0, node.iz1, resolvedSampleStep, seamInfo, "east");
+    const topVertexIndexByKey = new Map<string, number>();
+    const getOrCreateTopVertex = (ix: number, iz: number): number => {
+      const key = this.createGridPointKey(ix, iz);
+      const existing = topVertexIndexByKey.get(key);
+      if (existing !== undefined) {
+        return existing;
+      }
+
+      const vertexIndex = this.vertexWriter.pushTerrainVertex(
+        positions,
+        uvs,
+        normals,
+        vertexHeights,
+        heightField,
+        ix,
+        iz,
+        heightField.getHeight(ix, iz),
+        normalSampler.sampleNormal(ix, iz)
+      );
+      topVertexIndexByKey.set(key, vertexIndex);
+      return vertexIndex;
+    };
 
     for (let zGridIndex = 0; zGridIndex < zIndices.length; zGridIndex += 1) {
-      const row: number[] = [];
       const iz = zIndices[zGridIndex] ?? node.iz0;
       for (let xGridIndex = 0; xGridIndex < xIndices.length; xGridIndex += 1) {
         const ix = xIndices[xGridIndex] ?? node.ix0;
-        row.push(this.vertexWriter.pushTerrainVertex(
-          positions,
-          uvs,
-          normals,
-          vertexHeights,
-          heightField,
-          ix,
-          iz,
-          heightField.getHeight(ix, iz),
-          normalSampler.sampleNormal(ix, iz)
-        ));
+        getOrCreateTopVertex(ix, iz);
       }
-      topVertexIndexByGrid.push(row);
     }
 
     for (let zGridIndex = 0; zGridIndex < zIndices.length - 1; zGridIndex += 1) {
       for (let xGridIndex = 0; xGridIndex < xIndices.length - 1; xGridIndex += 1) {
-        const a = topVertexIndexByGrid[zGridIndex]?.[xGridIndex] ?? 0;
-        const b = topVertexIndexByGrid[zGridIndex]?.[xGridIndex + 1] ?? 0;
-        const c = topVertexIndexByGrid[zGridIndex + 1]?.[xGridIndex] ?? 0;
-        const d = topVertexIndexByGrid[zGridIndex + 1]?.[xGridIndex + 1] ?? 0;
-        indices.push(d, b, a);
-        indices.push(c, d, a);
+        const x0 = xIndices[xGridIndex] ?? node.ix0;
+        const x1 = xIndices[xGridIndex + 1] ?? x0;
+        const z0 = zIndices[zGridIndex] ?? node.iz0;
+        const z1 = zIndices[zGridIndex + 1] ?? z0;
+        const polygon = this.buildCellPolygon({
+          x0,
+          x1,
+          z0,
+          z1,
+          northXIndices: zGridIndex === 0
+            ? this.selectAxisIndices(northXIndices, x0, x1)
+            : this.axisIndexBuilder.build(x0, x1, resolvedSampleStep),
+          southXIndices: zGridIndex === zIndices.length - 2
+            ? this.selectAxisIndices(southXIndices, x0, x1)
+            : this.axisIndexBuilder.build(x0, x1, resolvedSampleStep),
+          westZIndices: xGridIndex === 0
+            ? this.selectAxisIndices(westZIndices, z0, z1)
+            : this.axisIndexBuilder.build(z0, z1, resolvedSampleStep),
+          eastZIndices: xGridIndex === xIndices.length - 2
+            ? this.selectAxisIndices(eastZIndices, z0, z1)
+            : this.axisIndexBuilder.build(z0, z1, resolvedSampleStep)
+        });
+        this.appendPolygonTriangles(indices, polygon, getOrCreateTopVertex);
       }
     }
 
@@ -381,6 +429,10 @@ export class TerrainQuadtreePatchMeshBuilder {
         normalSampler,
         xIndices,
         zIndices,
+        northXIndices,
+        southXIndices,
+        westZIndices,
+        eastZIndices,
         skirtDepth
       });
     }
@@ -392,6 +444,167 @@ export class TerrainQuadtreePatchMeshBuilder {
       normals,
       vertexHeights
     };
+  }
+
+  private buildStitchedEdgeIndices(
+    start: number,
+    end: number,
+    sampleStep: number,
+    seamInfo: TerrainPatchSeamInfo | undefined,
+    edge: TerrainPatchEdge
+  ): number[] {
+    const resolvedSampleStep = Math.max(1, Math.round(sampleStep));
+    const edgeInfo = seamInfo?.[edge];
+    const seamSegments = edgeInfo?.segments ?? [];
+    const indices = new Set<number>();
+    for (const index of this.axisIndexBuilder.build(start, end, resolvedSampleStep)) {
+      indices.add(index);
+    }
+
+    if (edgeInfo?.mode === "stitch-to-finer" && seamSegments.length === 0) {
+      for (const index of this.axisIndexBuilder.build(start, end, Math.max(1, Math.round(edgeInfo.neighborSampleStep)))) {
+        indices.add(index);
+      }
+    }
+
+    for (const segment of seamSegments) {
+      const segmentStart = Math.max(start, segment.startIndex);
+      const segmentEnd = Math.min(end, segment.endIndex);
+      if (segmentEnd <= segmentStart) {
+        continue;
+      }
+      const stitchIndices = segment.stitchIndices ?? this.axisIndexBuilder.build(
+        segmentStart,
+        segmentEnd,
+        Math.max(1, Math.round(segment.neighborSampleStep))
+      );
+      for (const index of stitchIndices) {
+        if (index < segmentStart || index > segmentEnd) {
+          continue;
+        }
+        indices.add(index);
+      }
+    }
+
+    indices.add(start);
+    indices.add(end);
+    return [...indices].sort((left, right) => left - right);
+  }
+
+  private selectAxisIndices(axisIndices: readonly number[], start: number, end: number): number[] {
+    const selected = new Set<number>([start, end]);
+    for (const index of axisIndices) {
+      if (index >= start && index <= end) {
+        selected.add(index);
+      }
+    }
+    return [...selected].sort((left, right) => left - right);
+  }
+
+  private buildCellPolygon(input: {
+    readonly x0: number;
+    readonly x1: number;
+    readonly z0: number;
+    readonly z1: number;
+    readonly northXIndices: readonly number[];
+    readonly southXIndices: readonly number[];
+    readonly westZIndices: readonly number[];
+    readonly eastZIndices: readonly number[];
+  }): TerrainGridPoint[] {
+    const polygon: TerrainGridPoint[] = [];
+    this.appendPolygonPoints(
+      polygon,
+      this.buildHorizontalEdgePoints(input.northXIndices, input.z0, false)
+    );
+    this.appendPolygonPoints(
+      polygon,
+      this.buildVerticalEdgePoints(input.eastZIndices, input.x1, false).slice(1)
+    );
+    this.appendPolygonPoints(
+      polygon,
+      this.buildHorizontalEdgePoints(input.southXIndices, input.z1, true).slice(1)
+    );
+    this.appendPolygonPoints(
+      polygon,
+      this.buildVerticalEdgePoints(input.westZIndices, input.x0, true).slice(1)
+    );
+
+    const first = polygon[0];
+    const last = polygon[polygon.length - 1];
+    if (first && last && this.isSameGridPoint(first, last)) {
+      polygon.pop();
+    }
+
+    return polygon;
+  }
+
+  private buildHorizontalEdgePoints(
+    xIndices: readonly number[],
+    iz: number,
+    reverse: boolean
+  ): TerrainGridPoint[] {
+    const ordered = reverse ? [...xIndices].reverse() : [...xIndices];
+    return ordered.map((ix) => ({ ix, iz }));
+  }
+
+  private buildVerticalEdgePoints(
+    zIndices: readonly number[],
+    ix: number,
+    reverse: boolean
+  ): TerrainGridPoint[] {
+    const ordered = reverse ? [...zIndices].reverse() : [...zIndices];
+    return ordered.map((iz) => ({ ix, iz }));
+  }
+
+  private appendPolygonPoints(polygon: TerrainGridPoint[], points: readonly TerrainGridPoint[]): void {
+    for (const point of points) {
+      const last = polygon[polygon.length - 1];
+      if (last && this.isSameGridPoint(last, point)) {
+        continue;
+      }
+      polygon.push(point);
+    }
+  }
+
+  private appendPolygonTriangles(
+    indices: number[],
+    polygon: readonly TerrainGridPoint[],
+    getOrCreateTopVertex: (ix: number, iz: number) => number
+  ): void {
+    if (polygon.length < 3) {
+      return;
+    }
+
+    const anchor = polygon[0];
+    if (!anchor) {
+      return;
+    }
+
+    const anchorVertex = getOrCreateTopVertex(anchor.ix, anchor.iz);
+    for (let polygonIndex = 1; polygonIndex < polygon.length - 1; polygonIndex += 1) {
+      const current = polygon[polygonIndex];
+      const next = polygon[polygonIndex + 1];
+      if (!current || !next) {
+        continue;
+      }
+      indices.push(
+        getOrCreateTopVertex(next.ix, next.iz),
+        getOrCreateTopVertex(current.ix, current.iz),
+        anchorVertex
+      );
+    }
+  }
+
+  private createGridPointKey(ix: number, iz: number): string {
+    return `${ix}:${iz}`;
+  }
+
+  private isSameGridPoint(left: TerrainGridPoint, right: TerrainGridPoint): boolean {
+    return left.ix === right.ix && left.iz === right.iz;
+  }
+
+  private hasIndexRangeOverlap(leftStart: number, leftEnd: number, rightStart: number, rightEnd: number): boolean {
+    return Math.max(leftStart, rightStart) < Math.min(leftEnd, rightEnd);
   }
 
   /**

@@ -65,7 +65,11 @@ export interface TerrainLodRuntimeDiagnostics {
   readonly anchorSource: TerrainLodAnchor["source"] | "mixed" | null;
   readonly depthCounts: ReadonlyMap<number, number>;
   readonly sampleStepCounts: ReadonlyMap<number, number>;
+  readonly buildSampleStepCounts: ReadonlyMap<number, number>;
   readonly approxTrianglesBySampleStep: ReadonlyMap<number, number>;
+  readonly approxTrianglesByBuildSampleStep: ReadonlyMap<number, number>;
+  readonly seamAdjustedPatchCount: number;
+  readonly maxNeighborSampleStepRatio: number | null;
   readonly minLeafWorldSize: number | null;
   readonly maxLeafWorldSize: number | null;
   readonly minNearLeafWorldSize: number | null;
@@ -368,12 +372,16 @@ export class LocationManager {
   public getTerrainLodDiagnostics(): TerrainLodRuntimeDiagnostics {
     const depthCounts = new Map<number, number>();
     const sampleStepCounts = new Map<number, number>();
+    const buildSampleStepCounts = new Map<number, number>();
     const approxTrianglesBySampleStep = new Map<number, number>();
+    const approxTrianglesByBuildSampleStep = new Map<number, number>();
     let controllerCount = 0;
     let visibleLeafCount = 0;
     let patchMeshEstimate = 0;
     let activeDebugLineMeshCount = 0;
     let approxVisibleTriangles = 0;
+    let seamAdjustedPatchCount = 0;
+    let maxNeighborSampleStepRatio: number | null = null;
     let maxDepth = 0;
     let anchorSource: TerrainLodRuntimeDiagnostics["anchorSource"] = null;
     let minLeafWorldSize: number | null = null;
@@ -396,12 +404,16 @@ export class LocationManager {
         patchMeshEstimate += diagnostics.activePatchMeshCount;
         activeDebugLineMeshCount += diagnostics.activeDebugLineMeshCount;
         approxVisibleTriangles += diagnostics.approxVisibleTriangles;
+        seamAdjustedPatchCount += diagnostics.seamAdjustedPatchCount;
+        maxNeighborSampleStepRatio = this.maxNullable(maxNeighborSampleStepRatio, diagnostics.maxNeighborSampleStepRatio);
         maxDepth = Math.max(maxDepth, diagnostics.maxDepth);
         anchorSource = this.mergeTerrainLodAnchorSource(anchorSource, diagnostics.anchorSource);
         debugMode = this.mergeTerrainLodDebugMode(debugMode, diagnostics.debugMode);
         this.mergeCountMap(depthCounts, diagnostics.depthCounts);
         this.mergeCountMap(sampleStepCounts, diagnostics.sampleStepCounts);
+        this.mergeCountMap(buildSampleStepCounts, diagnostics.buildSampleStepCounts);
         this.mergeCountMap(approxTrianglesBySampleStep, diagnostics.approxTrianglesBySampleStep);
+        this.mergeCountMap(approxTrianglesByBuildSampleStep, diagnostics.approxTrianglesByBuildSampleStep);
         minLeafWorldSize = this.minNullable(minLeafWorldSize, diagnostics.minLeafWorldSize);
         maxLeafWorldSize = this.maxNullable(maxLeafWorldSize, diagnostics.maxLeafWorldSize);
         minNearLeafWorldSize = this.minNullable(minNearLeafWorldSize, diagnostics.minNearLeafWorldSize);
@@ -431,7 +443,11 @@ export class LocationManager {
       anchorSource,
       depthCounts,
       sampleStepCounts,
+      buildSampleStepCounts,
       approxTrianglesBySampleStep,
+      approxTrianglesByBuildSampleStep,
+      seamAdjustedPatchCount,
+      maxNeighborSampleStepRatio,
       minLeafWorldSize,
       maxLeafWorldSize,
       minNearLeafWorldSize,

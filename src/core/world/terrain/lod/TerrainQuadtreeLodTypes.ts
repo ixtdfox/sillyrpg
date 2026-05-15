@@ -83,10 +83,43 @@ export interface TerrainQuadtreeNode {
 export interface TerrainQuadtreeLeafSelection {
   readonly node: TerrainQuadtreeNode;
   readonly sampleStep: number;
+  /**
+   * Finest sample step used by the generated patch surface after seam compatibility.
+   *
+   * Logical LOD selection remains in `sampleStep`; this value is diagnostic/cache
+   * metadata for patches whose borders are refined to match adjacent finer leaves.
+   */
+  readonly buildSampleStep?: number;
   readonly desiredSampleStep: number;
   /** @deprecated Use desiredSampleStep. */
   readonly desiredMaxSampleStep: number;
   readonly distanceToAnchor: number;
+  readonly seamInfo?: TerrainPatchSeamInfo;
+}
+
+export type TerrainPatchEdge = "north" | "south" | "west" | "east";
+
+export interface TerrainPatchEdgeStitchInfo {
+  readonly edge: TerrainPatchEdge;
+  readonly ownSampleStep: number;
+  readonly neighborSampleStep: number;
+  readonly mode: "none" | "stitch-to-finer" | "stitch-to-coarser";
+  readonly segments?: readonly TerrainPatchEdgeStitchSegment[];
+}
+
+export interface TerrainPatchEdgeStitchSegment {
+  readonly startIndex: number;
+  readonly endIndex: number;
+  readonly neighborSampleStep: number;
+  readonly stitchIndices?: readonly number[];
+  readonly mode: "none" | "stitch-to-finer" | "stitch-to-coarser";
+}
+
+export interface TerrainPatchSeamInfo {
+  readonly north?: TerrainPatchEdgeStitchInfo;
+  readonly south?: TerrainPatchEdgeStitchInfo;
+  readonly west?: TerrainPatchEdgeStitchInfo;
+  readonly east?: TerrainPatchEdgeStitchInfo;
 }
 
 /**
@@ -106,12 +139,16 @@ export interface TerrainQuadtreeLodDiagnostics {
   readonly anchorSource: TerrainLodAnchor["source"] | null;
   readonly depthCounts: ReadonlyMap<number, number>;
   readonly sampleStepCounts: ReadonlyMap<number, number>;
+  readonly buildSampleStepCounts: ReadonlyMap<number, number>;
   readonly approxTrianglesBySampleStep: ReadonlyMap<number, number>;
+  readonly approxTrianglesByBuildSampleStep: ReadonlyMap<number, number>;
   readonly sourceQuadSize: number;
   readonly desiredNearPatchWorldSize: number;
   readonly activePatchMeshCount: number;
   readonly activeDebugLineMeshCount: number;
   readonly approxVisibleTriangles: number;
+  readonly seamAdjustedPatchCount: number;
+  readonly maxNeighborSampleStepRatio: number | null;
   readonly debugMode: TerrainQuadtreeLodDebugMode;
   readonly minLeafWorldSize: number | null;
   readonly maxLeafWorldSize: number | null;
