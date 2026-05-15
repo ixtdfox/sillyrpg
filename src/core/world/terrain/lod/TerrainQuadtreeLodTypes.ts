@@ -2,6 +2,7 @@ import type { Vector3 } from "@babylonjs/core";
 
 export type TerrainQuadtreeLodStrategy = "quadtree";
 export type TerrainQuadtreeLodDebugMode = "off" | "patchBorders" | "fullPatchGrid";
+export type TerrainCanonicalMeshMode = "OFF" | "PICK_ONLY" | "FULL_RENDER_FALLBACK";
 
 /**
  * Один порог LOD: до указанной дистанции patch использует этот желаемый sample step.
@@ -143,10 +144,22 @@ export interface TerrainQuadtreeLodDiagnostics {
   readonly approxTrianglesBySampleStep: ReadonlyMap<number, number>;
   readonly approxTrianglesByBuildSampleStep: ReadonlyMap<number, number>;
   readonly sourceQuadSize: number;
+  readonly sourceResolutionX: number;
+  readonly sourceResolutionZ: number;
+  readonly sourceQuadCount: number;
   readonly desiredNearPatchWorldSize: number;
   readonly activePatchMeshCount: number;
+  readonly cachedPatchMeshCount: number;
+  readonly inactiveCachedPatchMeshCount: number;
+  readonly activePatchVertices: number;
+  readonly activePatchTriangles: number;
+  readonly cachedPatchVertices: number;
+  readonly cachedPatchTriangles: number;
   readonly activeDebugLineMeshCount: number;
   readonly approxVisibleTriangles: number;
+  readonly canonicalMeshMode: TerrainCanonicalMeshMode;
+  readonly canonicalMeshVertexCount: number;
+  readonly canonicalMeshTriangleCount: number;
   readonly seamAdjustedPatchCount: number;
   readonly maxNeighborSampleStepRatio: number | null;
   readonly debugMode: TerrainQuadtreeLodDebugMode;

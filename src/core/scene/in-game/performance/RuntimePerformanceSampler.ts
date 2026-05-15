@@ -54,7 +54,16 @@ export class RuntimePerformanceSampler {
     this.frameWindowIndex = 0;
     this.frameWindowCount = 0;
     this.geometrySampleAccumulatorSeconds = this.geometrySampleIntervalSeconds;
-    this.lastGeometryMetrics = { vertexCount: 0, triangleCount: 0 };
+    this.lastGeometryMetrics = {
+      vertexCount: 0,
+      triangleCount: 0,
+      renderedVertexCount: 0,
+      renderedTriangleCount: 0,
+      allocatedVertexCount: 0,
+      allocatedTriangleCount: 0,
+      hiddenPickOnlyTerrainVertexCount: 0,
+      hiddenPickOnlyTerrainTriangleCount: 0
+    };
     this.enabled = false;
   }
 
@@ -162,8 +171,12 @@ export class RuntimePerformanceSampler {
     let enabledMeshCount = 0;
     let visibleMeshCount = 0;
     let lineMeshCount = 0;
-    let vertexCount = 0;
-    let triangleCount = 0;
+    let renderedVertexCount = 0;
+    let renderedTriangleCount = 0;
+    let allocatedVertexCount = 0;
+    let allocatedTriangleCount = 0;
+    let hiddenPickOnlyTerrainVertexCount = 0;
+    let hiddenPickOnlyTerrainTriangleCount = 0;
 
     for (const mesh of this.scene.meshes) {
       if (this.isLineMesh(mesh)) {
@@ -175,18 +188,37 @@ export class RuntimePerformanceSampler {
       }
 
       enabledMeshCount += 1;
-      if (mesh.isVisible && mesh.visibility > 0) {
+      const isRenderedGeometry = mesh.isVisible && mesh.visibility > 0;
+      if (isRenderedGeometry) {
         visibleMeshCount += 1;
       }
 
       if (shouldSampleGeometry) {
-        vertexCount += mesh.getTotalVertices();
-        triangleCount += Math.floor(mesh.getTotalIndices() / 3);
+        const meshVertexCount = mesh.getTotalVertices();
+        const meshTriangleCount = Math.floor(mesh.getTotalIndices() / 3);
+        allocatedVertexCount += meshVertexCount;
+        allocatedTriangleCount += meshTriangleCount;
+        if (isRenderedGeometry) {
+          renderedVertexCount += meshVertexCount;
+          renderedTriangleCount += meshTriangleCount;
+        } else if (this.isHiddenPickOnlyTerrain(mesh)) {
+          hiddenPickOnlyTerrainVertexCount += meshVertexCount;
+          hiddenPickOnlyTerrainTriangleCount += meshTriangleCount;
+        }
       }
     }
 
     if (shouldSampleGeometry) {
-      this.lastGeometryMetrics = { vertexCount, triangleCount };
+      this.lastGeometryMetrics = {
+        vertexCount: renderedVertexCount,
+        triangleCount: renderedTriangleCount,
+        renderedVertexCount,
+        renderedTriangleCount,
+        allocatedVertexCount,
+        allocatedTriangleCount,
+        hiddenPickOnlyTerrainVertexCount,
+        hiddenPickOnlyTerrainTriangleCount
+      };
     }
 
     return {
@@ -300,6 +332,18 @@ export class RuntimePerformanceSampler {
 
   private isLineMesh(mesh: AbstractMesh): boolean {
     return mesh.getClassName() === "LinesMesh";
+  }
+
+  private isHiddenPickOnlyTerrain(mesh: AbstractMesh): boolean {
+    const metadata = mesh.metadata as {
+      generatedTerrainDescriptor?: unknown;
+      terrainSurfaceCanonical?: unknown;
+    } | null | undefined;
+
+    return (
+      metadata?.generatedTerrainDescriptor !== undefined &&
+      metadata.terrainSurfaceCanonical === true
+    );
   }
 
   private resolveMaxSampleStep(sampleStepCounts: ReadonlyMap<number, number>): number {

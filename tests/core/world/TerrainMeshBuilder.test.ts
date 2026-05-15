@@ -1,9 +1,10 @@
-import { NullEngine, Scene, StandardMaterial, Vector3 } from "@babylonjs/core";
+import { NullEngine, Scene, StandardMaterial, TransformNode, Vector3 } from "@babylonjs/core";
 import { TerrainHeightField } from "../../../src/core/world/terrain/TerrainHeightField";
 import { TerrainHeightFieldNormalSampler } from "../../../src/core/world/terrain/TerrainHeightFieldNormalSampler";
 import { TerrainMeshBuilder } from "../../../src/core/world/terrain/TerrainMeshBuilder";
 import { TerrainNormalBuilder } from "../../../src/core/world/terrain/TerrainNormalBuilder";
 import { TerrainQuadtreeLodBuilder, TerrainQuadtreeSampleStepPolicy } from "../../../src/core/world/terrain/lod/TerrainQuadtreeLodBuilder";
+import { TerrainQuadtreeLodController } from "../../../src/core/world/terrain/lod/TerrainQuadtreeLodController";
 import { TerrainQuadtreeLodSeamResolver } from "../../../src/core/world/terrain/lod/TerrainQuadtreeLodSeamResolver";
 import { TerrainQuadtreePatchMeshBuilder } from "../../../src/core/world/terrain/lod/TerrainQuadtreePatchMeshBuilder";
 import {
@@ -236,6 +237,7 @@ function run(): void {
   testQuadtreeStitchedSelectionHasMatchingSharedEdges();
   testQuadtreeDefaultRingsSelectHighFarSampleSteps();
   testQuadtreeFarSampleStepsReduceApproximateTriangleCount();
+  testQuadtreeLodControllerDisposesInactivePatchMeshes();
   testLegacyNearLeafWorldSizeMigratesToPatchWorldSizeDefault();
   testSourceDensityWarningPolicyUsesDesiredNearGridSize();
 }
@@ -966,6 +968,57 @@ function testLegacyNearLeafWorldSizeMigratesToPatchWorldSizeDefault(): void {
   } finally {
     console.warn = originalWarn;
   }
+}
+
+function testQuadtreeLodControllerDisposesInactivePatchMeshes(): void {
+  const engine = new NullEngine();
+  const scene = new Scene(engine);
+  const terrainRoot = new TransformNode("terrain-root", scene);
+  const field = createSlopedHeightField(64, 64, 65, 65);
+  const descriptor = createFlatTerrainDescriptor(64, 64, 65, 65);
+  const controller = new TerrainQuadtreeLodController({
+    scene,
+    terrainRoot,
+    descriptor,
+    heightField: field,
+    lod: {
+      enabled: true,
+      maxDepth: 4,
+      targetPatchQuads: 8,
+      nearPatchWorldSize: 8,
+      nearFullResolutionRadius: 8,
+      lodRings: [
+        { distance: 8, maxSampleStep: 1 },
+        { distance: 32, maxSampleStep: 2 },
+        { distance: 128, maxSampleStep: 4 }
+      ],
+      updateIntervalSeconds: 0,
+      updateMovementThreshold: 0,
+      skirtDepth: 0
+    },
+    material: null,
+    canonicalPickMesh: null
+  });
+
+  controller.update(1, { position: Vector3.Zero(), source: "player" });
+  const firstDiagnostics = controller.getDiagnostics();
+  controller.update(1, { position: new Vector3(24, 0, 24), source: "player" });
+  const secondDiagnostics = controller.getDiagnostics();
+  const scenePatchMeshCount = scene.meshes.filter((mesh) =>
+    (mesh.metadata as { terrainKind?: unknown } | null | undefined)?.terrainKind === "generated-lod-visual"
+  ).length;
+
+  assert(firstDiagnostics.activePatchMeshCount > 0, "LOD controller should create active patch meshes on first update.");
+  assert(firstDiagnostics.cachedPatchMeshCount === firstDiagnostics.activePatchMeshCount, "Initial patch cache should contain only active patches.");
+  assert(secondDiagnostics.activePatchMeshCount > 0, "LOD controller should keep active patch meshes after anchor movement.");
+  assert(secondDiagnostics.inactiveCachedPatchMeshCount === 0, "LOD controller should dispose inactive patch meshes instead of accumulating them.");
+  assert(secondDiagnostics.cachedPatchMeshCount === secondDiagnostics.activePatchMeshCount, "Patch cache should be bounded to the current visible selection.");
+  assert(secondDiagnostics.cachedPatchVertices === secondDiagnostics.activePatchVertices, "Cached patch geometry should not include inactive vertices.");
+  assert(scenePatchMeshCount === secondDiagnostics.activePatchMeshCount, "Disposed inactive patch meshes should be removed from the scene.");
+
+  controller.dispose();
+  scene.dispose();
+  engine.dispose();
 }
 
 function createFlatTerrainDescriptor(

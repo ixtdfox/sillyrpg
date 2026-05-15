@@ -33,7 +33,7 @@ export class RuntimePerformancePanelUi {
 
     this.root = new Rectangle("runtime-performance-panel");
     this.root.width = "548px";
-    this.root.height = "408px";
+    this.root.height = "452px";
     this.root.thickness = 1;
     this.root.cornerRadius = 6;
     this.root.color = "#4B5563";
@@ -130,11 +130,15 @@ export class RuntimePerformancePanelUi {
       "PERF",
       `FPS: ${snapshot.frame.fps.toFixed(1)}   frame: ${this.formatMs(snapshot.frame.frameMs)}   avg: ${this.formatMs(snapshot.frame.averageFrameMs)} (${this.formatRange(snapshot.frame.minFrameMs, snapshot.frame.maxFrameMs, "ms")})`,
       `Draw calls: ${this.formatNullableNumber(snapshot.instrumentation.drawCalls)}   active meshes: ${snapshot.scene.activeMeshCount} / meshes: ${snapshot.scene.meshCount}   lines: ${snapshot.scene.lineMeshCount}`,
-      `Verts: ${this.formatNumber(snapshot.geometry.vertexCount)}   Tris: ${this.formatNumber(snapshot.geometry.triangleCount)}   Materials: ${snapshot.scene.materialCount}   Textures: ${snapshot.scene.textureCount}`,
+      `Rendered: Verts ${this.formatNumber(snapshot.geometry.renderedVertexCount)}   Tris ${this.formatNumber(snapshot.geometry.renderedTriangleCount)}   Materials: ${snapshot.scene.materialCount}   Textures: ${snapshot.scene.textureCount}`,
+      `Allocated: Verts ${this.formatNumber(snapshot.geometry.allocatedVertexCount)}   Tris ${this.formatNumber(snapshot.geometry.allocatedTriangleCount)}   Hidden/Pick terrain: Verts ${this.formatNumber(snapshot.geometry.hiddenPickOnlyTerrainVertexCount)}   Tris ${this.formatNumber(snapshot.geometry.hiddenPickOnlyTerrainTriangleCount)}`,
       `Render: scene ${this.formatMs(snapshot.instrumentation.frameMs)}   draw ${this.formatMs(snapshot.instrumentation.renderMs)}   active eval ${this.formatMs(snapshot.instrumentation.activeMeshesEvaluationMs)}   targets ${this.formatMs(snapshot.instrumentation.renderTargetsRenderMs)}`,
       "",
       "TERRAIN LOD",
-      `controllers: ${snapshot.terrainLod.controllerCount}   leaves: ${snapshot.terrainLod.visibleLeafCount}${terrainWarning}   patches: ${snapshot.terrainLod.patchMeshEstimate}   lines: ${snapshot.terrainLod.activeDebugLineMeshCount}`,
+      `source: ${this.formatTerrainSource(snapshot)}   source quads: ${this.formatNumber(snapshot.terrainLod.sourceQuadCount)}`,
+      `visual LOD: leaves ${snapshot.terrainLod.visibleLeafCount}${terrainWarning}   visible tris ${this.formatNumber(snapshot.terrainLod.approxVisibleTriangles)}   lines: ${snapshot.terrainLod.activeDebugLineMeshCount}`,
+      `canonical mesh: ${snapshot.terrainLod.canonicalMeshMode}   verts ${this.formatNumber(snapshot.terrainLod.canonicalMeshVertexCount)}   tris ${this.formatNumber(snapshot.terrainLod.canonicalMeshTriangleCount)}`,
+      `patch cache: active ${snapshot.terrainLod.activePatchMeshCount}   inactive ${snapshot.terrainLod.inactiveCachedPatchMeshCount}   cached ${snapshot.terrainLod.cachedPatchMeshCount}   cached tris ${this.formatNumber(snapshot.terrainLod.cachedPatchTriangles)}`,
       `sample steps: logical ${this.formatSampleStepMap(snapshot.terrainLod.sampleStepCounts)}`,
       `build steps:   actual  ${this.formatSampleStepMap(snapshot.terrainLod.buildSampleStepCounts)}`,
       `seams: adjusted patches ${snapshot.terrainLod.seamAdjustedPatchCount} / ${snapshot.terrainLod.visibleLeafCount}   max ratio: ${this.formatNullableFloat(snapshot.terrainLod.maxNeighborSampleStepRatio)}`,
@@ -142,7 +146,7 @@ export class RuntimePerformancePanelUi {
       `depths: ${this.formatMap(snapshot.terrainLod.depthCounts)}`,
       `leaf size: ${this.formatRange(snapshot.terrainLod.minLeafWorldSize, snapshot.terrainLod.maxLeafWorldSize)}   near: ${this.formatRange(snapshot.terrainLod.minNearLeafWorldSize, snapshot.terrainLod.maxNearLeafWorldSize)}${nearLeafWarning}`,
       `distance: ${this.formatRange(snapshot.terrainLod.minDistanceToAnchor, snapshot.terrainLod.maxDistanceToAnchor)}   debug mode: ${snapshot.terrainLod.debugMode}`,
-      `source quad: ${this.formatRange(snapshot.terrainLod.sourceQuadSizeMin, snapshot.terrainLod.sourceQuadSizeMax)}   LOD tris: ${this.formatNumber(snapshot.terrainLod.approxVisibleTriangles)}`,
+      `source quad: ${this.formatRange(snapshot.terrainLod.sourceQuadSizeMin, snapshot.terrainLod.sourceQuadSizeMax)}   patch tris: active ${this.formatNumber(snapshot.terrainLod.activePatchTriangles)} cached ${this.formatNumber(snapshot.terrainLod.cachedPatchTriangles)}`,
       "",
       "SHADOWS",
       `enabled: ${this.formatYesNo(snapshot.shadows.enabled)}   type: ${snapshot.shadows.generatorKind}   generator: ${this.formatYesNo(snapshot.shadows.hasGenerator)}`,
@@ -168,6 +172,16 @@ export class RuntimePerformancePanelUi {
       visibleWarnings.push(`WARN: +${warnings.length - visibleWarnings.length} more`);
     }
     return `\n${visibleWarnings.join("\n")}`;
+  }
+
+  private formatTerrainSource(snapshot: RuntimePerformanceSnapshot): string {
+    const x = snapshot.terrainLod.sourceResolutionXMax;
+    const z = snapshot.terrainLod.sourceResolutionZMax;
+    if (x === null || z === null) {
+      return "n/a";
+    }
+
+    return `${this.formatNumber(x)}x${this.formatNumber(z)} heightfield`;
   }
 
   private formatShadowBatches(snapshot: RuntimePerformanceSnapshot): string {

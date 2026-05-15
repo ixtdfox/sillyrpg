@@ -17,6 +17,7 @@ import { LightingPresetCatalog } from "../../lighting/LightingPreset";
 import type { SceneLightingDescriptor } from "../../lighting/LightingTypes";
 import type { TerrainHeightField } from "../terrain/TerrainHeightField";
 import { TerrainHeightFieldSerializer } from "../terrain/TerrainHeightFieldSerializer";
+import { TerrainMaterialBuilder } from "../terrain/TerrainMaterialBuilder";
 import { TerrainMeshBuilder } from "../terrain/TerrainMeshBuilder";
 import { TerrainQuadtreeLodController } from "../terrain/lod/TerrainQuadtreeLodController";
 import { TerrainQuadtreeLodDescriptorResolver } from "../terrain/lod/TerrainQuadtreeLodTypes";
@@ -86,6 +87,7 @@ export interface SceneContentSummary {
 interface ImportedAssetNodesInternal extends ImportedSceneAssetNodes {}
 const DEBUG_SCENE_IMPORTS = false;
 const RUNTIME_TERRAIN_HEIGHT_FIELD_SERIALIZER = new TerrainHeightFieldSerializer();
+const RUNTIME_TERRAIN_MATERIAL_BUILDER = new TerrainMaterialBuilder();
 const RUNTIME_TERRAIN_MESH_BUILDER = new TerrainMeshBuilder();
 const RUNTIME_TERRAIN_LOD_DESCRIPTOR_RESOLVER = new TerrainQuadtreeLodDescriptorResolver();
 
@@ -225,28 +227,54 @@ function importGeneratedTerrainContent(
     );
   }
 
+  const lod = RUNTIME_TERRAIN_LOD_DESCRIPTOR_RESOLVER.resolve(descriptor.lod, heightField);
+  if (generatedTerrainLodEnabled && lod.enabled) {
+    const pickSurfaceMesh = createGeneratedTerrainRuntimePickSurface(scene, descriptor, heightField);
+    pickSurfaceMesh.setParent(terrainRoot, false);
+    const material = RUNTIME_TERRAIN_MATERIAL_BUILDER.build(
+      scene,
+      pickSurfaceMesh,
+      descriptor,
+      heightField,
+      getGeneratedTerrainPickSurfaceVertexHeights(heightField)
+    );
+    const terrainLodControllers = [
+      new TerrainQuadtreeLodController({
+        scene,
+        terrainRoot,
+        descriptor,
+        heightField,
+        lod: descriptor.lod,
+        material,
+        canonicalPickMesh: pickSurfaceMesh
+      })
+    ];
+
+    return {
+      root: terrainRoot,
+      descriptor,
+      heightField,
+      meshes: [pickSurfaceMesh],
+      renderableMeshes: [],
+      terrainSurfaceMeshes: [pickSurfaceMesh],
+      terrainLodControllers,
+      helperMeshes: [],
+      transformNodes: [],
+      skeletons: [],
+      animationGroups: [],
+      particleSystems: []
+    };
+  }
+
   const mesh = RUNTIME_TERRAIN_MESH_BUILDER.build(scene, descriptor, heightField);
   mesh.setParent(terrainRoot, false);
   mesh.metadata = {
     ...(mesh.metadata as Record<string, unknown> | undefined),
     generatedTerrainDescriptor: descriptor,
     generatedTerrainHeightField: heightField,
-    terrainSurfaceCanonical: true
+    terrainSurfaceCanonical: true,
+    terrainCanonicalMeshMode: "FULL_RENDER_FALLBACK"
   };
-
-  const lod = RUNTIME_TERRAIN_LOD_DESCRIPTOR_RESOLVER.resolve(descriptor.lod, heightField);
-  const terrainLodControllers = generatedTerrainLodEnabled && lod.enabled
-    ? [
-        new TerrainQuadtreeLodController({
-          scene,
-          terrainRoot,
-          canonicalMesh: mesh,
-          descriptor,
-          heightField,
-          lod: descriptor.lod
-        })
-      ]
-    : [];
 
   return {
     root: terrainRoot,
@@ -255,13 +283,51 @@ function importGeneratedTerrainContent(
     meshes: [mesh],
     renderableMeshes: [mesh],
     terrainSurfaceMeshes: [mesh],
-    terrainLodControllers,
+    terrainLodControllers: [],
     helperMeshes: [],
     transformNodes: [],
     skeletons: [],
     animationGroups: [],
     particleSystems: []
   };
+}
+
+function createGeneratedTerrainRuntimePickSurface(
+  scene: Scene,
+  descriptor: SceneGeneratedTerrainDescriptor,
+  heightField: TerrainHeightField
+) {
+  const mesh = MeshBuilder.CreateGround(
+    `terrain:${descriptor.id}:heightfield-surface`,
+    { width: heightField.width, height: heightField.depth, subdivisions: 1 },
+    scene
+  );
+  mesh.isPickable = true;
+  mesh.checkCollisions = false;
+  mesh.receiveShadows = false;
+  mesh.visibility = 0;
+  mesh.isVisible = true;
+  mesh.metadata = {
+    ...(mesh.metadata as Record<string, unknown> | undefined),
+    isGround: true,
+    terrainKind: "generated",
+    generatedTerrainDescriptor: descriptor,
+    generatedTerrainHeightField: heightField,
+    terrainSurfaceCanonical: true,
+    terrainCanonicalMeshMode: "PICK_ONLY"
+  };
+  return mesh;
+}
+
+function getGeneratedTerrainPickSurfaceVertexHeights(heightField: TerrainHeightField): readonly number[] {
+  const maxX = Math.max(0, heightField.resolutionX - 1);
+  const maxZ = Math.max(0, heightField.resolutionZ - 1);
+  return [
+    heightField.getHeight(0, 0),
+    heightField.getHeight(maxX, 0),
+    heightField.getHeight(0, maxZ),
+    heightField.getHeight(maxX, maxZ)
+  ];
 }
 
 export async function importSceneObjectContent(

@@ -30,7 +30,11 @@ import { importSceneContent } from "../scene/SceneContentLoader";
 import type { SceneLightingDescriptor } from "../../lighting/LightingTypes";
 import type { ShadowMeshBatch } from "../../lighting/SceneShadowRegistry";
 import type { TerrainQuadtreeLodController } from "../terrain/lod/TerrainQuadtreeLodController";
-import type { TerrainLodAnchor, TerrainQuadtreeLodDebugMode } from "../terrain/lod/TerrainQuadtreeLodTypes";
+import type {
+  TerrainCanonicalMeshMode,
+  TerrainLodAnchor,
+  TerrainQuadtreeLodDebugMode
+} from "../terrain/lod/TerrainQuadtreeLodTypes";
 
 interface LoadedDistrictSceneContent {
   readonly sceneId: string;
@@ -59,8 +63,21 @@ export interface TerrainLodRuntimeDiagnostics {
   readonly controllerCount: number;
   readonly visibleLeafCount: number;
   readonly patchMeshEstimate: number;
+  readonly activePatchMeshCount: number;
+  readonly cachedPatchMeshCount: number;
+  readonly inactiveCachedPatchMeshCount: number;
+  readonly activePatchVertices: number;
+  readonly activePatchTriangles: number;
+  readonly cachedPatchVertices: number;
+  readonly cachedPatchTriangles: number;
   readonly activeDebugLineMeshCount: number;
   readonly approxVisibleTriangles: number;
+  readonly sourceResolutionXMax: number | null;
+  readonly sourceResolutionZMax: number | null;
+  readonly sourceQuadCount: number;
+  readonly canonicalMeshMode: TerrainCanonicalMeshMode | "mixed";
+  readonly canonicalMeshVertexCount: number;
+  readonly canonicalMeshTriangleCount: number;
   readonly maxDepth: number;
   readonly anchorSource: TerrainLodAnchor["source"] | "mixed" | null;
   readonly depthCounts: ReadonlyMap<number, number>;
@@ -378,8 +395,21 @@ export class LocationManager {
     let controllerCount = 0;
     let visibleLeafCount = 0;
     let patchMeshEstimate = 0;
+    let activePatchMeshCount = 0;
+    let cachedPatchMeshCount = 0;
+    let inactiveCachedPatchMeshCount = 0;
+    let activePatchVertices = 0;
+    let activePatchTriangles = 0;
+    let cachedPatchVertices = 0;
+    let cachedPatchTriangles = 0;
     let activeDebugLineMeshCount = 0;
     let approxVisibleTriangles = 0;
+    let sourceResolutionXMax: number | null = null;
+    let sourceResolutionZMax: number | null = null;
+    let sourceQuadCount = 0;
+    let canonicalMeshMode: TerrainLodRuntimeDiagnostics["canonicalMeshMode"] | null = null;
+    let canonicalMeshVertexCount = 0;
+    let canonicalMeshTriangleCount = 0;
     let seamAdjustedPatchCount = 0;
     let maxNeighborSampleStepRatio: number | null = null;
     let maxDepth = 0;
@@ -402,8 +432,21 @@ export class LocationManager {
         controllerCount += 1;
         visibleLeafCount += diagnostics.visibleLeafCount;
         patchMeshEstimate += diagnostics.activePatchMeshCount;
+        activePatchMeshCount += diagnostics.activePatchMeshCount;
+        cachedPatchMeshCount += diagnostics.cachedPatchMeshCount;
+        inactiveCachedPatchMeshCount += diagnostics.inactiveCachedPatchMeshCount;
+        activePatchVertices += diagnostics.activePatchVertices;
+        activePatchTriangles += diagnostics.activePatchTriangles;
+        cachedPatchVertices += diagnostics.cachedPatchVertices;
+        cachedPatchTriangles += diagnostics.cachedPatchTriangles;
         activeDebugLineMeshCount += diagnostics.activeDebugLineMeshCount;
         approxVisibleTriangles += diagnostics.approxVisibleTriangles;
+        sourceResolutionXMax = this.maxNullable(sourceResolutionXMax, diagnostics.sourceResolutionX);
+        sourceResolutionZMax = this.maxNullable(sourceResolutionZMax, diagnostics.sourceResolutionZ);
+        sourceQuadCount += diagnostics.sourceQuadCount;
+        canonicalMeshMode = this.mergeTerrainCanonicalMeshMode(canonicalMeshMode, diagnostics.canonicalMeshMode);
+        canonicalMeshVertexCount += diagnostics.canonicalMeshVertexCount;
+        canonicalMeshTriangleCount += diagnostics.canonicalMeshTriangleCount;
         seamAdjustedPatchCount += diagnostics.seamAdjustedPatchCount;
         maxNeighborSampleStepRatio = this.maxNullable(maxNeighborSampleStepRatio, diagnostics.maxNeighborSampleStepRatio);
         maxDepth = Math.max(maxDepth, diagnostics.maxDepth);
@@ -437,8 +480,21 @@ export class LocationManager {
       controllerCount,
       visibleLeafCount,
       patchMeshEstimate,
+      activePatchMeshCount,
+      cachedPatchMeshCount,
+      inactiveCachedPatchMeshCount,
+      activePatchVertices,
+      activePatchTriangles,
+      cachedPatchVertices,
+      cachedPatchTriangles,
       activeDebugLineMeshCount,
       approxVisibleTriangles,
+      sourceResolutionXMax,
+      sourceResolutionZMax,
+      sourceQuadCount,
+      canonicalMeshMode: canonicalMeshMode ?? "OFF",
+      canonicalMeshVertexCount,
+      canonicalMeshTriangleCount,
       maxDepth,
       anchorSource,
       depthCounts,
@@ -804,6 +860,17 @@ export class LocationManager {
     }
 
     if (current === next) {
+      return next;
+    }
+
+    return "mixed";
+  }
+
+  private mergeTerrainCanonicalMeshMode(
+    current: TerrainLodRuntimeDiagnostics["canonicalMeshMode"] | null,
+    next: TerrainCanonicalMeshMode
+  ): TerrainLodRuntimeDiagnostics["canonicalMeshMode"] {
+    if (current === null || current === next) {
       return next;
     }
 

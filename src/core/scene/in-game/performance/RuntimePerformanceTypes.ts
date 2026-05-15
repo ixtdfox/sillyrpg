@@ -24,6 +24,12 @@ export interface RuntimePerformanceSceneMetrics {
 export interface RuntimePerformanceGeometryMetrics {
   readonly vertexCount: number;
   readonly triangleCount: number;
+  readonly renderedVertexCount: number;
+  readonly renderedTriangleCount: number;
+  readonly allocatedVertexCount: number;
+  readonly allocatedTriangleCount: number;
+  readonly hiddenPickOnlyTerrainVertexCount: number;
+  readonly hiddenPickOnlyTerrainTriangleCount: number;
 }
 
 export interface RuntimePerformanceInstrumentationMetrics {

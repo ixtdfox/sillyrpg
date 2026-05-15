@@ -3,6 +3,7 @@ import {
   MeshBuilder,
   Vector3,
   type LinesMesh,
+  type Material,
   type Mesh,
   type Scene,
   type TransformNode
@@ -16,6 +17,7 @@ import {
   TerrainQuadSizeCalculator,
   TerrainQuadtreeLodDescriptorResolver,
   TerrainSourceDensityWarningPolicy,
+  type TerrainCanonicalMeshMode,
   type ResolvedTerrainQuadtreeLodDescriptor,
   type TerrainLodAnchor,
   type TerrainQuadtreeLeafSelection,
@@ -31,10 +33,11 @@ import {
 export interface TerrainQuadtreeLodControllerOptions {
   readonly scene: Scene;
   readonly terrainRoot: TransformNode;
-  readonly canonicalMesh: Mesh;
   readonly descriptor: SceneGeneratedTerrainDescriptor;
   readonly heightField: TerrainHeightField;
   readonly lod?: TerrainQuadtreeLodDescriptor | null;
+  readonly material: Material | null;
+  readonly canonicalPickMesh?: Mesh | null;
 }
 
 /**
@@ -82,16 +85,17 @@ class TerrainLodDebugFormatter {
 /**
  * Controller quadtree LOD meshes.
  *
- * Управляет жизненным циклом patch meshes, переключает видимость canonical mesh
- * и обновляет набор visible leaves относительно player/camera anchor.
+ * Управляет жизненным циклом patch meshes и обновляет набор visible leaves
+ * относительно player/camera anchor.
  */
 export class TerrainQuadtreeLodController {
   private readonly scene: Scene;
   private readonly terrainRoot: TransformNode;
-  private readonly canonicalMesh: Mesh;
+  private readonly canonicalPickMesh: Mesh | null;
   private readonly terrainDescriptor: SceneGeneratedTerrainDescriptor;
   private readonly heightField: TerrainHeightField;
   private readonly lodDescriptor: ResolvedTerrainQuadtreeLodDescriptor;
+  private readonly material: Material | null;
   private readonly lodBuilder: TerrainQuadtreeLodBuilder;
   private readonly patchBuilder: TerrainQuadtreePatchMeshBuilder;
   private readonly seamResolver: TerrainQuadtreeLodSeamResolver;
@@ -103,9 +107,10 @@ export class TerrainQuadtreeLodController {
   private readonly debugFormatter: TerrainLodDebugFormatter;
   private readonly rootNode: TerrainQuadtreeNode;
   private readonly patchMeshes: Map<string, Mesh>;
-  private readonly originalCanonicalVisibility: number;
-  private readonly originalCanonicalIsVisible: boolean;
-  private readonly originalCanonicalIsPickable: boolean;
+  private readonly canonicalMeshMode: TerrainCanonicalMeshMode;
+  private readonly originalCanonicalVisibility: number | null;
+  private readonly originalCanonicalIsVisible: boolean | null;
+  private readonly originalCanonicalIsPickable: boolean | null;
   private activeLeaves: readonly TerrainQuadtreeLeafSelection[];
   private debugLineMesh: LinesMesh | null;
   private debugLineSignature: string | null;
@@ -133,9 +138,10 @@ export class TerrainQuadtreeLodController {
   ) {
     this.scene = options.scene;
     this.terrainRoot = options.terrainRoot;
-    this.canonicalMesh = options.canonicalMesh;
+    this.canonicalPickMesh = options.canonicalPickMesh ?? null;
     this.terrainDescriptor = options.descriptor;
     this.heightField = options.heightField;
+    this.material = options.material;
     this.lodDescriptorResolver = lodDescriptorResolver;
     this.lodDescriptor = this.lodDescriptorResolver.resolve(options.lod, options.heightField);
     this.lodBuilder = lodBuilder;
@@ -148,9 +154,10 @@ export class TerrainQuadtreeLodController {
     this.debugFormatter = debugFormatter;
     this.rootNode = this.lodBuilder.buildRoot(this.heightField, this.lodDescriptor.maxDepth);
     this.patchMeshes = new Map();
-    this.originalCanonicalVisibility = this.canonicalMesh.visibility;
-    this.originalCanonicalIsVisible = this.canonicalMesh.isVisible;
-    this.originalCanonicalIsPickable = this.canonicalMesh.isPickable;
+    this.canonicalMeshMode = this.resolveCanonicalMeshMode(this.canonicalPickMesh);
+    this.originalCanonicalVisibility = this.canonicalPickMesh?.visibility ?? null;
+    this.originalCanonicalIsVisible = this.canonicalPickMesh?.isVisible ?? null;
+    this.originalCanonicalIsPickable = this.canonicalPickMesh?.isPickable ?? null;
     this.activeLeaves = [];
     this.debugLineMesh = null;
     this.debugLineSignature = null;
@@ -251,6 +258,8 @@ export class TerrainQuadtreeLodController {
     const approxTrianglesByBuildSampleStep = new Map<number, number>();
     const horizontalWorldScale = this.getHorizontalWorldScale();
     const sourceQuadSize = this.quadSizeCalculator.compute(this.heightField) * horizontalWorldScale;
+    const patchStats = this.measurePatchMeshes();
+    const canonicalStats = this.measureCanonicalMesh();
     let approxVisibleTriangles = 0;
     let seamAdjustedPatchCount = 0;
     let maxNeighborSampleStepRatio: number | null = null;
@@ -307,10 +316,22 @@ export class TerrainQuadtreeLodController {
       approxTrianglesBySampleStep,
       approxTrianglesByBuildSampleStep,
       sourceQuadSize,
+      sourceResolutionX: this.heightField.resolutionX,
+      sourceResolutionZ: this.heightField.resolutionZ,
+      sourceQuadCount: Math.max(0, (this.heightField.resolutionX - 1) * (this.heightField.resolutionZ - 1)),
       desiredNearPatchWorldSize: this.lodDescriptor.nearPatchWorldSize,
-      activePatchMeshCount: this.activeLeaves.length,
+      activePatchMeshCount: patchStats.activeCount,
+      cachedPatchMeshCount: patchStats.cachedCount,
+      inactiveCachedPatchMeshCount: patchStats.inactiveCount,
+      activePatchVertices: patchStats.activeVertices,
+      activePatchTriangles: patchStats.activeTriangles,
+      cachedPatchVertices: patchStats.cachedVertices,
+      cachedPatchTriangles: patchStats.cachedTriangles,
       activeDebugLineMeshCount: this.getActiveDebugLineMeshCount(),
       approxVisibleTriangles,
+      canonicalMeshMode: this.canonicalMeshMode,
+      canonicalMeshVertexCount: canonicalStats.vertexCount,
+      canonicalMeshTriangleCount: canonicalStats.triangleCount,
       seamAdjustedPatchCount,
       maxNeighborSampleStepRatio,
       debugMode: this.getActiveDebugMode(),
@@ -324,7 +345,7 @@ export class TerrainQuadtreeLodController {
   }
 
   /**
-   * Освобождает созданные patch/debug meshes и восстанавливает canonical mesh.
+   * Освобождает созданные patch/debug meshes и восстанавливает optional pick mesh.
    */
   public dispose(): void {
     if (this.disposed) {
@@ -338,10 +359,16 @@ export class TerrainQuadtreeLodController {
       }
     }
     this.patchMeshes.clear();
-    if (!this.canonicalMesh.isDisposed()) {
-      this.canonicalMesh.visibility = this.originalCanonicalVisibility;
-      this.canonicalMesh.isVisible = this.originalCanonicalIsVisible;
-      this.canonicalMesh.isPickable = this.originalCanonicalIsPickable;
+    if (
+      this.canonicalPickMesh &&
+      !this.canonicalPickMesh.isDisposed() &&
+      this.originalCanonicalVisibility !== null &&
+      this.originalCanonicalIsVisible !== null &&
+      this.originalCanonicalIsPickable !== null
+    ) {
+      this.canonicalPickMesh.visibility = this.originalCanonicalVisibility;
+      this.canonicalPickMesh.isVisible = this.originalCanonicalIsVisible;
+      this.canonicalPickMesh.isPickable = this.originalCanonicalIsPickable;
     }
     this.disposed = true;
   }
@@ -354,7 +381,10 @@ export class TerrainQuadtreeLodController {
     const nextLeafKeys = new Set(seamCompatibleLeaves.map((leaf) => this.leafMeshKeyFactory.make(leaf)));
     for (const [leafKey, mesh] of this.patchMeshes) {
       if (!nextLeafKeys.has(leafKey)) {
-        mesh.setEnabled(false);
+        if (!mesh.isDisposed()) {
+          mesh.dispose(false, false);
+        }
+        this.patchMeshes.delete(leafKey);
       }
     }
 
@@ -376,6 +406,9 @@ export class TerrainQuadtreeLodController {
     if (cached && !cached.isDisposed()) {
       return cached;
     }
+    if (cached?.isDisposed()) {
+      this.patchMeshes.delete(leafKey);
+    }
 
     const mesh = this.patchBuilder.buildPatchMesh(this.scene, {
       node,
@@ -386,7 +419,7 @@ export class TerrainQuadtreeLodController {
       buildSampleStep: leaf.buildSampleStep ?? leaf.sampleStep,
       seamInfo: leaf.seamInfo,
       skirtDepth: this.lodDescriptor.skirtDepth,
-      material: this.canonicalMesh.material,
+      material: this.material,
       name: `terrain:${this.terrainDescriptor.id}:lod:node:${node.depth}:${node.ix0}:${node.iz0}:${node.ix1}:${node.iz1}:logical:${leaf.sampleStep}:build:${leaf.buildSampleStep ?? leaf.sampleStep}`
     });
     mesh.setParent(this.terrainRoot, false);
@@ -395,13 +428,84 @@ export class TerrainQuadtreeLodController {
   }
 
   /**
-   * Скрывает визуальную canonical surface, оставляя ее pickable для gameplay.
+   * Скрывает optional pick surface из визуального рендера.
    */
   private hideCanonicalVisualSurface(): void {
+    if (!this.canonicalPickMesh || this.canonicalPickMesh.isDisposed()) {
+      return;
+    }
+
     // Babylon excludes visibility=0 meshes from active rendering, while keeping isVisible=true preserves ray picking.
-    this.canonicalMesh.visibility = 0;
-    this.canonicalMesh.isVisible = true;
-    this.canonicalMesh.isPickable = true;
+    this.canonicalPickMesh.visibility = 0;
+    this.canonicalPickMesh.isVisible = true;
+    this.canonicalPickMesh.isPickable = true;
+  }
+
+  private resolveCanonicalMeshMode(mesh: Mesh | null): TerrainCanonicalMeshMode {
+    if (!mesh) {
+      return "OFF";
+    }
+
+    const metadata = mesh.metadata as { terrainCanonicalMeshMode?: TerrainCanonicalMeshMode } | null | undefined;
+    return metadata?.terrainCanonicalMeshMode ?? "FULL_RENDER_FALLBACK";
+  }
+
+  private measurePatchMeshes(): {
+    readonly activeCount: number;
+    readonly cachedCount: number;
+    readonly inactiveCount: number;
+    readonly activeVertices: number;
+    readonly activeTriangles: number;
+    readonly cachedVertices: number;
+    readonly cachedTriangles: number;
+  } {
+    let activeCount = 0;
+    let cachedCount = 0;
+    let inactiveCount = 0;
+    let activeVertices = 0;
+    let activeTriangles = 0;
+    let cachedVertices = 0;
+    let cachedTriangles = 0;
+
+    for (const mesh of this.patchMeshes.values()) {
+      if (mesh.isDisposed()) {
+        continue;
+      }
+
+      const vertices = mesh.getTotalVertices();
+      const triangles = Math.floor(mesh.getTotalIndices() / 3);
+      cachedCount += 1;
+      cachedVertices += vertices;
+      cachedTriangles += triangles;
+      if (mesh.isEnabled()) {
+        activeCount += 1;
+        activeVertices += vertices;
+        activeTriangles += triangles;
+      } else {
+        inactiveCount += 1;
+      }
+    }
+
+    return {
+      activeCount,
+      cachedCount,
+      inactiveCount,
+      activeVertices,
+      activeTriangles,
+      cachedVertices,
+      cachedTriangles
+    };
+  }
+
+  private measureCanonicalMesh(): { readonly vertexCount: number; readonly triangleCount: number } {
+    if (!this.canonicalPickMesh || this.canonicalPickMesh.isDisposed()) {
+      return { vertexCount: 0, triangleCount: 0 };
+    }
+
+    return {
+      vertexCount: this.canonicalPickMesh.getTotalVertices(),
+      triangleCount: Math.floor(this.canonicalPickMesh.getTotalIndices() / 3)
+    };
   }
 
   /**
@@ -527,8 +631,11 @@ export class TerrainQuadtreeLodController {
         : `${diagnostics.minNearLeafWorldSize.toFixed(2)}..${diagnostics.maxNearLeafWorldSize.toFixed(2)}`;
     console.debug(
       `${prefix} leaves=${diagnostics.visibleLeafCount} maxDepth=${diagnostics.maxDepth} ` +
-      `patchMeshes=${diagnostics.activePatchMeshCount} debugLineMeshes=${diagnostics.activeDebugLineMeshCount} ` +
-      `approxTriangles=${diagnostics.approxVisibleTriangles} debugMode=${diagnostics.debugMode} ` +
+      `patchMeshes=${diagnostics.activePatchMeshCount}/${diagnostics.cachedPatchMeshCount} ` +
+      `inactiveCached=${diagnostics.inactiveCachedPatchMeshCount} debugLineMeshes=${diagnostics.activeDebugLineMeshCount} ` +
+      `approxTriangles=${diagnostics.approxVisibleTriangles} activePatchTriangles=${diagnostics.activePatchTriangles} ` +
+      `canonical=${diagnostics.canonicalMeshMode}:${diagnostics.canonicalMeshVertexCount}/${diagnostics.canonicalMeshTriangleCount} ` +
+      `debugMode=${diagnostics.debugMode} ` +
       `anchor=${diagnostics.anchorSource ?? "none"} depths=[${depthSummary}] ` +
       `samples=[${sampleStepSummary}] buildSamples=[${buildStepSummary}] ` +
       `seamAdjusted=${diagnostics.seamAdjustedPatchCount}/${diagnostics.visibleLeafCount} ` +
