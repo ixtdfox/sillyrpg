@@ -391,18 +391,22 @@ function testParserAcceptsGeneratedTerrainLodDescriptor(): void {
           enabled: true,
           strategy: "quadtree",
           maxDepth: 4,
-          targetPatchQuads: 8,
+          targetPatchQuads: 32,
+          nearPatchWorldSize: 16,
           nearLeafWorldSize: 1,
           nearFullResolutionPatchQuads: 4,
-          nearFullResolutionRadius: 48,
+          nearFullResolutionRadius: 40,
           lodRings: [
-            { distance: 48, maxSampleStep: 1 },
-            { distance: 96, maxSampleStep: 2 },
-            { distance: 180, maxSampleStep: 4 },
-            { distance: 320, maxSampleStep: 8 }
+            { distance: 40, maxSampleStep: 1 },
+            { distance: 80, maxSampleStep: 2 },
+            { distance: 160, maxSampleStep: 4 },
+            { distance: 320, maxSampleStep: 8 },
+            { distance: 640, maxSampleStep: 16 }
           ],
-          updateIntervalSeconds: 0.15,
+          updateIntervalSeconds: 0.25,
+          updateMovementThreshold: 2,
           skirtDepth: 2,
+          debugMode: "patchBorders",
           debug: false
         }
       },
@@ -415,9 +419,12 @@ function testParserAcceptsGeneratedTerrainLodDescriptor(): void {
   assert(
     descriptor.terrain?.kind === "generated" &&
       descriptor.terrain.lod?.strategy === "quadtree" &&
-      descriptor.terrain.lod.targetPatchQuads === 8 &&
+      descriptor.terrain.lod.targetPatchQuads === 32 &&
+      descriptor.terrain.lod.nearPatchWorldSize === 16 &&
       descriptor.terrain.lod.nearLeafWorldSize === 1 &&
-      descriptor.terrain.lod.nearFullResolutionPatchQuads === 4,
+      descriptor.terrain.lod.nearFullResolutionPatchQuads === 4 &&
+      descriptor.terrain.lod.updateMovementThreshold === 2 &&
+      descriptor.terrain.lod.debugMode === "patchBorders",
     "Expected quadtree terrain LOD descriptor to parse."
   );
 }

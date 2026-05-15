@@ -5,6 +5,7 @@ import {
   DEFAULT_TERRAIN_GRID_STEP,
   MAX_TERRAIN_RESOLUTION,
   MAX_TERRAIN_WORLD_SIZE,
+  RECOMMENDED_MAX_SINGLE_HEIGHTFIELD_RESOLUTION,
   TerrainGridAlignedResolutionPolicy
 } from "../terrain/generation/TerrainTypes";
 
@@ -473,6 +474,11 @@ function resolveSourceQuadSize(descriptor: SceneGeneratedTerrainDescriptor): rea
 }
 
 function resolveSourceQuadWarning(descriptor: SceneGeneratedTerrainDescriptor): string | null {
+  const maxAxisResolution = Math.max(descriptor.resolution[0], descriptor.resolution[1]);
+  if (maxAxisResolution > RECOMMENDED_MAX_SINGLE_HEIGHTFIELD_RESOLUTION) {
+    return `High source resolution (${descriptor.resolution[0]} x ${descriptor.resolution[1]}). Large worlds should use coarser grid step or chunked terrain.`;
+  }
+
   if ((descriptor.resolutionMode ?? "gridStep") !== "manual") {
     return null;
   }

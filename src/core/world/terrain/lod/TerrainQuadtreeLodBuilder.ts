@@ -87,10 +87,10 @@ export class TerrainQuadtreeSampleStepPolicy {
   }
 
   /**
-   * Возвращает желаемый world size near-field leaf.
+   * Возвращает желаемый world size near-field patch mesh.
    */
-  public computeNearLeafWorldSize(descriptor: ResolvedTerrainQuadtreeLodDescriptor): number {
-    return Math.max(0.0001, descriptor.nearLeafWorldSize);
+  public computeNearPatchWorldSize(descriptor: ResolvedTerrainQuadtreeLodDescriptor): number {
+    return Math.max(0.0001, descriptor.nearPatchWorldSize);
   }
 }
 
@@ -193,16 +193,18 @@ export class TerrainQuadtreeLodBuilder {
     const desiredMaxSampleStep = this.sampleStepPolicy.resolveDesiredSampleStep(distanceToNode, descriptor);
     const naturalSampleStep = this.sampleStepPolicy.computeNaturalSampleStep(node, descriptor.targetPatchQuads);
     const sampleStep = this.sampleStepPolicy.computePatchSampleStep(node, descriptor.targetPatchQuads, desiredMaxSampleStep);
-    const nodeTooLargeNearPlayer =
-      distanceToNode <= descriptor.nearFullResolutionRadius &&
-      Math.max(node.sizeWorldX, node.sizeWorldZ) * horizontalWorldScale >
-        this.sampleStepPolicy.computeNearLeafWorldSize(descriptor);
+    const patchWorldSize = Math.max(node.sizeWorldX, node.sizeWorldZ) * horizontalWorldScale;
+    const nodeInsideNearFullResolutionRadius = distanceToNode <= descriptor.nearFullResolutionRadius;
+    const nearPatchTooLarge =
+      nodeInsideNearFullResolutionRadius &&
+      patchWorldSize > this.sampleStepPolicy.computeNearPatchWorldSize(descriptor);
+    const patchWouldExceedSampleBudget = naturalSampleStep > desiredMaxSampleStep;
     const shouldSplit =
       node.children.length > 0 &&
       node.depth < descriptor.maxDepth &&
       (
-        naturalSampleStep > desiredMaxSampleStep ||
-        nodeTooLargeNearPlayer
+        patchWouldExceedSampleBudget ||
+        nearPatchTooLarge
       );
 
     if (!shouldSplit) {

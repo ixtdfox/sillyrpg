@@ -16,6 +16,8 @@ import type { TerrainHeightField } from "../TerrainHeightField";
 import { TerrainHeightFieldNormalSampler } from "../TerrainHeightFieldNormalSampler";
 import type { TerrainQuadtreeNode } from "./TerrainQuadtreeLodTypes";
 
+export type TerrainQuadtreePatchDebugLineMode = "patchBorders" | "fullPatchGrid";
+
 /**
  * CPU vertex data одного quadtree patch до применения к Babylon mesh.
  */
@@ -48,6 +50,7 @@ export interface TerrainQuadtreePatchDebugLineOptions {
   readonly heightField: TerrainHeightField;
   readonly sampleStep: number;
   readonly name: string;
+  readonly mode?: TerrainQuadtreePatchDebugLineMode;
   readonly verticalOffset?: number;
 }
 
@@ -395,19 +398,7 @@ export class TerrainQuadtreePatchMeshBuilder {
    * Создает line mesh debug-сетки patch.
    */
   public buildDebugLineMesh(scene: Scene, options: TerrainQuadtreePatchDebugLineOptions): LinesMesh {
-    const lines: Vector3[][] = [];
-    const step = Math.max(1, Math.round(options.sampleStep));
-    const xIndices = this.axisIndexBuilder.build(options.node.ix0, options.node.ix1, step);
-    const zIndices = this.axisIndexBuilder.build(options.node.iz0, options.node.iz1, step);
-    const yOffset = options.verticalOffset ?? 0.08;
-
-    for (const iz of zIndices) {
-      lines.push(xIndices.map((ix) => this.debugPointFactory.create(options.heightField, ix, iz, yOffset)));
-    }
-    for (const ix of xIndices) {
-      lines.push(zIndices.map((iz) => this.debugPointFactory.create(options.heightField, ix, iz, yOffset)));
-    }
-
+    const lines = this.buildDebugLines(options);
     const mesh = MeshBuilder.CreateLineSystem(options.name, { lines }, scene);
     mesh.isPickable = false;
     mesh.checkCollisions = false;
@@ -419,8 +410,50 @@ export class TerrainQuadtreePatchMeshBuilder {
       terrainKind: "generated-lod-debug",
       terrainQuadtreeNodeId: options.node.id,
       terrainQuadtreeDepth: options.node.depth,
-      terrainQuadtreeSampleStep: options.sampleStep
+      terrainQuadtreeSampleStep: options.sampleStep,
+      terrainQuadtreeDebugMode: options.mode ?? "fullPatchGrid"
     };
     return mesh;
+  }
+
+  /**
+   * Строит debug-линии patch без создания отдельного mesh.
+   */
+  public buildDebugLines(options: TerrainQuadtreePatchDebugLineOptions): Vector3[][] {
+    const lines: Vector3[][] = [];
+    const step = Math.max(1, Math.round(options.sampleStep));
+    const xIndices = this.axisIndexBuilder.build(options.node.ix0, options.node.ix1, step);
+    const zIndices = this.axisIndexBuilder.build(options.node.iz0, options.node.iz1, step);
+    const yOffset = options.verticalOffset ?? 0.08;
+    const mode = options.mode ?? "fullPatchGrid";
+
+    if (mode === "patchBorders") {
+      const firstZ = zIndices[0];
+      const lastZ = zIndices[zIndices.length - 1];
+      const firstX = xIndices[0];
+      const lastX = xIndices[xIndices.length - 1];
+      if (firstZ !== undefined) {
+        lines.push(xIndices.map((ix) => this.debugPointFactory.create(options.heightField, ix, firstZ, yOffset)));
+      }
+      if (lastZ !== undefined && lastZ !== firstZ) {
+        lines.push(xIndices.map((ix) => this.debugPointFactory.create(options.heightField, ix, lastZ, yOffset)));
+      }
+      if (firstX !== undefined) {
+        lines.push(zIndices.map((iz) => this.debugPointFactory.create(options.heightField, firstX, iz, yOffset)));
+      }
+      if (lastX !== undefined && lastX !== firstX) {
+        lines.push(zIndices.map((iz) => this.debugPointFactory.create(options.heightField, lastX, iz, yOffset)));
+      }
+      return lines;
+    }
+
+    for (const iz of zIndices) {
+      lines.push(xIndices.map((ix) => this.debugPointFactory.create(options.heightField, ix, iz, yOffset)));
+    }
+    for (const ix of xIndices) {
+      lines.push(zIndices.map((iz) => this.debugPointFactory.create(options.heightField, ix, iz, yOffset)));
+    }
+
+    return lines;
   }
 }

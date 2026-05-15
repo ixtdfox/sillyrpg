@@ -224,8 +224,9 @@ function run(): void {
   testQuadtreePatchSampleStepOneMatchesCanonicalWindingAndMetadata();
   testGeneratedTerrainDefaultResolutionFollowsGridStep();
   testNativeMaxDepthResolvesFromHeightfield();
-  testQuadtreeSelectionRefinesNearAnchorToGridWorldSize();
+  testQuadtreeSelectionKeepsNearFullResolutionInLargerPatches();
   testQuadtreeSelectionKeepsFarTerrainCoarse();
+  testLegacyNearLeafWorldSizeMigratesToPatchWorldSizeDefault();
   testSourceDensityWarningPolicyUsesDesiredNearGridSize();
 }
 
@@ -388,24 +389,34 @@ function testGeneratedTerrainDefaultResolutionFollowsGridStep(): void {
   assert(explicitResolutionDescriptor.resolutionMode === "manual", "Explicit generated terrain resolution should select manual mode.");
 }
 
-function testQuadtreeSelectionRefinesNearAnchorToGridWorldSize(): void {
-  const field = TerrainHeightField.createFilled(128, 128, 129, 129, 0);
+function testQuadtreeSelectionKeepsNearFullResolutionInLargerPatches(): void {
+  const field = TerrainHeightField.createFilled(200, 200, 201, 201, 0);
   const builder = new TerrainQuadtreeLodBuilder();
   const descriptor = quadtreeLodDescriptorResolver.resolve(undefined, field);
   const root = builder.buildRoot(field, descriptor.maxDepth);
   const leaves = builder.selectVisibleLeaves(root, Vector3.Zero(), descriptor, field);
   const maxDepth = leaves.reduce((currentMax, leaf) => Math.max(currentMax, leaf.node.depth), 0);
   const nearLeaves = leaves.filter((leaf) => leaf.distanceToAnchor <= descriptor.nearFullResolutionRadius);
+  const nearLeafSizes = nearLeaves.map((leaf) => Math.max(leaf.node.sizeWorldX, leaf.node.sizeWorldZ));
+  const minNearLeafSize = Math.min(...nearLeafSizes);
+  const maxNearLeafSize = Math.max(...nearLeafSizes);
 
   assert(leaves.length > 1, "Quadtree LOD should split visible leaves near the anchor.");
+  assert(leaves.length < 500, `200m terrain LOD should not create thousands of patch meshes, received ${leaves.length}.`);
   assert(maxDepth > 0, "Quadtree LOD should produce more detailed leaves near the anchor.");
   assert(nearLeaves.length > 0, "Quadtree LOD should produce leaves inside the near full-resolution radius.");
   assert(nearLeaves.every((leaf) => leaf.sampleStep === 1), "Near quadtree leaves should use source full-resolution sampleStep=1.");
   assert(
-    nearLeaves.every((leaf) =>
-      Math.max(leaf.node.sizeWorldX, leaf.node.sizeWorldZ) <= descriptor.nearLeafWorldSize + 1e-6
-    ),
-    "Near full-resolution leaves should split to the requested near world-size grid."
+    maxNearLeafSize <= descriptor.nearPatchWorldSize + 1e-6,
+    `Near full-resolution patch meshes should be capped by nearPatchWorldSize, received ${maxNearLeafSize}.`
+  );
+  assert(
+    minNearLeafSize >= 8,
+    `Near full-resolution patches should contain multiple 1m source quads, received minimum size ${minNearLeafSize}.`
+  );
+  assert(
+    nearLeaves.every((leaf) => Math.max(leaf.node.sizeWorldX, leaf.node.sizeWorldZ) > 2),
+    "Near full-resolution leaves should not split into 1x1 world-unit patch meshes."
   );
 }
 
@@ -455,6 +466,27 @@ function testSourceDensityWarningPolicyUsesDesiredNearGridSize(): void {
   assert(coarse.shouldWarn, "4m source quads should warn when desired near grid size is 1m.");
   assertCloseWithin(dense.sourceQuadSize, 1, 1e-6, "Dense source quad size should be measured from the heightfield.");
   assert(!dense.shouldWarn, "1m source quads should not warn when desired near grid size is 1m.");
+}
+
+function testLegacyNearLeafWorldSizeMigratesToPatchWorldSizeDefault(): void {
+  const field = TerrainHeightField.createFilled(128, 128, 129, 129, 0);
+  const resolver = new TerrainQuadtreeLodDescriptorResolver();
+  const warnings: string[] = [];
+  const originalWarn = console.warn;
+  console.warn = (message?: unknown): void => {
+    warnings.push(String(message));
+  };
+
+  try {
+    const descriptor = resolver.resolve({ nearLeafWorldSize: 1 }, field);
+    assert(descriptor.nearPatchWorldSize === 16, "Legacy 1m nearLeafWorldSize should migrate to the default patch size.");
+    assert(
+      warnings.some((warning) => warning.includes("nearLeafWorldSize is deprecated")),
+      "Legacy nearLeafWorldSize migration should warn."
+    );
+  } finally {
+    console.warn = originalWarn;
+  }
 }
 
 function createFlatTerrainDescriptor(

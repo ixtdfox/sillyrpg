@@ -1,6 +1,7 @@
 import type { Vector3 } from "@babylonjs/core";
 
 export type TerrainQuadtreeLodStrategy = "quadtree";
+export type TerrainQuadtreeLodDebugMode = "off" | "patchBorders" | "fullPatchGrid";
 
 /**
  * Один порог LOD: до указанной дистанции patch может использовать этот sample step.
@@ -18,7 +19,10 @@ export interface TerrainQuadtreeLodDescriptor {
   readonly strategy?: TerrainQuadtreeLodStrategy;
   readonly maxDepth?: number;
   readonly targetPatchQuads?: number;
+  readonly nearPatchWorldSize?: number;
+  /** @deprecated Use nearPatchWorldSize. Values <= 2 are treated as legacy source-grid intent. */
   readonly nearLeafWorldSize?: number;
+  /** @deprecated Use nearPatchWorldSize. */
   readonly nearFullResolutionPatchQuads?: number;
   readonly nearFullResolutionRadius?: number;
   readonly lodRings?: readonly TerrainQuadtreeLodRing[];
@@ -27,7 +31,9 @@ export interface TerrainQuadtreeLodDescriptor {
   /** @deprecated Используйте lodRings. Поле оставлено для обратной совместимости scene JSON. */
   readonly splitDistances?: readonly number[];
   readonly updateIntervalSeconds?: number;
+  readonly updateMovementThreshold?: number;
   readonly skirtDepth?: number;
+  readonly debugMode?: TerrainQuadtreeLodDebugMode;
   readonly debug?: boolean;
 }
 
@@ -39,12 +45,14 @@ export interface ResolvedTerrainQuadtreeLodDescriptor {
   readonly strategy: TerrainQuadtreeLodStrategy;
   readonly maxDepth: number;
   readonly targetPatchQuads: number;
-  readonly nearLeafWorldSize: number;
+  readonly nearPatchWorldSize: number;
   readonly nearFullResolutionPatchQuads: number;
   readonly nearFullResolutionRadius: number;
   readonly lodRings: readonly TerrainQuadtreeLodRing[];
   readonly updateIntervalSeconds: number;
+  readonly updateMovementThreshold: number;
   readonly skirtDepth: number;
+  readonly debugMode: TerrainQuadtreeLodDebugMode;
   readonly debug: boolean;
 }
 
@@ -93,7 +101,11 @@ export interface TerrainQuadtreeLodDiagnostics {
   readonly depthCounts: ReadonlyMap<number, number>;
   readonly sampleStepCounts: ReadonlyMap<number, number>;
   readonly sourceQuadSize: number;
-  readonly desiredNearLeafWorldSize: number;
+  readonly desiredNearPatchWorldSize: number;
+  readonly activePatchMeshCount: number;
+  readonly activeDebugLineMeshCount: number;
+  readonly approxVisibleTriangles: number;
+  readonly debugMode: TerrainQuadtreeLodDebugMode;
   readonly minLeafWorldSize: number | null;
   readonly maxLeafWorldSize: number | null;
   readonly minNearLeafWorldSize: number | null;
@@ -113,18 +125,20 @@ export const DEFAULT_TERRAIN_QUADTREE_LOD = {
   enabled: true,
   strategy: "quadtree",
   maxDepth: undefined,
-  targetPatchQuads: 8,
-  nearLeafWorldSize: 1,
-  nearFullResolutionPatchQuads: 4,
-  nearFullResolutionRadius: 48,
+  targetPatchQuads: 32,
+  nearPatchWorldSize: 16,
+  nearFullResolutionRadius: 40,
   lodRings: [
-    { distance: 48, maxSampleStep: 1 },
-    { distance: 96, maxSampleStep: 2 },
-    { distance: 180, maxSampleStep: 4 },
-    { distance: 320, maxSampleStep: 8 }
+    { distance: 40, maxSampleStep: 1 },
+    { distance: 80, maxSampleStep: 2 },
+    { distance: 160, maxSampleStep: 4 },
+    { distance: 320, maxSampleStep: 8 },
+    { distance: 640, maxSampleStep: 16 }
   ],
-  updateIntervalSeconds: 0.15,
-  skirtDepth: 0.75,
+  updateIntervalSeconds: 0.25,
+  updateMovementThreshold: 2,
+  skirtDepth: 0.5,
+  debugMode: "off",
   debug: false
 } satisfies TerrainQuadtreeLodDescriptor;
 
@@ -208,6 +222,8 @@ export class TerrainSourceDensityWarningPolicy {
 export class TerrainQuadtreeLodDescriptorResolver {
   private readonly nativeDepthResolver: TerrainNativeLodDepthResolver;
   private readonly quadSizeCalculator: TerrainQuadSizeCalculator;
+  private warnedLegacyNearLeafWorldSize: boolean;
+  private warnedLegacyNearPatchQuads: boolean;
 
   public constructor(
     nativeDepthResolver = new TerrainNativeLodDepthResolver(),
@@ -215,6 +231,8 @@ export class TerrainQuadtreeLodDescriptorResolver {
   ) {
     this.nativeDepthResolver = nativeDepthResolver;
     this.quadSizeCalculator = quadSizeCalculator;
+    this.warnedLegacyNearLeafWorldSize = false;
+    this.warnedLegacyNearPatchQuads = false;
   }
 
   /**
@@ -237,31 +255,31 @@ export class TerrainQuadtreeLodDescriptorResolver {
       descriptor?.lodRings ??
       this.convertLegacySplitDistancesToRings(descriptor?.splitDistances) ??
       DEFAULT_TERRAIN_QUADTREE_LOD.lodRings;
-    const nearLeafWorldSize =
-      descriptor?.nearLeafWorldSize ??
-      this.resolveLegacyNearLeafWorldSize(descriptor, heightField) ??
-      DEFAULT_TERRAIN_QUADTREE_LOD.nearLeafWorldSize;
+    const nearPatchWorldSize = this.resolveNearPatchWorldSize(descriptor, heightField);
 
     return {
       enabled: descriptor?.enabled ?? DEFAULT_TERRAIN_QUADTREE_LOD.enabled,
       strategy: descriptor?.strategy ?? DEFAULT_TERRAIN_QUADTREE_LOD.strategy,
       maxDepth: descriptor?.maxDepth ?? this.nativeDepthResolver.resolve(heightField),
       targetPatchQuads,
-      nearLeafWorldSize: Math.max(0.0001, nearLeafWorldSize),
+      nearPatchWorldSize,
       nearFullResolutionPatchQuads:
         descriptor?.nearFullResolutionPatchQuads ??
-        DEFAULT_TERRAIN_QUADTREE_LOD.nearFullResolutionPatchQuads,
+        0,
       nearFullResolutionRadius:
         descriptor?.nearFullResolutionRadius ?? DEFAULT_TERRAIN_QUADTREE_LOD.nearFullResolutionRadius,
       lodRings: this.normalizeLodRings(lodRings),
       updateIntervalSeconds:
         descriptor?.updateIntervalSeconds ?? DEFAULT_TERRAIN_QUADTREE_LOD.updateIntervalSeconds,
+      updateMovementThreshold:
+        descriptor?.updateMovementThreshold ?? DEFAULT_TERRAIN_QUADTREE_LOD.updateMovementThreshold,
       skirtDepth: descriptor?.skirtDepth ?? DEFAULT_TERRAIN_QUADTREE_LOD.skirtDepth,
+      debugMode: this.resolveDebugMode(descriptor),
       debug: descriptor?.debug ?? DEFAULT_TERRAIN_QUADTREE_LOD.debug
     };
   }
 
-  private resolveLegacyNearLeafWorldSize(
+  private resolveNearPatchWorldSize(
     descriptor: TerrainQuadtreeLodDescriptor | null | undefined,
     heightField:
       | {
@@ -271,12 +289,71 @@ export class TerrainQuadtreeLodDescriptorResolver {
           readonly resolutionZ: number;
         }
       | undefined
-  ): number | undefined {
-    if (descriptor?.nearFullResolutionPatchQuads === undefined || !heightField) {
-      return undefined;
+  ): number {
+    if (descriptor?.nearPatchWorldSize !== undefined) {
+      return Math.max(0.0001, descriptor.nearPatchWorldSize);
     }
 
-    return descriptor.nearFullResolutionPatchQuads * this.quadSizeCalculator.compute(heightField);
+    if (descriptor?.nearLeafWorldSize !== undefined) {
+      this.warnLegacyNearLeafWorldSize(descriptor.nearLeafWorldSize);
+      if (descriptor.nearLeafWorldSize <= 2) {
+        return DEFAULT_TERRAIN_QUADTREE_LOD.nearPatchWorldSize;
+      }
+
+      return Math.max(0.0001, descriptor.nearLeafWorldSize);
+    }
+
+    if (descriptor?.nearFullResolutionPatchQuads !== undefined && heightField) {
+      const legacyWorldSize = descriptor.nearFullResolutionPatchQuads * this.quadSizeCalculator.compute(heightField);
+      if (legacyWorldSize < DEFAULT_TERRAIN_QUADTREE_LOD.nearPatchWorldSize) {
+        this.warnLegacyNearPatchQuads(descriptor.nearFullResolutionPatchQuads, legacyWorldSize);
+        return DEFAULT_TERRAIN_QUADTREE_LOD.nearPatchWorldSize;
+      }
+
+      return Math.max(0.0001, legacyWorldSize);
+    }
+
+    return DEFAULT_TERRAIN_QUADTREE_LOD.nearPatchWorldSize;
+  }
+
+  private resolveDebugMode(
+    descriptor: TerrainQuadtreeLodDescriptor | null | undefined
+  ): TerrainQuadtreeLodDebugMode {
+    if (descriptor?.debugMode !== undefined) {
+      return descriptor.debugMode;
+    }
+
+    if (descriptor?.debug === true) {
+      return "fullPatchGrid";
+    }
+
+    return DEFAULT_TERRAIN_QUADTREE_LOD.debugMode;
+  }
+
+  private warnLegacyNearLeafWorldSize(value: number): void {
+    if (this.warnedLegacyNearLeafWorldSize) {
+      return;
+    }
+
+    this.warnedLegacyNearLeafWorldSize = true;
+    const migration =
+      value <= 2
+        ? `interpreting ${value.toFixed(2)} as old source-grid intent and using nearPatchWorldSize=${DEFAULT_TERRAIN_QUADTREE_LOD.nearPatchWorldSize}.`
+        : `using it as nearPatchWorldSize=${value.toFixed(2)}.`;
+    console.warn(`[TerrainLOD] lod.nearLeafWorldSize is deprecated; use lod.nearPatchWorldSize. ${migration}`);
+  }
+
+  private warnLegacyNearPatchQuads(value: number, legacyWorldSize: number): void {
+    if (this.warnedLegacyNearPatchQuads) {
+      return;
+    }
+
+    this.warnedLegacyNearPatchQuads = true;
+    console.warn(
+      `[TerrainLOD] lod.nearFullResolutionPatchQuads is deprecated; use lod.nearPatchWorldSize. ` +
+      `Legacy value ${value} would create ${legacyWorldSize.toFixed(2)}m near patches, ` +
+      `using nearPatchWorldSize=${DEFAULT_TERRAIN_QUADTREE_LOD.nearPatchWorldSize}.`
+    );
   }
 
   private convertLegacySplitDistancesToRings(splitDistances: readonly number[] | undefined): readonly TerrainQuadtreeLodRing[] | undefined {

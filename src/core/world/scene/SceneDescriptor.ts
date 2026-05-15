@@ -5,6 +5,7 @@ export type SceneVector2Tuple = readonly [number, number];
 export type SceneVector3Tuple = readonly [number, number, number];
 export type SceneTerrainNormalMode = "smooth" | "flat";
 export type SceneGeneratedTerrainResolutionMode = "gridStep" | "manual";
+export type SceneGeneratedTerrainLodDebugMode = "off" | "patchBorders" | "fullPatchGrid";
 
 const MAX_GENERATED_TERRAIN_RESOLUTION = 4097;
 
@@ -53,7 +54,10 @@ export interface SceneGeneratedTerrainLodDescriptor {
   readonly strategy?: "quadtree";
   readonly maxDepth?: number;
   readonly targetPatchQuads?: number;
+  readonly nearPatchWorldSize?: number;
+  /** @deprecated Use nearPatchWorldSize. */
   readonly nearLeafWorldSize?: number;
+  /** @deprecated Use nearPatchWorldSize. */
   readonly nearFullResolutionPatchQuads?: number;
   readonly nearFullResolutionRadius?: number;
   readonly lodRings?: readonly SceneGeneratedTerrainLodRingDescriptor[];
@@ -62,7 +66,9 @@ export interface SceneGeneratedTerrainLodDescriptor {
   /** @deprecated Use lodRings. */
   readonly splitDistances?: readonly number[];
   readonly updateIntervalSeconds?: number;
+  readonly updateMovementThreshold?: number;
   readonly skirtDepth?: number;
+  readonly debugMode?: SceneGeneratedTerrainLodDebugMode;
   readonly debug?: boolean;
 }
 
@@ -348,6 +354,15 @@ function parseGeneratedTerrainLodDescriptor(
       record.targetPatchQuads === undefined
         ? undefined
         : parseFiniteIntegerInRange(record.targetPatchQuads, `${sourceLabel}.targetPatchQuads`, 1, 128),
+    nearPatchWorldSize:
+      record.nearPatchWorldSize === undefined
+        ? undefined
+        : parseFiniteNumberInRange(
+            record.nearPatchWorldSize,
+            `${sourceLabel}.nearPatchWorldSize`,
+            0.0001,
+            Number.POSITIVE_INFINITY
+          ),
     nearLeafWorldSize:
       record.nearLeafWorldSize === undefined
         ? undefined
@@ -385,10 +400,20 @@ function parseGeneratedTerrainLodDescriptor(
       record.updateIntervalSeconds === undefined
         ? undefined
         : parseFiniteNumberInRange(record.updateIntervalSeconds, `${sourceLabel}.updateIntervalSeconds`, 0.05, 2),
+    updateMovementThreshold:
+      record.updateMovementThreshold === undefined
+        ? undefined
+        : parseFiniteNumberInRange(
+            record.updateMovementThreshold,
+            `${sourceLabel}.updateMovementThreshold`,
+            0,
+            Number.POSITIVE_INFINITY
+          ),
     skirtDepth:
       record.skirtDepth === undefined
         ? undefined
         : parseFiniteNumberInRange(record.skirtDepth, `${sourceLabel}.skirtDepth`, 0, Number.POSITIVE_INFINITY),
+    debugMode: parseGeneratedTerrainLodDebugMode(record.debugMode, `${sourceLabel}.debugMode`),
     debug: optionalBoolean(record.debug, `${sourceLabel}.debug must be a boolean if provided.`)
   };
 }
@@ -818,6 +843,21 @@ function parseGeneratedTerrainLodStrategy(value: unknown, sourceLabel: string): 
 
   if (value !== "quadtree") {
     throw new Error(`${sourceLabel} must be 'quadtree'.`);
+  }
+
+  return value;
+}
+
+function parseGeneratedTerrainLodDebugMode(
+  value: unknown,
+  sourceLabel: string
+): SceneGeneratedTerrainLodDebugMode | undefined {
+  if (value === undefined) {
+    return undefined;
+  }
+
+  if (value !== "off" && value !== "patchBorders" && value !== "fullPatchGrid") {
+    throw new Error(`${sourceLabel} must be 'off', 'patchBorders', or 'fullPatchGrid'.`);
   }
 
   return value;

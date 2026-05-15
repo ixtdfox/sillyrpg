@@ -1,5 +1,6 @@
 import {
   Color3,
+  MeshBuilder,
   Vector3,
   type LinesMesh,
   type Mesh,
@@ -18,6 +19,7 @@ import {
   type TerrainLodAnchor,
   type TerrainQuadtreeLeafSelection,
   type TerrainQuadtreeLodDescriptor,
+  type TerrainQuadtreeLodDebugMode,
   type TerrainQuadtreeLodDiagnostics,
   type TerrainQuadtreeNode
 } from "./TerrainQuadtreeLodTypes";
@@ -51,17 +53,10 @@ class TerrainLeafMeshKeyFactory {
  */
 class TerrainLodDebugStyle {
   /**
-   * Возвращает контрастный цвет patch по depth/sample step.
+   * Возвращает контрастный цвет aggregated LOD debug grid.
    */
-  public resolveDebugColor(leaf: TerrainQuadtreeLeafSelection): Color3 {
-    const colors = [
-      new Color3(0.12, 0.78, 1),
-      new Color3(0.35, 1, 0.44),
-      new Color3(1, 0.85, 0.2),
-      new Color3(1, 0.48, 0.18),
-      new Color3(1, 0.22, 0.56)
-    ];
-    return colors[(leaf.node.depth + Math.round(Math.log2(leaf.sampleStep))) % colors.length] ?? Color3.White();
+  public resolveAggregateDebugColor(): Color3 {
+    return new Color3(1, 0.85, 0.2);
   }
 }
 
@@ -100,9 +95,12 @@ export class TerrainQuadtreeLodController {
   private readonly debugFormatter: TerrainLodDebugFormatter;
   private readonly rootNode: TerrainQuadtreeNode;
   private readonly patchMeshes: Map<string, Mesh>;
-  private readonly debugLineMeshes: Map<string, LinesMesh>;
   private readonly originalCanonicalVisibility: number;
+  private readonly originalCanonicalIsVisible: boolean;
+  private readonly originalCanonicalIsPickable: boolean;
   private activeLeaves: readonly TerrainQuadtreeLeafSelection[];
+  private debugLineMesh: LinesMesh | null;
+  private debugLineSignature: string | null;
   private updateAccumulatorSeconds: number;
   private debugLogAccumulatorSeconds: number;
   private debugEnabled: boolean;
@@ -110,6 +108,8 @@ export class TerrainQuadtreeLodController {
   private warnedCameraFallback: boolean;
   private warnedLowSourceDensity: boolean;
   private lastAnchorSource: TerrainLodAnchor["source"] | null;
+  private lastSelectionAnchorLocal: Vector3 | null;
+  private lastSelectionDebugMode: TerrainQuadtreeLodDebugMode;
 
   public constructor(
     options: TerrainQuadtreeLodControllerOptions,
@@ -138,9 +138,12 @@ export class TerrainQuadtreeLodController {
     this.debugFormatter = debugFormatter;
     this.rootNode = this.lodBuilder.buildRoot(this.heightField, this.lodDescriptor.maxDepth);
     this.patchMeshes = new Map();
-    this.debugLineMeshes = new Map();
     this.originalCanonicalVisibility = this.canonicalMesh.visibility;
+    this.originalCanonicalIsVisible = this.canonicalMesh.isVisible;
+    this.originalCanonicalIsPickable = this.canonicalMesh.isPickable;
     this.activeLeaves = [];
+    this.debugLineMesh = null;
+    this.debugLineSignature = null;
     this.updateAccumulatorSeconds = this.lodDescriptor.updateIntervalSeconds;
     this.debugLogAccumulatorSeconds = 0;
     this.debugEnabled = false;
@@ -148,6 +151,8 @@ export class TerrainQuadtreeLodController {
     this.warnedCameraFallback = false;
     this.warnedLowSourceDensity = false;
     this.lastAnchorSource = null;
+    this.lastSelectionAnchorLocal = null;
+    this.lastSelectionDebugMode = "off";
     this.warnLowSourceDensityIfNeeded();
   }
 
@@ -175,8 +180,15 @@ export class TerrainQuadtreeLodController {
       return;
     }
 
-    this.updateAccumulatorSeconds = 0;
     const anchorLocal = this.toTerrainLocal(anchor.position);
+    const debugMode = this.getActiveDebugMode();
+    if (this.shouldSkipLodSelection(anchorLocal, debugMode)) {
+      this.updateAccumulatorSeconds = 0;
+      this.maybeLogDiagnostics(anchor);
+      return;
+    }
+
+    this.updateAccumulatorSeconds = 0;
     const leaves = this.lodBuilder.selectVisibleLeaves(
       this.rootNode,
       anchorLocal,
@@ -187,6 +199,8 @@ export class TerrainQuadtreeLodController {
     this.applyVisibleLeaves(leaves);
     this.hideCanonicalVisualSurface();
     this.syncDebugLineMeshes();
+    this.lastSelectionAnchorLocal = anchorLocal.clone();
+    this.lastSelectionDebugMode = debugMode;
     this.maybeLogDiagnostics(anchor);
   }
 
@@ -224,6 +238,7 @@ export class TerrainQuadtreeLodController {
     const sampleStepCounts = new Map<number, number>();
     const horizontalWorldScale = this.getHorizontalWorldScale();
     const sourceQuadSize = this.quadSizeCalculator.compute(this.heightField) * horizontalWorldScale;
+    const approxVisibleTriangles = this.computeApproxVisibleTriangles();
     let maxDepth = 0;
     let minLeafWorldSize: number | null = null;
     let maxLeafWorldSize: number | null = null;
@@ -258,7 +273,11 @@ export class TerrainQuadtreeLodController {
       depthCounts,
       sampleStepCounts,
       sourceQuadSize,
-      desiredNearLeafWorldSize: this.lodDescriptor.nearLeafWorldSize,
+      desiredNearPatchWorldSize: this.lodDescriptor.nearPatchWorldSize,
+      activePatchMeshCount: this.activeLeaves.length,
+      activeDebugLineMeshCount: this.getActiveDebugLineMeshCount(),
+      approxVisibleTriangles,
+      debugMode: this.getActiveDebugMode(),
       minLeafWorldSize,
       maxLeafWorldSize,
       minNearLeafWorldSize,
@@ -285,6 +304,8 @@ export class TerrainQuadtreeLodController {
     this.patchMeshes.clear();
     if (!this.canonicalMesh.isDisposed()) {
       this.canonicalMesh.visibility = this.originalCanonicalVisibility;
+      this.canonicalMesh.isVisible = this.originalCanonicalIsVisible;
+      this.canonicalMesh.isPickable = this.originalCanonicalIsPickable;
     }
     this.disposed = true;
   }
@@ -337,63 +358,84 @@ export class TerrainQuadtreeLodController {
    * Скрывает визуальную canonical surface, оставляя ее pickable для gameplay.
    */
   private hideCanonicalVisualSurface(): void {
+    // Babylon excludes visibility=0 meshes from active rendering, while keeping isVisible=true preserves ray picking.
     this.canonicalMesh.visibility = 0;
     this.canonicalMesh.isVisible = true;
     this.canonicalMesh.isPickable = true;
   }
 
   /**
-   * Синхронизирует debug line meshes с active leaves.
+   * Синхронизирует aggregated debug line mesh с active leaves.
    */
   private syncDebugLineMeshes(): void {
-    if (!this.debugEnabled) {
+    const debugMode = this.getActiveDebugMode();
+    if (debugMode === "off") {
+      this.disposeDebugLineMeshes();
       return;
     }
 
-    const activeKeys = new Set(this.activeLeaves.map((leaf) => this.leafMeshKeyFactory.make(leaf)));
-    for (const [leafKey, lineMesh] of this.debugLineMeshes) {
-      if (!activeKeys.has(leafKey)) {
-        lineMesh.dispose(false);
-        this.debugLineMeshes.delete(leafKey);
-      }
+    const signature = this.buildDebugLineSignature(debugMode);
+    if (this.debugLineSignature === signature && this.debugLineMesh && !this.debugLineMesh.isDisposed()) {
+      this.debugLineMesh.setEnabled(true);
+      return;
     }
 
+    this.disposeDebugLineMeshes();
+    const lines: Vector3[][] = [];
     for (const leaf of this.activeLeaves) {
-      const node = leaf.node;
-      const leafKey = this.leafMeshKeyFactory.make(leaf);
-      let lineMesh = this.debugLineMeshes.get(leafKey);
-      if (!lineMesh || lineMesh.isDisposed()) {
-        lineMesh = this.patchBuilder.buildDebugLineMesh(this.scene, {
-          node,
+      lines.push(
+        ...this.patchBuilder.buildDebugLines({
+          node: leaf.node,
           heightField: this.heightField,
           sampleStep: leaf.sampleStep,
-          name: `terrain:${this.terrainDescriptor.id}:lod:debug:${node.depth}:${node.ix0}:${node.iz0}:${node.ix1}:${node.iz1}:step:${leaf.sampleStep}`
-        });
-        lineMesh.color = this.debugStyle.resolveDebugColor(leaf);
-        lineMesh.setParent(this.terrainRoot, false);
-        this.debugLineMeshes.set(leafKey, lineMesh);
-      }
-      lineMesh.setEnabled(true);
+          name: `terrain:${this.terrainDescriptor.id}:lod:debug:aggregate:source`,
+          mode: debugMode === "fullPatchGrid" ? "fullPatchGrid" : "patchBorders"
+        })
+      );
     }
+
+    if (lines.length === 0) {
+      return;
+    }
+
+    const lineMesh = MeshBuilder.CreateLineSystem(
+      `terrain:${this.terrainDescriptor.id}:lod:debug:aggregate`,
+      { lines },
+      this.scene
+    );
+    lineMesh.color = this.debugStyle.resolveAggregateDebugColor();
+    lineMesh.isPickable = false;
+    lineMesh.checkCollisions = false;
+    lineMesh.metadata = {
+      ...(lineMesh.metadata as Record<string, unknown> | undefined),
+      terrainVisualOnly: true,
+      terrainDebugOnly: true,
+      terrainSurfaceCanonical: false,
+      terrainKind: "generated-lod-debug",
+      terrainQuadtreeDebugMode: debugMode,
+      terrainDebugLeafCount: this.activeLeaves.length
+    };
+    lineMesh.setParent(this.terrainRoot, false);
+    this.debugLineMesh = lineMesh;
+    this.debugLineSignature = signature;
   }
 
   /**
-   * Удаляет все debug line meshes.
+   * Удаляет debug line mesh.
    */
   private disposeDebugLineMeshes(): void {
-    for (const lineMesh of this.debugLineMeshes.values()) {
-      if (!lineMesh.isDisposed()) {
-        lineMesh.dispose(false);
-      }
+    if (this.debugLineMesh && !this.debugLineMesh.isDisposed()) {
+      this.debugLineMesh.dispose(false);
     }
-    this.debugLineMeshes.clear();
+    this.debugLineMesh = null;
+    this.debugLineSignature = null;
   }
 
   /**
    * Периодически пишет diagnostic log в debug mode.
    */
   private maybeLogDiagnostics(anchor: TerrainLodAnchor): void {
-    if (!this.debugEnabled && !this.lodDescriptor.debug) {
+    if (!this.debugEnabled && !this.lodDescriptor.debug && this.lodDescriptor.debugMode === "off") {
       return;
     }
 
@@ -434,15 +476,82 @@ export class TerrainQuadtreeLodController {
         : `${diagnostics.minNearLeafWorldSize.toFixed(2)}..${diagnostics.maxNearLeafWorldSize.toFixed(2)}`;
     console.debug(
       `${prefix} visibleLeaves=${diagnostics.visibleLeafCount} maxDepth=${diagnostics.maxDepth} ` +
+      `patchMeshes=${diagnostics.activePatchMeshCount} debugLineMeshes=${diagnostics.activeDebugLineMeshCount} ` +
+      `approxTriangles=${diagnostics.approxVisibleTriangles} debugMode=${diagnostics.debugMode} ` +
       `anchor=${diagnostics.anchorSource ?? "none"} depths=[${depthSummary}] ` +
       `sampleSteps=[${sampleStepSummary}] skirtDepth=${this.lodDescriptor.skirtDepth.toFixed(2)} ` +
       `sourceQuad=${diagnostics.sourceQuadSize.toFixed(2)} ` +
       `nearRadius=${this.lodDescriptor.nearFullResolutionRadius.toFixed(1)} ` +
-      `desiredNearLeaf=${diagnostics.desiredNearLeafWorldSize.toFixed(2)} ` +
+      `nearPatchWorldSize=${diagnostics.desiredNearPatchWorldSize.toFixed(2)} ` +
       `legacyNearPatchQuads=${this.lodDescriptor.nearFullResolutionPatchQuads} ` +
       `targetPatchQuads=${this.lodDescriptor.targetPatchQuads} ` +
       `leafSize=${leafSizeRange} nearLeafSize=${nearLeafSizeRange} distance=${distanceRange}`
     );
+  }
+
+  /**
+   * Возвращает debug mode, реально применяемый сейчас.
+   */
+  private getActiveDebugMode(): TerrainQuadtreeLodDebugMode {
+    if (this.debugEnabled) {
+      return this.lodDescriptor.debugMode === "fullPatchGrid" ? "fullPatchGrid" : "patchBorders";
+    }
+
+    return this.lodDescriptor.debugMode;
+  }
+
+  /**
+   * Проверяет, можно ли пропустить пересбор selection после малого движения anchor.
+   */
+  private shouldSkipLodSelection(anchorLocal: Vector3, debugMode: TerrainQuadtreeLodDebugMode): boolean {
+    if (this.activeLeaves.length === 0 || !this.lastSelectionAnchorLocal) {
+      return false;
+    }
+
+    if (debugMode !== this.lastSelectionDebugMode) {
+      return false;
+    }
+
+    const threshold = Math.max(0, this.lodDescriptor.updateMovementThreshold);
+    if (threshold <= 0) {
+      return false;
+    }
+
+    const dx = anchorLocal.x - this.lastSelectionAnchorLocal.x;
+    const dz = anchorLocal.z - this.lastSelectionAnchorLocal.z;
+    return Math.sqrt((dx * dx) + (dz * dz)) < threshold;
+  }
+
+  /**
+   * Строит signature active leaves для дешевого cache aggregated debug lines.
+   */
+  private buildDebugLineSignature(debugMode: TerrainQuadtreeLodDebugMode): string {
+    return [
+      debugMode,
+      ...this.activeLeaves
+        .map((leaf) => this.leafMeshKeyFactory.make(leaf))
+        .sort()
+    ].join("|");
+  }
+
+  /**
+   * Возвращает число активных debug line meshes.
+   */
+  private getActiveDebugLineMeshCount(): number {
+    return this.debugLineMesh && !this.debugLineMesh.isDisposed() && this.debugLineMesh.isEnabled() ? 1 : 0;
+  }
+
+  /**
+   * Оценивает видимые triangles для текущего LOD selection.
+   */
+  private computeApproxVisibleTriangles(): number {
+    return this.activeLeaves.reduce((sum, leaf) => {
+      const xSegments = Math.max(1, Math.ceil((leaf.node.ix1 - leaf.node.ix0) / leaf.sampleStep));
+      const zSegments = Math.max(1, Math.ceil((leaf.node.iz1 - leaf.node.iz0) / leaf.sampleStep));
+      const topTriangles = xSegments * zSegments * 2;
+      const skirtTriangles = this.lodDescriptor.skirtDepth > 0 ? (xSegments + zSegments) * 4 : 0;
+      return sum + topTriangles + skirtTriangles;
+    }, 0);
   }
 
   /**
@@ -471,7 +580,7 @@ export class TerrainQuadtreeLodController {
 
     const diagnostic = this.sourceDensityWarningPolicy.diagnose(
       this.heightField,
-      this.lodDescriptor.nearLeafWorldSize,
+      this.terrainDescriptor.terrainGridStep ?? 1,
       this.getHorizontalWorldScale()
     );
     if (!diagnostic.shouldWarn) {
