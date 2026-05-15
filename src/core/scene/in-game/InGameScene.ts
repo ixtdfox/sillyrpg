@@ -1,4 +1,4 @@
-import { Engine, Scene as BabylonScene, Vector3 } from "@babylonjs/core";
+import { Engine, KeyboardEventTypes, Scene as BabylonScene, Vector3 } from "@babylonjs/core";
 import { CharacterFactory } from "../../character/CharacterFactory";
 import type { EntityManager } from "../../entity/EntityManager";
 import { EntityPrefabFactory } from "../../entity/EntityPrefabFactory";
@@ -22,6 +22,8 @@ import { LocationTriggerSystem } from "../../game/trigger/LocationTriggerSystem"
 import { SceneLightingController } from "../../lighting/SceneLightingController";
 import { SceneShadowRegistry } from "../../lighting/SceneShadowRegistry";
 import type { TerrainLodAnchor } from "../../world/terrain/lod/TerrainQuadtreeLodTypes";
+import { RuntimePerformancePanelUi } from "./performance/RuntimePerformancePanelUi";
+import { RuntimePerformanceSampler } from "./performance/RuntimePerformanceSampler";
 
 /**
  * Implements the in-game scene that loads a default world location district.
@@ -110,6 +112,7 @@ export class InGameScene implements Scene {
     );
     locationTriggerSystem.initialize();
     let inGameTopPanelUi: InGameTopPanelUi;
+    let performancePanel: RuntimePerformancePanelUi | null = null;
     const streamingController = new DistrictSceneStreamingController(
       scene,
       this.entityManager,
@@ -138,7 +141,18 @@ export class InGameScene implements Scene {
 
       const isEnabled = this.locationManager.toggleTerrainLodDebug();
       inGameTopPanelUi.setTerrainLodDebugEnabled(isEnabled);
+    }, () => {
+      const isEnabled = performancePanel?.toggle() ?? false;
+      inGameTopPanelUi.setPerformanceDebugEnabled(isEnabled);
     });
+    const performanceSampler = new RuntimePerformanceSampler({
+      engine: this.engine,
+      scene,
+      locationManager: this.locationManager,
+      gridRuntime,
+      shadowRegistry
+    });
+    performancePanel = new RuntimePerformancePanelUi(inGameTopPanelUi.getTexture(), performanceSampler);
     attachInGameSceneRuntimeContext(scene, {
       gridRuntime,
       locationManager: this.locationManager,
@@ -150,6 +164,27 @@ export class InGameScene implements Scene {
     inGameTopPanelUi.setRectGridDebugEnabled(gridRuntime.getIsDebugEnabled());
     inGameTopPanelUi.setTerrainLodDebugAvailable(this.locationManager.hasTerrainLodControllers());
     inGameTopPanelUi.setTerrainLodDebugEnabled(this.locationManager.getTerrainLodDebugEnabled());
+    inGameTopPanelUi.setPerformanceDebugEnabled(false);
+    let isPerformanceToggleKeyDown = false;
+    const performanceKeyboardObserver = scene.onKeyboardObservable.add((keyboardInfo) => {
+      if (keyboardInfo.event.code !== "F3") {
+        return;
+      }
+
+      keyboardInfo.event.preventDefault();
+      if (keyboardInfo.type === KeyboardEventTypes.KEYUP) {
+        isPerformanceToggleKeyDown = false;
+        return;
+      }
+
+      if (keyboardInfo.type !== KeyboardEventTypes.KEYDOWN || isPerformanceToggleKeyDown) {
+        return;
+      }
+
+      isPerformanceToggleKeyDown = true;
+      const isEnabled = performancePanel?.toggle() ?? false;
+      inGameTopPanelUi.setPerformanceDebugEnabled(isEnabled);
+    });
     const triggerObserver = scene.onBeforeRenderObservable.add(() => {
       const deltaSeconds = scene.getEngine().getDeltaTime() / 1000;
       streamingController.update();
@@ -158,15 +193,20 @@ export class InGameScene implements Scene {
       if (lodAnchor) {
         this.locationManager.updateTerrainLodControllers(deltaSeconds, lodAnchor);
       }
+      performancePanel?.update(deltaSeconds);
     });
 
     scene.onDisposeObservable.addOnce(() => {
+      performancePanel?.dispose();
       shadowRegistry.dispose();
       lightingController.dispose();
       gridRuntime.dispose();
       inGameTopPanelUi.dispose();
       streamingController.dispose();
       locationTriggerSystem.dispose();
+      if (performanceKeyboardObserver) {
+        scene.onKeyboardObservable.remove(performanceKeyboardObserver);
+      }
       if (triggerObserver) {
         scene.onBeforeRenderObservable.remove(triggerObserver);
       }

@@ -55,6 +55,40 @@ export interface DistrictSceneInitializationResult {
   readonly lightingDescriptor: SceneLightingDescriptor;
 }
 
+export interface TerrainLodRuntimeDiagnostics {
+  readonly controllerCount: number;
+  readonly visibleLeafCount: number;
+  readonly patchMeshEstimate: number;
+  readonly activeDebugLineMeshCount: number;
+  readonly approxVisibleTriangles: number;
+  readonly maxDepth: number;
+  readonly anchorSource: TerrainLodAnchor["source"] | "mixed" | null;
+  readonly depthCounts: ReadonlyMap<number, number>;
+  readonly sampleStepCounts: ReadonlyMap<number, number>;
+  readonly minLeafWorldSize: number | null;
+  readonly maxLeafWorldSize: number | null;
+  readonly minNearLeafWorldSize: number | null;
+  readonly maxNearLeafWorldSize: number | null;
+  readonly minDistanceToAnchor: number | null;
+  readonly maxDistanceToAnchor: number | null;
+  readonly sourceQuadSizeMin: number | null;
+  readonly sourceQuadSizeMax: number | null;
+  readonly desiredNearPatchWorldSizeMin: number | null;
+  readonly desiredNearPatchWorldSizeMax: number | null;
+}
+
+export interface DistrictRuntimeDiagnostics {
+  readonly loadedChunkCount: number;
+  readonly activeMeshCount: number;
+  readonly activeRenderableMeshCount: number;
+  readonly activeTerrainMeshCount: number;
+  readonly activeSceneObjectMeshCount: number;
+  readonly terrainLodControllerCount: number;
+  readonly skeletonCount: number;
+  readonly animationGroupCount: number;
+  readonly particleSystemCount: number;
+}
+
 /**
  * Loads and manages world locations and district scene initialization.
  */
@@ -329,6 +363,115 @@ export class LocationManager {
     return this.terrainLodDebugEnabled;
   }
 
+  public getTerrainLodDiagnostics(): TerrainLodRuntimeDiagnostics {
+    const depthCounts = new Map<number, number>();
+    const sampleStepCounts = new Map<number, number>();
+    let controllerCount = 0;
+    let visibleLeafCount = 0;
+    let patchMeshEstimate = 0;
+    let activeDebugLineMeshCount = 0;
+    let approxVisibleTriangles = 0;
+    let maxDepth = 0;
+    let anchorSource: TerrainLodRuntimeDiagnostics["anchorSource"] = null;
+    let minLeafWorldSize: number | null = null;
+    let maxLeafWorldSize: number | null = null;
+    let minNearLeafWorldSize: number | null = null;
+    let maxNearLeafWorldSize: number | null = null;
+    let minDistanceToAnchor: number | null = null;
+    let maxDistanceToAnchor: number | null = null;
+    let sourceQuadSizeMin: number | null = null;
+    let sourceQuadSizeMax: number | null = null;
+    let desiredNearPatchWorldSizeMin: number | null = null;
+    let desiredNearPatchWorldSizeMax: number | null = null;
+
+    for (const content of this.activeDistrictScenes.values()) {
+      for (const controller of content.terrainLodControllers) {
+        const diagnostics = controller.getDiagnostics();
+        controllerCount += 1;
+        visibleLeafCount += diagnostics.visibleLeafCount;
+        patchMeshEstimate += diagnostics.activePatchMeshCount;
+        activeDebugLineMeshCount += diagnostics.activeDebugLineMeshCount;
+        approxVisibleTriangles += diagnostics.approxVisibleTriangles;
+        maxDepth = Math.max(maxDepth, diagnostics.maxDepth);
+        anchorSource = this.mergeTerrainLodAnchorSource(anchorSource, diagnostics.anchorSource);
+        this.mergeCountMap(depthCounts, diagnostics.depthCounts);
+        this.mergeCountMap(sampleStepCounts, diagnostics.sampleStepCounts);
+        minLeafWorldSize = this.minNullable(minLeafWorldSize, diagnostics.minLeafWorldSize);
+        maxLeafWorldSize = this.maxNullable(maxLeafWorldSize, diagnostics.maxLeafWorldSize);
+        minNearLeafWorldSize = this.minNullable(minNearLeafWorldSize, diagnostics.minNearLeafWorldSize);
+        maxNearLeafWorldSize = this.maxNullable(maxNearLeafWorldSize, diagnostics.maxNearLeafWorldSize);
+        minDistanceToAnchor = this.minNullable(minDistanceToAnchor, diagnostics.minDistanceToAnchor);
+        maxDistanceToAnchor = this.maxNullable(maxDistanceToAnchor, diagnostics.maxDistanceToAnchor);
+        sourceQuadSizeMin = this.minNullable(sourceQuadSizeMin, diagnostics.sourceQuadSize);
+        sourceQuadSizeMax = this.maxNullable(sourceQuadSizeMax, diagnostics.sourceQuadSize);
+        desiredNearPatchWorldSizeMin = this.minNullable(
+          desiredNearPatchWorldSizeMin,
+          diagnostics.desiredNearPatchWorldSize
+        );
+        desiredNearPatchWorldSizeMax = this.maxNullable(
+          desiredNearPatchWorldSizeMax,
+          diagnostics.desiredNearPatchWorldSize
+        );
+      }
+    }
+
+    return {
+      controllerCount,
+      visibleLeafCount,
+      patchMeshEstimate,
+      activeDebugLineMeshCount,
+      approxVisibleTriangles,
+      maxDepth,
+      anchorSource,
+      depthCounts,
+      sampleStepCounts,
+      minLeafWorldSize,
+      maxLeafWorldSize,
+      minNearLeafWorldSize,
+      maxNearLeafWorldSize,
+      minDistanceToAnchor,
+      maxDistanceToAnchor,
+      sourceQuadSizeMin,
+      sourceQuadSizeMax,
+      desiredNearPatchWorldSizeMin,
+      desiredNearPatchWorldSizeMax
+    };
+  }
+
+  public getDistrictRuntimeDiagnostics(): DistrictRuntimeDiagnostics {
+    let activeMeshCount = 0;
+    let activeRenderableMeshCount = 0;
+    let activeTerrainMeshCount = 0;
+    let activeSceneObjectMeshCount = 0;
+    let terrainLodControllerCount = 0;
+    let skeletonCount = 0;
+    let animationGroupCount = 0;
+    let particleSystemCount = 0;
+
+    for (const content of this.activeDistrictScenes.values()) {
+      activeMeshCount += content.meshes.length;
+      activeRenderableMeshCount += content.renderableMeshes.length;
+      activeTerrainMeshCount += content.terrainMeshes.length;
+      activeSceneObjectMeshCount += content.sceneObjectMeshes.length;
+      terrainLodControllerCount += content.terrainLodControllers.length;
+      skeletonCount += content.skeletons.length;
+      animationGroupCount += content.animationGroups.length;
+      particleSystemCount += content.particleSystems.length;
+    }
+
+    return {
+      loadedChunkCount: this.activeDistrictScenes.size,
+      activeMeshCount,
+      activeRenderableMeshCount,
+      activeTerrainMeshCount,
+      activeSceneObjectMeshCount,
+      terrainLodControllerCount,
+      skeletonCount,
+      animationGroupCount,
+      particleSystemCount
+    };
+  }
+
   /**
    * Returns currently active authored district, if one was created by createDistrictScene.
    *
@@ -589,6 +732,43 @@ export class LocationManager {
     }
 
     return value;
+  }
+
+  private mergeCountMap(target: Map<number, number>, source: ReadonlyMap<number, number>): void {
+    for (const [key, value] of source) {
+      target.set(key, (target.get(key) ?? 0) + value);
+    }
+  }
+
+  private minNullable(current: number | null, value: number | null): number | null {
+    if (value === null) {
+      return current;
+    }
+
+    return current === null ? value : Math.min(current, value);
+  }
+
+  private maxNullable(current: number | null, value: number | null): number | null {
+    if (value === null) {
+      return current;
+    }
+
+    return current === null ? value : Math.max(current, value);
+  }
+
+  private mergeTerrainLodAnchorSource(
+    current: TerrainLodRuntimeDiagnostics["anchorSource"],
+    next: TerrainLodAnchor["source"] | null
+  ): TerrainLodRuntimeDiagnostics["anchorSource"] {
+    if (next === null) {
+      return current;
+    }
+
+    if (current === null || current === next) {
+      return next;
+    }
+
+    return "mixed";
   }
 
   /**

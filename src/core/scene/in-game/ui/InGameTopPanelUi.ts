@@ -13,6 +13,7 @@ export class InGameTopPanelUi {
   private readonly phoneDialogUi: PhoneDialogUi;
   private readonly phoneToggleButton: Button;
   private readonly terrainLodDebugButton: Button;
+  private readonly performanceDebugButton: Button;
 
   /**
    * Creates root top-panel HUD and mounts grid debug widget into it.
@@ -23,7 +24,8 @@ export class InGameTopPanelUi {
   public constructor(
     scene: Scene,
     onRectGridToggleRequested: () => void,
-    onTerrainLodDebugToggleRequested?: () => void
+    onTerrainLodDebugToggleRequested?: () => void,
+    onPerformanceDebugToggleRequested?: () => void
   ) {
     this.texture = AdvancedDynamicTexture.CreateFullscreenUI("in-game-ui", true, scene);
 
@@ -62,6 +64,22 @@ export class InGameTopPanelUi {
     });
     content.addControl(this.terrainLodDebugButton);
 
+    this.performanceDebugButton = Button.CreateSimpleButton("in-game-performance-debug-toggle", "Perf");
+    this.performanceDebugButton.width = "66px";
+    this.performanceDebugButton.height = "38px";
+    this.performanceDebugButton.cornerRadius = 4;
+    this.performanceDebugButton.color = "#E7EDF9";
+    this.performanceDebugButton.background = "#1F2937";
+    this.performanceDebugButton.thickness = 1;
+    this.performanceDebugButton.paddingLeft = "8px";
+    this.performanceDebugButton.fontSize = 14;
+    this.performanceDebugButton.isVisible = onPerformanceDebugToggleRequested !== undefined;
+    this.performanceDebugButton.isEnabled = onPerformanceDebugToggleRequested !== undefined;
+    this.performanceDebugButton.onPointerUpObservable.add(() => {
+      onPerformanceDebugToggleRequested?.();
+    });
+    content.addControl(this.performanceDebugButton);
+
     this.phoneToggleButton = Button.CreateSimpleButton("in-game-phone-toggle", "📱");
     this.phoneToggleButton.width = "52px";
     this.phoneToggleButton.height = "38px";
@@ -98,6 +116,10 @@ export class InGameTopPanelUi {
     this.texture.addControl(phoneDialogControl);
   }
 
+  public getTexture(): AdvancedDynamicTexture {
+    return this.texture;
+  }
+
   /**
    * Updates grid debug control visual state.
    */
@@ -113,6 +135,11 @@ export class InGameTopPanelUi {
   public setTerrainLodDebugEnabled(isEnabled: boolean): void {
     this.terrainLodDebugButton.background = isEnabled ? "#2563EB" : "#1F2937";
     this.terrainLodDebugButton.color = isEnabled ? "#FFFFFF" : "#E7EDF9";
+  }
+
+  public setPerformanceDebugEnabled(isEnabled: boolean): void {
+    this.performanceDebugButton.background = isEnabled ? "#D97706" : "#1F2937";
+    this.performanceDebugButton.color = isEnabled ? "#FFFFFF" : "#E7EDF9";
   }
 
   public setCombatBannerVisible(isVisible: boolean): void {

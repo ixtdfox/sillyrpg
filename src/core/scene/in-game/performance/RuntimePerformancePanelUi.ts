@@ -1,0 +1,236 @@
+import { AdvancedDynamicTexture, Control, Rectangle, TextBlock } from "@babylonjs/gui";
+import type { RuntimePerformanceSampler } from "./RuntimePerformanceSampler";
+import type { RuntimePerformanceSnapshot, RuntimePerformanceWarning } from "./RuntimePerformanceTypes";
+
+export interface RuntimePerformancePanelUiOptions {
+  readonly updateIntervalSeconds?: number;
+}
+
+/**
+ * Compact Babylon GUI panel for runtime performance diagnostics.
+ */
+export class RuntimePerformancePanelUi {
+  private readonly texture: AdvancedDynamicTexture;
+  private readonly sampler: RuntimePerformanceSampler;
+  private readonly root: Rectangle;
+  private readonly textBlock: TextBlock;
+  private readonly updateIntervalSeconds: number;
+  private sampleAccumulatorSeconds: number;
+  private elapsedSinceSampleSeconds: number;
+  private isDisposed: boolean;
+
+  public constructor(
+    texture: AdvancedDynamicTexture,
+    sampler: RuntimePerformanceSampler,
+    options: RuntimePerformancePanelUiOptions = {}
+  ) {
+    this.texture = texture;
+    this.sampler = sampler;
+    this.updateIntervalSeconds = Math.max(0.1, options.updateIntervalSeconds ?? 0.5);
+    this.sampleAccumulatorSeconds = this.updateIntervalSeconds;
+    this.elapsedSinceSampleSeconds = 0;
+    this.isDisposed = false;
+
+    this.root = new Rectangle("runtime-performance-panel");
+    this.root.width = "548px";
+    this.root.height = "408px";
+    this.root.thickness = 1;
+    this.root.cornerRadius = 6;
+    this.root.color = "#4B5563";
+    this.root.background = "#111827E6";
+    this.root.horizontalAlignment = Control.HORIZONTAL_ALIGNMENT_RIGHT;
+    this.root.verticalAlignment = Control.VERTICAL_ALIGNMENT_TOP;
+    this.root.left = "-12px";
+    this.root.top = "72px";
+    this.root.zIndex = 19;
+    this.root.isVisible = false;
+    this.root.isPointerBlocker = false;
+
+    this.textBlock = new TextBlock("runtime-performance-panel-text", "");
+    this.textBlock.color = "#E5E7EB";
+    this.textBlock.fontSize = 13;
+    this.textBlock.fontFamily = "monospace";
+    this.textBlock.textHorizontalAlignment = Control.HORIZONTAL_ALIGNMENT_LEFT;
+    this.textBlock.textVerticalAlignment = Control.VERTICAL_ALIGNMENT_TOP;
+    this.textBlock.paddingLeft = "12px";
+    this.textBlock.paddingTop = "10px";
+    this.textBlock.paddingRight = "12px";
+    this.textBlock.paddingBottom = "10px";
+    this.textBlock.lineSpacing = "2px";
+    this.textBlock.resizeToFit = false;
+    this.textBlock.textWrapping = false;
+    this.root.addControl(this.textBlock);
+
+    this.texture.addControl(this.root);
+  }
+
+  public toggle(): boolean {
+    this.setVisible(!this.root.isVisible);
+    return this.root.isVisible;
+  }
+
+  public setVisible(isVisible: boolean): void {
+    if (this.isDisposed || this.root.isVisible === isVisible) {
+      return;
+    }
+
+    this.root.isVisible = isVisible;
+    this.sampler.setEnabled(isVisible);
+    if (isVisible) {
+      this.sampleAccumulatorSeconds = this.updateIntervalSeconds;
+      this.elapsedSinceSampleSeconds = this.updateIntervalSeconds;
+    }
+  }
+
+  public update(deltaSeconds: number): void {
+    if (this.isDisposed || !this.root.isVisible) {
+      return;
+    }
+
+    this.sampler.recordFrame(deltaSeconds * 1000);
+    const safeDeltaSeconds = Math.max(0, deltaSeconds);
+    this.sampleAccumulatorSeconds += safeDeltaSeconds;
+    this.elapsedSinceSampleSeconds += safeDeltaSeconds;
+    if (this.sampleAccumulatorSeconds < this.updateIntervalSeconds) {
+      return;
+    }
+
+    this.sampleAccumulatorSeconds = 0;
+    const snapshot = this.sampler.sample(this.elapsedSinceSampleSeconds);
+    this.elapsedSinceSampleSeconds = 0;
+    this.textBlock.text = this.formatSnapshot(snapshot);
+  }
+
+  public dispose(): void {
+    if (this.isDisposed) {
+      return;
+    }
+
+    this.sampler.dispose();
+    this.texture.removeControl(this.root);
+    this.root.dispose();
+    this.isDisposed = true;
+  }
+
+  private formatSnapshot(snapshot: RuntimePerformanceSnapshot): string {
+    const warnings = this.formatWarnings(snapshot.warnings);
+    const terrainWarning = snapshot.terrainLod.visibleLeafCount > 500 ? " WARN" : "";
+    const nearLeafWarning =
+      snapshot.terrainLod.visibleLeafCount > 500 &&
+      snapshot.terrainLod.minNearLeafWorldSize !== null &&
+      snapshot.terrainLod.minNearLeafWorldSize <= 1.25
+        ? " WARN"
+        : "";
+    const debugHint =
+      snapshot.debug.rectGridEnabled || snapshot.debug.terrainLodDebugEnabled
+        ? "\nDebug overlays ON: timings include grid/line overhead."
+        : "";
+
+    return [
+      "PERF",
+      `FPS: ${snapshot.frame.fps.toFixed(1)}   frame: ${this.formatMs(snapshot.frame.frameMs)}   avg: ${this.formatMs(snapshot.frame.averageFrameMs)} (${this.formatRange(snapshot.frame.minFrameMs, snapshot.frame.maxFrameMs, "ms")})`,
+      `Draw calls: ${this.formatNullableNumber(snapshot.instrumentation.drawCalls)}   active meshes: ${snapshot.scene.activeMeshCount} / meshes: ${snapshot.scene.meshCount}   lines: ${snapshot.scene.lineMeshCount}`,
+      `Verts: ${this.formatNumber(snapshot.geometry.vertexCount)}   Tris: ${this.formatNumber(snapshot.geometry.triangleCount)}   Materials: ${snapshot.scene.materialCount}   Textures: ${snapshot.scene.textureCount}`,
+      `Render: scene ${this.formatMs(snapshot.instrumentation.frameMs)}   draw ${this.formatMs(snapshot.instrumentation.renderMs)}   active eval ${this.formatMs(snapshot.instrumentation.activeMeshesEvaluationMs)}   targets ${this.formatMs(snapshot.instrumentation.renderTargetsRenderMs)}`,
+      "",
+      "TERRAIN LOD",
+      `controllers: ${snapshot.terrainLod.controllerCount}   leaves: ${snapshot.terrainLod.visibleLeafCount}${terrainWarning}   patches: ${snapshot.terrainLod.patchMeshEstimate}   lines: ${snapshot.terrainLod.activeDebugLineMeshCount}`,
+      `sample steps: ${this.formatMap(snapshot.terrainLod.sampleStepCounts)}`,
+      `depths: ${this.formatMap(snapshot.terrainLod.depthCounts)}`,
+      `leaf size: ${this.formatRange(snapshot.terrainLod.minLeafWorldSize, snapshot.terrainLod.maxLeafWorldSize)}   near: ${this.formatRange(snapshot.terrainLod.minNearLeafWorldSize, snapshot.terrainLod.maxNearLeafWorldSize)}${nearLeafWarning}`,
+      `source quad: ${this.formatRange(snapshot.terrainLod.sourceQuadSizeMin, snapshot.terrainLod.sourceQuadSizeMax)}   LOD tris: ${this.formatNumber(snapshot.terrainLod.approxVisibleTriangles)}`,
+      "",
+      "SHADOWS",
+      `enabled: ${this.formatYesNo(snapshot.shadows.enabled)}   type: ${snapshot.shadows.generatorKind}   generator: ${this.formatYesNo(snapshot.shadows.hasGenerator)}`,
+      `casters: ${snapshot.shadows.casterCount}   receivers: ${snapshot.shadows.receiverCount}   top: ${this.formatShadowBatches(snapshot)}`,
+      "",
+      "STREAM / DEBUG",
+      `chunks: ${snapshot.streaming.loadedChunkCount}   terrain meshes: ${snapshot.streaming.activeTerrainMeshCount}   object meshes: ${snapshot.streaming.activeSceneObjectMeshCount}`,
+      `rect grid: ${this.formatOnOff(snapshot.debug.rectGridEnabled)}   LOD grid: ${this.formatOnOff(snapshot.debug.terrainLodDebugEnabled)}${debugHint}`,
+      warnings
+    ].filter((line) => line.length > 0).join("\n");
+  }
+
+  private formatWarnings(warnings: readonly RuntimePerformanceWarning[]): string {
+    if (warnings.length === 0) {
+      return "";
+    }
+
+    const visibleWarnings = warnings.slice(0, 3).map((warning) => {
+      const prefix = warning.severity === "critical" ? "CRIT" : "WARN";
+      return `${prefix}: ${warning.message}`;
+    });
+    if (warnings.length > visibleWarnings.length) {
+      visibleWarnings.push(`WARN: +${warnings.length - visibleWarnings.length} more`);
+    }
+    return `\n${visibleWarnings.join("\n")}`;
+  }
+
+  private formatShadowBatches(snapshot: RuntimePerformanceSnapshot): string {
+    if (snapshot.shadows.batches.length === 0) {
+      return "n/a";
+    }
+
+    return [...snapshot.shadows.batches]
+      .sort((left, right) => right.casterMeshes + right.receiverMeshes - (left.casterMeshes + left.receiverMeshes))
+      .slice(0, 3)
+      .map((batch) => `${batch.source}:${batch.casterMeshes}/${batch.receiverMeshes}`)
+      .join(" ");
+  }
+
+  private formatMap(map: ReadonlyMap<number, number>): string {
+    if (map.size === 0) {
+      return "n/a";
+    }
+
+    return [...map.entries()]
+      .sort(([left], [right]) => left - right)
+      .slice(0, 8)
+      .map(([key, value]) => `${key}:${value}`)
+      .join(" ");
+  }
+
+  private formatRange(min: number | null, max: number | null, unit = ""): string {
+    if (min === null || max === null) {
+      return "n/a";
+    }
+
+    const suffix = unit ? ` ${unit}` : "";
+    return `${this.formatCompactFloat(min)}..${this.formatCompactFloat(max)}${suffix}`;
+  }
+
+  private formatMs(value: number | null): string {
+    return value === null ? "n/a" : `${value.toFixed(1)} ms`;
+  }
+
+  private formatNullableNumber(value: number | null): string {
+    return value === null ? "n/a" : this.formatNumber(value);
+  }
+
+  private formatNumber(value: number): string {
+    const abs = Math.abs(value);
+    if (abs >= 1_000_000) {
+      return `${this.trimFixed(value / 1_000_000, abs >= 10_000_000 ? 1 : 2)}M`;
+    }
+    if (abs >= 1_000) {
+      return `${this.trimFixed(value / 1_000, abs >= 100_000 ? 0 : 1)}k`;
+    }
+    return `${Math.round(value)}`;
+  }
+
+  private formatCompactFloat(value: number): string {
+    return this.trimFixed(value, Math.abs(value) >= 100 ? 0 : 1);
+  }
+
+  private trimFixed(value: number, digits: number): string {
+    return value.toFixed(digits).replace(/\.0+$/, "").replace(/(\.\d*[1-9])0+$/, "$1");
+  }
+
+  private formatYesNo(value: boolean): string {
+    return value ? "yes" : "no";
+  }
+
+  private formatOnOff(value: boolean): string {
+    return value ? "ON" : "OFF";
+  }
+}
