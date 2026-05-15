@@ -1,14 +1,25 @@
 import type { SceneGeneratedTerrainDescriptor } from "../../core/world/scene/SceneDescriptor";
 import { editorIconSvg } from "./EditorIcons";
 import type { TerrainGeneratorPanelCallbacks, TerrainGeneratorPanelViewModel } from "../terrain/EditorTerrainTypes";
+import {
+  DEFAULT_TERRAIN_GRID_STEP,
+  MAX_TERRAIN_RESOLUTION,
+  MAX_TERRAIN_WORLD_SIZE,
+  TerrainGridAlignedResolutionPolicy
+} from "../terrain/generation/TerrainTypes";
 
 export class TerrainGeneratorPanel {
   private readonly root: HTMLDivElement;
   private readonly callbacks: TerrainGeneratorPanelCallbacks;
+  private readonly gridAlignedResolutionPolicy: TerrainGridAlignedResolutionPolicy;
   private viewModel: TerrainGeneratorPanelViewModel;
 
-  public constructor(callbacks: TerrainGeneratorPanelCallbacks) {
+  public constructor(
+    callbacks: TerrainGeneratorPanelCallbacks,
+    gridAlignedResolutionPolicy = new TerrainGridAlignedResolutionPolicy()
+  ) {
     this.callbacks = callbacks;
+    this.gridAlignedResolutionPolicy = gridAlignedResolutionPolicy;
     this.root = document.createElement("div");
     this.root.className = "editor-terrain";
     this.viewModel = {
@@ -49,6 +60,11 @@ export class TerrainGeneratorPanel {
         return `<option value="${escapeHtml(preset.id)}"${selected}>${escapeHtml(preset.label)}</option>`;
       })
       .join("");
+    const resolutionMode = descriptor.resolutionMode ?? "gridStep";
+    const terrainGridStep = descriptor.terrainGridStep ?? DEFAULT_TERRAIN_GRID_STEP;
+    const [sourceQuadSizeX, sourceQuadSizeZ] = resolveSourceQuadSize(descriptor);
+    const sourceQuadWarning = resolveSourceQuadWarning(descriptor);
+    const resolutionReadonly = resolutionMode === "gridStep";
 
     this.root.innerHTML = `
       <div class="editor-card editor-card--compact">
@@ -82,11 +98,25 @@ export class TerrainGeneratorPanel {
       </div>
 
       ${this.renderNumberSection("Size & Resolution", [
-        this.numberField("width", "Width", descriptor.size[0], 1, 1024, 1),
-        this.numberField("depth", "Depth", descriptor.size[1], 1, 1024, 1),
-        this.numberField("resolutionX", "Resolution X", descriptor.resolution[0], 9, 257, 2),
-        this.numberField("resolutionZ", "Resolution Z", descriptor.resolution[1], 9, 257, 2)
+        this.numberField("width", "Width", descriptor.size[0], 1, MAX_TERRAIN_WORLD_SIZE, 1),
+        this.numberField("depth", "Depth", descriptor.size[1], 1, MAX_TERRAIN_WORLD_SIZE, 1),
+        this.numberField("terrainGridStep", "Grid step", terrainGridStep, 0.0001, MAX_TERRAIN_WORLD_SIZE, 0.5),
+        this.selectField("resolutionMode", "Resolution mode", resolutionMode, [
+          ["gridStep", "Follow gameplay grid"],
+          ["manual", "Manual resolution"]
+        ]),
+        this.numberField("resolutionX", "Resolution X", descriptor.resolution[0], 9, MAX_TERRAIN_RESOLUTION, 2, resolutionReadonly),
+        this.numberField("resolutionZ", "Resolution Z", descriptor.resolution[1], 9, MAX_TERRAIN_RESOLUTION, 2, resolutionReadonly)
       ])}
+
+      <div class="editor-card editor-card--compact">
+        <div class="editor-card__line">Source quad: ${sourceQuadSizeX.toFixed(2)} x ${sourceQuadSizeZ.toFixed(2)} m</div>
+        ${
+          sourceQuadWarning
+            ? `<div class="editor-card__line editor-terrain__warning">${escapeHtml(sourceQuadWarning)}</div>`
+            : `<div class="editor-card__line">Source grid matches gameplay grid.</div>`
+        }
+      </div>
 
       ${this.renderNumberSection("Height Noise", [
         this.numberField("seed", "Seed", descriptor.generator.seed, 0, 2147483647, 1),
@@ -164,6 +194,7 @@ export class TerrainGeneratorPanel {
           return;
         }
         this.syncLinkedInputs(input);
+        this.syncGridResolutionInputs();
         const nextDescriptor = this.readDescriptorFromInputs();
         if (nextDescriptor) {
           this.callbacks.onChangeTerrainDraft(nextDescriptor);
@@ -174,6 +205,7 @@ export class TerrainGeneratorPanel {
     this.root.querySelectorAll<HTMLInputElement>("[data-range-field], [data-number-field]").forEach((input) => {
       input.addEventListener("input", () => {
         this.syncLinkedInputs(input);
+        this.syncGridResolutionInputs();
         const nextDescriptor = this.readDescriptorFromInputs();
         if (nextDescriptor) {
           this.callbacks.onChangeTerrainDraft(nextDescriptor);
@@ -232,10 +264,24 @@ export class TerrainGeneratorPanel {
             color: readString("materialColor", current.material?.color ?? "#8D9298")
           };
 
+    const size = [readNumber("width", current.size[0]), readNumber("depth", current.size[1])] as const;
+    const terrainGridStep = readNumber("terrainGridStep", current.terrainGridStep ?? DEFAULT_TERRAIN_GRID_STEP);
+    const resolutionMode = readString(
+      "resolutionMode",
+      current.resolutionMode ?? "gridStep"
+    ) as SceneGeneratedTerrainDescriptor["resolutionMode"];
+    const gridDiagnostics = this.gridAlignedResolutionPolicy.resolveWithDiagnostics(size, terrainGridStep);
+    const resolvedSize = resolutionMode === "gridStep" ? gridDiagnostics.snappedSize : size;
+    const resolvedResolution = resolutionMode === "gridStep"
+      ? gridDiagnostics.resolution
+      : ([readInteger("resolutionX", current.resolution[0]), readInteger("resolutionZ", current.resolution[1])] as const);
+
     return {
       ...current,
-      size: [readNumber("width", current.size[0]), readNumber("depth", current.size[1])] as const,
-      resolution: [readInteger("resolutionX", current.resolution[0]), readInteger("resolutionZ", current.resolution[1])] as const,
+      size: resolvedSize,
+      terrainGridStep: gridDiagnostics.terrainGridStep,
+      resolutionMode,
+      resolution: resolvedResolution,
       generator: {
         ...current.generator,
         preset: readString("preset", current.generator.preset),
@@ -278,11 +324,19 @@ export class TerrainGeneratorPanel {
     `;
   }
 
-  private numberField(field: string, label: string, value: number, min: number, max: number, step: number): string {
+  private numberField(
+    field: string,
+    label: string,
+    value: number,
+    min: number,
+    max: number,
+    step: number,
+    disabled = false
+  ): string {
     return `
       <label class="editor-field">
         <span class="editor-field__label">${escapeHtml(label)}</span>
-        <input class="editor-input" type="number" data-field="${field}" value="${value}" min="${min}" max="${max}" step="${step}" />
+        <input class="editor-input" type="number" data-field="${field}" value="${value}" min="${min}" max="${max}" step="${step}" ${disabled ? "disabled" : ""} />
       </label>
     `;
   }
@@ -352,6 +406,85 @@ export class TerrainGeneratorPanel {
       number.value = input.value;
     }
   }
+
+  private syncGridResolutionInputs(): void {
+    const current = this.viewModel.descriptor;
+    if (!current) {
+      return;
+    }
+
+    const modeInput = this.root.querySelector<HTMLSelectElement>("[data-field='resolutionMode']");
+    const mode = modeInput?.value ?? current.resolutionMode ?? "gridStep";
+    const resolutionXInput = this.root.querySelector<HTMLInputElement>("[data-field='resolutionX']");
+    const resolutionZInput = this.root.querySelector<HTMLInputElement>("[data-field='resolutionZ']");
+    const isGridMode = mode === "gridStep";
+    if (resolutionXInput) {
+      resolutionXInput.disabled = isGridMode;
+    }
+    if (resolutionZInput) {
+      resolutionZInput.disabled = isGridMode;
+    }
+
+    if (!isGridMode) {
+      return;
+    }
+
+    const widthInput = this.root.querySelector<HTMLInputElement>("[data-field='width']");
+    const depthInput = this.root.querySelector<HTMLInputElement>("[data-field='depth']");
+    const gridStepInput = this.root.querySelector<HTMLInputElement>("[data-field='terrainGridStep']");
+    const size = [
+      parseInputNumber(widthInput, current.size[0]),
+      parseInputNumber(depthInput, current.size[1])
+    ] as const;
+    const gridStep = parseInputNumber(gridStepInput, current.terrainGridStep ?? DEFAULT_TERRAIN_GRID_STEP);
+    const diagnostics = this.gridAlignedResolutionPolicy.resolveWithDiagnostics(size, gridStep);
+    if (widthInput) {
+      widthInput.value = String(diagnostics.snappedSize[0]);
+    }
+    if (depthInput) {
+      depthInput.value = String(diagnostics.snappedSize[1]);
+    }
+    if (gridStepInput) {
+      gridStepInput.value = String(diagnostics.terrainGridStep);
+    }
+    if (resolutionXInput) {
+      resolutionXInput.value = String(diagnostics.resolution[0]);
+    }
+    if (resolutionZInput) {
+      resolutionZInput.value = String(diagnostics.resolution[1]);
+    }
+  }
+}
+
+function parseInputNumber(input: HTMLInputElement | null, fallback: number): number {
+  if (!input) {
+    return fallback;
+  }
+
+  const parsed = Number.parseFloat(input.value);
+  return Number.isFinite(parsed) ? parsed : fallback;
+}
+
+function resolveSourceQuadSize(descriptor: SceneGeneratedTerrainDescriptor): readonly [number, number] {
+  return [
+    descriptor.resolution[0] <= 1 ? descriptor.size[0] : descriptor.size[0] / (descriptor.resolution[0] - 1),
+    descriptor.resolution[1] <= 1 ? descriptor.size[1] : descriptor.size[1] / (descriptor.resolution[1] - 1)
+  ] as const;
+}
+
+function resolveSourceQuadWarning(descriptor: SceneGeneratedTerrainDescriptor): string | null {
+  if ((descriptor.resolutionMode ?? "gridStep") !== "manual") {
+    return null;
+  }
+
+  const gridStep = descriptor.terrainGridStep ?? DEFAULT_TERRAIN_GRID_STEP;
+  const [quadSizeX, quadSizeZ] = resolveSourceQuadSize(descriptor);
+  const tolerance = Math.max(0.001, gridStep * 0.01);
+  if (Math.abs(quadSizeX - gridStep) <= tolerance && Math.abs(quadSizeZ - gridStep) <= tolerance) {
+    return null;
+  }
+
+  return `Manual source quads differ from gameplay grid (${gridStep.toFixed(2)} m).`;
 }
 
 function escapeHtml(value: string): string {

@@ -7,8 +7,10 @@ import { TerrainQuadtreeLodBuilder } from "../../../src/core/world/terrain/lod/T
 import { TerrainQuadtreePatchMeshBuilder } from "../../../src/core/world/terrain/lod/TerrainQuadtreePatchMeshBuilder";
 import {
   TerrainNativeLodDepthResolver,
-  TerrainQuadtreeLodDescriptorResolver
+  TerrainQuadtreeLodDescriptorResolver,
+  TerrainSourceDensityWarningPolicy
 } from "../../../src/core/world/terrain/lod/TerrainQuadtreeLodTypes";
+import { TerrainGeneratorPresetCatalog } from "../../../src/editor/terrain/generation/TerrainGeneratorPresets";
 
 const nativeLodDepthResolver = new TerrainNativeLodDepthResolver();
 const quadtreeLodDescriptorResolver = new TerrainQuadtreeLodDescriptorResolver();
@@ -22,6 +24,10 @@ function assert(condition: boolean, message: string): void {
 function assertClose(actual: number, expected: number, message: string): void {
   const epsilon = 1e-6;
   assert(Math.abs(actual - expected) <= epsilon, `${message}: expected ${expected}, received ${actual}`);
+}
+
+function assertCloseWithin(actual: number, expected: number, epsilon: number, message: string): void {
+  assert(Math.abs(actual - expected) <= epsilon, `${message}: expected ${expected} +/- ${epsilon}, received ${actual}`);
 }
 
 function assertVectorClose(actual: Vector3, expected: Vector3, message: string): void {
@@ -216,9 +222,11 @@ function run(): void {
   testQuadtreePatchUsesGlobalUvsAndSkirts();
   testQuadtreePatchUsesCanonicalNormalsAcrossLodLevelsAndSkirts();
   testQuadtreePatchSampleStepOneMatchesCanonicalWindingAndMetadata();
+  testGeneratedTerrainDefaultResolutionFollowsGridStep();
   testNativeMaxDepthResolvesFromHeightfield();
-  testQuadtreeSelectionRefinesNearAnchor();
-  testQuadtreeSelectionKeepsLargeTerrainPatchCountReasonable();
+  testQuadtreeSelectionRefinesNearAnchorToGridWorldSize();
+  testQuadtreeSelectionKeepsFarTerrainCoarse();
+  testSourceDensityWarningPolicyUsesDesiredNearGridSize();
 }
 
 run();
@@ -351,10 +359,37 @@ function readNormal(normals: readonly number[], vertexIndex: number): Vector3 {
 function testNativeMaxDepthResolvesFromHeightfield(): void {
   assert(nativeLodDepthResolver.resolve(TerrainHeightField.createFilled(400, 400, 65, 65, 0)) === 6, "65x65 should resolve native max depth 6.");
   assert(nativeLodDepthResolver.resolve(TerrainHeightField.createFilled(400, 400, 257, 257, 0)) === 8, "257x257 should resolve native max depth 8.");
+  assert(nativeLodDepthResolver.resolve(TerrainHeightField.createFilled(40, 40, 41, 41, 0)) === 6, "41x41 should allow enough depth to reach native source quads.");
 }
 
-function testQuadtreeSelectionRefinesNearAnchor(): void {
-  const field = TerrainHeightField.createFilled(400, 400, 65, 65, 0);
+function testGeneratedTerrainDefaultResolutionFollowsGridStep(): void {
+  const presetCatalog = new TerrainGeneratorPresetCatalog();
+  const descriptor = presetCatalog.createDescriptor({
+    presetId: "urban-pad",
+    size: [128, 128]
+  });
+  const explicitResolutionDescriptor = presetCatalog.createDescriptor({
+    presetId: "urban-pad",
+    size: [128, 128],
+    resolution: [65, 65]
+  });
+  const quadSizeX = descriptor.size[0] / (descriptor.resolution[0] - 1);
+  const quadSizeZ = descriptor.size[1] / (descriptor.resolution[1] - 1);
+
+  assert(descriptor.terrainGridStep === 1, "Generated terrain should record the default terrain grid step.");
+  assert(descriptor.resolution[0] === 129, "128m terrain should default to 129 source vertices on X.");
+  assert(descriptor.resolution[1] === 129, "128m terrain should default to 129 source vertices on Z.");
+  assertClose(quadSizeX, 1, "Default generated terrain source quad size X should match grid step.");
+  assertClose(quadSizeZ, 1, "Default generated terrain source quad size Z should match grid step.");
+  assert(
+    explicitResolutionDescriptor.resolution[0] === 65 && explicitResolutionDescriptor.resolution[1] === 65,
+    "Explicit generated terrain resolution should be preserved."
+  );
+  assert(explicitResolutionDescriptor.resolutionMode === "manual", "Explicit generated terrain resolution should select manual mode.");
+}
+
+function testQuadtreeSelectionRefinesNearAnchorToGridWorldSize(): void {
+  const field = TerrainHeightField.createFilled(128, 128, 129, 129, 0);
   const builder = new TerrainQuadtreeLodBuilder();
   const descriptor = quadtreeLodDescriptorResolver.resolve(undefined, field);
   const root = builder.buildRoot(field, descriptor.maxDepth);
@@ -368,21 +403,22 @@ function testQuadtreeSelectionRefinesNearAnchor(): void {
   assert(nearLeaves.every((leaf) => leaf.sampleStep === 1), "Near quadtree leaves should use source full-resolution sampleStep=1.");
   assert(
     nearLeaves.every((leaf) =>
-      Math.max(leaf.node.ix1 - leaf.node.ix0, leaf.node.iz1 - leaf.node.iz0) <=
-      descriptor.nearFullResolutionPatchQuads
+      Math.max(leaf.node.sizeWorldX, leaf.node.sizeWorldZ) <= descriptor.nearLeafWorldSize + 1e-6
     ),
-    "Near full-resolution leaves should split to the near patch quad budget, not the coarser far patch budget."
+    "Near full-resolution leaves should split to the requested near world-size grid."
   );
 }
 
-function testQuadtreeSelectionKeepsLargeTerrainPatchCountReasonable(): void {
-  const field = TerrainHeightField.createFilled(1024, 1024, 257, 257, 0);
+function testQuadtreeSelectionKeepsFarTerrainCoarse(): void {
+  const field = TerrainHeightField.createFilled(512, 512, 513, 513, 0);
   const builder = new TerrainQuadtreeLodBuilder();
   const descriptor = quadtreeLodDescriptorResolver.resolve(undefined, field);
   const root = builder.buildRoot(field, descriptor.maxDepth);
   const leaves = builder.selectVisibleLeaves(root, Vector3.Zero(), descriptor, field);
   const depths = new Set(leaves.map((leaf) => leaf.node.depth));
   const sampleSteps = new Set(leaves.map((leaf) => leaf.sampleStep));
+  const nearLeaves = leaves.filter((leaf) => leaf.distanceToAnchor <= descriptor.nearFullResolutionRadius);
+  const maxDepthLeaves = leaves.filter((leaf) => leaf.node.depth === descriptor.maxDepth);
   const coveredQuadCount = leaves.reduce((sum, leaf) => {
     const node = leaf.node;
     assert(node.ix0 >= 0 && node.iz0 >= 0, "Leaf node should not start outside the heightfield.");
@@ -392,12 +428,13 @@ function testQuadtreeSelectionKeepsLargeTerrainPatchCountReasonable(): void {
     return sum + ((node.ix1 - node.ix0) * (node.iz1 - node.iz0));
   }, 0);
 
-  assert(leaves.length < 1024, "Large terrain LOD should not force every max-depth patch visible.");
+  assert(leaves.length < (field.resolutionX - 1) * (field.resolutionZ - 1), "Large terrain LOD should not force every source quad visible as a max-depth patch.");
   assert(
     coveredQuadCount === (field.resolutionX - 1) * (field.resolutionZ - 1),
     "Selected quadtree leaves should cover the terrain quads without gaps or duplicate quad ranges."
   );
-  assert(sampleSteps.has(1), "Large terrain LOD should keep full-resolution sampleStep=1 near the anchor.");
+  assert(nearLeaves.length > 0, "Large terrain LOD should keep full-resolution leaves near the anchor.");
+  assert(nearLeaves.every((leaf) => leaf.sampleStep === 1), "Large terrain near leaves should use sampleStep=1.");
   assert(
     Array.from(sampleSteps).some((sampleStep) => sampleStep > 1),
     "Large terrain LOD should use coarser sample steps away from the anchor."
@@ -406,6 +443,18 @@ function testQuadtreeSelectionKeepsLargeTerrainPatchCountReasonable(): void {
     Array.from(depths).some((depth) => depth < descriptor.maxDepth),
     "Large terrain LOD should keep coarser patches away from the anchor."
   );
+  assert(maxDepthLeaves.length < leaves.length, "Large terrain LOD should not make every selected leaf a max-depth leaf.");
+}
+
+function testSourceDensityWarningPolicyUsesDesiredNearGridSize(): void {
+  const policy = new TerrainSourceDensityWarningPolicy();
+  const coarse = policy.diagnose(TerrainHeightField.createFilled(128, 128, 33, 33, 0), 1);
+  const dense = policy.diagnose(TerrainHeightField.createFilled(128, 128, 129, 129, 0), 1);
+
+  assertCloseWithin(coarse.sourceQuadSize, 4, 1e-6, "Coarse source quad size should be measured from the heightfield.");
+  assert(coarse.shouldWarn, "4m source quads should warn when desired near grid size is 1m.");
+  assertCloseWithin(dense.sourceQuadSize, 1, 1e-6, "Dense source quad size should be measured from the heightfield.");
+  assert(!dense.shouldWarn, "1m source quads should not warn when desired near grid size is 1m.");
 }
 
 function createFlatTerrainDescriptor(

@@ -3,6 +3,8 @@ import { EditorTerrainGridOverlay } from "../../src/editor/terrain/EditorTerrain
 import { TerrainHeightField } from "../../src/core/world/terrain/TerrainHeightField";
 import { TerrainMeshBuilder } from "../../src/core/world/terrain/TerrainMeshBuilder";
 import type { SceneGeneratedTerrainDescriptor } from "../../src/core/world/scene/SceneDescriptor";
+import { RECT_TILE_SIZE } from "../../src/core/grid/WorldGridConstants";
+import { TerrainGeneratorPresetCatalog } from "../../src/editor/terrain/generation/TerrainGeneratorPresets";
 
 function assert(condition: boolean, message: string): void {
   if (!condition) {
@@ -13,6 +15,7 @@ function assert(condition: boolean, message: string): void {
 function run(): void {
   testGeneratedTerrainGridCreatesEditorOnlyLineMesh();
   testGeneratedTerrainGridIgnoresVisualOnlyTerrainMeshes();
+  testGeneratedTerrainGridVerticesAlignToGameplayGrid();
 }
 
 run();
@@ -78,6 +81,44 @@ function testGeneratedTerrainGridIgnoresVisualOnlyTerrainMeshes(): void {
   engine.dispose();
 }
 
+function testGeneratedTerrainGridVerticesAlignToGameplayGrid(): void {
+  const engine = new NullEngine();
+  const scene = new Scene(engine);
+  const descriptor = new TerrainGeneratorPresetCatalog().createDescriptor({
+    presetId: "flat-gray",
+    size: [6, 4]
+  });
+  const heightField = TerrainHeightField.createFilled(
+    descriptor.size[0],
+    descriptor.size[1],
+    descriptor.resolution[0],
+    descriptor.resolution[1],
+    0
+  );
+  const mesh = new TerrainMeshBuilder().build(scene, descriptor, heightField);
+  mesh.metadata = {
+    ...(mesh.metadata as Record<string, unknown> | undefined),
+    generatedTerrainDescriptor: descriptor,
+    generatedTerrainHeightField: heightField,
+    terrainSurfaceCanonical: true
+  };
+
+  const overlay = new EditorTerrainGridOverlay(scene);
+  overlay.setGridVisible(true, [mesh]);
+  const gridMesh = scene.meshes.find((candidate) => candidate.metadata?.terrainKind === "editor-generated-terrain-grid");
+  const positions = gridMesh?.getVerticesData("position") ?? [];
+
+  assert(positions.length > 0, "Generated terrain grid should expose vertex positions for alignment checks.");
+  for (let index = 0; index < positions.length; index += 3) {
+    assertGridAligned(positions[index] ?? 0, `Terrain grid X position ${index / 3} should align to gameplay grid.`);
+    assertGridAligned(positions[index + 2] ?? 0, `Terrain grid Z position ${index / 3} should align to gameplay grid.`);
+  }
+
+  overlay.dispose();
+  scene.dispose();
+  engine.dispose();
+}
+
 function createGeneratedTerrainDescriptor(): SceneGeneratedTerrainDescriptor {
   return {
     id: "terrain-0",
@@ -102,4 +143,9 @@ function createGeneratedTerrainDescriptor(): SceneGeneratedTerrainDescriptor {
       color: "#8D9298"
     }
   };
+}
+
+function assertGridAligned(value: number, message: string): void {
+  const normalized = value / RECT_TILE_SIZE;
+  assert(Math.abs(normalized - Math.round(normalized)) < 1e-6, `${message} Received ${value}.`);
 }

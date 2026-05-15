@@ -4,6 +4,9 @@ import type { SceneLightingDescriptor } from "../../lighting/LightingTypes";
 export type SceneVector2Tuple = readonly [number, number];
 export type SceneVector3Tuple = readonly [number, number, number];
 export type SceneTerrainNormalMode = "smooth" | "flat";
+export type SceneGeneratedTerrainResolutionMode = "gridStep" | "manual";
+
+const MAX_GENERATED_TERRAIN_RESOLUTION = 4097;
 
 export interface SceneFlatTerrainMaterialDescriptor {
   readonly kind: "flat";
@@ -50,6 +53,7 @@ export interface SceneGeneratedTerrainLodDescriptor {
   readonly strategy?: "quadtree";
   readonly maxDepth?: number;
   readonly targetPatchQuads?: number;
+  readonly nearLeafWorldSize?: number;
   readonly nearFullResolutionPatchQuads?: number;
   readonly nearFullResolutionRadius?: number;
   readonly lodRings?: readonly SceneGeneratedTerrainLodRingDescriptor[];
@@ -131,6 +135,8 @@ export interface SceneGeneratedTerrainDescriptor {
   readonly id: string;
   readonly kind: "generated";
   readonly size: SceneVector2Tuple;
+  readonly terrainGridStep?: number;
+  readonly resolutionMode?: SceneGeneratedTerrainResolutionMode;
   readonly resolution: SceneVector2Tuple;
   readonly position?: SceneVector3Tuple;
   readonly rotation?: SceneVector3Tuple;
@@ -302,6 +308,11 @@ function parseGeneratedTerrainDescriptor(
     id,
     kind: "generated",
     size: parseTerrainSizeTuple(record.size, `${sourceLabel}.size`),
+    terrainGridStep:
+      record.terrainGridStep === undefined
+        ? undefined
+        : parseFiniteNumberInRange(record.terrainGridStep, `${sourceLabel}.terrainGridStep`, 0.0001, Number.POSITIVE_INFINITY),
+    resolutionMode: parseGeneratedTerrainResolutionMode(record.resolutionMode, `${sourceLabel}.resolutionMode`),
     resolution,
     position: parseVector3Tuple(record.position, `${sourceLabel}.position`),
     rotation: parseVector3Tuple(record.rotation, `${sourceLabel}.rotation`),
@@ -332,11 +343,20 @@ function parseGeneratedTerrainLodDescriptor(
     maxDepth:
       record.maxDepth === undefined
         ? undefined
-        : parseFiniteIntegerInRange(record.maxDepth, `${sourceLabel}.maxDepth`, 0, 8),
+        : parseFiniteIntegerInRange(record.maxDepth, `${sourceLabel}.maxDepth`, 0, 16),
     targetPatchQuads:
       record.targetPatchQuads === undefined
         ? undefined
         : parseFiniteIntegerInRange(record.targetPatchQuads, `${sourceLabel}.targetPatchQuads`, 1, 128),
+    nearLeafWorldSize:
+      record.nearLeafWorldSize === undefined
+        ? undefined
+        : parseFiniteNumberInRange(
+            record.nearLeafWorldSize,
+            `${sourceLabel}.nearLeafWorldSize`,
+            0.0001,
+            Number.POSITIVE_INFINITY
+          ),
     nearFullResolutionPatchQuads:
       record.nearFullResolutionPatchQuads === undefined
         ? undefined
@@ -693,11 +713,11 @@ function parseTerrainResolutionTuple(value: unknown, sourceLabel: string): Scene
   }
 
   const [x, z] = value;
-  const parsedX = parseFiniteIntegerInRange(x, `${sourceLabel}[0]`, 3, 257);
-  const parsedZ = parseFiniteIntegerInRange(z, `${sourceLabel}[1]`, 3, 257);
+  const parsedX = parseFiniteIntegerInRange(x, `${sourceLabel}[0]`, 3, MAX_GENERATED_TERRAIN_RESOLUTION);
+  const parsedZ = parseFiniteIntegerInRange(z, `${sourceLabel}[1]`, 3, MAX_GENERATED_TERRAIN_RESOLUTION);
 
   if (parsedX % 2 === 0 || parsedZ % 2 === 0) {
-    throw new Error(`${sourceLabel} must use odd integer values such as 33, 65, 129, or 257.`);
+    throw new Error(`${sourceLabel} must use odd integer values such as 33, 65, 129, 257, or 4097.`);
   }
 
   return [parsedX, parsedZ] as const;
@@ -771,6 +791,21 @@ function parseTerrainNormalMode(value: unknown, sourceLabel: string): SceneTerra
 
   if (value !== "smooth" && value !== "flat") {
     throw new Error(`${sourceLabel} must be 'smooth' or 'flat'.`);
+  }
+
+  return value;
+}
+
+function parseGeneratedTerrainResolutionMode(
+  value: unknown,
+  sourceLabel: string
+): SceneGeneratedTerrainResolutionMode {
+  if (value === undefined) {
+    return "gridStep";
+  }
+
+  if (value !== "gridStep" && value !== "manual") {
+    throw new Error(`${sourceLabel} must be 'gridStep' or 'manual'.`);
   }
 
   return value;

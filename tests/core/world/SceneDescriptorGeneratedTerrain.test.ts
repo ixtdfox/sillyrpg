@@ -15,6 +15,8 @@ function testParserAcceptsGeneratedTerrain(): void {
         id: "terrain-0",
         kind: "generated",
         size: [40, 40],
+        terrainGridStep: 1,
+        resolutionMode: "gridStep",
         resolution: [65, 65],
         position: [0, 0, 0],
         rotation: [0, 0, 0],
@@ -56,7 +58,49 @@ function testParserAcceptsGeneratedTerrain(): void {
   );
 
   assert(descriptor.terrain?.kind === "generated", "Expected generated terrain kind.");
+  assert(
+    descriptor.terrain?.kind === "generated" && descriptor.terrain.terrainGridStep === 1,
+    "Expected terrain grid step to parse."
+  );
+  assert(
+    descriptor.terrain?.kind === "generated" && descriptor.terrain.resolutionMode === "gridStep",
+    "Expected terrain resolution mode to parse."
+  );
   assert(descriptor.terrain?.kind === "generated" && descriptor.terrain.normalMode === "flat", "Expected normal mode to parse.");
+}
+
+function testParserDefaultsGeneratedTerrainResolutionModeToGridStep(): void {
+  const descriptor = parseSceneDescriptor(
+    {
+      schemaVersion: 2,
+      id: "generated-resolution-mode-default-scene",
+      terrain: {
+        id: "terrain-0",
+        kind: "generated",
+        size: [40, 40],
+        resolution: [41, 41],
+        generator: {
+          preset: "urban-pad",
+          seed: 1,
+          height: {
+            base: 0,
+            amplitude: 1,
+            frequency: 0.1,
+            octaves: 3,
+            persistence: 0.4,
+            lacunarity: 2
+          }
+        }
+      },
+      objects: []
+    },
+    "generated terrain default resolution mode test"
+  );
+
+  assert(
+    descriptor.terrain?.kind === "generated" && descriptor.terrain.resolutionMode === "gridStep",
+    "Expected missing generated terrain resolution mode to default to gridStep."
+  );
 }
 
 function testParserRejectsInvalidResolution(): void {
@@ -348,6 +392,7 @@ function testParserAcceptsGeneratedTerrainLodDescriptor(): void {
           strategy: "quadtree",
           maxDepth: 4,
           targetPatchQuads: 8,
+          nearLeafWorldSize: 1,
           nearFullResolutionPatchQuads: 4,
           nearFullResolutionRadius: 48,
           lodRings: [
@@ -371,6 +416,7 @@ function testParserAcceptsGeneratedTerrainLodDescriptor(): void {
     descriptor.terrain?.kind === "generated" &&
       descriptor.terrain.lod?.strategy === "quadtree" &&
       descriptor.terrain.lod.targetPatchQuads === 8 &&
+      descriptor.terrain.lod.nearLeafWorldSize === 1 &&
       descriptor.terrain.lod.nearFullResolutionPatchQuads === 4,
     "Expected quadtree terrain LOD descriptor to parse."
   );
@@ -544,6 +590,7 @@ function testParserRejectsMismatchedEditedHeightMapResolution(): void {
 
 function run(): void {
   testParserAcceptsGeneratedTerrain();
+  testParserDefaultsGeneratedTerrainResolutionModeToGridStep();
   testParserRejectsInvalidResolution();
   testParserRejectsNaNGeneratorParams();
   testParserAcceptsKnownStrategy();

@@ -4,8 +4,12 @@ import type { SceneGeneratedTerrainDescriptor, SceneTerrainDescriptor } from "..
 import { TerrainGenerator } from "./generation/TerrainGenerator";
 import { TerrainGeneratorPresetCatalog } from "./generation/TerrainGeneratorPresets";
 import {
+  DEFAULT_TERRAIN_GRID_STEP,
   DEFAULT_TERRAIN_PRESET,
+  MAX_TERRAIN_WORLD_SIZE,
   TerrainDescriptorCloner,
+  TerrainEditedMapCompatibilityPolicy,
+  TerrainGridAlignedResolutionPolicy,
   TerrainResolutionNormalizer
 } from "./generation/TerrainTypes";
 import type { TerrainGeneratorPanelViewModel } from "./EditorTerrainTypes";
@@ -21,6 +25,8 @@ export class EditorTerrainController {
   private readonly presetCatalog: TerrainGeneratorPresetCatalog;
   private readonly descriptorCloner: TerrainDescriptorCloner;
   private readonly resolutionNormalizer: TerrainResolutionNormalizer;
+  private readonly gridAlignedResolutionPolicy: TerrainGridAlignedResolutionPolicy;
+  private readonly editedMapCompatibilityPolicy: TerrainEditedMapCompatibilityPolicy;
   private readonly callbacks: EditorTerrainControllerCallbacks;
   private document: EditorSceneDocument | null;
   private sceneLoader: EditorSceneLoader | null;
@@ -36,13 +42,17 @@ export class EditorTerrainController {
     generator = new TerrainGenerator(),
     presetCatalog = new TerrainGeneratorPresetCatalog(),
     descriptorCloner = new TerrainDescriptorCloner(),
-    resolutionNormalizer = new TerrainResolutionNormalizer()
+    resolutionNormalizer = new TerrainResolutionNormalizer(),
+    gridAlignedResolutionPolicy = new TerrainGridAlignedResolutionPolicy(),
+    editedMapCompatibilityPolicy = new TerrainEditedMapCompatibilityPolicy()
   ) {
     this.callbacks = callbacks;
     this.generator = generator;
     this.presetCatalog = presetCatalog;
     this.descriptorCloner = descriptorCloner;
     this.resolutionNormalizer = resolutionNormalizer;
+    this.gridAlignedResolutionPolicy = gridAlignedResolutionPolicy;
+    this.editedMapCompatibilityPolicy = editedMapCompatibilityPolicy;
     this.document = null;
     this.sceneLoader = null;
     this.draft = null;
@@ -90,13 +100,11 @@ export class EditorTerrainController {
   }
 
   public updateDraft(nextDraft: SceneGeneratedTerrainDescriptor): void {
-    this.draft = this.normalizeDraft({
-      ...nextDraft,
-      editedHeightMap: undefined
-    });
+    const compatibility = this.normalizeDraftWithCompatibility(nextDraft);
+    this.draft = compatibility.descriptor;
     this.stats = this.computeStats(this.draft);
     this.draftDirty = this.resolveDraftDirty();
-    this.message = this.draftDirty ? "Terrain draft updated. Click Generate to apply changes." : "Draft matches the applied terrain.";
+    this.message = resolveDraftUpdateMessage(compatibility, this.draftDirty);
     this.callbacks.onStatusMessageChanged(this.message);
     this.callbacks.onChanged();
   }
@@ -109,7 +117,8 @@ export class EditorTerrainController {
     try {
       const descriptorToApply = this.normalizeDraft({
         ...this.draft,
-        editedHeightMap: undefined
+        editedHeightMap: undefined,
+        editedTextureMap: undefined
       });
       this.stats = this.computeStats(descriptorToApply);
       const stats = this.stats;
@@ -223,9 +232,25 @@ export class EditorTerrainController {
   }
 
   private normalizeDraft(descriptor: SceneGeneratedTerrainDescriptor): SceneGeneratedTerrainDescriptor {
+    return this.normalizeDraftWithCompatibility(descriptor).descriptor;
+  }
+
+  private normalizeDraftWithCompatibility(descriptor: SceneGeneratedTerrainDescriptor) {
     const preset = this.presetCatalog.getPreset(descriptor.generator.preset);
-    const resolutionX = this.resolutionNormalizer.normalize(descriptor.resolution[0]);
-    const resolutionZ = this.resolutionNormalizer.normalize(descriptor.resolution[1]);
+    const resolutionMode = descriptor.resolutionMode ?? "gridStep";
+    const requestedSize = [clampSize(descriptor.size[0]), clampSize(descriptor.size[1])] as const;
+    const gridDiagnostics = this.gridAlignedResolutionPolicy.resolveWithDiagnostics(
+      requestedSize,
+      descriptor.terrainGridStep ?? DEFAULT_TERRAIN_GRID_STEP
+    );
+    const terrainGridStep = gridDiagnostics.terrainGridStep;
+    const size = resolutionMode === "gridStep" ? gridDiagnostics.snappedSize : requestedSize;
+    const resolution = resolutionMode === "gridStep"
+      ? gridDiagnostics.resolution
+      : ([
+          this.resolutionNormalizer.normalize(descriptor.resolution[0]),
+          this.resolutionNormalizer.normalize(descriptor.resolution[1])
+        ] as const);
     const presetMaterial = this.descriptorCloner.cloneMaterial(
       preset.material ??
         this.presetCatalog.getPreset(DEFAULT_TERRAIN_PRESET).material
@@ -244,10 +269,12 @@ export class EditorTerrainController {
             color: descriptor.material?.color ?? presetMaterial?.color ?? "#8D9298",
             emissive: descriptor.material?.emissive !== undefined ? descriptor.material.emissive : presetMaterial?.emissive
           };
-    return {
+    const normalized = {
       ...this.descriptorCloner.cloneDescriptor(descriptor),
-      size: [clampSize(descriptor.size[0]), clampSize(descriptor.size[1])] as const,
-      resolution: [resolutionX, resolutionZ] as const,
+      size,
+      terrainGridStep,
+      resolutionMode,
+      resolution,
       material,
       generator: {
         ...descriptor.generator,
@@ -287,6 +314,7 @@ export class EditorTerrainController {
           : undefined
       }
     };
+    return this.editedMapCompatibilityPolicy.clearIncompatibleEditedMaps(descriptor, normalized);
   }
 
   private computeStats(descriptor: SceneGeneratedTerrainDescriptor): TerrainGeneratorPanelViewModel["stats"] {
@@ -300,6 +328,58 @@ export class EditorTerrainController {
   }
 }
 
+function resolveSourceQuadSize(
+  descriptor: SceneGeneratedTerrainDescriptor
+): readonly [number, number] {
+  return [
+    descriptor.resolution[0] <= 1 ? descriptor.size[0] : descriptor.size[0] / (descriptor.resolution[0] - 1),
+    descriptor.resolution[1] <= 1 ? descriptor.size[1] : descriptor.size[1] / (descriptor.resolution[1] - 1)
+  ] as const;
+}
+
+function resolveSourceDensityWarning(descriptor: SceneGeneratedTerrainDescriptor): string | null {
+  const gridStep = descriptor.terrainGridStep ?? DEFAULT_TERRAIN_GRID_STEP;
+  const [quadSizeX, quadSizeZ] = resolveSourceQuadSize(descriptor);
+  const tolerance = Math.max(0.001, gridStep * 0.01);
+  if (Math.abs(quadSizeX - gridStep) <= tolerance && Math.abs(quadSizeZ - gridStep) <= tolerance) {
+    return null;
+  }
+
+  return ` Source quads are ${quadSizeX.toFixed(2)} x ${quadSizeZ.toFixed(2)}m; gameplay grid step is ${gridStep.toFixed(2)}m.`;
+}
+
+function resolveEditedMapMessage(input: {
+  readonly clearedHeightMap: boolean;
+  readonly clearedTextureMap: boolean;
+}): string {
+  if (input.clearedHeightMap && input.clearedTextureMap) {
+    return " Incompatible edited height and texture maps were cleared.";
+  }
+
+  if (input.clearedHeightMap) {
+    return " Incompatible edited height map was cleared.";
+  }
+
+  if (input.clearedTextureMap) {
+    return " Incompatible edited texture map was cleared.";
+  }
+
+  return "";
+}
+
+function resolveDraftMessagePrefix(isDirty: boolean): string {
+  return isDirty ? "Terrain draft updated. Click Generate to apply changes." : "Draft matches the applied terrain.";
+}
+
+function resolveDraftUpdateMessage(input: {
+  readonly descriptor: SceneGeneratedTerrainDescriptor;
+  readonly clearedHeightMap: boolean;
+  readonly clearedTextureMap: boolean;
+}, isDirty?: boolean): string {
+  const prefix = resolveDraftMessagePrefix(isDirty ?? true);
+  return `${prefix}${resolveEditedMapMessage(input)}${resolveSourceDensityWarning(input.descriptor) ?? ""}`;
+}
+
 function clamp(value: number, min: number, max: number): number {
   if (!Number.isFinite(value)) {
     return min;
@@ -309,7 +389,7 @@ function clamp(value: number, min: number, max: number): number {
 }
 
 function clampSize(value: number): number {
-  return clamp(value, 1, 1024);
+  return clamp(value, 1, MAX_TERRAIN_WORLD_SIZE);
 }
 
 function describeTerrain(terrain: SceneTerrainDescriptor | null | undefined): string {

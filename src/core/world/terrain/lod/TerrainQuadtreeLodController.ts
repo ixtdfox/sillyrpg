@@ -13,6 +13,7 @@ import { TerrainQuadtreePatchMeshBuilder } from "./TerrainQuadtreePatchMeshBuild
 import {
   TerrainQuadSizeCalculator,
   TerrainQuadtreeLodDescriptorResolver,
+  TerrainSourceDensityWarningPolicy,
   type ResolvedTerrainQuadtreeLodDescriptor,
   type TerrainLodAnchor,
   type TerrainQuadtreeLeafSelection,
@@ -93,6 +94,7 @@ export class TerrainQuadtreeLodController {
   private readonly patchBuilder: TerrainQuadtreePatchMeshBuilder;
   private readonly lodDescriptorResolver: TerrainQuadtreeLodDescriptorResolver;
   private readonly quadSizeCalculator: TerrainQuadSizeCalculator;
+  private readonly sourceDensityWarningPolicy: TerrainSourceDensityWarningPolicy;
   private readonly leafMeshKeyFactory: TerrainLeafMeshKeyFactory;
   private readonly debugStyle: TerrainLodDebugStyle;
   private readonly debugFormatter: TerrainLodDebugFormatter;
@@ -115,6 +117,7 @@ export class TerrainQuadtreeLodController {
     patchBuilder = new TerrainQuadtreePatchMeshBuilder(),
     lodDescriptorResolver = new TerrainQuadtreeLodDescriptorResolver(),
     quadSizeCalculator = new TerrainQuadSizeCalculator(),
+    sourceDensityWarningPolicy = new TerrainSourceDensityWarningPolicy(),
     leafMeshKeyFactory = new TerrainLeafMeshKeyFactory(),
     debugStyle = new TerrainLodDebugStyle(),
     debugFormatter = new TerrainLodDebugFormatter()
@@ -129,6 +132,7 @@ export class TerrainQuadtreeLodController {
     this.lodBuilder = lodBuilder;
     this.patchBuilder = patchBuilder;
     this.quadSizeCalculator = quadSizeCalculator;
+    this.sourceDensityWarningPolicy = sourceDensityWarningPolicy;
     this.leafMeshKeyFactory = leafMeshKeyFactory;
     this.debugStyle = debugStyle;
     this.debugFormatter = debugFormatter;
@@ -218,14 +222,29 @@ export class TerrainQuadtreeLodController {
   public getDiagnostics(): TerrainQuadtreeLodDiagnostics {
     const depthCounts = new Map<number, number>();
     const sampleStepCounts = new Map<number, number>();
+    const horizontalWorldScale = this.getHorizontalWorldScale();
+    const sourceQuadSize = this.quadSizeCalculator.compute(this.heightField) * horizontalWorldScale;
     let maxDepth = 0;
+    let minLeafWorldSize: number | null = null;
+    let maxLeafWorldSize: number | null = null;
+    let minNearLeafWorldSize: number | null = null;
+    let maxNearLeafWorldSize: number | null = null;
     let minDistanceToAnchor: number | null = null;
     let maxDistanceToAnchor: number | null = null;
     for (const leaf of this.activeLeaves) {
       const node = leaf.node;
+      const leafWorldSize = Math.max(node.sizeWorldX, node.sizeWorldZ) * horizontalWorldScale;
       depthCounts.set(node.depth, (depthCounts.get(node.depth) ?? 0) + 1);
       sampleStepCounts.set(leaf.sampleStep, (sampleStepCounts.get(leaf.sampleStep) ?? 0) + 1);
       maxDepth = Math.max(maxDepth, node.depth);
+      minLeafWorldSize = minLeafWorldSize === null ? leafWorldSize : Math.min(minLeafWorldSize, leafWorldSize);
+      maxLeafWorldSize = maxLeafWorldSize === null ? leafWorldSize : Math.max(maxLeafWorldSize, leafWorldSize);
+      if (leaf.distanceToAnchor <= this.lodDescriptor.nearFullResolutionRadius) {
+        minNearLeafWorldSize =
+          minNearLeafWorldSize === null ? leafWorldSize : Math.min(minNearLeafWorldSize, leafWorldSize);
+        maxNearLeafWorldSize =
+          maxNearLeafWorldSize === null ? leafWorldSize : Math.max(maxNearLeafWorldSize, leafWorldSize);
+      }
       minDistanceToAnchor =
         minDistanceToAnchor === null ? leaf.distanceToAnchor : Math.min(minDistanceToAnchor, leaf.distanceToAnchor);
       maxDistanceToAnchor =
@@ -238,6 +257,12 @@ export class TerrainQuadtreeLodController {
       anchorSource: this.lastAnchorSource,
       depthCounts,
       sampleStepCounts,
+      sourceQuadSize,
+      desiredNearLeafWorldSize: this.lodDescriptor.nearLeafWorldSize,
+      minLeafWorldSize,
+      maxLeafWorldSize,
+      minNearLeafWorldSize,
+      maxNearLeafWorldSize,
       minDistanceToAnchor,
       maxDistanceToAnchor
     };
@@ -399,13 +424,24 @@ export class TerrainQuadtreeLodController {
       diagnostics.minDistanceToAnchor === null || diagnostics.maxDistanceToAnchor === null
         ? "n/a"
         : `${diagnostics.minDistanceToAnchor.toFixed(1)}..${diagnostics.maxDistanceToAnchor.toFixed(1)}`;
+    const leafSizeRange =
+      diagnostics.minLeafWorldSize === null || diagnostics.maxLeafWorldSize === null
+        ? "n/a"
+        : `${diagnostics.minLeafWorldSize.toFixed(2)}..${diagnostics.maxLeafWorldSize.toFixed(2)}`;
+    const nearLeafSizeRange =
+      diagnostics.minNearLeafWorldSize === null || diagnostics.maxNearLeafWorldSize === null
+        ? "n/a"
+        : `${diagnostics.minNearLeafWorldSize.toFixed(2)}..${diagnostics.maxNearLeafWorldSize.toFixed(2)}`;
     console.debug(
       `${prefix} visibleLeaves=${diagnostics.visibleLeafCount} maxDepth=${diagnostics.maxDepth} ` +
       `anchor=${diagnostics.anchorSource ?? "none"} depths=[${depthSummary}] ` +
       `sampleSteps=[${sampleStepSummary}] skirtDepth=${this.lodDescriptor.skirtDepth.toFixed(2)} ` +
+      `sourceQuad=${diagnostics.sourceQuadSize.toFixed(2)} ` +
       `nearRadius=${this.lodDescriptor.nearFullResolutionRadius.toFixed(1)} ` +
-      `nearPatchQuads=${this.lodDescriptor.nearFullResolutionPatchQuads} ` +
-      `targetPatchQuads=${this.lodDescriptor.targetPatchQuads} distance=${distanceRange}`
+      `desiredNearLeaf=${diagnostics.desiredNearLeafWorldSize.toFixed(2)} ` +
+      `legacyNearPatchQuads=${this.lodDescriptor.nearFullResolutionPatchQuads} ` +
+      `targetPatchQuads=${this.lodDescriptor.targetPatchQuads} ` +
+      `leafSize=${leafSizeRange} nearLeafSize=${nearLeafSizeRange} distance=${distanceRange}`
     );
   }
 
@@ -433,15 +469,22 @@ export class TerrainQuadtreeLodController {
       return;
     }
 
-    const quadSize = this.quadSizeCalculator.compute(this.heightField);
-    if (quadSize <= 4) {
+    const diagnostic = this.sourceDensityWarningPolicy.diagnose(
+      this.heightField,
+      this.lodDescriptor.nearLeafWorldSize,
+      this.getHorizontalWorldScale()
+    );
+    if (!diagnostic.shouldWarn) {
       return;
     }
 
     this.warnedLowSourceDensity = true;
     console.warn(
       `[TerrainLOD] Low terrain source density: size=${this.heightField.width}x${this.heightField.depth} ` +
-      `resolution=${this.heightField.resolutionX}x${this.heightField.resolutionZ} quadSize=${quadSize.toFixed(2)}. ` +
+      `resolution=${this.heightField.resolutionX}x${this.heightField.resolutionZ} ` +
+      `sourceQuadSize=${diagnostic.sourceQuadSize.toFixed(2)} ` +
+      `desiredNearQuadSize=${diagnostic.desiredNearQuadSize.toFixed(2)} ` +
+      `warningThreshold=${diagnostic.warningThreshold.toFixed(2)}. ` +
       "Near LOD can only match source heightfield, not add details."
     );
   }

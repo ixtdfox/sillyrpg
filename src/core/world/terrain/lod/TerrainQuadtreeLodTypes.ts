@@ -18,6 +18,7 @@ export interface TerrainQuadtreeLodDescriptor {
   readonly strategy?: TerrainQuadtreeLodStrategy;
   readonly maxDepth?: number;
   readonly targetPatchQuads?: number;
+  readonly nearLeafWorldSize?: number;
   readonly nearFullResolutionPatchQuads?: number;
   readonly nearFullResolutionRadius?: number;
   readonly lodRings?: readonly TerrainQuadtreeLodRing[];
@@ -38,6 +39,7 @@ export interface ResolvedTerrainQuadtreeLodDescriptor {
   readonly strategy: TerrainQuadtreeLodStrategy;
   readonly maxDepth: number;
   readonly targetPatchQuads: number;
+  readonly nearLeafWorldSize: number;
   readonly nearFullResolutionPatchQuads: number;
   readonly nearFullResolutionRadius: number;
   readonly lodRings: readonly TerrainQuadtreeLodRing[];
@@ -90,8 +92,21 @@ export interface TerrainQuadtreeLodDiagnostics {
   readonly anchorSource: TerrainLodAnchor["source"] | null;
   readonly depthCounts: ReadonlyMap<number, number>;
   readonly sampleStepCounts: ReadonlyMap<number, number>;
+  readonly sourceQuadSize: number;
+  readonly desiredNearLeafWorldSize: number;
+  readonly minLeafWorldSize: number | null;
+  readonly maxLeafWorldSize: number | null;
+  readonly minNearLeafWorldSize: number | null;
+  readonly maxNearLeafWorldSize: number | null;
   readonly minDistanceToAnchor: number | null;
   readonly maxDistanceToAnchor: number | null;
+}
+
+export interface TerrainSourceDensityDiagnostic {
+  readonly sourceQuadSize: number;
+  readonly desiredNearQuadSize: number;
+  readonly warningThreshold: number;
+  readonly shouldWarn: boolean;
 }
 
 export const DEFAULT_TERRAIN_QUADTREE_LOD = {
@@ -99,6 +114,7 @@ export const DEFAULT_TERRAIN_QUADTREE_LOD = {
   strategy: "quadtree",
   maxDepth: undefined,
   targetPatchQuads: 8,
+  nearLeafWorldSize: 1,
   nearFullResolutionPatchQuads: 4,
   nearFullResolutionRadius: 48,
   lodRings: [
@@ -128,7 +144,7 @@ export class TerrainNativeLodDepthResolver {
     }
 
     const minQuads = Math.max(1, Math.min(heightField.resolutionX - 1, heightField.resolutionZ - 1));
-    return Math.max(0, Math.floor(Math.log2(minQuads)));
+    return Math.max(0, Math.ceil(Math.log2(minQuads)));
   }
 }
 
@@ -152,6 +168,38 @@ export class TerrainQuadSizeCalculator {
 }
 
 /**
+ * Diagnostic policy for source heightfield density versus desired near-grid size.
+ */
+export class TerrainSourceDensityWarningPolicy {
+  private readonly quadSizeCalculator: TerrainQuadSizeCalculator;
+
+  public constructor(quadSizeCalculator = new TerrainQuadSizeCalculator()) {
+    this.quadSizeCalculator = quadSizeCalculator;
+  }
+
+  public diagnose(
+    heightField: {
+      readonly width: number;
+      readonly depth: number;
+      readonly resolutionX: number;
+      readonly resolutionZ: number;
+    },
+    desiredNearQuadSize: number,
+    horizontalWorldScale = 1
+  ): TerrainSourceDensityDiagnostic {
+    const sourceQuadSize = this.quadSizeCalculator.compute(heightField) * Math.max(0.0001, horizontalWorldScale);
+    const desired = Math.max(0.0001, desiredNearQuadSize);
+    const warningThreshold = desired * 1.25;
+    return {
+      sourceQuadSize,
+      desiredNearQuadSize: desired,
+      warningThreshold,
+      shouldWarn: sourceQuadSize > warningThreshold
+    };
+  }
+}
+
+/**
  * Резолвер descriptor'а quadtree LOD.
  *
  * Поддерживает legacy поля `basePatchQuads` и `splitDistances`, но возвращает
@@ -159,9 +207,14 @@ export class TerrainQuadSizeCalculator {
  */
 export class TerrainQuadtreeLodDescriptorResolver {
   private readonly nativeDepthResolver: TerrainNativeLodDepthResolver;
+  private readonly quadSizeCalculator: TerrainQuadSizeCalculator;
 
-  public constructor(nativeDepthResolver = new TerrainNativeLodDepthResolver()) {
+  public constructor(
+    nativeDepthResolver = new TerrainNativeLodDepthResolver(),
+    quadSizeCalculator = new TerrainQuadSizeCalculator()
+  ) {
     this.nativeDepthResolver = nativeDepthResolver;
+    this.quadSizeCalculator = quadSizeCalculator;
   }
 
   /**
@@ -184,12 +237,17 @@ export class TerrainQuadtreeLodDescriptorResolver {
       descriptor?.lodRings ??
       this.convertLegacySplitDistancesToRings(descriptor?.splitDistances) ??
       DEFAULT_TERRAIN_QUADTREE_LOD.lodRings;
+    const nearLeafWorldSize =
+      descriptor?.nearLeafWorldSize ??
+      this.resolveLegacyNearLeafWorldSize(descriptor, heightField) ??
+      DEFAULT_TERRAIN_QUADTREE_LOD.nearLeafWorldSize;
 
     return {
       enabled: descriptor?.enabled ?? DEFAULT_TERRAIN_QUADTREE_LOD.enabled,
       strategy: descriptor?.strategy ?? DEFAULT_TERRAIN_QUADTREE_LOD.strategy,
       maxDepth: descriptor?.maxDepth ?? this.nativeDepthResolver.resolve(heightField),
       targetPatchQuads,
+      nearLeafWorldSize: Math.max(0.0001, nearLeafWorldSize),
       nearFullResolutionPatchQuads:
         descriptor?.nearFullResolutionPatchQuads ??
         DEFAULT_TERRAIN_QUADTREE_LOD.nearFullResolutionPatchQuads,
@@ -201,6 +259,24 @@ export class TerrainQuadtreeLodDescriptorResolver {
       skirtDepth: descriptor?.skirtDepth ?? DEFAULT_TERRAIN_QUADTREE_LOD.skirtDepth,
       debug: descriptor?.debug ?? DEFAULT_TERRAIN_QUADTREE_LOD.debug
     };
+  }
+
+  private resolveLegacyNearLeafWorldSize(
+    descriptor: TerrainQuadtreeLodDescriptor | null | undefined,
+    heightField:
+      | {
+          readonly width: number;
+          readonly depth: number;
+          readonly resolutionX: number;
+          readonly resolutionZ: number;
+        }
+      | undefined
+  ): number | undefined {
+    if (descriptor?.nearFullResolutionPatchQuads === undefined || !heightField) {
+      return undefined;
+    }
+
+    return descriptor.nearFullResolutionPatchQuads * this.quadSizeCalculator.compute(heightField);
   }
 
   private convertLegacySplitDistancesToRings(splitDistances: readonly number[] | undefined): readonly TerrainQuadtreeLodRing[] | undefined {

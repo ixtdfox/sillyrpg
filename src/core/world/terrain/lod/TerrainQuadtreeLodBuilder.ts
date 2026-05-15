@@ -1,10 +1,9 @@
 import { Vector3 } from "@babylonjs/core";
 import type { TerrainHeightField } from "../TerrainHeightField";
-import {
-  TerrainQuadSizeCalculator,
-  type ResolvedTerrainQuadtreeLodDescriptor,
-  type TerrainQuadtreeLeafSelection,
-  type TerrainQuadtreeNode
+import type {
+  ResolvedTerrainQuadtreeLodDescriptor,
+  TerrainQuadtreeLeafSelection,
+  TerrainQuadtreeNode
 } from "./TerrainQuadtreeLodTypes";
 
 /**
@@ -47,12 +46,6 @@ class TerrainQuadtreeNodeGeometry {
  * Политика выбора sample step для quadtree patch.
  */
 export class TerrainQuadtreeSampleStepPolicy {
-  private readonly quadSizeCalculator: TerrainQuadSizeCalculator;
-
-  public constructor(quadSizeCalculator = new TerrainQuadSizeCalculator()) {
-    this.quadSizeCalculator = quadSizeCalculator;
-  }
-
   /**
    * Считает естественный sample step, чтобы patch не превышал целевой бюджет quad'ов.
    */
@@ -94,13 +87,10 @@ export class TerrainQuadtreeSampleStepPolicy {
   }
 
   /**
-   * Переводит near-full-resolution patch budget из quad'ов в world size.
+   * Возвращает желаемый world size near-field leaf.
    */
-  public computeNearPatchWorldSize(
-    heightField: TerrainHeightField,
-    descriptor: ResolvedTerrainQuadtreeLodDescriptor
-  ): number {
-    return Math.max(0.0001, descriptor.nearFullResolutionPatchQuads * this.quadSizeCalculator.compute(heightField));
+  public computeNearLeafWorldSize(descriptor: ResolvedTerrainQuadtreeLodDescriptor): number {
+    return Math.max(0.0001, descriptor.nearLeafWorldSize);
   }
 }
 
@@ -205,7 +195,8 @@ export class TerrainQuadtreeLodBuilder {
     const sampleStep = this.sampleStepPolicy.computePatchSampleStep(node, descriptor.targetPatchQuads, desiredMaxSampleStep);
     const nodeTooLargeNearPlayer =
       distanceToNode <= descriptor.nearFullResolutionRadius &&
-      Math.max(node.sizeWorldX, node.sizeWorldZ) * horizontalWorldScale > this.sampleStepPolicy.computeNearPatchWorldSize(heightField, descriptor);
+      Math.max(node.sizeWorldX, node.sizeWorldZ) * horizontalWorldScale >
+        this.sampleStepPolicy.computeNearLeafWorldSize(descriptor);
     const shouldSplit =
       node.children.length > 0 &&
       node.depth < descriptor.maxDepth &&

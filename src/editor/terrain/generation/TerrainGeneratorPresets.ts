@@ -1,20 +1,22 @@
 import type {
   SceneGeneratedTerrainDescriptor,
   SceneGeneratedTerrainMaterialDescriptor,
+  SceneGeneratedTerrainResolutionMode,
   SceneTerrainGeneratorDescriptor,
   SceneTerrainMaterialBandDescriptor,
   SceneVector2Tuple,
   SceneVector3Tuple
 } from "../../../core/world/scene/SceneDescriptor";
 import {
+  DEFAULT_TERRAIN_GRID_STEP,
   DEFAULT_TERRAIN_ID,
   DEFAULT_TERRAIN_POSITION,
   DEFAULT_TERRAIN_PRESET,
-  DEFAULT_TERRAIN_RESOLUTION,
   DEFAULT_TERRAIN_ROTATION,
   DEFAULT_TERRAIN_SCALE,
   DEFAULT_TERRAIN_SIZE,
-  TerrainDescriptorCloner
+  TerrainDescriptorCloner,
+  TerrainGridAlignedResolutionPolicy
 } from "./TerrainTypes";
 
 /**
@@ -262,9 +264,14 @@ const PRESETS: readonly TerrainGeneratorPreset[] = [
  */
 export class TerrainGeneratorPresetCatalog {
   private readonly descriptorCloner: TerrainDescriptorCloner;
+  private readonly gridAlignedResolutionPolicy: TerrainGridAlignedResolutionPolicy;
 
-  public constructor(descriptorCloner = new TerrainDescriptorCloner()) {
+  public constructor(
+    descriptorCloner = new TerrainDescriptorCloner(),
+    gridAlignedResolutionPolicy = new TerrainGridAlignedResolutionPolicy()
+  ) {
     this.descriptorCloner = descriptorCloner;
+    this.gridAlignedResolutionPolicy = gridAlignedResolutionPolicy;
   }
 
   /**
@@ -292,19 +299,39 @@ export class TerrainGeneratorPresetCatalog {
     readonly position?: SceneVector3Tuple;
     readonly rotation?: SceneVector3Tuple;
     readonly scale?: SceneVector3Tuple;
+    readonly terrainGridStep?: number;
+    readonly resolutionMode?: SceneGeneratedTerrainResolutionMode;
     readonly seed?: number;
   }): SceneGeneratedTerrainDescriptor {
     const preset = this.getPreset(options?.presetId ?? DEFAULT_TERRAIN_PRESET);
+    const size = options?.size ?? DEFAULT_TERRAIN_SIZE;
+    const terrainGridStep = options?.terrainGridStep ?? DEFAULT_TERRAIN_GRID_STEP;
+    const resolutionMode = options?.resolutionMode ?? (options?.resolution ? "manual" : "gridStep");
+    const resolutionDiagnostics = this.gridAlignedResolutionPolicy.resolveWithDiagnostics(size, terrainGridStep);
     const generator = {
       ...this.descriptorCloner.cloneGenerator(preset.generator),
       seed: options?.seed ?? preset.generator.seed
     };
 
+    if (resolutionMode === "gridStep" && resolutionDiagnostics.clamped) {
+      console.warn(
+        `[TerrainGeneration] Requested terrainGridStep=${resolutionDiagnostics.terrainGridStep.toFixed(2)} ` +
+        `for size=${size[0]}x${size[1]} requires resolution ` +
+        `${Math.floor(resolutionDiagnostics.requestedQuadCounts[0]) + 1}x` +
+        `${Math.floor(resolutionDiagnostics.requestedQuadCounts[1]) + 1}, ` +
+        `but max supported resolution is ${resolutionDiagnostics.resolution[0]}x${resolutionDiagnostics.resolution[1]}. ` +
+        `Actual source quad size is ${resolutionDiagnostics.actualQuadSize[0].toFixed(2)}x` +
+        `${resolutionDiagnostics.actualQuadSize[1].toFixed(2)}.`
+      );
+    }
+
     return {
       id: options?.id ?? DEFAULT_TERRAIN_ID,
       kind: "generated",
-      size: options?.size ?? DEFAULT_TERRAIN_SIZE,
-      resolution: options?.resolution ?? DEFAULT_TERRAIN_RESOLUTION,
+      size: resolutionMode === "gridStep" ? resolutionDiagnostics.snappedSize : size,
+      terrainGridStep: resolutionDiagnostics.terrainGridStep,
+      resolutionMode,
+      resolution: resolutionMode === "gridStep" ? resolutionDiagnostics.resolution : options?.resolution ?? resolutionDiagnostics.resolution,
       position: options?.position ?? DEFAULT_TERRAIN_POSITION,
       rotation: options?.rotation ?? DEFAULT_TERRAIN_ROTATION,
       scale: options?.scale ?? DEFAULT_TERRAIN_SCALE,
