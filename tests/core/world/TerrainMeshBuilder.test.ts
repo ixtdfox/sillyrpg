@@ -222,14 +222,16 @@ function run(): void {
   testFlatNormalModeDuplicatesVerticesForFacetedNormals();
   testFlatTerrainMeshBoundsStayOnGroundPlane();
   testBakedTextureTerrainUsesDiffuseTextureMaterial();
-  testQuadtreePatchUsesGlobalUvsAndSkirts();
-  testQuadtreePatchUsesCanonicalNormalsAcrossLodLevelsAndSkirts();
+  testQuadtreePatchUsesGlobalUvsWithoutSkirts();
+  testQuadtreePatchUsesCanonicalNormalsAcrossLodLevels();
   testQuadtreePatchSampleStepOneMatchesCanonicalWindingAndMetadata();
   testQuadtreeSeamResolverDetectsMixedLodNeighbors();
   testQuadtreePatchMeshKeepsLogicalGridAndBuildDiagnostics();
   testQuadtreePatchSeamRefinementMatchesSharedEdgeVertices();
+  testQuadtreePatchEdgeFansBridgeMixedLodWithoutSkirts();
   testGeneratedTerrainDefaultResolutionFollowsGridStep();
   testNativeMaxDepthResolvesFromHeightfield();
+  testQuadtreeLodHasNoSkirtDepth();
   testQuadtreeSampleStepPolicyTreatsRingStepAsMinimumDecimation();
   testQuadtreeSampleStepPolicyKeepsNaturalBudgetFloor();
   testQuadtreeSelectionKeepsNearFullResolutionInLargerPatches();
@@ -366,15 +368,14 @@ function mergeVertexMaps(...maps: readonly Map<string, string>[]): Map<string, s
   return new Map([...merged.entries()].sort(([left], [right]) => Number(left) - Number(right)));
 }
 
-function testQuadtreePatchUsesGlobalUvsAndSkirts(): void {
+function testQuadtreePatchUsesGlobalUvsWithoutSkirts(): void {
   const field = TerrainHeightField.createFilled(8, 8, 9, 9, 0);
   const root = new TerrainQuadtreeLodBuilder().buildRoot(field, 0);
   const geometry = new TerrainQuadtreePatchMeshBuilder().buildVertexData(
     field,
     root,
     createFlatTerrainDescriptor(8, 8, 9, 9),
-    1,
-    2
+    1
   );
   const uvValues = geometry.uvs;
   const minU = Math.min(...uvValues.filter((_value, index) => index % 2 === 0));
@@ -387,10 +388,10 @@ function testQuadtreePatchUsesGlobalUvsAndSkirts(): void {
   assertClose(maxU, 1, "Patch UVs should keep global maximum U.");
   assertClose(minV, 0, "Patch UVs should keep global minimum V.");
   assertClose(maxV, 1, "Patch UVs should keep global maximum V.");
-  assert(Math.min(...yValues) <= -2, "Patch skirts should extend below the terrain edge.");
+  assert(Math.min(...yValues) === 0 && Math.max(...yValues) === 0, "Patch vertices should stay on the terrain surface without skirt geometry.");
 }
 
-function testQuadtreePatchUsesCanonicalNormalsAcrossLodLevelsAndSkirts(): void {
+function testQuadtreePatchUsesCanonicalNormalsAcrossLodLevels(): void {
   const field = new TerrainHeightField(
     8,
     8,
@@ -409,35 +410,20 @@ function testQuadtreePatchUsesCanonicalNormalsAcrossLodLevelsAndSkirts(): void {
   const descriptor = createFlatTerrainDescriptor(8, 8, 5, 5);
   const builder = new TerrainQuadtreePatchMeshBuilder();
   const sampler = new TerrainHeightFieldNormalSampler(field);
-  const rootGeometryWithoutSkirts = builder.buildVertexData(field, root, descriptor, 2, 0);
-  const rootGeometryWithSkirts = builder.buildVertexData(field, root, descriptor, 2, 1);
-  const childGeometryWithSkirts = builder.buildVertexData(field, child, descriptor, 1, 1);
+  const rootGeometry = builder.buildVertexData(field, root, descriptor, 2);
+  const childGeometry = builder.buildVertexData(field, child, descriptor, 1);
   const canonicalNormal = sampler.sampleNormal(2, 2);
 
   assertVectorClose(
-    readNormal(rootGeometryWithoutSkirts.normals, 4),
+    readNormal(rootGeometry.normals, 4),
     canonicalNormal,
     "Root LOD patch should use canonical normal for shared center vertex"
   );
   assertVectorClose(
-    readNormal(rootGeometryWithSkirts.normals, 4),
-    canonicalNormal,
-    "Root LOD patch skirt triangles should not alter top vertex normals"
-  );
-  assertVectorClose(
-    readNormal(childGeometryWithSkirts.normals, 0),
+    readNormal(childGeometry.normals, 0),
     canonicalNormal,
     "Child LOD patch should reuse the same canonical normal for the shared vertex"
   );
-
-  const topVertexCount = 9;
-  for (let vertexIndex = 0; vertexIndex < topVertexCount; vertexIndex += 1) {
-    assertVectorClose(
-      readNormal(rootGeometryWithSkirts.normals, vertexIndex),
-      readNormal(rootGeometryWithoutSkirts.normals, vertexIndex),
-      `Skirts should not change top vertex normal ${vertexIndex}`
-    );
-  }
 }
 
 function testQuadtreePatchSampleStepOneMatchesCanonicalWindingAndMetadata(): void {
@@ -447,7 +433,7 @@ function testQuadtreePatchSampleStepOneMatchesCanonicalWindingAndMetadata(): voi
   const root = new TerrainQuadtreeLodBuilder().buildRoot(field, 0);
   const descriptor = createFlatTerrainDescriptor(2, 2, 2, 2);
   const builder = new TerrainQuadtreePatchMeshBuilder();
-  const geometry = builder.buildVertexData(field, root, descriptor, 1, 0);
+  const geometry = builder.buildVertexData(field, root, descriptor, 1);
 
   assert(JSON.stringify(geometry.indices) === JSON.stringify([3, 1, 0, 2, 3, 0]), "Patch winding should match canonical terrain winding.");
   assertClose(geometry.positions[0] ?? 0, -1, "Patch first vertex X should match canonical coordinates.");
@@ -458,7 +444,6 @@ function testQuadtreePatchSampleStepOneMatchesCanonicalWindingAndMetadata(): voi
     heightField: field,
     descriptor,
     sampleStep: 1,
-    skirtDepth: 0,
     material: null,
     name: "test-lod-patch"
   });
@@ -467,6 +452,7 @@ function testQuadtreePatchSampleStepOneMatchesCanonicalWindingAndMetadata(): voi
   assert(mesh.checkCollisions === false, "LOD patch mesh should not participate in collisions.");
   assert(mesh.metadata?.terrainVisualOnly === true, "LOD patch mesh should be visual-only.");
   assert(mesh.metadata?.terrainSurfaceCanonical === false, "LOD patch mesh should be non-canonical.");
+  assert(mesh.metadata?.terrainQuadtreeSeamStrategy === "edge-fans", "LOD patch mesh should expose edge-fan seam stitching metadata.");
   scene.dispose();
   engine.dispose();
 }
@@ -484,7 +470,6 @@ function testQuadtreePatchMeshKeepsLogicalGridAndBuildDiagnostics(): void {
     sampleStep: 1,
     logicalSampleStep: 4,
     buildSampleStep: 1,
-    skirtDepth: 0,
     material: null,
     name: "test-lod-patch-build-step"
   });
@@ -540,8 +525,8 @@ function testQuadtreePatchSeamRefinementMatchesSharedEdgeVertices(): void {
     createTestLeaf(fineNode, 1)
   ]);
   const builder = new TerrainQuadtreePatchMeshBuilder();
-  const coarseGeometry = builder.buildVertexData(field, coarseNode, descriptor, 4, 0, coarseLeaf?.seamInfo);
-  const fineGeometry = builder.buildVertexData(field, fineNode, descriptor, 1, 0, fineLeaf?.seamInfo);
+  const coarseGeometry = builder.buildVertexData(field, coarseNode, descriptor, 4, coarseLeaf?.seamInfo);
+  const fineGeometry = builder.buildVertexData(field, fineNode, descriptor, 1, fineLeaf?.seamInfo);
   const sharedX = heightFieldIndexToLocalX(field, coarseNode.ix1);
   const coarseEdge = collectVerticesAtX(coarseGeometry.positions, sharedX);
   const fineEdge = collectVerticesAtX(fineGeometry.positions, sharedX);
@@ -563,9 +548,9 @@ function testQuadtreePatchSeamRefinementMatchesSharedEdgeVertices(): void {
     createTestLeaf(middleNode, 4),
     createTestLeaf(coarseEastNode, 8)
   ]);
-  const fineWestGeometry = builder.buildVertexData(chainField, fineWestNode, chainDescriptor, 1, 0, fineWestLeaf?.seamInfo);
-  const middleGeometry = builder.buildVertexData(chainField, middleNode, chainDescriptor, 4, 0, middleLeaf?.seamInfo);
-  const coarseEastGeometry = builder.buildVertexData(chainField, coarseEastNode, chainDescriptor, 8, 0, coarseEastLeaf?.seamInfo);
+  const fineWestGeometry = builder.buildVertexData(chainField, fineWestNode, chainDescriptor, 1, fineWestLeaf?.seamInfo);
+  const middleGeometry = builder.buildVertexData(chainField, middleNode, chainDescriptor, 4, middleLeaf?.seamInfo);
+  const coarseEastGeometry = builder.buildVertexData(chainField, coarseEastNode, chainDescriptor, 8, coarseEastLeaf?.seamInfo);
   const westSharedX = heightFieldIndexToLocalX(chainField, 8);
   const eastSharedX = heightFieldIndexToLocalX(chainField, 16);
   const fineWestEastEdge = collectVerticesAtX(fineWestGeometry.positions, westSharedX);
@@ -597,7 +582,6 @@ function testQuadtreePatchSeamRefinementMatchesSharedEdgeVertices(): void {
     mixedCoarseNode,
     mixedSegmentDescriptor,
     16,
-    0,
     mixedCoarseLeaf?.seamInfo
   );
   const mixedFineGeometry = builder.buildVertexData(
@@ -605,7 +589,6 @@ function testQuadtreePatchSeamRefinementMatchesSharedEdgeVertices(): void {
     mixedFineNeighbor,
     mixedSegmentDescriptor,
     4,
-    0,
     mixedFineLeaf?.seamInfo
   );
   const mixedMediumGeometry = builder.buildVertexData(
@@ -613,7 +596,6 @@ function testQuadtreePatchSeamRefinementMatchesSharedEdgeVertices(): void {
     mixedMediumNeighbor,
     mixedSegmentDescriptor,
     8,
-    0,
     mixedMediumLeaf?.seamInfo
   );
   const mixedSharedX = heightFieldIndexToLocalX(mixedSegmentField, 16);
@@ -636,8 +618,8 @@ function testQuadtreePatchSeamRefinementMatchesSharedEdgeVertices(): void {
     createTestLeaf(offsetLeftNode, 4),
     createTestLeaf(offsetRightNode, 4)
   ]);
-  const offsetLeftGeometry = builder.buildVertexData(offsetField, offsetLeftNode, offsetDescriptor, 4, 0, offsetLeftLeaf?.seamInfo);
-  const offsetRightGeometry = builder.buildVertexData(offsetField, offsetRightNode, offsetDescriptor, 4, 0, offsetRightLeaf?.seamInfo);
+  const offsetLeftGeometry = builder.buildVertexData(offsetField, offsetLeftNode, offsetDescriptor, 4, offsetLeftLeaf?.seamInfo);
+  const offsetRightGeometry = builder.buildVertexData(offsetField, offsetRightNode, offsetDescriptor, 4, offsetRightLeaf?.seamInfo);
   const offsetSharedX = heightFieldIndexToLocalX(offsetField, 10);
   const offsetMinZ = heightFieldIndexToLocalZ(offsetField, 16);
   const offsetMaxZ = heightFieldIndexToLocalZ(offsetField, 2);
@@ -655,8 +637,8 @@ function testQuadtreePatchSeamRefinementMatchesSharedEdgeVertices(): void {
     createTestLeaf(offsetNorthNode, 4),
     createTestLeaf(offsetSouthNode, 4)
   ]);
-  const offsetNorthGeometry = builder.buildVertexData(offsetField, offsetNorthNode, offsetDescriptor, 4, 0, offsetNorthLeaf?.seamInfo);
-  const offsetSouthGeometry = builder.buildVertexData(offsetField, offsetSouthNode, offsetDescriptor, 4, 0, offsetSouthLeaf?.seamInfo);
+  const offsetNorthGeometry = builder.buildVertexData(offsetField, offsetNorthNode, offsetDescriptor, 4, offsetNorthLeaf?.seamInfo);
+  const offsetSouthGeometry = builder.buildVertexData(offsetField, offsetSouthNode, offsetDescriptor, 4, offsetSouthLeaf?.seamInfo);
   const offsetSharedZ = heightFieldIndexToLocalZ(offsetField, 10);
   const offsetMinX = heightFieldIndexToLocalX(offsetField, 2);
   const offsetMaxX = heightFieldIndexToLocalX(offsetField, 16);
@@ -667,6 +649,42 @@ function testQuadtreePatchSeamRefinementMatchesSharedEdgeVertices(): void {
     JSON.stringify(Array.from(offsetNorthEdge.entries())) === JSON.stringify(Array.from(offsetSouthEdge.entries())),
     "North/south equal-step neighboring edges with different axis offsets should use an identical stitched vertex set."
   );
+}
+
+function testQuadtreePatchEdgeFansBridgeMixedLodWithoutSkirts(): void {
+  const field = TerrainHeightField.createFilled(16, 16, 17, 17, 0);
+  const root = new TerrainQuadtreeLodBuilder().buildRoot(field, 1);
+  const coarseNode = root.children[0]!;
+  const fineNode = root.children[1]!;
+  const descriptor = createFlatTerrainDescriptor(16, 16, 17, 17);
+  const resolver = new TerrainQuadtreeLodSeamResolver();
+  const [coarseLeaf, fineLeaf] = resolver.applySeamCompatibility([
+    createTestLeaf(coarseNode, 4),
+    createTestLeaf(fineNode, 1)
+  ]);
+  const builder = new TerrainQuadtreePatchMeshBuilder();
+  const coarseBaseGeometry = builder.buildVertexData(field, coarseNode, descriptor, 4);
+  const coarseEdgeFanGeometry = builder.buildVertexData(field, coarseNode, descriptor, 4, coarseLeaf?.seamInfo);
+  const fineGeometry = builder.buildVertexData(field, fineNode, descriptor, 1, fineLeaf?.seamInfo);
+  const sharedX = heightFieldIndexToLocalX(field, coarseNode.ix1);
+  const coarseEdge = collectVerticesAtX(coarseEdgeFanGeometry.positions, sharedX);
+  const fineEdge = collectVerticesAtX(fineGeometry.positions, sharedX);
+  const edgeFanYValues = coarseEdgeFanGeometry.positions.filter((_value, index) => index % 3 === 1);
+
+  assert(coarseLeaf?.seamInfo?.east?.mode === "stitch-to-finer", "Test setup should produce a coarse edge stitched to a finer neighbor.");
+  assert(
+    JSON.stringify(Array.from(coarseEdge.entries())) === JSON.stringify(Array.from(fineEdge.entries())),
+    "Edge-fan coarse patch edge should expose the same top-surface vertices as the finer neighbor."
+  );
+  assert(
+    coarseEdgeFanGeometry.positions.length > coarseBaseGeometry.positions.length,
+    "Edge fans should add top-surface seam vertices on mixed-LOD edges."
+  );
+  assert(
+    coarseEdgeFanGeometry.indices.length > coarseBaseGeometry.indices.length,
+    "Edge fans should add transition triangles instead of relying on side-wall skirts."
+  );
+  assert(Math.min(...edgeFanYValues) === 0 && Math.max(...edgeFanYValues) === 0, "Edge-fan seam geometry should stay on the terrain surface without skirt drop vertices.");
 }
 
 function readNormal(normals: readonly number[], vertexIndex: number): Vector3 {
@@ -704,6 +722,13 @@ function testGeneratedTerrainDefaultResolutionFollowsGridStep(): void {
     "Explicit generated terrain resolution should be preserved."
   );
   assert(explicitResolutionDescriptor.resolutionMode === "manual", "Explicit generated terrain resolution should select manual mode.");
+}
+
+function testQuadtreeLodHasNoSkirtDepth(): void {
+  const field = TerrainHeightField.createFilled(128, 128, 129, 129, 0);
+  const descriptor = quadtreeLodDescriptorResolver.resolve(undefined, field);
+
+  assert(!("skirtDepth" in descriptor), "Runtime quadtree LOD descriptor should not expose skirtDepth.");
 }
 
 function testQuadtreeSelectionKeepsNearFullResolutionInLargerPatches(): void {
@@ -819,7 +844,7 @@ function testQuadtreeStitchedSelectionHasMatchingSharedEdges(): void {
   for (const leaf of leaves) {
     geometryByLeaf.set(
       leaf,
-      meshBuilder.buildVertexData(field, leaf.node, terrainDescriptor, leaf.sampleStep, 0, leaf.seamInfo)
+      meshBuilder.buildVertexData(field, leaf.node, terrainDescriptor, leaf.sampleStep, leaf.seamInfo)
     );
   }
 
@@ -929,8 +954,8 @@ function testQuadtreeFarSampleStepsReduceApproximateTriangleCount(): void {
   const root = builder.buildRoot(field, highDecimationDescriptor.maxDepth);
   const highDecimationLeaves = builder.selectVisibleLeaves(root, Vector3.Zero(), highDecimationDescriptor, field);
   const lowDecimationLeaves = builder.selectVisibleLeaves(root, Vector3.Zero(), lowDecimationDescriptor, field);
-  const highDecimationTriangleCount = estimateLodTriangleCount(highDecimationLeaves, highDecimationDescriptor.skirtDepth);
-  const lowDecimationTriangleCount = estimateLodTriangleCount(lowDecimationLeaves, lowDecimationDescriptor.skirtDepth);
+  const highDecimationTriangleCount = estimateLodTriangleCount(highDecimationLeaves);
+  const lowDecimationTriangleCount = estimateLodTriangleCount(lowDecimationLeaves);
 
   assert(
     highDecimationTriangleCount < lowDecimationTriangleCount * 0.75,
@@ -993,8 +1018,7 @@ function testQuadtreeLodControllerDisposesInactivePatchMeshes(): void {
         { distance: 128, maxSampleStep: 4 }
       ],
       updateIntervalSeconds: 0,
-      updateMovementThreshold: 0,
-      skirtDepth: 0
+      updateMovementThreshold: 0
     },
     material: null,
     canonicalPickMesh: null
@@ -1053,14 +1077,12 @@ function createFlatTerrainDescriptor(
 }
 
 function estimateLodTriangleCount(
-  leaves: readonly { readonly node: { readonly ix0: number; readonly ix1: number; readonly iz0: number; readonly iz1: number }; readonly sampleStep: number }[],
-  skirtDepth: number
+  leaves: readonly { readonly node: { readonly ix0: number; readonly ix1: number; readonly iz0: number; readonly iz1: number }; readonly sampleStep: number }[]
 ): number {
   return leaves.reduce((sum, leaf) => {
     const xSegments = Math.max(1, Math.ceil((leaf.node.ix1 - leaf.node.ix0) / leaf.sampleStep));
     const zSegments = Math.max(1, Math.ceil((leaf.node.iz1 - leaf.node.iz0) / leaf.sampleStep));
     const topTriangles = xSegments * zSegments * 2;
-    const skirtTriangles = skirtDepth > 0 ? (xSegments + zSegments) * 4 : 0;
-    return sum + topTriangles + skirtTriangles;
+    return sum + topTriangles;
   }, 0);
 }

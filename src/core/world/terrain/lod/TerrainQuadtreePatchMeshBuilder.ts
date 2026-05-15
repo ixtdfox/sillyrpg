@@ -40,7 +40,6 @@ export interface TerrainQuadtreePatchBuildOptions {
   readonly logicalSampleStep?: number;
   readonly buildSampleStep?: number;
   readonly seamInfo?: TerrainPatchSeamInfo;
-  readonly skirtDepth: number;
   readonly material: Material | null;
   readonly name: string;
 }
@@ -55,23 +54,6 @@ export interface TerrainQuadtreePatchDebugLineOptions {
   readonly name: string;
   readonly mode?: TerrainQuadtreePatchDebugLineMode;
   readonly verticalOffset?: number;
-}
-
-interface SkirtAppendInput {
-  readonly positions: number[];
-  readonly indices: number[];
-  readonly uvs: number[];
-  readonly normals: number[];
-  readonly vertexHeights: number[];
-  readonly heightField: TerrainHeightField;
-  readonly normalSampler: TerrainHeightFieldNormalSampler;
-  readonly xIndices: readonly number[];
-  readonly zIndices: readonly number[];
-  readonly northXIndices: readonly number[];
-  readonly southXIndices: readonly number[];
-  readonly westZIndices: readonly number[];
-  readonly eastZIndices: readonly number[];
-  readonly skirtDepth: number;
 }
 
 interface TerrainGridPoint {
@@ -128,106 +110,6 @@ class TerrainQuadtreePatchVertexWriter {
 }
 
 /**
- * Appender боковых skirts для LOD patch.
- */
-class TerrainQuadtreeSkirtAppender {
-  private readonly vertexWriter: TerrainQuadtreePatchVertexWriter;
-
-  public constructor(vertexWriter: TerrainQuadtreePatchVertexWriter) {
-    this.vertexWriter = vertexWriter;
-  }
-
-  /**
-   * Добавляет skirts по всем четырем сторонам patch.
-   */
-  public append(input: SkirtAppendInput): void {
-    this.appendNorth(input);
-    this.appendSouth(input);
-    this.appendWest(input);
-    this.appendEast(input);
-  }
-
-  private appendNorth(input: SkirtAppendInput): void {
-    const iz = input.zIndices[0] ?? 0;
-    for (let xGridIndex = 0; xGridIndex < input.northXIndices.length - 1; xGridIndex += 1) {
-      const ix0 = input.northXIndices[xGridIndex] ?? 0;
-      const ix1 = input.northXIndices[xGridIndex + 1] ?? ix0;
-      const top0 = this.appendSkirtVertex(input, ix0, iz, 0);
-      const top1 = this.appendSkirtVertex(input, ix1, iz, 0);
-      const bottom0 = this.appendSkirtVertex(input, ix0, iz, -input.skirtDepth);
-      const bottom1 = this.appendSkirtVertex(input, ix1, iz, -input.skirtDepth);
-      input.indices.push(top1, bottom1, top0);
-      input.indices.push(bottom0, top0, bottom1);
-    }
-  }
-
-  private appendSouth(input: SkirtAppendInput): void {
-    const iz = input.zIndices[input.zIndices.length - 1] ?? 0;
-    for (let xGridIndex = 0; xGridIndex < input.southXIndices.length - 1; xGridIndex += 1) {
-      const ix0 = input.southXIndices[xGridIndex] ?? 0;
-      const ix1 = input.southXIndices[xGridIndex + 1] ?? ix0;
-      const top0 = this.appendSkirtVertex(input, ix0, iz, 0);
-      const top1 = this.appendSkirtVertex(input, ix1, iz, 0);
-      const bottom0 = this.appendSkirtVertex(input, ix0, iz, -input.skirtDepth);
-      const bottom1 = this.appendSkirtVertex(input, ix1, iz, -input.skirtDepth);
-      input.indices.push(top0, bottom1, top1);
-      input.indices.push(bottom0, bottom1, top0);
-    }
-  }
-
-  private appendWest(input: SkirtAppendInput): void {
-    const ix = input.xIndices[0] ?? 0;
-    for (let zGridIndex = 0; zGridIndex < input.westZIndices.length - 1; zGridIndex += 1) {
-      const iz0 = input.westZIndices[zGridIndex] ?? 0;
-      const iz1 = input.westZIndices[zGridIndex + 1] ?? iz0;
-      const top0 = this.appendSkirtVertex(input, ix, iz0, 0);
-      const top1 = this.appendSkirtVertex(input, ix, iz1, 0);
-      const bottom0 = this.appendSkirtVertex(input, ix, iz0, -input.skirtDepth);
-      const bottom1 = this.appendSkirtVertex(input, ix, iz1, -input.skirtDepth);
-      input.indices.push(top0, bottom1, top1);
-      input.indices.push(bottom0, bottom1, top0);
-    }
-  }
-
-  private appendEast(input: SkirtAppendInput): void {
-    const ix = input.xIndices[input.xIndices.length - 1] ?? 0;
-    for (let zGridIndex = 0; zGridIndex < input.eastZIndices.length - 1; zGridIndex += 1) {
-      const iz0 = input.eastZIndices[zGridIndex] ?? 0;
-      const iz1 = input.eastZIndices[zGridIndex + 1] ?? iz0;
-      const top0 = this.appendSkirtVertex(input, ix, iz0, 0);
-      const top1 = this.appendSkirtVertex(input, ix, iz1, 0);
-      const bottom0 = this.appendSkirtVertex(input, ix, iz0, -input.skirtDepth);
-      const bottom1 = this.appendSkirtVertex(input, ix, iz1, -input.skirtDepth);
-      input.indices.push(top1, bottom1, top0);
-      input.indices.push(bottom0, top0, bottom1);
-    }
-  }
-
-  private appendSkirtVertex(input: {
-    readonly positions: number[];
-    readonly uvs: number[];
-    readonly normals: number[];
-    readonly vertexHeights: number[];
-    readonly heightField: TerrainHeightField;
-    readonly normalSampler: TerrainHeightFieldNormalSampler;
-  }, ix: number, iz: number, yOffset: number): number {
-    const edgeHeight = input.heightField.getHeight(ix, iz);
-    return this.vertexWriter.pushTerrainVertex(
-      input.positions,
-      input.uvs,
-      input.normals,
-      input.vertexHeights,
-      input.heightField,
-      ix,
-      iz,
-      edgeHeight + yOffset,
-      input.normalSampler.sampleNormal(ix, iz),
-      edgeHeight
-    );
-  }
-}
-
-/**
  * Применяет height-band vertex colors к patch mesh.
  */
 class TerrainPatchHeightBandColorApplicator {
@@ -276,7 +158,6 @@ class TerrainPatchDebugPointFactory {
 export class TerrainQuadtreePatchMeshBuilder {
   private readonly axisIndexBuilder: TerrainQuadtreeAxisIndexBuilder;
   private readonly vertexWriter: TerrainQuadtreePatchVertexWriter;
-  private readonly skirtAppender: TerrainQuadtreeSkirtAppender;
   private readonly heightBandColorApplicator: TerrainPatchHeightBandColorApplicator;
   private readonly debugPointFactory: TerrainPatchDebugPointFactory;
 
@@ -288,7 +169,6 @@ export class TerrainQuadtreePatchMeshBuilder {
   ) {
     this.axisIndexBuilder = axisIndexBuilder;
     this.vertexWriter = vertexWriter;
-    this.skirtAppender = new TerrainQuadtreeSkirtAppender(vertexWriter);
     this.heightBandColorApplicator = heightBandColorApplicator;
     this.debugPointFactory = debugPointFactory;
   }
@@ -305,7 +185,6 @@ export class TerrainQuadtreePatchMeshBuilder {
       options.node,
       options.descriptor,
       logicalSampleStep,
-      options.skirtDepth,
       options.seamInfo
     );
     const vertexData = new VertexData();
@@ -328,7 +207,8 @@ export class TerrainQuadtreePatchMeshBuilder {
       terrainQuadtreeDepth: options.node.depth,
       terrainQuadtreeSampleStep: logicalSampleStep,
       terrainQuadtreeLogicalSampleStep: logicalSampleStep,
-      terrainQuadtreeBuildSampleStep: buildSampleStep
+      terrainQuadtreeBuildSampleStep: buildSampleStep,
+      terrainQuadtreeSeamStrategy: "edge-fans"
     };
     this.heightBandColorApplicator.apply(mesh, options.descriptor, geometry.vertexHeights);
     mesh.refreshBoundingInfo();
@@ -343,7 +223,6 @@ export class TerrainQuadtreePatchMeshBuilder {
     node: TerrainQuadtreeNode,
     descriptor: SceneGeneratedTerrainDescriptor,
     sampleStep: number,
-    skirtDepth: number,
     seamInfo?: TerrainPatchSeamInfo
   ): TerrainQuadtreePatchVertexData {
     const positions: number[] = [];
@@ -416,25 +295,6 @@ export class TerrainQuadtreePatchMeshBuilder {
         });
         this.appendPolygonTriangles(indices, polygon, getOrCreateTopVertex);
       }
-    }
-
-    if (skirtDepth > 0) {
-      this.skirtAppender.append({
-        positions,
-        indices,
-        uvs,
-        normals,
-        vertexHeights,
-        heightField,
-        normalSampler,
-        xIndices,
-        zIndices,
-        northXIndices,
-        southXIndices,
-        westZIndices,
-        eastZIndices,
-        skirtDepth
-      });
     }
 
     return {
@@ -512,6 +372,8 @@ export class TerrainQuadtreePatchMeshBuilder {
     readonly eastZIndices: readonly number[];
   }): TerrainGridPoint[] {
     const polygon: TerrainGridPoint[] = [];
+    // Edge-fan seam stitching: cells touching a mixed-LOD edge use the union
+    // of their own and neighbor edge samples, then triangulate as a fan.
     this.appendPolygonPoints(
       polygon,
       this.buildHorizontalEdgePoints(input.northXIndices, input.z0, false)

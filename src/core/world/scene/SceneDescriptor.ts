@@ -67,7 +67,6 @@ export interface SceneGeneratedTerrainLodDescriptor {
   readonly splitDistances?: readonly number[];
   readonly updateIntervalSeconds?: number;
   readonly updateMovementThreshold?: number;
-  readonly skirtDepth?: number;
   readonly debugMode?: SceneGeneratedTerrainLodDebugMode;
   readonly debug?: boolean;
 }
@@ -410,10 +409,6 @@ function parseGeneratedTerrainLodDescriptor(
             0,
             Number.POSITIVE_INFINITY
           ),
-    skirtDepth:
-      record.skirtDepth === undefined
-        ? undefined
-        : parseFiniteNumberInRange(record.skirtDepth, `${sourceLabel}.skirtDepth`, 0, Number.POSITIVE_INFINITY),
     debugMode: parseGeneratedTerrainLodDebugMode(record.debugMode, `${sourceLabel}.debugMode`),
     debug: optionalBoolean(record.debug, `${sourceLabel}.debug must be a boolean if provided.`)
   };

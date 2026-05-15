@@ -418,7 +418,6 @@ export class TerrainQuadtreeLodController {
       logicalSampleStep: leaf.sampleStep,
       buildSampleStep: leaf.buildSampleStep ?? leaf.sampleStep,
       seamInfo: leaf.seamInfo,
-      skirtDepth: this.lodDescriptor.skirtDepth,
       material: this.material,
       name: `terrain:${this.terrainDescriptor.id}:lod:node:${node.depth}:${node.ix0}:${node.iz0}:${node.ix1}:${node.iz1}:logical:${leaf.sampleStep}:build:${leaf.buildSampleStep ?? leaf.sampleStep}`
     });
@@ -641,7 +640,6 @@ export class TerrainQuadtreeLodController {
       `seamAdjusted=${diagnostics.seamAdjustedPatchCount}/${diagnostics.visibleLeafCount} ` +
       `maxNeighborRatio=${diagnostics.maxNeighborSampleStepRatio?.toFixed(1) ?? "n/a"} ` +
       `trisByBuildStep=[${trianglesByStepSummary}] ` +
-      `skirtDepth=${this.lodDescriptor.skirtDepth.toFixed(2)} ` +
       `sourceQuad=${diagnostics.sourceQuadSize.toFixed(2)} ` +
       `nearRadius=${this.lodDescriptor.nearFullResolutionRadius.toFixed(1)} ` +
       `nearPatchWorldSize=${diagnostics.desiredNearPatchWorldSize.toFixed(2)} ` +
@@ -708,8 +706,7 @@ export class TerrainQuadtreeLodController {
     const xSegments = Math.max(1, Math.ceil((leaf.node.ix1 - leaf.node.ix0) / buildSampleStep));
     const zSegments = Math.max(1, Math.ceil((leaf.node.iz1 - leaf.node.iz0) / buildSampleStep));
     const topTriangles = xSegments * zSegments * 2;
-    const skirtTriangles = this.lodDescriptor.skirtDepth > 0 ? (xSegments + zSegments) * 4 : 0;
-    return topTriangles + skirtTriangles;
+    return topTriangles;
   }
 
   private resolveMaxNeighborSampleStepRatio(

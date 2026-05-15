@@ -37,7 +37,6 @@ export interface TerrainQuadtreeLodDescriptor {
   readonly splitDistances?: readonly number[];
   readonly updateIntervalSeconds?: number;
   readonly updateMovementThreshold?: number;
-  readonly skirtDepth?: number;
   readonly debugMode?: TerrainQuadtreeLodDebugMode;
   readonly debug?: boolean;
 }
@@ -56,7 +55,6 @@ export interface ResolvedTerrainQuadtreeLodDescriptor {
   readonly lodRings: readonly TerrainQuadtreeLodRing[];
   readonly updateIntervalSeconds: number;
   readonly updateMovementThreshold: number;
-  readonly skirtDepth: number;
   readonly debugMode: TerrainQuadtreeLodDebugMode;
   readonly debug: boolean;
 }
@@ -195,7 +193,6 @@ export const DEFAULT_TERRAIN_QUADTREE_LOD = {
   ],
   updateIntervalSeconds: 0.25,
   updateMovementThreshold: 2,
-  skirtDepth: 0.5,
   debugMode: "off",
   debug: false
 } satisfies TerrainQuadtreeLodDescriptor;
@@ -331,7 +328,6 @@ export class TerrainQuadtreeLodDescriptorResolver {
         descriptor?.updateIntervalSeconds ?? DEFAULT_TERRAIN_QUADTREE_LOD.updateIntervalSeconds,
       updateMovementThreshold:
         descriptor?.updateMovementThreshold ?? DEFAULT_TERRAIN_QUADTREE_LOD.updateMovementThreshold,
-      skirtDepth: descriptor?.skirtDepth ?? DEFAULT_TERRAIN_QUADTREE_LOD.skirtDepth,
       debugMode: this.resolveDebugMode(descriptor),
       debug: descriptor?.debug ?? DEFAULT_TERRAIN_QUADTREE_LOD.debug
     };

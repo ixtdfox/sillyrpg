@@ -405,7 +405,6 @@ function testParserAcceptsGeneratedTerrainLodDescriptor(): void {
           ],
           updateIntervalSeconds: 0.25,
           updateMovementThreshold: 2,
-          skirtDepth: 2,
           debugMode: "patchBorders",
           debug: false
         }
