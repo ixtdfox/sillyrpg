@@ -3,10 +3,15 @@ import type { DistrictRuntimeDiagnostics, TerrainLodRuntimeDiagnostics } from ".
 
 export interface RuntimePerformanceFrameMetrics {
   readonly fps: number;
+  readonly engineFps: number;
   readonly frameMs: number;
   readonly averageFrameMs: number | null;
   readonly minFrameMs: number | null;
   readonly maxFrameMs: number | null;
+  readonly renderWidth: number;
+  readonly renderHeight: number;
+  readonly hardwareScalingLevel: number;
+  readonly fpsCapDiagnostic: string | null;
 }
 
 export interface RuntimePerformanceSceneMetrics {
@@ -30,6 +35,21 @@ export interface RuntimePerformanceGeometryMetrics {
   readonly allocatedTriangleCount: number;
   readonly hiddenPickOnlyTerrainVertexCount: number;
   readonly hiddenPickOnlyTerrainTriangleCount: number;
+  readonly buckets: readonly RuntimePerformanceGeometryBucketMetrics[];
+  readonly cullingFlagWarningMeshCount: number;
+  readonly cullingFlagWarningTriangleCount: number;
+  readonly cullingFlagWarningMeshNames: readonly string[];
+}
+
+export interface RuntimePerformanceGeometryBucketMetrics {
+  readonly bucket: string;
+  readonly meshCount: number;
+  readonly enabledMeshCount: number;
+  readonly visibleMeshCount: number;
+  readonly renderedVertexCount: number;
+  readonly renderedTriangleCount: number;
+  readonly allocatedVertexCount: number;
+  readonly allocatedTriangleCount: number;
 }
 
 export interface RuntimePerformanceInstrumentationMetrics {

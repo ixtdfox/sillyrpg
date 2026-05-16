@@ -26,6 +26,7 @@ export class EditorTerrainBrushPreview {
       this.outline?.dispose();
       this.outline = MeshBuilder.CreateLines("editor-terrain-brush-preview", { points, updatable: true }, this.scene);
       this.outline.isPickable = false;
+      // Tiny editor helper that should remain visible while editing even when its line bounds are offscreen.
       this.outline.alwaysSelectAsActiveMesh = true;
       this.outline.metadata = {
         editorSelectable: false,

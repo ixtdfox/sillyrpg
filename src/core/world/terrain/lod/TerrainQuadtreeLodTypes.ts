@@ -16,6 +16,28 @@ export interface TerrainQuadtreeLodRing {
   readonly maxSampleStep: number;
 }
 
+export interface TerrainFrustumCullingOptions {
+  readonly enabled: boolean;
+  readonly guardWorldPadding: number;
+  readonly keepNearAnchorRadius: number;
+  readonly maxHeightPadding: number;
+}
+
+export interface TerrainFrustumCullingDiagnostics {
+  readonly enabled: boolean;
+  readonly testedNodeCount: number;
+  readonly rejectedNodeCount: number;
+  readonly acceptedNodeCount: number;
+  readonly keptByNearAnchorCount: number;
+}
+
+export interface TerrainPatchCacheOptions {
+  readonly enabled: boolean;
+  readonly maxInactivePatches: number;
+  readonly maxInactivePatchTriangles: number;
+  readonly inactiveTtlSeconds: number;
+}
+
 /**
  * Сырой descriptor LOD из scene JSON.
  */
@@ -39,6 +61,8 @@ export interface TerrainQuadtreeLodDescriptor {
   readonly updateMovementThreshold?: number;
   readonly debugMode?: TerrainQuadtreeLodDebugMode;
   readonly debug?: boolean;
+  readonly frustumCulling?: Partial<TerrainFrustumCullingOptions>;
+  readonly patchCache?: Partial<TerrainPatchCacheOptions>;
 }
 
 /**
@@ -57,6 +81,8 @@ export interface ResolvedTerrainQuadtreeLodDescriptor {
   readonly updateMovementThreshold: number;
   readonly debugMode: TerrainQuadtreeLodDebugMode;
   readonly debug: boolean;
+  readonly frustumCulling: TerrainFrustumCullingOptions;
+  readonly patchCache: TerrainPatchCacheOptions;
 }
 
 /**
@@ -156,17 +182,31 @@ export interface TerrainQuadtreeLodDiagnostics {
   readonly desiredNearPatchWorldSize: number;
   readonly effectiveNearFullResolutionRadius: number;
   readonly activePatchMeshCount: number;
+  readonly inactivePatchMeshCount: number;
+  readonly totalPatchMeshCount: number;
   readonly cachedPatchMeshCount: number;
   readonly inactiveCachedPatchMeshCount: number;
   readonly activePatchVertices: number;
   readonly activePatchTriangles: number;
+  readonly inactivePatchVertices: number;
+  readonly inactivePatchTriangles: number;
+  readonly totalPatchVertices: number;
+  readonly totalPatchTriangles: number;
   readonly cachedPatchVertices: number;
   readonly cachedPatchTriangles: number;
+  readonly patchesBuiltLastUpdate: number;
+  readonly patchesReusedLastUpdate: number;
+  readonly patchesDisabledLastUpdate: number;
+  readonly patchesDisposedLastUpdate: number;
+  readonly patchCacheEnabled: boolean;
   readonly activeDebugLineMeshCount: number;
   readonly approxVisibleTriangles: number;
   readonly canonicalMeshMode: TerrainCanonicalMeshMode;
   readonly canonicalMeshVertexCount: number;
   readonly canonicalMeshTriangleCount: number;
+  readonly hiddenPickOnlyTerrainVertexCount: number;
+  readonly hiddenPickOnlyTerrainTriangleCount: number;
+  readonly frustumCulling: TerrainFrustumCullingDiagnostics;
   readonly seamAdjustedPatchCount: number;
   readonly maxNeighborSampleStepRatio: number | null;
   readonly debugMode: TerrainQuadtreeLodDebugMode;
@@ -203,7 +243,19 @@ export const DEFAULT_TERRAIN_QUADTREE_LOD = {
   updateIntervalSeconds: 0.25,
   updateMovementThreshold: 2,
   debugMode: "off",
-  debug: false
+  debug: false,
+  frustumCulling: {
+    enabled: true,
+    guardWorldPadding: 32,
+    keepNearAnchorRadius: 48,
+    maxHeightPadding: 16
+  },
+  patchCache: {
+    enabled: false,
+    maxInactivePatches: 32,
+    maxInactivePatchTriangles: 200_000,
+    inactiveTtlSeconds: 4
+  }
 } satisfies TerrainQuadtreeLodDescriptor;
 
 /**
@@ -338,7 +390,38 @@ export class TerrainQuadtreeLodDescriptorResolver {
       updateMovementThreshold:
         descriptor?.updateMovementThreshold ?? DEFAULT_TERRAIN_QUADTREE_LOD.updateMovementThreshold,
       debugMode: this.resolveDebugMode(descriptor),
-      debug: descriptor?.debug ?? DEFAULT_TERRAIN_QUADTREE_LOD.debug
+      debug: descriptor?.debug ?? DEFAULT_TERRAIN_QUADTREE_LOD.debug,
+      frustumCulling: this.resolveFrustumCullingOptions(descriptor),
+      patchCache: this.resolvePatchCacheOptions(descriptor)
+    };
+  }
+
+  private resolveFrustumCullingOptions(
+    descriptor: TerrainQuadtreeLodDescriptor | null | undefined
+  ): TerrainFrustumCullingOptions {
+    const defaults = DEFAULT_TERRAIN_QUADTREE_LOD.frustumCulling;
+    const input = descriptor?.frustumCulling;
+    return {
+      enabled: input?.enabled ?? defaults.enabled,
+      guardWorldPadding: Math.max(0, input?.guardWorldPadding ?? defaults.guardWorldPadding),
+      keepNearAnchorRadius: Math.max(0, input?.keepNearAnchorRadius ?? defaults.keepNearAnchorRadius),
+      maxHeightPadding: Math.max(0, input?.maxHeightPadding ?? defaults.maxHeightPadding)
+    };
+  }
+
+  private resolvePatchCacheOptions(
+    descriptor: TerrainQuadtreeLodDescriptor | null | undefined
+  ): TerrainPatchCacheOptions {
+    const defaults = DEFAULT_TERRAIN_QUADTREE_LOD.patchCache;
+    const input = descriptor?.patchCache;
+    return {
+      enabled: input?.enabled ?? defaults.enabled,
+      maxInactivePatches: Math.max(0, Math.floor(input?.maxInactivePatches ?? defaults.maxInactivePatches)),
+      maxInactivePatchTriangles: Math.max(
+        0,
+        Math.floor(input?.maxInactivePatchTriangles ?? defaults.maxInactivePatchTriangles)
+      ),
+      inactiveTtlSeconds: Math.max(0, input?.inactiveTtlSeconds ?? defaults.inactiveTtlSeconds)
     };
   }
 

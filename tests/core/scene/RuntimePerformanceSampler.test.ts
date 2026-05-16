@@ -1,4 +1,4 @@
-import { MeshBuilder, NullEngine, Scene } from "@babylonjs/core";
+import { MeshBuilder, NullEngine, Scene, type AbstractMesh } from "@babylonjs/core";
 import { RuntimePerformanceSampler } from "../../../src/core/scene/in-game/performance/RuntimePerformanceSampler";
 
 function assert(condition: boolean, message: string): void {
@@ -10,7 +10,8 @@ function assert(condition: boolean, message: string): void {
 function testSamplerSplitsRenderedAllocatedAndHiddenTerrainGeometry(): void {
   const engine = new NullEngine();
   const scene = new Scene(engine);
-  const visibleMesh = MeshBuilder.CreateBox("visible-box", { size: 1 }, scene);
+  const activeVisibleMesh = MeshBuilder.CreateBox("active-visible-box", { size: 1 }, scene);
+  const outsideActiveVisibleMesh = MeshBuilder.CreateBox("outside-active-visible-box", { size: 1 }, scene);
   const hiddenTerrain = MeshBuilder.CreateGround("terrain:generated:heightfield-surface", {
     width: 8,
     height: 8,
@@ -24,6 +25,7 @@ function testSamplerSplitsRenderedAllocatedAndHiddenTerrainGeometry(): void {
     terrainSurfaceCanonical: true,
     terrainCanonicalMeshMode: "PICK_ONLY"
   };
+  installActiveMeshes(scene, [activeVisibleMesh]);
 
   const sampler = new RuntimePerformanceSampler({
     engine,
@@ -33,19 +35,83 @@ function testSamplerSplitsRenderedAllocatedAndHiddenTerrainGeometry(): void {
     shadowRegistry: createShadowRegistryStub()
   });
   const snapshot = sampler.sample(0);
-  const visibleVertices = visibleMesh.getTotalVertices();
-  const visibleTriangles = Math.floor(visibleMesh.getTotalIndices() / 3);
+  const activeVisibleVertices = activeVisibleMesh.getTotalVertices();
+  const activeVisibleTriangles = Math.floor(activeVisibleMesh.getTotalIndices() / 3);
+  const outsideActiveVisibleVertices = outsideActiveVisibleMesh.getTotalVertices();
+  const outsideActiveVisibleTriangles = Math.floor(outsideActiveVisibleMesh.getTotalIndices() / 3);
   const hiddenVertices = hiddenTerrain.getTotalVertices();
   const hiddenTriangles = Math.floor(hiddenTerrain.getTotalIndices() / 3);
 
-  assert(snapshot.geometry.renderedVertexCount === visibleVertices, "Rendered vertices should exclude hidden pick-only terrain.");
-  assert(snapshot.geometry.renderedTriangleCount === visibleTriangles, "Rendered triangles should exclude hidden pick-only terrain.");
+  assert(snapshot.geometry.renderedVertexCount === activeVisibleVertices, "Rendered vertices should include active visible mesh only.");
+  assert(snapshot.geometry.renderedTriangleCount === activeVisibleTriangles, "Rendered triangles should include active visible mesh only.");
   assert(snapshot.geometry.vertexCount === snapshot.geometry.renderedVertexCount, "Legacy geometry vertex count should report rendered vertices.");
   assert(snapshot.geometry.triangleCount === snapshot.geometry.renderedTriangleCount, "Legacy geometry triangle count should report rendered triangles.");
-  assert(snapshot.geometry.allocatedVertexCount === visibleVertices + hiddenVertices, "Allocated vertices should include hidden terrain geometry.");
-  assert(snapshot.geometry.allocatedTriangleCount === visibleTriangles + hiddenTriangles, "Allocated triangles should include hidden terrain geometry.");
+  assert(
+    snapshot.geometry.allocatedVertexCount === activeVisibleVertices + outsideActiveVisibleVertices + hiddenVertices,
+    "Allocated vertices should include active, inactive-by-frustum, and hidden terrain geometry."
+  );
+  assert(
+    snapshot.geometry.allocatedTriangleCount === activeVisibleTriangles + outsideActiveVisibleTriangles + hiddenTriangles,
+    "Allocated triangles should include active, inactive-by-frustum, and hidden terrain geometry."
+  );
   assert(snapshot.geometry.hiddenPickOnlyTerrainVertexCount === hiddenVertices, "Hidden terrain vertices should be reported separately.");
   assert(snapshot.geometry.hiddenPickOnlyTerrainTriangleCount === hiddenTriangles, "Hidden terrain triangles should be reported separately.");
+  assert(
+    snapshot.geometry.buckets.some((bucket) =>
+      bucket.bucket === "terrain_canonical_pick" &&
+      bucket.allocatedTriangleCount === hiddenTriangles &&
+      bucket.renderedTriangleCount === 0
+    ),
+    "Geometry buckets should attribute hidden pick-only terrain allocation."
+  );
+
+  scene.dispose();
+  engine.dispose();
+}
+
+function installActiveMeshes(scene: Scene, meshes: readonly AbstractMesh[]): void {
+  const sceneWithControlledActiveMeshes = scene as unknown as {
+    getActiveMeshes: () => { readonly length: number; readonly data: readonly AbstractMesh[] };
+  };
+  sceneWithControlledActiveMeshes.getActiveMeshes = () => ({
+    length: meshes.length,
+    data: meshes
+  });
+}
+
+function testSamplerClassifiesBucketsAndSkipsDisposedMeshes(): void {
+  const engine = new NullEngine();
+  const scene = new Scene(engine);
+  const terrainPatch = MeshBuilder.CreateGround("terrain:demo:lod:node:0", { width: 4, height: 4 }, scene);
+  terrainPatch.metadata = {
+    terrainKind: "generated-lod-visual",
+    terrainSurfaceCanonical: false
+  };
+  const building = MeshBuilder.CreateBox("building-shell", { size: 1 }, scene);
+  building.metadata = {
+    buildingVisibilityInstanceId: "building-a"
+  };
+  const disposed = MeshBuilder.CreateBox("disposed-box", { size: 1 }, scene);
+  disposed.dispose(false, false);
+
+  const sampler = new RuntimePerformanceSampler({
+    engine,
+    scene,
+    locationManager: createLocationManagerStub(),
+    gridRuntime: createGridRuntimeStub(),
+    shadowRegistry: createShadowRegistryStub()
+  });
+  const snapshot = sampler.sample(0);
+  const patchBucket = snapshot.geometry.buckets.find((bucket) => bucket.bucket === "terrain_lod_patch");
+  const buildingBucket = snapshot.geometry.buckets.find((bucket) => bucket.bucket === "building");
+
+  assert(patchBucket !== undefined, "Expected terrain LOD patch bucket.");
+  assert(buildingBucket !== undefined, "Expected building bucket.");
+  assert(
+    snapshot.geometry.allocatedTriangleCount ===
+      Math.floor(terrainPatch.getTotalIndices() / 3) + Math.floor(building.getTotalIndices() / 3),
+    "Allocated triangles should not include disposed meshes."
+  );
 
   scene.dispose();
   engine.dispose();
@@ -58,12 +124,23 @@ function createLocationManagerStub() {
       visibleLeafCount: 0,
       patchMeshEstimate: 0,
       activePatchMeshCount: 0,
+      inactivePatchMeshCount: 0,
+      totalPatchMeshCount: 0,
       cachedPatchMeshCount: 0,
       inactiveCachedPatchMeshCount: 0,
       activePatchVertices: 0,
       activePatchTriangles: 0,
+      inactivePatchVertices: 0,
+      inactivePatchTriangles: 0,
+      totalPatchVertices: 0,
+      totalPatchTriangles: 0,
       cachedPatchVertices: 0,
       cachedPatchTriangles: 0,
+      patchesBuiltLastUpdate: 0,
+      patchesReusedLastUpdate: 0,
+      patchesDisabledLastUpdate: 0,
+      patchesDisposedLastUpdate: 0,
+      patchCacheEnabled: false,
       activeDebugLineMeshCount: 0,
       approxVisibleTriangles: 0,
       sourceResolutionXMax: null,
@@ -72,6 +149,13 @@ function createLocationManagerStub() {
       canonicalMeshMode: "OFF",
       canonicalMeshVertexCount: 0,
       canonicalMeshTriangleCount: 0,
+      hiddenPickOnlyTerrainVertexCount: 0,
+      hiddenPickOnlyTerrainTriangleCount: 0,
+      frustumCullingEnabled: false,
+      frustumTestedNodeCount: 0,
+      frustumRejectedNodeCount: 0,
+      frustumAcceptedNodeCount: 0,
+      frustumKeptByNearAnchorCount: 0,
       maxDepth: 0,
       anchorSource: null,
       depthCounts: new Map<number, number>(),
@@ -129,6 +213,7 @@ function createShadowRegistryStub() {
 
 function run(): void {
   testSamplerSplitsRenderedAllocatedAndHiddenTerrainGeometry();
+  testSamplerClassifiesBucketsAndSkipsDisposedMeshes();
 }
 
 run();

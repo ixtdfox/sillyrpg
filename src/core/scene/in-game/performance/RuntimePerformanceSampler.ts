@@ -6,6 +6,7 @@ import type { LocationManager } from "../../../world/location/LocationManager";
 import {
   RUNTIME_PERFORMANCE_WARNING_THRESHOLDS,
   type RuntimePerformanceGeometryMetrics,
+  type RuntimePerformanceGeometryBucketMetrics,
   type RuntimePerformanceInstrumentationMetrics,
   type RuntimePerformanceSceneMetrics,
   type RuntimePerformanceSnapshot,
@@ -62,7 +63,11 @@ export class RuntimePerformanceSampler {
       allocatedVertexCount: 0,
       allocatedTriangleCount: 0,
       hiddenPickOnlyTerrainVertexCount: 0,
-      hiddenPickOnlyTerrainTriangleCount: 0
+      hiddenPickOnlyTerrainTriangleCount: 0,
+      buckets: [],
+      cullingFlagWarningMeshCount: 0,
+      cullingFlagWarningTriangleCount: 0,
+      cullingFlagWarningMeshNames: []
     };
     this.enabled = false;
   }
@@ -103,10 +108,17 @@ export class RuntimePerformanceSampler {
       rectGridEnabled: this.gridRuntime.getIsDebugEnabled(),
       terrainLodDebugEnabled: this.locationManager.getTerrainLodDebugEnabled()
     };
+    const engineFps = this.engine.getFps();
+    const frameStats = this.computeFrameWindowStats();
     const frame = {
-      fps: this.engine.getFps(),
+      fps: engineFps,
+      engineFps,
       frameMs: this.engine.getDeltaTime(),
-      ...this.computeFrameWindowStats()
+      ...frameStats,
+      renderWidth: this.engine.getRenderWidth(),
+      renderHeight: this.engine.getRenderHeight(),
+      hardwareScalingLevel: this.engine.getHardwareScalingLevel(),
+      fpsCapDiagnostic: this.detectFpsCap(engineFps, this.engine.getDeltaTime(), frameStats.averageFrameMs, instrumentation)
     };
     const snapshotWithoutWarnings = {
       frame,
@@ -168,6 +180,8 @@ export class RuntimePerformanceSampler {
   }
 
   private sampleSceneMetrics(shouldSampleGeometry: boolean): RuntimePerformanceSceneMetrics {
+    const activeMeshes = this.scene.getActiveMeshes();
+    const activeMeshSet = this.createActiveMeshSet(activeMeshes);
     let enabledMeshCount = 0;
     let visibleMeshCount = 0;
     let lineMeshCount = 0;
@@ -177,19 +191,27 @@ export class RuntimePerformanceSampler {
     let allocatedTriangleCount = 0;
     let hiddenPickOnlyTerrainVertexCount = 0;
     let hiddenPickOnlyTerrainTriangleCount = 0;
+    const bucketAccumulators = new Map<string, RuntimePerformanceGeometryBucketAccumulator>();
+    let cullingFlagWarningMeshCount = 0;
+    let cullingFlagWarningTriangleCount = 0;
+    const cullingFlagWarningMeshNames: string[] = [];
 
     for (const mesh of this.scene.meshes) {
+      if (mesh.isDisposed()) {
+        continue;
+      }
+
       if (this.isLineMesh(mesh)) {
         lineMeshCount += 1;
       }
 
-      if (!mesh.isEnabled()) {
-        continue;
+      const isEnabled = mesh.isEnabled();
+      const isRenderableByFlags = isEnabled && mesh.isVisible && mesh.visibility > 0;
+      const isRenderedGeometry = isRenderableByFlags && activeMeshSet.has(mesh);
+      if (isEnabled) {
+        enabledMeshCount += 1;
       }
-
-      enabledMeshCount += 1;
-      const isRenderedGeometry = mesh.isVisible && mesh.visibility > 0;
-      if (isRenderedGeometry) {
+      if (isRenderableByFlags) {
         visibleMeshCount += 1;
       }
 
@@ -198,12 +220,29 @@ export class RuntimePerformanceSampler {
         const meshTriangleCount = Math.floor(mesh.getTotalIndices() / 3);
         allocatedVertexCount += meshVertexCount;
         allocatedTriangleCount += meshTriangleCount;
+        this.addMeshToBucket(
+          bucketAccumulators,
+          this.classifyMeshBucket(mesh),
+          mesh,
+          isEnabled,
+          isRenderableByFlags,
+          isRenderedGeometry,
+          meshVertexCount,
+          meshTriangleCount
+        );
         if (isRenderedGeometry) {
           renderedVertexCount += meshVertexCount;
           renderedTriangleCount += meshTriangleCount;
         } else if (this.isHiddenPickOnlyTerrain(mesh)) {
           hiddenPickOnlyTerrainVertexCount += meshVertexCount;
           hiddenPickOnlyTerrainTriangleCount += meshTriangleCount;
+        }
+        if (this.hasLargeCullingOverride(mesh, meshVertexCount, meshTriangleCount)) {
+          cullingFlagWarningMeshCount += 1;
+          cullingFlagWarningTriangleCount += meshTriangleCount;
+          if (cullingFlagWarningMeshNames.length < 5) {
+            cullingFlagWarningMeshNames.push(mesh.name);
+          }
         }
       }
     }
@@ -217,7 +256,11 @@ export class RuntimePerformanceSampler {
         allocatedVertexCount,
         allocatedTriangleCount,
         hiddenPickOnlyTerrainVertexCount,
-        hiddenPickOnlyTerrainTriangleCount
+        hiddenPickOnlyTerrainTriangleCount,
+        buckets: this.createSortedBuckets(bucketAccumulators),
+        cullingFlagWarningMeshCount,
+        cullingFlagWarningTriangleCount,
+        cullingFlagWarningMeshNames
       };
     }
 
@@ -225,7 +268,7 @@ export class RuntimePerformanceSampler {
       meshCount: this.scene.meshes.length,
       enabledMeshCount,
       visibleMeshCount,
-      activeMeshCount: this.scene.getActiveMeshes().length,
+      activeMeshCount: activeMeshes.length,
       lineMeshCount,
       materialCount: this.scene.materials.length,
       textureCount: this.scene.textures.length,
@@ -326,12 +369,159 @@ export class RuntimePerformanceSampler {
     if (snapshot.debug.rectGridEnabled || snapshot.debug.terrainLodDebugEnabled) {
       warnings.push({ severity: "warning", message: "Debug overlays ON; timings include line/grid overhead" });
     }
+    if (snapshot.geometry.cullingFlagWarningMeshCount > 0) {
+      warnings.push({
+        severity: "warning",
+        message: `Large meshes bypassing frustum culling: ${snapshot.geometry.cullingFlagWarningMeshNames.join(", ")}`
+      });
+    }
 
     return warnings;
   }
 
+  private detectFpsCap(
+    fps: number,
+    frameMs: number,
+    averageFrameMs: number | null,
+    instrumentation: RuntimePerformanceInstrumentationMetrics
+  ): string | null {
+    const measuredFrameMs = averageFrameMs ?? frameMs;
+    if (fps < 57 || fps > 63 || measuredFrameMs < 15.5 || measuredFrameMs > 17.8) {
+      return null;
+    }
+
+    const measuredCosts = [
+      instrumentation.renderMs,
+      instrumentation.activeMeshesEvaluationMs,
+      instrumentation.renderTargetsRenderMs,
+      instrumentation.cameraRenderMs
+    ].filter((value): value is number => value !== null && Number.isFinite(value));
+    if (measuredCosts.length === 0) {
+      return null;
+    }
+
+    return Math.max(...measuredCosts) <= 8 ? "likely display/VSync limited" : null;
+  }
+
   private isLineMesh(mesh: AbstractMesh): boolean {
     return mesh.getClassName() === "LinesMesh";
+  }
+
+  private addMeshToBucket(
+    buckets: Map<string, RuntimePerformanceGeometryBucketAccumulator>,
+    bucket: string,
+    mesh: AbstractMesh,
+    isEnabled: boolean,
+    isRenderableByFlags: boolean,
+    isRenderedGeometry: boolean,
+    vertexCount: number,
+    triangleCount: number
+  ): void {
+    let accumulator = buckets.get(bucket);
+    if (!accumulator) {
+      accumulator = {
+        bucket,
+        meshCount: 0,
+        enabledMeshCount: 0,
+        visibleMeshCount: 0,
+        renderedVertexCount: 0,
+        renderedTriangleCount: 0,
+        allocatedVertexCount: 0,
+        allocatedTriangleCount: 0
+      };
+      buckets.set(bucket, accumulator);
+    }
+
+    accumulator.meshCount += 1;
+    accumulator.enabledMeshCount += isEnabled ? 1 : 0;
+    accumulator.visibleMeshCount += isRenderableByFlags ? 1 : 0;
+    accumulator.allocatedVertexCount += vertexCount;
+    accumulator.allocatedTriangleCount += triangleCount;
+    if (isRenderedGeometry) {
+      accumulator.renderedVertexCount += vertexCount;
+      accumulator.renderedTriangleCount += triangleCount;
+    }
+  }
+
+  private createActiveMeshSet(activeMeshes: { readonly length: number; readonly data: readonly AbstractMesh[] }): Set<AbstractMesh> {
+    const activeMeshSet = new Set<AbstractMesh>();
+    for (let index = 0; index < activeMeshes.length; index += 1) {
+      const mesh = activeMeshes.data[index];
+      if (mesh && !mesh.isDisposed()) {
+        activeMeshSet.add(mesh);
+      }
+    }
+    return activeMeshSet;
+  }
+
+  private createSortedBuckets(
+    buckets: ReadonlyMap<string, RuntimePerformanceGeometryBucketAccumulator>
+  ): readonly RuntimePerformanceGeometryBucketMetrics[] {
+    return [...buckets.values()]
+      .sort((left, right) => {
+        if (right.allocatedTriangleCount !== left.allocatedTriangleCount) {
+          return right.allocatedTriangleCount - left.allocatedTriangleCount;
+        }
+        return left.bucket.localeCompare(right.bucket);
+      })
+      .map((bucket) => ({ ...bucket }));
+  }
+
+  private classifyMeshBucket(mesh: AbstractMesh): string {
+    const metadata = mesh.metadata as Record<string, unknown> | null | undefined;
+    const terrainKind = typeof metadata?.terrainKind === "string" ? metadata.terrainKind : "";
+    const name = mesh.name.toLowerCase();
+    if (terrainKind === "generated-lod-visual") {
+      return "terrain_lod_patch";
+    }
+    if (metadata?.terrainSurfaceCanonical === true || terrainKind === "generated") {
+      return "terrain_canonical_pick";
+    }
+    if (metadata?.terrainDebugOnly === true || terrainKind.includes("terrain-grid") || name.includes("terrain") && name.includes("debug")) {
+      return "terrain_debug_lines";
+    }
+    if (name.includes("rect-grid") || name.includes("grid-") || name.includes("grid_")) {
+      return "grid_debug_lines";
+    }
+    if (
+      metadata?.buildingVisibilityInstanceId !== undefined ||
+      metadata?.sceneObjectType === "building" ||
+      name.includes("building")
+    ) {
+      return "building";
+    }
+    if (metadata?.characterId !== undefined || metadata?.entityKind === "character" || name.includes("character")) {
+      return "character";
+    }
+    if (metadata?.shadowHelper === true || name.includes("shadow-helper") || name.includes("shadowhelper")) {
+      return "shadow_helper";
+    }
+    if (metadata?.editorTerrainPreview === true || metadata?.editorHelper === true || name.includes("editor-preview")) {
+      return "editor_preview";
+    }
+    return "other";
+  }
+
+  private hasLargeCullingOverride(mesh: AbstractMesh, vertexCount: number, triangleCount: number): boolean {
+    const cullingFlags = mesh as AbstractMesh & { readonly skipFrustumClipping?: boolean };
+    if (!mesh.alwaysSelectAsActiveMesh && cullingFlags.skipFrustumClipping !== true) {
+      return false;
+    }
+
+    if (this.isAllowedSmallCullingOverride(mesh)) {
+      return false;
+    }
+
+    return triangleCount >= 512 || vertexCount >= 1000;
+  }
+
+  private isAllowedSmallCullingOverride(mesh: AbstractMesh): boolean {
+    const metadata = mesh.metadata as Record<string, unknown> | null | undefined;
+    if (metadata?.gameHelper === true || metadata?.editorTerrainPreview === true || metadata?.editorHelper === true) {
+      return true;
+    }
+
+    return this.isLineMesh(mesh) && mesh.getTotalVertices() <= 256;
   }
 
   private isHiddenPickOnlyTerrain(mesh: AbstractMesh): boolean {
@@ -355,4 +545,15 @@ export class RuntimePerformanceSampler {
     }
     return maxSampleStep;
   }
+}
+
+interface RuntimePerformanceGeometryBucketAccumulator {
+  bucket: string;
+  meshCount: number;
+  enabledMeshCount: number;
+  visibleMeshCount: number;
+  renderedVertexCount: number;
+  renderedTriangleCount: number;
+  allocatedVertexCount: number;
+  allocatedTriangleCount: number;
 }

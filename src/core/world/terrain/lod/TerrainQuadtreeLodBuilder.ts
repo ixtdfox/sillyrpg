@@ -6,6 +6,10 @@ import type {
   TerrainQuadtreeNode
 } from "./TerrainQuadtreeLodTypes";
 
+export interface TerrainQuadtreeNodeSelectionPolicy {
+  shouldKeepNode(node: TerrainQuadtreeNode): boolean;
+}
+
 /**
  * Геометрия quadtree node в локальных координатах terrain.
  */
@@ -150,7 +154,8 @@ export class TerrainQuadtreeLodBuilder {
     anchorLocal: Vector3,
     descriptor: ResolvedTerrainQuadtreeLodDescriptor,
     heightField: TerrainHeightField,
-    horizontalWorldScale = 1
+    horizontalWorldScale = 1,
+    nodeSelectionPolicy: TerrainQuadtreeNodeSelectionPolicy | null = null
   ): readonly TerrainQuadtreeLeafSelection[] {
     const leaves: TerrainQuadtreeLeafSelection[] = [];
     this.collectVisibleLeaves(
@@ -159,7 +164,8 @@ export class TerrainQuadtreeLodBuilder {
       descriptor,
       heightField,
       Math.max(0.0001, horizontalWorldScale),
-      leaves
+      leaves,
+      nodeSelectionPolicy
     );
     return leaves;
   }
@@ -213,8 +219,13 @@ export class TerrainQuadtreeLodBuilder {
     descriptor: ResolvedTerrainQuadtreeLodDescriptor,
     heightField: TerrainHeightField,
     horizontalWorldScale: number,
-    leaves: TerrainQuadtreeLeafSelection[]
+    leaves: TerrainQuadtreeLeafSelection[],
+    nodeSelectionPolicy: TerrainQuadtreeNodeSelectionPolicy | null
   ): void {
+    if (nodeSelectionPolicy && !nodeSelectionPolicy.shouldKeepNode(node)) {
+      return;
+    }
+
     const distanceToNodeAabb = this.nodeGeometry.computeHorizontalDistanceToNodeAabb(node, anchorLocal) * horizontalWorldScale;
     const distanceToNodeCenter = this.nodeGeometry.computeHorizontalDistanceToNodeCenter(node, anchorLocal) * horizontalWorldScale;
     const nodeInsideNearFullResolutionRadius = distanceToNodeAabb <= descriptor.nearFullResolutionRadius;
@@ -247,7 +258,15 @@ export class TerrainQuadtreeLodBuilder {
     }
 
     for (const child of node.children) {
-      this.collectVisibleLeaves(child, anchorLocal, descriptor, heightField, horizontalWorldScale, leaves);
+      this.collectVisibleLeaves(
+        child,
+        anchorLocal,
+        descriptor,
+        heightField,
+        horizontalWorldScale,
+        leaves,
+        nodeSelectionPolicy
+      );
     }
   }
 }

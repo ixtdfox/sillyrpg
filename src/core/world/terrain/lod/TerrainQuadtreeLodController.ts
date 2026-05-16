@@ -10,6 +10,7 @@ import {
 } from "@babylonjs/core";
 import type { SceneGeneratedTerrainDescriptor } from "../../scene/SceneDescriptor";
 import type { TerrainHeightField } from "../TerrainHeightField";
+import { TerrainFrustumCullingPolicy } from "./TerrainFrustumCullingPolicy";
 import { TerrainQuadtreeLodBuilder } from "./TerrainQuadtreeLodBuilder";
 import { TerrainQuadtreePatchMeshBuilder } from "./TerrainQuadtreePatchMeshBuilder";
 import { TerrainQuadtreeLodSeamResolver } from "./TerrainQuadtreeLodSeamResolver";
@@ -25,6 +26,7 @@ import {
   type TerrainQuadtreeLodDebugMode,
   type TerrainQuadtreeLodDiagnostics,
   type TerrainQuadtreeLodRuntimeTuning,
+  type TerrainFrustumCullingDiagnostics,
   type TerrainQuadtreeNode
 } from "./TerrainQuadtreeLodTypes";
 
@@ -83,6 +85,22 @@ class TerrainLodDebugFormatter {
   }
 }
 
+interface TerrainPatchMeshRecord {
+  readonly mesh: Mesh;
+  readonly vertexCount: number;
+  readonly triangleCount: number;
+  lastUsedFrame: number;
+  lastUsedTimeSeconds: number;
+  active: boolean;
+}
+
+interface TerrainPatchLifecycleCounters {
+  built: number;
+  reused: number;
+  disabled: number;
+  disposed: number;
+}
+
 /**
  * Controller quadtree LOD meshes.
  *
@@ -110,7 +128,7 @@ export class TerrainQuadtreeLodController {
   private readonly debugStyle: TerrainLodDebugStyle;
   private readonly debugFormatter: TerrainLodDebugFormatter;
   private readonly rootNode: TerrainQuadtreeNode;
-  private readonly patchMeshes: Map<string, Mesh>;
+  private readonly patchMeshes: Map<string, TerrainPatchMeshRecord>;
   private readonly canonicalMeshMode: TerrainCanonicalMeshMode;
   private readonly originalCanonicalVisibility: number | null;
   private readonly originalCanonicalIsVisible: boolean | null;
@@ -130,6 +148,10 @@ export class TerrainQuadtreeLodController {
   private lastSelectionNearFullResolutionRadius: number | null;
   private activeNearFullResolutionRadius: number;
   private runtimeTuning: TerrainQuadtreeLodRuntimeTuning | null;
+  private patchUpdateFrame: number;
+  private patchCacheClockSeconds: number;
+  private lastPatchLifecycleCounters: TerrainPatchLifecycleCounters;
+  private lastFrustumDiagnostics: TerrainFrustumCullingDiagnostics;
 
   public constructor(
     options: TerrainQuadtreeLodControllerOptions,
@@ -180,6 +202,10 @@ export class TerrainQuadtreeLodController {
     this.lastSelectionNearFullResolutionRadius = null;
     this.activeNearFullResolutionRadius = this.lodDescriptor.nearFullResolutionRadius;
     this.runtimeTuning = null;
+    this.patchUpdateFrame = 0;
+    this.patchCacheClockSeconds = 0;
+    this.lastPatchLifecycleCounters = this.createPatchLifecycleCounters();
+    this.lastFrustumDiagnostics = TerrainFrustumCullingPolicy.createDisabledDiagnostics();
     this.warnLowSourceDensityIfNeeded();
   }
 
@@ -198,6 +224,7 @@ export class TerrainQuadtreeLodController {
     }
 
     this.updateAccumulatorSeconds += Math.max(0, deltaSeconds);
+    this.patchCacheClockSeconds += Math.max(0, deltaSeconds);
     this.debugLogAccumulatorSeconds += Math.max(0, deltaSeconds);
     if (
       this.activeLeaves.length > 0 &&
@@ -217,13 +244,17 @@ export class TerrainQuadtreeLodController {
     }
 
     this.updateAccumulatorSeconds = 0;
+    const frustumPolicy = this.createFrustumCullingPolicy(anchorLocal, selectionDescriptor);
     const leaves = this.lodBuilder.selectVisibleLeaves(
       this.rootNode,
       anchorLocal,
       selectionDescriptor,
       this.heightField,
-      this.getHorizontalWorldScale()
+      this.getHorizontalWorldScale(),
+      frustumPolicy
     );
+    this.lastFrustumDiagnostics =
+      frustumPolicy?.getDiagnostics() ?? TerrainFrustumCullingPolicy.createDisabledDiagnostics();
     this.applyVisibleLeaves(leaves);
     this.activeNearFullResolutionRadius = selectionDescriptor.nearFullResolutionRadius;
     this.hideCanonicalVisualSurface();
@@ -350,17 +381,31 @@ export class TerrainQuadtreeLodController {
       desiredNearPatchWorldSize: this.lodDescriptor.nearPatchWorldSize,
       effectiveNearFullResolutionRadius,
       activePatchMeshCount: patchStats.activeCount,
-      cachedPatchMeshCount: patchStats.cachedCount,
+      inactivePatchMeshCount: patchStats.inactiveCount,
+      totalPatchMeshCount: patchStats.totalCount,
+      cachedPatchMeshCount: patchStats.totalCount,
       inactiveCachedPatchMeshCount: patchStats.inactiveCount,
       activePatchVertices: patchStats.activeVertices,
       activePatchTriangles: patchStats.activeTriangles,
-      cachedPatchVertices: patchStats.cachedVertices,
-      cachedPatchTriangles: patchStats.cachedTriangles,
+      inactivePatchVertices: patchStats.inactiveVertices,
+      inactivePatchTriangles: patchStats.inactiveTriangles,
+      totalPatchVertices: patchStats.totalVertices,
+      totalPatchTriangles: patchStats.totalTriangles,
+      cachedPatchVertices: patchStats.totalVertices,
+      cachedPatchTriangles: patchStats.totalTriangles,
+      patchesBuiltLastUpdate: this.lastPatchLifecycleCounters.built,
+      patchesReusedLastUpdate: this.lastPatchLifecycleCounters.reused,
+      patchesDisabledLastUpdate: this.lastPatchLifecycleCounters.disabled,
+      patchesDisposedLastUpdate: this.lastPatchLifecycleCounters.disposed,
+      patchCacheEnabled: this.lodDescriptor.patchCache.enabled,
       activeDebugLineMeshCount: this.getActiveDebugLineMeshCount(),
       approxVisibleTriangles,
       canonicalMeshMode: this.canonicalMeshMode,
       canonicalMeshVertexCount: canonicalStats.vertexCount,
       canonicalMeshTriangleCount: canonicalStats.triangleCount,
+      hiddenPickOnlyTerrainVertexCount: this.canonicalMeshMode === "PICK_ONLY" ? canonicalStats.vertexCount : 0,
+      hiddenPickOnlyTerrainTriangleCount: this.canonicalMeshMode === "PICK_ONLY" ? canonicalStats.triangleCount : 0,
+      frustumCulling: this.lastFrustumDiagnostics,
       seamAdjustedPatchCount,
       maxNeighborSampleStepRatio,
       debugMode: this.getActiveDebugMode(),
@@ -382,9 +427,9 @@ export class TerrainQuadtreeLodController {
     }
 
     this.disposeDebugLineMeshes();
-    for (const mesh of this.patchMeshes.values()) {
-      if (!mesh.isDisposed()) {
-        mesh.dispose(false, false);
+    for (const record of this.patchMeshes.values()) {
+      if (!record.mesh.isDisposed()) {
+        record.mesh.dispose(false, false);
       }
     }
     this.patchMeshes.clear();
@@ -407,35 +452,50 @@ export class TerrainQuadtreeLodController {
    */
   private applyVisibleLeaves(leaves: readonly TerrainQuadtreeLeafSelection[]): void {
     const seamCompatibleLeaves = this.seamResolver.applySeamCompatibility(leaves);
+    const lifecycleCounters = this.createPatchLifecycleCounters();
+    this.patchUpdateFrame += 1;
     const nextLeafKeys = new Set(seamCompatibleLeaves.map((leaf) => this.leafMeshKeyFactory.make(leaf)));
-    for (const [leafKey, mesh] of this.patchMeshes) {
+    for (const [leafKey, record] of this.patchMeshes) {
       if (!nextLeafKeys.has(leafKey)) {
-        if (!mesh.isDisposed()) {
-          mesh.dispose(false, false);
+        if (record.active && !record.mesh.isDisposed()) {
+          record.mesh.setEnabled(false);
+          lifecycleCounters.disabled += 1;
         }
-        this.patchMeshes.delete(leafKey);
+        record.active = false;
+        if (!this.lodDescriptor.patchCache.enabled) {
+          this.disposePatchRecord(leafKey, record, lifecycleCounters);
+        }
       }
     }
 
     for (const leaf of seamCompatibleLeaves) {
-      const mesh = this.getOrCreatePatchMesh(leaf);
-      mesh.setEnabled(true);
+      const record = this.getOrCreatePatchMesh(leaf, lifecycleCounters);
+      record.mesh.setEnabled(true);
+      record.active = true;
+      record.lastUsedFrame = this.patchUpdateFrame;
+      record.lastUsedTimeSeconds = this.patchCacheClockSeconds;
     }
 
+    this.evictInactivePatchCache(lifecycleCounters);
+    this.lastPatchLifecycleCounters = lifecycleCounters;
     this.activeLeaves = seamCompatibleLeaves;
   }
 
   /**
    * Возвращает cached patch mesh или создает новый.
    */
-  private getOrCreatePatchMesh(leaf: TerrainQuadtreeLeafSelection): Mesh {
+  private getOrCreatePatchMesh(
+    leaf: TerrainQuadtreeLeafSelection,
+    lifecycleCounters: TerrainPatchLifecycleCounters
+  ): TerrainPatchMeshRecord {
     const node = leaf.node;
     const leafKey = this.leafMeshKeyFactory.make(leaf);
     const cached = this.patchMeshes.get(leafKey);
-    if (cached && !cached.isDisposed()) {
+    if (cached && !cached.mesh.isDisposed()) {
+      lifecycleCounters.reused += 1;
       return cached;
     }
-    if (cached?.isDisposed()) {
+    if (cached?.mesh.isDisposed()) {
       this.patchMeshes.delete(leafKey);
     }
 
@@ -451,8 +511,17 @@ export class TerrainQuadtreeLodController {
       name: `terrain:${this.terrainDescriptor.id}:lod:node:${node.depth}:${node.ix0}:${node.iz0}:${node.ix1}:${node.iz1}:logical:${leaf.sampleStep}:build:${leaf.buildSampleStep ?? leaf.sampleStep}`
     });
     mesh.setParent(this.terrainRoot, false);
-    this.patchMeshes.set(leafKey, mesh);
-    return mesh;
+    const record: TerrainPatchMeshRecord = {
+      mesh,
+      vertexCount: mesh.getTotalVertices(),
+      triangleCount: Math.floor(mesh.getTotalIndices() / 3),
+      lastUsedFrame: this.patchUpdateFrame,
+      lastUsedTimeSeconds: this.patchCacheClockSeconds,
+      active: true
+    };
+    this.patchMeshes.set(leafKey, record);
+    lifecycleCounters.built += 1;
+    return record;
   }
 
   /**
@@ -478,50 +547,148 @@ export class TerrainQuadtreeLodController {
     return metadata?.terrainCanonicalMeshMode ?? "FULL_RENDER_FALLBACK";
   }
 
-  private measurePatchMeshes(): {
-    readonly activeCount: number;
-    readonly cachedCount: number;
-    readonly inactiveCount: number;
-    readonly activeVertices: number;
-    readonly activeTriangles: number;
-    readonly cachedVertices: number;
-    readonly cachedTriangles: number;
-  } {
-    let activeCount = 0;
-    let cachedCount = 0;
-    let inactiveCount = 0;
-    let activeVertices = 0;
-    let activeTriangles = 0;
-    let cachedVertices = 0;
-    let cachedTriangles = 0;
+  private createFrustumCullingPolicy(
+    anchorLocal: Vector3,
+    descriptor: ResolvedTerrainQuadtreeLodDescriptor
+  ): TerrainFrustumCullingPolicy | null {
+    if (!descriptor.frustumCulling.enabled) {
+      return null;
+    }
 
-    for (const mesh of this.patchMeshes.values()) {
-      if (mesh.isDisposed()) {
+    return new TerrainFrustumCullingPolicy({
+      terrainRoot: this.terrainRoot,
+      heightField: this.heightField,
+      camera: this.scene.activeCamera,
+      anchorLocal,
+      horizontalWorldScale: this.getHorizontalWorldScale(),
+      options: {
+        ...descriptor.frustumCulling,
+        keepNearAnchorRadius: Math.max(
+          descriptor.frustumCulling.keepNearAnchorRadius,
+          descriptor.nearFullResolutionRadius
+        )
+      }
+    });
+  }
+
+  private createPatchLifecycleCounters(): TerrainPatchLifecycleCounters {
+    return {
+      built: 0,
+      reused: 0,
+      disabled: 0,
+      disposed: 0
+    };
+  }
+
+  private evictInactivePatchCache(lifecycleCounters: TerrainPatchLifecycleCounters): void {
+    if (!this.lodDescriptor.patchCache.enabled) {
+      return;
+    }
+
+    const options = this.lodDescriptor.patchCache;
+    for (const [key, record] of this.patchMeshes) {
+      if (record.active || record.mesh.isDisposed()) {
         continue;
       }
 
-      const vertices = mesh.getTotalVertices();
-      const triangles = Math.floor(mesh.getTotalIndices() / 3);
-      cachedCount += 1;
-      cachedVertices += vertices;
-      cachedTriangles += triangles;
-      if (mesh.isEnabled()) {
+      if (this.patchCacheClockSeconds - record.lastUsedTimeSeconds > options.inactiveTtlSeconds) {
+        this.disposePatchRecord(key, record, lifecycleCounters);
+      }
+    }
+
+    let inactiveRecords = this.getInactivePatchRecordsByLru();
+    let inactiveCount = inactiveRecords.length;
+    let inactiveTriangles = inactiveRecords.reduce((sum, [, record]) => sum + record.triangleCount, 0);
+    while (
+      inactiveRecords.length > 0 &&
+      (inactiveCount > options.maxInactivePatches || inactiveTriangles > options.maxInactivePatchTriangles)
+    ) {
+      const [key, record] = inactiveRecords[0]!;
+      this.disposePatchRecord(key, record, lifecycleCounters);
+      inactiveRecords = this.getInactivePatchRecordsByLru();
+      inactiveCount = inactiveRecords.length;
+      inactiveTriangles = inactiveRecords.reduce((sum, [, nextRecord]) => sum + nextRecord.triangleCount, 0);
+    }
+  }
+
+  private getInactivePatchRecordsByLru(): [string, TerrainPatchMeshRecord][] {
+    return [...this.patchMeshes.entries()]
+      .filter(([, record]) => !record.active && !record.mesh.isDisposed())
+      .sort(([leftKey, left], [rightKey, right]) => {
+        if (left.lastUsedFrame !== right.lastUsedFrame) {
+          return left.lastUsedFrame - right.lastUsedFrame;
+        }
+        if (left.lastUsedTimeSeconds !== right.lastUsedTimeSeconds) {
+          return left.lastUsedTimeSeconds - right.lastUsedTimeSeconds;
+        }
+        return leftKey.localeCompare(rightKey);
+      });
+  }
+
+  private disposePatchRecord(
+    key: string,
+    record: TerrainPatchMeshRecord,
+    lifecycleCounters: TerrainPatchLifecycleCounters
+  ): void {
+    if (!record.mesh.isDisposed()) {
+      record.mesh.dispose(false, false);
+      lifecycleCounters.disposed += 1;
+    }
+    this.patchMeshes.delete(key);
+  }
+
+  private measurePatchMeshes(): {
+    readonly activeCount: number;
+    readonly inactiveCount: number;
+    readonly totalCount: number;
+    readonly activeVertices: number;
+    readonly activeTriangles: number;
+    readonly inactiveVertices: number;
+    readonly inactiveTriangles: number;
+    readonly totalVertices: number;
+    readonly totalTriangles: number;
+  } {
+    let activeCount = 0;
+    let inactiveCount = 0;
+    let totalCount = 0;
+    let activeVertices = 0;
+    let activeTriangles = 0;
+    let inactiveVertices = 0;
+    let inactiveTriangles = 0;
+    let totalVertices = 0;
+    let totalTriangles = 0;
+
+    for (const record of this.patchMeshes.values()) {
+      if (record.mesh.isDisposed()) {
+        continue;
+      }
+
+      const vertices = record.vertexCount;
+      const triangles = record.triangleCount;
+      totalCount += 1;
+      totalVertices += vertices;
+      totalTriangles += triangles;
+      if (record.active && record.mesh.isEnabled()) {
         activeCount += 1;
         activeVertices += vertices;
         activeTriangles += triangles;
       } else {
         inactiveCount += 1;
+        inactiveVertices += vertices;
+        inactiveTriangles += triangles;
       }
     }
 
     return {
       activeCount,
-      cachedCount,
       inactiveCount,
+      totalCount,
       activeVertices,
       activeTriangles,
-      cachedVertices,
-      cachedTriangles
+      inactiveVertices,
+      inactiveTriangles,
+      totalVertices,
+      totalTriangles
     };
   }
 
@@ -659,10 +826,14 @@ export class TerrainQuadtreeLodController {
         : `${diagnostics.minNearLeafWorldSize.toFixed(2)}..${diagnostics.maxNearLeafWorldSize.toFixed(2)}`;
     console.debug(
       `${prefix} leaves=${diagnostics.visibleLeafCount} maxDepth=${diagnostics.maxDepth} ` +
-      `patchMeshes=${diagnostics.activePatchMeshCount}/${diagnostics.cachedPatchMeshCount} ` +
-      `inactiveCached=${diagnostics.inactiveCachedPatchMeshCount} debugLineMeshes=${diagnostics.activeDebugLineMeshCount} ` +
+      `patchMeshes=${diagnostics.activePatchMeshCount}/${diagnostics.totalPatchMeshCount} ` +
+      `inactive=${diagnostics.inactivePatchMeshCount} cache=${diagnostics.patchCacheEnabled ? "on" : "off"} ` +
+      `built/reused/disabled/disposed=${diagnostics.patchesBuiltLastUpdate}/${diagnostics.patchesReusedLastUpdate}/${diagnostics.patchesDisabledLastUpdate}/${diagnostics.patchesDisposedLastUpdate} ` +
+      `debugLineMeshes=${diagnostics.activeDebugLineMeshCount} ` +
       `approxTriangles=${diagnostics.approxVisibleTriangles} activePatchTriangles=${diagnostics.activePatchTriangles} ` +
+      `inactivePatchTriangles=${diagnostics.inactivePatchTriangles} totalPatchTriangles=${diagnostics.totalPatchTriangles} ` +
       `canonical=${diagnostics.canonicalMeshMode}:${diagnostics.canonicalMeshVertexCount}/${diagnostics.canonicalMeshTriangleCount} ` +
+      `frustum=${diagnostics.frustumCulling.enabled ? "on" : "off"}:${diagnostics.frustumCulling.testedNodeCount}/${diagnostics.frustumCulling.rejectedNodeCount}/${diagnostics.frustumCulling.keptByNearAnchorCount} ` +
       `debugMode=${diagnostics.debugMode} ` +
       `anchor=${diagnostics.anchorSource ?? "none"} depths=[${depthSummary}] ` +
       `samples=[${sampleStepSummary}] buildSamples=[${buildStepSummary}] ` +
@@ -709,6 +880,10 @@ export class TerrainQuadtreeLodController {
       this.lastSelectionNearFullResolutionRadius === null ||
       Math.abs(nextNearFullResolutionRadius - this.lastSelectionNearFullResolutionRadius) > 1
     ) {
+      return false;
+    }
+
+    if (this.lodDescriptor.frustumCulling.enabled && this.scene.activeCamera) {
       return false;
     }
 

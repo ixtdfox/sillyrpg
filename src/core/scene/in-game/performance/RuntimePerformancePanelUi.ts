@@ -32,8 +32,8 @@ export class RuntimePerformancePanelUi {
     this.isDisposed = false;
 
     this.root = new Rectangle("runtime-performance-panel");
-    this.root.width = "548px";
-    this.root.height = "452px";
+    this.root.width = "640px";
+    this.root.height = "560px";
     this.root.thickness = 1;
     this.root.cornerRadius = 6;
     this.root.color = "#4B5563";
@@ -128,17 +128,21 @@ export class RuntimePerformancePanelUi {
 
     return [
       "PERF",
-      `FPS: ${snapshot.frame.fps.toFixed(1)}   frame: ${this.formatMs(snapshot.frame.frameMs)}   avg: ${this.formatMs(snapshot.frame.averageFrameMs)} (${this.formatRange(snapshot.frame.minFrameMs, snapshot.frame.maxFrameMs, "ms")})`,
+      `FPS: ${snapshot.frame.engineFps.toFixed(1)}   frame: ${this.formatMs(snapshot.frame.frameMs)}   avg: ${this.formatMs(snapshot.frame.averageFrameMs)} (${this.formatRange(snapshot.frame.minFrameMs, snapshot.frame.maxFrameMs, "ms")})`,
+      `FPS cap: ${snapshot.frame.fpsCapDiagnostic ?? "not detected"}   render size: ${snapshot.frame.renderWidth}x${snapshot.frame.renderHeight}   hw scale: ${this.formatCompactFloat(snapshot.frame.hardwareScalingLevel)}`,
       `Draw calls: ${this.formatNullableNumber(snapshot.instrumentation.drawCalls)}   active meshes: ${snapshot.scene.activeMeshCount} / meshes: ${snapshot.scene.meshCount}   lines: ${snapshot.scene.lineMeshCount}`,
       `Rendered: Verts ${this.formatNumber(snapshot.geometry.renderedVertexCount)}   Tris ${this.formatNumber(snapshot.geometry.renderedTriangleCount)}   Materials: ${snapshot.scene.materialCount}   Textures: ${snapshot.scene.textureCount}`,
       `Allocated: Verts ${this.formatNumber(snapshot.geometry.allocatedVertexCount)}   Tris ${this.formatNumber(snapshot.geometry.allocatedTriangleCount)}   Hidden/Pick terrain: Verts ${this.formatNumber(snapshot.geometry.hiddenPickOnlyTerrainVertexCount)}   Tris ${this.formatNumber(snapshot.geometry.hiddenPickOnlyTerrainTriangleCount)}`,
       `Render: scene ${this.formatMs(snapshot.instrumentation.frameMs)}   draw ${this.formatMs(snapshot.instrumentation.renderMs)}   active eval ${this.formatMs(snapshot.instrumentation.activeMeshesEvaluationMs)}   targets ${this.formatMs(snapshot.instrumentation.renderTargetsRenderMs)}`,
+      `Buckets: ${this.formatGeometryBuckets(snapshot)}`,
       "",
       "TERRAIN LOD",
       `source: ${this.formatTerrainSource(snapshot)}   source quads: ${this.formatNumber(snapshot.terrainLod.sourceQuadCount)}`,
       `visual LOD: leaves ${snapshot.terrainLod.visibleLeafCount}${terrainWarning}   visible tris ${this.formatNumber(snapshot.terrainLod.approxVisibleTriangles)}   lines: ${snapshot.terrainLod.activeDebugLineMeshCount}`,
-      `canonical mesh: ${snapshot.terrainLod.canonicalMeshMode}   verts ${this.formatNumber(snapshot.terrainLod.canonicalMeshVertexCount)}   tris ${this.formatNumber(snapshot.terrainLod.canonicalMeshTriangleCount)}`,
-      `patch cache: active ${snapshot.terrainLod.activePatchMeshCount}   inactive ${snapshot.terrainLod.inactiveCachedPatchMeshCount}   cached ${snapshot.terrainLod.cachedPatchMeshCount}   cached tris ${this.formatNumber(snapshot.terrainLod.cachedPatchTriangles)}`,
+      `canonical mesh: ${snapshot.terrainLod.canonicalMeshMode}   verts ${this.formatNumber(snapshot.terrainLod.canonicalMeshVertexCount)}   tris ${this.formatNumber(snapshot.terrainLod.canonicalMeshTriangleCount)}   hidden pick tris ${this.formatNumber(snapshot.terrainLod.hiddenPickOnlyTerrainTriangleCount)}`,
+      `patch meshes: active ${snapshot.terrainLod.activePatchMeshCount}   inactive ${snapshot.terrainLod.inactivePatchMeshCount}   total ${snapshot.terrainLod.totalPatchMeshCount}   cache ${this.formatOnOff(snapshot.terrainLod.patchCacheEnabled)}`,
+      `patch lifecycle: built ${snapshot.terrainLod.patchesBuiltLastUpdate}   reused ${snapshot.terrainLod.patchesReusedLastUpdate}   disabled ${snapshot.terrainLod.patchesDisabledLastUpdate}   disposed ${snapshot.terrainLod.patchesDisposedLastUpdate}`,
+      `frustum: ${this.formatOnOff(snapshot.terrainLod.frustumCullingEnabled)}   tested ${snapshot.terrainLod.frustumTestedNodeCount}   rejected ${snapshot.terrainLod.frustumRejectedNodeCount}   near-kept ${snapshot.terrainLod.frustumKeptByNearAnchorCount}`,
       `sample steps: logical ${this.formatSampleStepMap(snapshot.terrainLod.sampleStepCounts)}`,
       `build steps:   actual  ${this.formatSampleStepMap(snapshot.terrainLod.buildSampleStepCounts)}`,
       `seams: adjusted patches ${snapshot.terrainLod.seamAdjustedPatchCount} / ${snapshot.terrainLod.visibleLeafCount}   max ratio: ${this.formatNullableFloat(snapshot.terrainLod.maxNeighborSampleStepRatio)}`,
@@ -146,7 +150,7 @@ export class RuntimePerformancePanelUi {
       `depths: ${this.formatMap(snapshot.terrainLod.depthCounts)}`,
       `leaf size: ${this.formatRange(snapshot.terrainLod.minLeafWorldSize, snapshot.terrainLod.maxLeafWorldSize)}   near: ${this.formatRange(snapshot.terrainLod.minNearLeafWorldSize, snapshot.terrainLod.maxNearLeafWorldSize)}${nearLeafWarning}`,
       `distance: ${this.formatRange(snapshot.terrainLod.minDistanceToAnchor, snapshot.terrainLod.maxDistanceToAnchor)}   debug mode: ${snapshot.terrainLod.debugMode}`,
-      `source quad: ${this.formatRange(snapshot.terrainLod.sourceQuadSizeMin, snapshot.terrainLod.sourceQuadSizeMax)}   patch tris: active ${this.formatNumber(snapshot.terrainLod.activePatchTriangles)} cached ${this.formatNumber(snapshot.terrainLod.cachedPatchTriangles)}`,
+      `source quad: ${this.formatRange(snapshot.terrainLod.sourceQuadSizeMin, snapshot.terrainLod.sourceQuadSizeMax)}   patch tris: active ${this.formatNumber(snapshot.terrainLod.activePatchTriangles)} inactive ${this.formatNumber(snapshot.terrainLod.inactivePatchTriangles)} total ${this.formatNumber(snapshot.terrainLod.totalPatchTriangles)}`,
       "",
       "SHADOWS",
       `enabled: ${this.formatYesNo(snapshot.shadows.enabled)}   type: ${snapshot.shadows.generatorKind}   generator: ${this.formatYesNo(snapshot.shadows.hasGenerator)}`,
@@ -194,6 +198,19 @@ export class RuntimePerformancePanelUi {
       .slice(0, 3)
       .map((batch) => `${batch.source}:${batch.casterMeshes}/${batch.receiverMeshes}`)
       .join(" ");
+  }
+
+  private formatGeometryBuckets(snapshot: RuntimePerformanceSnapshot): string {
+    if (snapshot.geometry.buckets.length === 0) {
+      return "n/a";
+    }
+
+    return snapshot.geometry.buckets
+      .slice(0, 4)
+      .map((bucket) =>
+        `${bucket.bucket} ${this.formatNumber(bucket.renderedTriangleCount)}/${this.formatNumber(bucket.allocatedTriangleCount)}t`
+      )
+      .join("  ");
   }
 
   private formatMap(map: ReadonlyMap<number, number>): string {

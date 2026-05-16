@@ -5,6 +5,7 @@ import { TerrainMeshBuilder } from "../../../src/core/world/terrain/TerrainMeshB
 import { TerrainNormalBuilder } from "../../../src/core/world/terrain/TerrainNormalBuilder";
 import { TerrainQuadtreeLodBuilder, TerrainQuadtreeSampleStepPolicy } from "../../../src/core/world/terrain/lod/TerrainQuadtreeLodBuilder";
 import { TerrainQuadtreeLodController } from "../../../src/core/world/terrain/lod/TerrainQuadtreeLodController";
+import { TerrainFrustumCullingPolicy } from "../../../src/core/world/terrain/lod/TerrainFrustumCullingPolicy";
 import { TerrainQuadtreeLodSeamResolver } from "../../../src/core/world/terrain/lod/TerrainQuadtreeLodSeamResolver";
 import { TerrainQuadtreePatchMeshBuilder } from "../../../src/core/world/terrain/lod/TerrainQuadtreePatchMeshBuilder";
 import {
@@ -240,7 +241,12 @@ function run(): void {
   testQuadtreeStitchedSelectionHasMatchingSharedEdges();
   testQuadtreeDefaultRingsSelectHighFarSampleSteps();
   testQuadtreeFarSampleStepsReduceApproximateTriangleCount();
+  testTerrainFrustumPolicyRejectsOutsideNodes();
+  testTerrainFrustumPolicyKeepsNearAnchorNodes();
+  testQuadtreeLodControllerKeepsNearAnchorTerrainWithFrustumCulling();
   testQuadtreeLodControllerDisposesInactivePatchMeshes();
+  testQuadtreeLodControllerReusesPatchesAndReportsLifecycle();
+  testQuadtreeLodControllerEvictsInactiveCacheByCountTrianglesAndTtl();
   testQuadtreeLodControllerExpandsNearRadiusForDistantPlayerCamera();
   testQuadtreeLodControllerAppliesRuntimeDistanceTuning();
   testLegacyNearLeafWorldSizeMigratesToPatchWorldSizeDefault();
@@ -1040,6 +1046,149 @@ function testLegacyNearLeafWorldSizeMigratesToPatchWorldSizeDefault(): void {
   }
 }
 
+function testTerrainFrustumPolicyRejectsOutsideNodes(): void {
+  const engine = new NullEngine();
+  const scene = new Scene(engine);
+  const camera = new FreeCamera("frustum-camera", new Vector3(0, 12, -40), scene);
+  camera.setTarget(Vector3.Zero());
+  camera.minZ = 0.1;
+  camera.maxZ = 120;
+  scene.activeCamera = camera;
+  const terrainRoot = new TransformNode("terrain-root", scene);
+  const field = TerrainHeightField.createFilled(32, 32, 33, 33, 0);
+  const policy = new TerrainFrustumCullingPolicy({
+    terrainRoot,
+    heightField: field,
+    camera,
+    anchorLocal: Vector3.Zero(),
+    horizontalWorldScale: 1,
+    options: {
+      enabled: true,
+      guardWorldPadding: 0,
+      keepNearAnchorRadius: 0,
+      maxHeightPadding: 1
+    }
+  });
+
+  const outsideNode = {
+    ...createTestNode("outside", 0, 0, 8, 8),
+    centerLocalX: 1000,
+    centerLocalZ: 0,
+    sizeWorldX: 8,
+    sizeWorldZ: 8
+  };
+  const insideNode = {
+    ...createTestNode("inside", 0, 0, 8, 8),
+    centerLocalX: 0,
+    centerLocalZ: 0,
+    sizeWorldX: 8,
+    sizeWorldZ: 8
+  };
+
+  assert(policy.shouldKeepNode(insideNode), "Frustum policy should keep nodes inside the active camera frustum.");
+  assert(!policy.shouldKeepNode(outsideNode), "Frustum policy should reject nodes far outside the active camera frustum.");
+  const diagnostics = policy.getDiagnostics();
+  assert(diagnostics.testedNodeCount === 2, "Frustum diagnostics should count tested nodes.");
+  assert(diagnostics.rejectedNodeCount === 1, "Frustum diagnostics should count rejected nodes.");
+  assert(diagnostics.acceptedNodeCount === 1, "Frustum diagnostics should count accepted nodes.");
+
+  scene.dispose();
+  engine.dispose();
+}
+
+function testTerrainFrustumPolicyKeepsNearAnchorNodes(): void {
+  const engine = new NullEngine();
+  const scene = new Scene(engine);
+  const camera = new FreeCamera("frustum-camera", new Vector3(0, 12, -40), scene);
+  camera.setTarget(Vector3.Zero());
+  camera.minZ = 0.1;
+  camera.maxZ = 120;
+  scene.activeCamera = camera;
+  const terrainRoot = new TransformNode("terrain-root", scene);
+  const field = TerrainHeightField.createFilled(32, 32, 33, 33, 0);
+  const nearAnchorNode = {
+    ...createTestNode("near-anchor-outside-frustum", 0, 0, 8, 8),
+    centerLocalX: 1000,
+    centerLocalZ: 0,
+    sizeWorldX: 8,
+    sizeWorldZ: 8
+  };
+  const policy = new TerrainFrustumCullingPolicy({
+    terrainRoot,
+    heightField: field,
+    camera,
+    anchorLocal: new Vector3(1000, 0, 0),
+    horizontalWorldScale: 1,
+    options: {
+      enabled: true,
+      guardWorldPadding: 0,
+      keepNearAnchorRadius: 10,
+      maxHeightPadding: 1
+    }
+  });
+
+  assert(policy.shouldKeepNode(nearAnchorNode), "Near-anchor guard should keep terrain around the player even outside the frustum.");
+  const diagnostics = policy.getDiagnostics();
+  assert(diagnostics.keptByNearAnchorCount === 1, "Frustum diagnostics should count nodes kept by near-anchor guard.");
+  assert(diagnostics.rejectedNodeCount === 0, "Near-anchor nodes should not be counted as rejected.");
+
+  scene.dispose();
+  engine.dispose();
+}
+
+function testQuadtreeLodControllerKeepsNearAnchorTerrainWithFrustumCulling(): void {
+  const engine = new NullEngine();
+  const scene = new Scene(engine);
+  const camera = new FreeCamera("lod-camera", new Vector3(0, 16, -40), scene);
+  camera.setTarget(new Vector3(0, 16, -80));
+  camera.minZ = 0.1;
+  camera.maxZ = 120;
+  scene.activeCamera = camera;
+  const terrainRoot = new TransformNode("terrain-root", scene);
+  const field = createSlopedHeightField(64, 64, 65, 65);
+  const descriptor = createFlatTerrainDescriptor(64, 64, 65, 65);
+  const controller = new TerrainQuadtreeLodController({
+    scene,
+    terrainRoot,
+    descriptor,
+    heightField: field,
+    lod: {
+      enabled: true,
+      maxDepth: 4,
+      targetPatchQuads: 8,
+      nearPatchWorldSize: 8,
+      nearFullResolutionRadius: 12,
+      lodRings: [
+        { distance: 12, maxSampleStep: 1 },
+        { distance: 32, maxSampleStep: 2 },
+        { distance: 128, maxSampleStep: 4 }
+      ],
+      frustumCulling: {
+        enabled: true,
+        guardWorldPadding: 0,
+        keepNearAnchorRadius: 16,
+        maxHeightPadding: 4
+      },
+      updateIntervalSeconds: 0,
+      updateMovementThreshold: 0
+    },
+    material: null,
+    canonicalPickMesh: null
+  });
+
+  controller.update(1, { position: Vector3.Zero(), source: "player" });
+  const diagnostics = controller.getDiagnostics();
+
+  assert(diagnostics.visibleLeafCount > 0, "Near-anchor guard should prevent a fully empty terrain selection.");
+  assert(diagnostics.minDistanceToAnchor === 0, "Selected near-anchor terrain should cover the player position.");
+  assert(diagnostics.frustumCulling.enabled, "Frustum diagnostics should report enabled culling when a camera is active.");
+  assert(diagnostics.frustumCulling.keptByNearAnchorCount > 0, "Frustum diagnostics should expose near-anchor keeps.");
+
+  controller.dispose();
+  scene.dispose();
+  engine.dispose();
+}
+
 function testQuadtreeLodControllerDisposesInactivePatchMeshes(): void {
   const engine = new NullEngine();
   const scene = new Scene(engine);
@@ -1088,6 +1237,124 @@ function testQuadtreeLodControllerDisposesInactivePatchMeshes(): void {
   controller.dispose();
   scene.dispose();
   engine.dispose();
+}
+
+function testQuadtreeLodControllerReusesPatchesAndReportsLifecycle(): void {
+  const engine = new NullEngine();
+  const scene = new Scene(engine);
+  const terrainRoot = new TransformNode("terrain-root", scene);
+  const field = createSlopedHeightField(64, 64, 65, 65);
+  const descriptor = createFlatTerrainDescriptor(64, 64, 65, 65);
+  const controller = new TerrainQuadtreeLodController({
+    scene,
+    terrainRoot,
+    descriptor,
+    heightField: field,
+    lod: {
+      enabled: true,
+      maxDepth: 4,
+      targetPatchQuads: 8,
+      nearPatchWorldSize: 8,
+      nearFullResolutionRadius: 8,
+      lodRings: [
+        { distance: 8, maxSampleStep: 1 },
+        { distance: 32, maxSampleStep: 2 },
+        { distance: 128, maxSampleStep: 4 }
+      ],
+      updateIntervalSeconds: 0,
+      updateMovementThreshold: 0
+    },
+    material: null,
+    canonicalPickMesh: null
+  });
+
+  controller.update(1, { position: Vector3.Zero(), source: "player" });
+  const firstDiagnostics = controller.getDiagnostics();
+  controller.update(1, { position: Vector3.Zero(), source: "player" });
+  const secondDiagnostics = controller.getDiagnostics();
+
+  assert(firstDiagnostics.patchesBuiltLastUpdate === firstDiagnostics.activePatchMeshCount, "First LOD update should report built patch meshes.");
+  assert(firstDiagnostics.patchesReusedLastUpdate === 0, "First LOD update should not report reused patch meshes.");
+  assert(secondDiagnostics.patchesBuiltLastUpdate === 0, "Stable LOD update should not rebuild existing patches.");
+  assert(secondDiagnostics.patchesReusedLastUpdate === secondDiagnostics.activePatchMeshCount, "Stable LOD update should report reused patches.");
+  assert(secondDiagnostics.patchesDisposedLastUpdate === 0, "Stable LOD update should not dispose patches.");
+
+  controller.dispose();
+  scene.dispose();
+  engine.dispose();
+}
+
+function testQuadtreeLodControllerEvictsInactiveCacheByCountTrianglesAndTtl(): void {
+  const countDiagnostics = runPatchCacheEvictionScenario({
+    maxInactivePatches: 1,
+    maxInactivePatchTriangles: 1_000_000,
+    inactiveTtlSeconds: 100
+  });
+  assert(countDiagnostics.inactivePatchMeshCount <= 1, "Patch cache should respect max inactive patch count.");
+  assert(countDiagnostics.patchesDisabledLastUpdate > 0, "Patch cache should report disabled non-selected patches.");
+  assert(countDiagnostics.patchesDisposedLastUpdate > 0, "Patch cache should dispose LRU inactive patches beyond max count.");
+
+  const triangleDiagnostics = runPatchCacheEvictionScenario({
+    maxInactivePatches: 100,
+    maxInactivePatchTriangles: 0,
+    inactiveTtlSeconds: 100
+  });
+  assert(triangleDiagnostics.inactivePatchMeshCount === 0, "Patch cache should evict inactive patches beyond triangle budget.");
+  assert(triangleDiagnostics.inactivePatchTriangles === 0, "Patch cache should report no inactive triangles after triangle-budget eviction.");
+
+  const ttlDiagnostics = runPatchCacheEvictionScenario({
+    maxInactivePatches: 100,
+    maxInactivePatchTriangles: 1_000_000,
+    inactiveTtlSeconds: 0
+  });
+  assert(ttlDiagnostics.inactivePatchMeshCount === 0, "Patch cache should evict inactive patches older than TTL.");
+}
+
+function runPatchCacheEvictionScenario(patchCache: {
+  readonly maxInactivePatches: number;
+  readonly maxInactivePatchTriangles: number;
+  readonly inactiveTtlSeconds: number;
+}) {
+  const engine = new NullEngine();
+  const scene = new Scene(engine);
+  const terrainRoot = new TransformNode("terrain-root", scene);
+  const field = createSlopedHeightField(64, 64, 65, 65);
+  const descriptor = createFlatTerrainDescriptor(64, 64, 65, 65);
+  const controller = new TerrainQuadtreeLodController({
+    scene,
+    terrainRoot,
+    descriptor,
+    heightField: field,
+    lod: {
+      enabled: true,
+      maxDepth: 4,
+      targetPatchQuads: 8,
+      nearPatchWorldSize: 8,
+      nearFullResolutionRadius: 8,
+      lodRings: [
+        { distance: 8, maxSampleStep: 1 },
+        { distance: 32, maxSampleStep: 2 },
+        { distance: 128, maxSampleStep: 4 }
+      ],
+      patchCache: {
+        enabled: true,
+        ...patchCache
+      },
+      updateIntervalSeconds: 0,
+      updateMovementThreshold: 0
+    },
+    material: null,
+    canonicalPickMesh: null
+  });
+
+  controller.update(1, { position: Vector3.Zero(), source: "player" });
+  controller.update(1, { position: new Vector3(24, 0, 24), source: "player" });
+  const diagnostics = controller.getDiagnostics();
+
+  controller.dispose();
+  scene.dispose();
+  engine.dispose();
+  return diagnostics;
 }
 
 function testQuadtreeLodControllerExpandsNearRadiusForDistantPlayerCamera(): void {

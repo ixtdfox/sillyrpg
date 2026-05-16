@@ -66,12 +66,23 @@ export interface TerrainLodRuntimeDiagnostics {
   readonly visibleLeafCount: number;
   readonly patchMeshEstimate: number;
   readonly activePatchMeshCount: number;
+  readonly inactivePatchMeshCount: number;
+  readonly totalPatchMeshCount: number;
   readonly cachedPatchMeshCount: number;
   readonly inactiveCachedPatchMeshCount: number;
   readonly activePatchVertices: number;
   readonly activePatchTriangles: number;
+  readonly inactivePatchVertices: number;
+  readonly inactivePatchTriangles: number;
+  readonly totalPatchVertices: number;
+  readonly totalPatchTriangles: number;
   readonly cachedPatchVertices: number;
   readonly cachedPatchTriangles: number;
+  readonly patchesBuiltLastUpdate: number;
+  readonly patchesReusedLastUpdate: number;
+  readonly patchesDisabledLastUpdate: number;
+  readonly patchesDisposedLastUpdate: number;
+  readonly patchCacheEnabled: boolean;
   readonly activeDebugLineMeshCount: number;
   readonly approxVisibleTriangles: number;
   readonly sourceResolutionXMax: number | null;
@@ -80,6 +91,13 @@ export interface TerrainLodRuntimeDiagnostics {
   readonly canonicalMeshMode: TerrainCanonicalMeshMode | "mixed";
   readonly canonicalMeshVertexCount: number;
   readonly canonicalMeshTriangleCount: number;
+  readonly hiddenPickOnlyTerrainVertexCount: number;
+  readonly hiddenPickOnlyTerrainTriangleCount: number;
+  readonly frustumCullingEnabled: boolean;
+  readonly frustumTestedNodeCount: number;
+  readonly frustumRejectedNodeCount: number;
+  readonly frustumAcceptedNodeCount: number;
+  readonly frustumKeptByNearAnchorCount: number;
   readonly maxDepth: number;
   readonly anchorSource: TerrainLodAnchor["source"] | "mixed" | null;
   readonly depthCounts: ReadonlyMap<number, number>;
@@ -428,12 +446,23 @@ export class LocationManager {
     let visibleLeafCount = 0;
     let patchMeshEstimate = 0;
     let activePatchMeshCount = 0;
+    let inactivePatchMeshCount = 0;
+    let totalPatchMeshCount = 0;
     let cachedPatchMeshCount = 0;
     let inactiveCachedPatchMeshCount = 0;
     let activePatchVertices = 0;
     let activePatchTriangles = 0;
+    let inactivePatchVertices = 0;
+    let inactivePatchTriangles = 0;
+    let totalPatchVertices = 0;
+    let totalPatchTriangles = 0;
     let cachedPatchVertices = 0;
     let cachedPatchTriangles = 0;
+    let patchesBuiltLastUpdate = 0;
+    let patchesReusedLastUpdate = 0;
+    let patchesDisabledLastUpdate = 0;
+    let patchesDisposedLastUpdate = 0;
+    let patchCacheEnabled = false;
     let activeDebugLineMeshCount = 0;
     let approxVisibleTriangles = 0;
     let sourceResolutionXMax: number | null = null;
@@ -442,6 +471,13 @@ export class LocationManager {
     let canonicalMeshMode: TerrainLodRuntimeDiagnostics["canonicalMeshMode"] | null = null;
     let canonicalMeshVertexCount = 0;
     let canonicalMeshTriangleCount = 0;
+    let hiddenPickOnlyTerrainVertexCount = 0;
+    let hiddenPickOnlyTerrainTriangleCount = 0;
+    let frustumCullingEnabled = false;
+    let frustumTestedNodeCount = 0;
+    let frustumRejectedNodeCount = 0;
+    let frustumAcceptedNodeCount = 0;
+    let frustumKeptByNearAnchorCount = 0;
     let seamAdjustedPatchCount = 0;
     let maxNeighborSampleStepRatio: number | null = null;
     let maxDepth = 0;
@@ -465,12 +501,23 @@ export class LocationManager {
         visibleLeafCount += diagnostics.visibleLeafCount;
         patchMeshEstimate += diagnostics.activePatchMeshCount;
         activePatchMeshCount += diagnostics.activePatchMeshCount;
+        inactivePatchMeshCount += diagnostics.inactivePatchMeshCount;
+        totalPatchMeshCount += diagnostics.totalPatchMeshCount;
         cachedPatchMeshCount += diagnostics.cachedPatchMeshCount;
         inactiveCachedPatchMeshCount += diagnostics.inactiveCachedPatchMeshCount;
         activePatchVertices += diagnostics.activePatchVertices;
         activePatchTriangles += diagnostics.activePatchTriangles;
+        inactivePatchVertices += diagnostics.inactivePatchVertices;
+        inactivePatchTriangles += diagnostics.inactivePatchTriangles;
+        totalPatchVertices += diagnostics.totalPatchVertices;
+        totalPatchTriangles += diagnostics.totalPatchTriangles;
         cachedPatchVertices += diagnostics.cachedPatchVertices;
         cachedPatchTriangles += diagnostics.cachedPatchTriangles;
+        patchesBuiltLastUpdate += diagnostics.patchesBuiltLastUpdate;
+        patchesReusedLastUpdate += diagnostics.patchesReusedLastUpdate;
+        patchesDisabledLastUpdate += diagnostics.patchesDisabledLastUpdate;
+        patchesDisposedLastUpdate += diagnostics.patchesDisposedLastUpdate;
+        patchCacheEnabled = patchCacheEnabled || diagnostics.patchCacheEnabled;
         activeDebugLineMeshCount += diagnostics.activeDebugLineMeshCount;
         approxVisibleTriangles += diagnostics.approxVisibleTriangles;
         sourceResolutionXMax = this.maxNullable(sourceResolutionXMax, diagnostics.sourceResolutionX);
@@ -479,6 +526,13 @@ export class LocationManager {
         canonicalMeshMode = this.mergeTerrainCanonicalMeshMode(canonicalMeshMode, diagnostics.canonicalMeshMode);
         canonicalMeshVertexCount += diagnostics.canonicalMeshVertexCount;
         canonicalMeshTriangleCount += diagnostics.canonicalMeshTriangleCount;
+        hiddenPickOnlyTerrainVertexCount += diagnostics.hiddenPickOnlyTerrainVertexCount;
+        hiddenPickOnlyTerrainTriangleCount += diagnostics.hiddenPickOnlyTerrainTriangleCount;
+        frustumCullingEnabled = frustumCullingEnabled || diagnostics.frustumCulling.enabled;
+        frustumTestedNodeCount += diagnostics.frustumCulling.testedNodeCount;
+        frustumRejectedNodeCount += diagnostics.frustumCulling.rejectedNodeCount;
+        frustumAcceptedNodeCount += diagnostics.frustumCulling.acceptedNodeCount;
+        frustumKeptByNearAnchorCount += diagnostics.frustumCulling.keptByNearAnchorCount;
         seamAdjustedPatchCount += diagnostics.seamAdjustedPatchCount;
         maxNeighborSampleStepRatio = this.maxNullable(maxNeighborSampleStepRatio, diagnostics.maxNeighborSampleStepRatio);
         maxDepth = Math.max(maxDepth, diagnostics.maxDepth);
@@ -513,12 +567,23 @@ export class LocationManager {
       visibleLeafCount,
       patchMeshEstimate,
       activePatchMeshCount,
+      inactivePatchMeshCount,
+      totalPatchMeshCount,
       cachedPatchMeshCount,
       inactiveCachedPatchMeshCount,
       activePatchVertices,
       activePatchTriangles,
+      inactivePatchVertices,
+      inactivePatchTriangles,
+      totalPatchVertices,
+      totalPatchTriangles,
       cachedPatchVertices,
       cachedPatchTriangles,
+      patchesBuiltLastUpdate,
+      patchesReusedLastUpdate,
+      patchesDisabledLastUpdate,
+      patchesDisposedLastUpdate,
+      patchCacheEnabled,
       activeDebugLineMeshCount,
       approxVisibleTriangles,
       sourceResolutionXMax,
@@ -527,6 +592,13 @@ export class LocationManager {
       canonicalMeshMode: canonicalMeshMode ?? "OFF",
       canonicalMeshVertexCount,
       canonicalMeshTriangleCount,
+      hiddenPickOnlyTerrainVertexCount,
+      hiddenPickOnlyTerrainTriangleCount,
+      frustumCullingEnabled,
+      frustumTestedNodeCount,
+      frustumRejectedNodeCount,
+      frustumAcceptedNodeCount,
+      frustumKeptByNearAnchorCount,
       maxDepth,
       anchorSource,
       depthCounts,
