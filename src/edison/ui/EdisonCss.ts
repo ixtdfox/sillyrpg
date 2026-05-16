@@ -240,23 +240,98 @@ export function ensureEdisonCss(): void {
   left: 8px;
   right: 8px;
   display: flex;
-  justify-content: space-between;
+  justify-content: flex-end;
   pointer-events: none;
+  z-index: 4;
 }
-.edison-viewport-overlay .edison-button,
-.edison-axis-gizmo {
+.edison-orientation-gizmo {
   pointer-events: auto;
 }
-.edison-axis-gizmo {
-  padding: 5px 7px;
-  border: 1px solid #2C405E;
-  border-radius: 6px;
-  background: rgba(9, 17, 29, 0.86);
+.edison-orientation-gizmo {
+  position: relative;
+  width: 124px;
+  height: 150px;
   color: #E7EDF7;
+  filter: drop-shadow(0 8px 16px rgba(0, 0, 0, 0.35));
 }
-.edison-axis-x { color: #F06A5E; font-weight: 700; }
-.edison-axis-y { color: #57D48B; font-weight: 700; }
-.edison-axis-z { color: #6EA2FF; font-weight: 700; }
+.edison-orientation-lines {
+  position: absolute;
+  inset: 0 0 auto 0;
+  width: 124px;
+  height: 124px;
+}
+.edison-gizmo-line {
+  stroke-width: 4;
+  stroke-linecap: round;
+}
+.edison-gizmo-line-neg {
+  stroke: rgba(167, 181, 202, 0.42);
+  stroke-width: 3;
+}
+.edison-gizmo-line-x { stroke: #E94D42; }
+.edison-gizmo-line-y { stroke: #49BF64; }
+.edison-gizmo-line-z { stroke: #4F8DFF; }
+.edison-gizmo-axis,
+.edison-gizmo-cube,
+.edison-gizmo-projection {
+  position: absolute;
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  color: #FFFFFF;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+}
+.edison-gizmo-axis {
+  width: 28px;
+  height: 28px;
+  display: grid;
+  place-items: center;
+  border-radius: 999px;
+  padding: 0;
+  transform: translate(-50%, -50%);
+}
+.edison-gizmo-axis-x { background: #D94339; }
+.edison-gizmo-axis-y { background: #3FB85B; }
+.edison-gizmo-axis-z { background: #3E7DE6; }
+.edison-gizmo-axis-neg {
+  width: 17px;
+  height: 17px;
+  background: rgba(190, 201, 218, 0.58);
+  border-color: rgba(255, 255, 255, 0.16);
+}
+.edison-gizmo-axis:hover,
+.edison-gizmo-cube:hover,
+.edison-gizmo-projection:hover {
+  outline: 2px solid #F7B84B;
+  outline-offset: 2px;
+}
+.edison-gizmo-cube {
+  left: 47px;
+  top: 47px;
+  width: 30px;
+  height: 30px;
+  padding: 0;
+  border-radius: 6px;
+  background:
+    linear-gradient(135deg, rgba(255, 255, 255, 0.22), transparent 45%),
+    #697386;
+  box-shadow:
+    inset 5px 0 0 rgba(233, 77, 66, 0.65),
+    inset 0 5px 0 rgba(73, 191, 100, 0.65),
+    inset -5px -5px 0 rgba(79, 141, 255, 0.65);
+}
+.edison-gizmo-projection {
+  left: 33px;
+  top: 126px;
+  min-width: 58px;
+  height: 22px;
+  border-radius: 5px;
+  background: rgba(11, 20, 34, 0.86);
+  color: #DDE7F6;
+  padding: 0 7px;
+  font-size: 11px;
+}
 .edison-tool-grid {
   display: grid;
   grid-template-columns: 1fr;

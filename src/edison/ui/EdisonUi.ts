@@ -50,7 +50,6 @@ export class EdisonUi {
       context.events.on("edison.document.changed", () => this.renderNonViewportPanels()),
       context.events.on("edison.viewport.changed", () => {
         this.renderToolbar();
-        this.renderSlot("right.plugins");
         this.renderStatus();
       })
     );

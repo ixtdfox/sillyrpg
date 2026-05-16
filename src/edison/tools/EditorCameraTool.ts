@@ -5,6 +5,15 @@ export interface EdisonBounds {
   readonly max: Vector3;
 }
 
+export type EdisonOrientationGizmoAxis = "+x" | "-x" | "+y" | "-y" | "+z" | "-z";
+
+export interface EdisonOrientationGizmoPoint {
+  readonly axis: EdisonOrientationGizmoAxis;
+  readonly screenX: number;
+  readonly screenY: number;
+  readonly depth: number;
+}
+
 type EdisonCameraDragMode = "orbit" | "pan" | null;
 
 export class EditorCameraTool {
@@ -131,6 +140,57 @@ export class EditorCameraTool {
     }
   }
 
+  public setAxisView(axis: EdisonOrientationGizmoAxis): void {
+    const offsets: Record<typeof axis, Vector3> = {
+      "+x": new Vector3(1, 0, 0),
+      "-x": new Vector3(-1, 0, 0),
+      "+y": new Vector3(0, 1, 0),
+      "-y": new Vector3(0, -1, 0),
+      "+z": new Vector3(0, 0, 1),
+      "-z": new Vector3(0, 0, -1)
+    };
+    this.setViewOffset(offsets[axis]);
+  }
+
+  public resetDefaultView(): void {
+    this.orthographic = false;
+    this.camera.mode = Camera.PERSPECTIVE_CAMERA;
+    this.camera.orthoLeft = null;
+    this.camera.orthoRight = null;
+    this.camera.orthoTop = null;
+    this.camera.orthoBottom = null;
+    this.setViewOffset(new Vector3(1, 0.75, -1));
+  }
+
+  public toggleProjection(): void {
+    this.toggleProjectionMode();
+  }
+
+  public getProjectionMode(): "Perspective" | "Orthographic" {
+    return this.orthographic ? "Orthographic" : "Perspective";
+  }
+
+  public getOrientationGizmoPoints(): readonly EdisonOrientationGizmoPoint[] {
+    const right = this.camera.getDirection(Vector3.Right()).normalize();
+    const up = this.camera.getDirection(Vector3.Up()).normalize();
+    const viewer = this.camera.position.subtract(this.camera.target).normalize();
+    const axes: ReadonlyArray<{ readonly axis: EdisonOrientationGizmoAxis; readonly direction: Vector3 }> = [
+      { axis: "+x", direction: new Vector3(1, 0, 0) },
+      { axis: "-x", direction: new Vector3(-1, 0, 0) },
+      { axis: "+y", direction: new Vector3(0, 1, 0) },
+      { axis: "-y", direction: new Vector3(0, -1, 0) },
+      { axis: "+z", direction: new Vector3(0, 0, 1) },
+      { axis: "-z", direction: new Vector3(0, 0, -1) }
+    ];
+
+    return axes.map((axis) => ({
+      axis: axis.axis,
+      screenX: Vector3.Dot(axis.direction, right),
+      screenY: -Vector3.Dot(axis.direction, up),
+      depth: Vector3.Dot(axis.direction, viewer)
+    }));
+  }
+
   public dispose(): void {
     this.canvas.removeEventListener("contextmenu", this.onContextMenu);
     this.canvas.removeEventListener("pointerdown", this.onPointerDown);
@@ -158,6 +218,16 @@ export class EditorCameraTool {
     const up = this.camera.getDirection(Vector3.Up());
     const speed = Math.max(this.camera.radius * 0.0025, 0.02);
     this.camera.target.addInPlace(right.scale(-deltaX * speed).add(up.scale(deltaY * speed)));
+  }
+
+  private setViewOffset(offset: Vector3): void {
+    const normalizedOffset = offset.normalize();
+    const radius = this.camera.radius;
+    this.camera.position = this.camera.target.add(normalizedOffset.scale(radius));
+    this.camera.rebuildAnglesAndRadius();
+    if (this.orthographic) {
+      this.updateOrthographicExtents();
+    }
   }
 
   private toggleProjectionMode(): void {

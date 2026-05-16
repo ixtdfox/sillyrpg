@@ -16,7 +16,12 @@ import type { TerrainLodAnchor } from "../../core/world/terrain/lod/TerrainQuadt
 import { LightingCoreAdapter } from "../adapters/LightingCoreAdapter";
 import { ModelInstantiationAdapter } from "../adapters/ModelInstantiationAdapter";
 import type { EdisonSceneOption } from "../adapters/SceneDescriptorAdapter";
-import { EditorCameraTool, type EdisonBounds } from "../tools/EditorCameraTool";
+import {
+  EditorCameraTool,
+  type EdisonBounds,
+  type EdisonOrientationGizmoAxis,
+  type EdisonOrientationGizmoPoint
+} from "../tools/EditorCameraTool";
 import { EdisonEventBus } from "./EdisonEventBus";
 import { EdisonObjectRegistry } from "./EdisonObjectRegistry";
 import type { EdisonSelection } from "./EdisonSelectionService";
@@ -31,10 +36,10 @@ export class EdisonViewportService {
   private readonly highlightLayer: HighlightLayer;
   private readonly highlightedMeshes: Mesh[] = [];
   private readonly gridMeshes: LinesMesh[];
-  private readonly axesMeshes: LinesMesh[];
   private canvasRestore: { readonly parent: Node; readonly nextSibling: Node | null; readonly style: string } | null = null;
   private gridVisible = true;
   private axesVisible = true;
+  private terrainLodNeedsRefresh = false;
 
   public constructor(
     private readonly engine: Engine,
@@ -47,9 +52,7 @@ export class EdisonViewportService {
     this.cameraTool = new EditorCameraTool(scene, canvas, () => this.frameScene());
     this.highlightLayer = new HighlightLayer("edison-selection-highlight", scene);
     this.gridMeshes = this.createGridMeshes();
-    this.axesMeshes = this.createAxesMeshes();
     this.applyGridVisibility();
-    this.applyAxesVisibility();
   }
 
   public attachCanvas(host: HTMLElement): void {
@@ -86,9 +89,21 @@ export class EdisonViewportService {
       }
     ]);
     this.frameScene();
+    this.refreshTerrainLod(1);
   }
 
   public update(deltaSeconds: number): void {
+    if (!this.terrainLodNeedsRefresh) {
+      void deltaSeconds;
+      return;
+    }
+
+    this.terrainLodNeedsRefresh = false;
+    this.refreshTerrainLod(Math.max(deltaSeconds, 1));
+  }
+
+  private refreshTerrainLod(deltaSeconds: number): void {
+    this.terrainLodNeedsRefresh = false;
     const content = this.objects.getContent();
     const camera = this.cameraTool.getCamera();
     if (!content || content.terrainLodControllers.length === 0) {
@@ -96,7 +111,9 @@ export class EdisonViewportService {
     }
 
     const anchor: TerrainLodAnchor = {
-      position: camera.globalPosition.clone(),
+      // Editor camera orbit/zoom should not churn terrain patches. Anchor LOD
+      // to the view target, and refresh it only from explicit editor actions.
+      position: camera.target.clone(),
       source: "camera-fallback"
     };
 
@@ -163,6 +180,7 @@ export class EdisonViewportService {
 
   public frameScene(): void {
     this.cameraTool.frameBounds(this.resolveBounds() ?? this.getDefaultBounds());
+    this.terrainLodNeedsRefresh = true;
     this.engine.resize();
   }
 
@@ -178,12 +196,34 @@ export class EdisonViewportService {
 
   public setAxesVisible(visible: boolean): void {
     this.axesVisible = visible;
-    this.applyAxesVisibility();
     this.events.emit("edison.viewport.changed", { gridVisible: this.gridVisible, axesVisible: this.axesVisible });
   }
 
   public getAxesVisible(): boolean {
     return this.axesVisible;
+  }
+
+  public setCameraAxisView(axis: EdisonOrientationGizmoAxis): void {
+    this.cameraTool.setAxisView(axis);
+    this.events.emit("edison.viewport.changed", { gridVisible: this.gridVisible, axesVisible: this.axesVisible });
+  }
+
+  public resetCameraView(): void {
+    this.cameraTool.resetDefaultView();
+    this.events.emit("edison.viewport.changed", { gridVisible: this.gridVisible, axesVisible: this.axesVisible });
+  }
+
+  public toggleProjectionMode(): void {
+    this.cameraTool.toggleProjection();
+    this.events.emit("edison.viewport.changed", { gridVisible: this.gridVisible, axesVisible: this.axesVisible });
+  }
+
+  public getProjectionMode(): "Perspective" | "Orthographic" {
+    return this.cameraTool.getProjectionMode();
+  }
+
+  public getOrientationGizmoPoints(): readonly EdisonOrientationGizmoPoint[] {
+    return this.cameraTool.getOrientationGizmoPoints();
   }
 
   public clearSceneContent(): void {
@@ -225,9 +265,6 @@ export class EdisonViewportService {
     for (const mesh of this.gridMeshes) {
       mesh.dispose(false);
     }
-    for (const mesh of this.axesMeshes) {
-      mesh.dispose(false);
-    }
     this.highlightLayer.dispose();
     this.cameraTool.dispose();
     this.lightingAdapter.dispose();
@@ -256,30 +293,9 @@ export class EdisonViewportService {
     return [grid];
   }
 
-  private createAxesMeshes(): LinesMesh[] {
-    const createAxis = (name: string, points: Vector3[], color: Color3): LinesMesh => {
-      const mesh = MeshBuilder.CreateLines(name, { points, updatable: false }, this.scene);
-      mesh.color = color;
-      mesh.isPickable = false;
-      return mesh;
-    };
-
-    return [
-      createAxis("edison-axis-x", [Vector3.Zero(), new Vector3(6, 0, 0)], Color3.FromHexString("#E45B45")),
-      createAxis("edison-axis-y", [Vector3.Zero(), new Vector3(0, 6, 0)], Color3.FromHexString("#4BC878")),
-      createAxis("edison-axis-z", [Vector3.Zero(), new Vector3(0, 0, 6)], Color3.FromHexString("#4B8DF7"))
-    ];
-  }
-
   private applyGridVisibility(): void {
     for (const mesh of this.gridMeshes) {
       mesh.isVisible = this.gridVisible;
-    }
-  }
-
-  private applyAxesVisibility(): void {
-    for (const mesh of this.axesMeshes) {
-      mesh.isVisible = this.axesVisible;
     }
   }
 
