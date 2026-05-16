@@ -5,5 +5,6 @@ export enum GameState {
   MAIN_MENU = "MAIN_MENU",
   IN_GAME = "IN_GAME",
   EDITOR = "EDITOR",
+  EDISON = "EDISON",
   SETTINGS = "SETTINGS"
 }

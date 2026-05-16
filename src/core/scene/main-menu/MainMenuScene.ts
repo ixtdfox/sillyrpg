@@ -60,6 +60,7 @@ export class MainMenuScene implements Scene {
     this.actions = [
       { command: MainMenuCommand.NEW_GAME, labelKey: "newGame" },
       { command: MainMenuCommand.LEVEL_EDITOR, labelKey: "levelEditor" },
+      { command: MainMenuCommand.EDISON, labelKey: "edison" },
       { command: MainMenuCommand.CONTINUE, labelKey: "continueGame" },
       { command: MainMenuCommand.LOAD_GAME, labelKey: "loadGame" },
       { command: MainMenuCommand.SETTINGS, labelKey: "settings" },
@@ -150,6 +151,10 @@ export class MainMenuScene implements Scene {
       case MainMenuCommand.LEVEL_EDITOR:
         console.log(this.resolveActionLabel(input as MainMenuCommand));
         this.onStateChangeRequested(GameState.EDITOR);
+        break;
+      case MainMenuCommand.EDISON:
+        console.log(this.resolveActionLabel(input as MainMenuCommand));
+        this.onStateChangeRequested(GameState.EDISON);
         break;
       case MainMenuCommand.CONTINUE:
       case MainMenuCommand.LOAD_GAME:

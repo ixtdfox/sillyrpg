@@ -1,0 +1,190 @@
+import type { EdisonPlugin, EdisonPluginContext } from "./EdisonPlugin";
+import type { EdisonPluginManifest } from "./EdisonPluginManifest";
+import { EdisonPluginZipInstaller } from "./EdisonPluginZipInstaller";
+import { createDeleteTool } from "../tools/DeleteTool";
+import { createMoveTool } from "../tools/MoveTool";
+import { createRotateTool } from "../tools/RotateTool";
+import { createSelectTool } from "../tools/SelectTool";
+import { HierarchyPanel } from "../ui/panels/HierarchyPanel";
+import { InspectorPanel } from "../ui/panels/InspectorPanel";
+import { SceneViewPanel } from "../ui/panels/SceneViewPanel";
+
+export interface BuiltinCorePluginOptions {
+  readonly zipInstaller: EdisonPluginZipInstaller;
+  readonly onBackToMenu: () => void;
+  readonly reloadSceneContent: () => Promise<void>;
+}
+
+export class BuiltinCorePlugin implements EdisonPlugin {
+  public readonly manifest: EdisonPluginManifest = {
+    id: "edison.core",
+    name: "Edison Core",
+    version: "0.1.0",
+    author: "SillyRPG",
+    description: "Core Edison editor shell, layout, tools, commands, and plugin manager.",
+    entry: "builtin",
+    edisonApiVersion: "1"
+  };
+
+  private readonly disposers: Array<() => void> = [];
+
+  public constructor(private readonly options: BuiltinCorePluginOptions) {}
+
+  public activate(context: EdisonPluginContext): void {
+    this.registerCommands(context);
+    this.registerToolbar(context);
+    this.registerTools(context);
+    this.registerPanels(context);
+  }
+
+  public deactivate(): void {
+    for (const dispose of this.disposers.splice(0)) {
+      dispose();
+    }
+  }
+
+  private registerCommands(context: EdisonPluginContext): void {
+    this.disposers.push(
+      context.commands.register({
+        id: "edison.save",
+        title: "Save",
+        execute: async () => {
+          await context.scene.save();
+        },
+        isEnabled: () => context.scene.getSnapshot().descriptor !== null
+      }),
+      context.commands.register({
+        id: "edison.exportJson",
+        title: "Export JSON",
+        execute: () => context.scene.exportJson(),
+        isEnabled: () => context.scene.getSnapshot().descriptor !== null
+      }),
+      context.commands.register({
+        id: "edison.reload",
+        title: "Reload",
+        execute: this.options.reloadSceneContent,
+        isEnabled: () => context.scene.getSnapshot().option !== null
+      }),
+      context.commands.register({
+        id: "edison.undo",
+        title: "Undo",
+        execute: () => undefined,
+        isEnabled: () => false
+      }),
+      context.commands.register({
+        id: "edison.redo",
+        title: "Redo",
+        execute: () => undefined,
+        isEnabled: () => false
+      }),
+      context.commands.register({
+        id: "edison.frameScene",
+        title: "Fit View",
+        execute: () => context.viewport.frameScene()
+      }),
+      context.commands.register({
+        id: "edison.toggleGrid",
+        title: "Grid",
+        execute: () => context.viewport.setGridVisible(!context.viewport.getGridVisible())
+      }),
+      context.commands.register({
+        id: "edison.toggleAxes",
+        title: "Axes",
+        execute: () => context.viewport.setAxesVisible(!context.viewport.getAxesVisible())
+      }),
+      context.commands.register({
+        id: "edison.installPluginZip",
+        title: "Install Plugin from ZIP",
+        execute: async () => {
+          const input = document.createElement("input");
+          input.type = "file";
+          input.accept = ".zip";
+          input.style.display = "none";
+          document.body.appendChild(input);
+
+          const file = await new Promise<File | null>((resolve) => {
+            input.addEventListener("change", () => {
+              resolve(input.files?.[0] ?? null);
+            }, { once: true });
+            input.click();
+          });
+
+          input.remove();
+          if (!file) {
+            return;
+          }
+
+          const result = await this.options.zipInstaller.install(file);
+          context.events.emit("edison.message", { text: result.message });
+        }
+      }),
+      context.commands.register({
+        id: "edison.back",
+        title: "Back",
+        execute: this.options.onBackToMenu
+      }),
+      context.commands.register({
+        id: "edison.rotateLeft",
+        title: "Rotate -90",
+        execute: () => context.transforms.rotateSelectedY(-1),
+        isEnabled: () => context.selection.getSelectedObjectId() !== null
+      }),
+      context.commands.register({
+        id: "edison.rotateRight",
+        title: "Rotate +90",
+        execute: () => context.transforms.rotateSelectedY(1),
+        isEnabled: () => context.selection.getSelectedObjectId() !== null
+      }),
+      context.commands.register({
+        id: "edison.deleteSelected",
+        title: "Delete",
+        execute: () => context.transforms.deleteSelected(),
+        isEnabled: () => context.selection.getSelectedObjectId() !== null
+      })
+    );
+  }
+
+  private registerToolbar(context: EdisonPluginContext): void {
+    void context;
+  }
+
+  private registerTools(context: EdisonPluginContext): void {
+    this.disposers.push(
+      context.tools.registerTool(createSelectTool()),
+      context.tools.registerTool(createMoveTool()),
+      context.tools.registerTool(createRotateTool()),
+      context.tools.registerTool(createDeleteTool())
+    );
+    context.tools.setActiveTool("select");
+  }
+
+  private registerPanels(context: EdisonPluginContext): void {
+    const sceneView = new SceneViewPanel();
+    const hierarchy = new HierarchyPanel();
+    const inspector = new InspectorPanel();
+
+    this.disposers.push(
+      context.panels.registerPanel({
+        id: "edison.sceneView",
+        title: "Scene View",
+        slot: "center.sceneView",
+        order: 0,
+        render: (host, panelContext) => sceneView.render(host, panelContext)
+      }),
+      context.panels.registerPanel({
+        id: "edison.hierarchy",
+        title: "Hierarchy",
+        slot: "left.hierarchy",
+        order: 0,
+        render: (host, panelContext) => hierarchy.render(host, panelContext)
+      }),
+      context.panels.registerPanel({
+        id: "edison.inspector",
+        title: "Inspector",
+        slot: "right.inspector",
+        order: 0,
+        render: (host, panelContext) => inspector.render(host, panelContext)
+      })
+    );
+  }
+}

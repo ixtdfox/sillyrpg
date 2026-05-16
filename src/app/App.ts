@@ -3,6 +3,7 @@ import { GameManager } from "../core/game/GameManager";
 import { GameState } from "../core/game/GameState";
 import { LangManager } from "../core/lang/LangManager";
 import { EditorScene } from "../editor";
+import { EdisonScene } from "../edison";
 
 /**
  * Bootstraps Babylon runtime for SillyRPG.
@@ -38,7 +39,9 @@ export class App {
     this.langManager = new LangManager();
     this.gameManager = new GameManager(this.engine, this.canvas, this.langManager, {
       [GameState.EDITOR]: ({ engine, canvas, langManager, requestStateChange }) =>
-        new EditorScene(engine, canvas, langManager, () => requestStateChange(GameState.MAIN_MENU))
+        new EditorScene(engine, canvas, langManager, () => requestStateChange(GameState.MAIN_MENU)),
+      [GameState.EDISON]: ({ engine, canvas, langManager, requestStateChange }) =>
+        new EdisonScene(engine, canvas, langManager, () => requestStateChange(GameState.MAIN_MENU))
     });
   }
 

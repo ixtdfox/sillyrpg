@@ -1,0 +1,282 @@
+import type { EdisonPluginContext } from "../plugins/EdisonPlugin";
+import type { EdisonPanelSlot } from "../layout/EdisonWindowTypes";
+import { EdisonLayout } from "../layout/EdisonLayout";
+import { EdisonStatusBar } from "../layout/EdisonStatusBar";
+import { getEdisonIcon, getEdisonSvgIcon } from "./EdisonIcons";
+import { ensureEdisonCss } from "./EdisonCss";
+
+export class EdisonUi {
+  private readonly root: HTMLElement;
+  private readonly layout = new EdisonLayout();
+  private readonly elements = this.layout.create();
+  private readonly statusBar = new EdisonStatusBar(this.elements.statusHost);
+  private context: EdisonPluginContext | null = null;
+  private openMenu: HTMLDetailsElement | null = null;
+  private readonly disposers: Array<() => void> = [];
+  private readonly onDocumentPointerDown = (event: PointerEvent): void => {
+    const target = event.target;
+    if (!(target instanceof Node)) {
+      this.closeOpenMenu();
+      return;
+    }
+
+    const targetElement = target instanceof Element ? target : target.parentElement;
+    if (targetElement?.closest(".edison-menu")) {
+      return;
+    }
+
+    this.closeOpenMenu();
+  };
+
+  public constructor() {
+    ensureEdisonCss();
+    this.root = this.elements.root;
+    document.body.appendChild(this.root);
+    document.addEventListener("pointerdown", this.onDocumentPointerDown, true);
+  }
+
+  public bind(context: EdisonPluginContext): void {
+    this.context = context;
+    this.disposers.push(
+      context.panels.onDidChange(() => this.render()),
+      context.toolbar.onDidChange(() => this.renderToolbar()),
+      context.commands.onDidChange(() => this.renderToolbar()),
+      context.tools.onDidChange(() => this.renderNonViewportPanels()),
+      context.selection.onDidChange(() => this.renderNonViewportPanels()),
+      context.events.on<{ text: string }>("edison.message", (payload) => {
+        this.statusBar.setMessage(payload.text);
+        this.renderStatus();
+      }),
+      context.events.on("edison.document.changed", () => this.renderNonViewportPanels()),
+      context.events.on("edison.viewport.changed", () => {
+        this.renderToolbar();
+        this.renderSlot("right.plugins");
+        this.renderStatus();
+      })
+    );
+    this.render();
+  }
+
+  public render(): void {
+    if (!this.context) {
+      return;
+    }
+
+    this.renderNonViewportPanels();
+    this.renderSlot("center.sceneView");
+  }
+
+  private renderNonViewportPanels(): void {
+    if (!this.context) {
+      return;
+    }
+
+    this.renderToolbar();
+    this.renderSlot("left.hierarchy");
+    this.renderSlot("right.inspector");
+    this.renderSlot("right.plugins");
+    this.renderStatus();
+  }
+
+  public dispose(): void {
+    document.removeEventListener("pointerdown", this.onDocumentPointerDown, true);
+    this.closeOpenMenu();
+    for (const dispose of this.disposers.splice(0)) {
+      dispose();
+    }
+    this.layout.dispose();
+    this.root.remove();
+    this.context = null;
+  }
+
+  private renderToolbar(): void {
+    const context = this.context;
+    if (!context) {
+      return;
+    }
+
+    const host = this.elements.toolbarHost;
+    host.replaceChildren();
+    this.openMenu = null;
+
+    const brand = document.createElement("div");
+    brand.className = "edison-brand";
+    brand.textContent = "Edison";
+    host.appendChild(brand);
+
+    const separator = document.createElement("div");
+    separator.className = "edison-toolbar-separator";
+    host.appendChild(separator);
+
+    host.append(
+      this.createCommandMenu("Scene", [
+        { commandId: "edison.save", label: "Save" },
+        { commandId: "edison.exportJson", label: "Export JSON" },
+        { commandId: "edison.reload", label: "Reload" },
+        { commandId: "edison.back", label: "Back to Menu" }
+      ], context),
+      this.createCommandMenu("Settings", [
+        { commandId: "edison.frameScene", label: "Fit View" },
+        { commandId: "edison.toggleGrid", label: "Grid", active: context.viewport.getGridVisible() },
+        { commandId: "edison.toggleAxes", label: "Axes", active: context.viewport.getAxesVisible() }
+      ], context),
+      this.createCommandMenu("Plugins", [
+        { commandId: "edison.installPluginZip", label: "Install from ZIP" }
+      ], context)
+    );
+
+    const toolsSeparator = document.createElement("div");
+    toolsSeparator.className = "edison-toolbar-separator";
+    host.appendChild(toolsSeparator);
+
+    const toolHost = document.createElement("div");
+    toolHost.className = "edison-toolbar-tools";
+    const activeToolId = context.tools.getActiveToolId();
+    for (const tool of context.tools.getTools()) {
+      const button = document.createElement("button");
+      button.type = "button";
+      button.className = `edison-tool-icon-button${tool.id === activeToolId ? " is-active" : ""}`;
+      button.title = tool.title;
+      button.setAttribute("aria-label", tool.title);
+      const svgIcon = getEdisonSvgIcon(tool.icon ?? tool.id);
+      if (svgIcon) {
+        button.innerHTML = svgIcon;
+      } else {
+        button.textContent = tool.title.slice(0, 1).toUpperCase();
+      }
+      button.addEventListener("click", () => context.tools.setActiveTool(tool.id));
+      toolHost.appendChild(button);
+    }
+    host.appendChild(toolHost);
+
+    const externalButtons = context.toolbar.getButtons();
+    if (externalButtons.length > 0) {
+      const externalSeparator = document.createElement("div");
+      externalSeparator.className = "edison-toolbar-separator";
+      host.appendChild(externalSeparator);
+    }
+
+    for (const button of externalButtons) {
+      const element = document.createElement("button");
+      element.className = "edison-button";
+      if (this.isToolbarButtonActive(button.commandId, context)) {
+        element.classList.add("is-active");
+      }
+      element.type = "button";
+      element.title = button.title;
+      element.textContent = getEdisonIcon(button.icon, button.title);
+      element.disabled = !context.commands.canExecute(button.commandId);
+      element.addEventListener("click", () => {
+        void context.commands.execute(button.commandId).catch((error: unknown) => {
+          context.events.emit("edison.message", { text: error instanceof Error ? error.message : String(error) });
+        });
+      });
+      host.appendChild(element);
+    }
+  }
+
+  private createCommandMenu(
+    label: string,
+    items: ReadonlyArray<{ readonly commandId: string; readonly label: string; readonly active?: boolean }>,
+    context: EdisonPluginContext
+  ): HTMLElement {
+    const menu = document.createElement("details");
+    menu.className = "edison-menu";
+
+    const summary = document.createElement("summary");
+    summary.textContent = label;
+    summary.addEventListener("click", (event) => {
+      event.preventDefault();
+      if (menu.open) {
+        this.closeOpenMenu();
+        return;
+      }
+
+      this.openCommandMenu(menu);
+    });
+    summary.addEventListener("mouseenter", () => {
+      if (this.openMenu && this.openMenu !== menu) {
+        this.openCommandMenu(menu);
+      }
+    });
+    menu.appendChild(summary);
+
+    const popover = document.createElement("div");
+    popover.className = "edison-menu-popover";
+    for (const item of items) {
+      const button = document.createElement("button");
+      button.type = "button";
+      button.className = `edison-menu-item${item.active ? " is-active" : ""}`;
+      button.textContent = item.label;
+      button.disabled = !context.commands.canExecute(item.commandId);
+      button.addEventListener("click", () => {
+        this.closeOpenMenu();
+        void context.commands.execute(item.commandId).catch((error: unknown) => {
+          context.events.emit("edison.message", { text: error instanceof Error ? error.message : String(error) });
+        });
+      });
+      popover.appendChild(button);
+    }
+    menu.appendChild(popover);
+    return menu;
+  }
+
+  private openCommandMenu(menu: HTMLDetailsElement): void {
+    if (this.openMenu && this.openMenu !== menu) {
+      this.openMenu.open = false;
+    }
+
+    this.openMenu = menu;
+    this.openMenu.open = true;
+  }
+
+  private closeOpenMenu(): void {
+    if (!this.openMenu) {
+      return;
+    }
+
+    this.openMenu.open = false;
+    this.openMenu = null;
+  }
+
+  private renderSlot(slot: EdisonPanelSlot): void {
+    const context = this.context;
+    if (!context) {
+      return;
+    }
+
+    const host = this.elements.dockHost.getHost(slot);
+    host.replaceChildren();
+
+    for (const panel of context.panels.getPanels(slot)) {
+      const wrapper = document.createElement("section");
+      wrapper.className = `edison-panel ${slot === "center.sceneView" ? "edison-scene-panel" : ""}`;
+      const header = document.createElement("header");
+      header.className = "edison-panel-header";
+      header.textContent = panel.title;
+      const body = document.createElement("div");
+      body.className = "edison-panel-body";
+      wrapper.append(header, body);
+      host.appendChild(wrapper);
+      panel.render(body, context);
+    }
+  }
+
+  private renderStatus(): void {
+    if (this.context) {
+      this.statusBar.render(this.context);
+    }
+  }
+
+  private isToolbarButtonActive(commandId: string, context: EdisonPluginContext): boolean {
+    if (commandId === "edison.toggleGrid") {
+      return context.viewport.getGridVisible();
+    }
+
+    if (commandId === "edison.toggleAxes") {
+      return context.viewport.getAxesVisible();
+    }
+
+    return false;
+  }
+}

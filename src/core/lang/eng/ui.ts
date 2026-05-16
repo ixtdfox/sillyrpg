@@ -4,6 +4,7 @@ export const ui = {
   mainMenuLabel: "MAIN MENU",
   newGame: "New Game",
   levelEditor: "Level Editor",
+  edison: "Edison",
   continueGame: "Continue",
   loadGame: "Load Game",
   settings: "Settings",
