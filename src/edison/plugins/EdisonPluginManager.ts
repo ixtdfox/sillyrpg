@@ -19,8 +19,12 @@ export class EdisonPluginManager {
   public constructor(private readonly context: EdisonPluginContext) {}
 
   public async register(plugin: EdisonPlugin): Promise<void> {
-    if (this.plugins.has(plugin.manifest.id)) {
-      throw new Error(`Edison plugin '${plugin.manifest.id}' is already installed.`);
+    const existing = this.plugins.get(plugin.manifest.id);
+    if (existing) {
+      if (existing.active) {
+        await existing.plugin.deactivate?.(this.context);
+      }
+      this.plugins.delete(plugin.manifest.id);
     }
 
     this.plugins.set(plugin.manifest.id, { plugin, active: false });

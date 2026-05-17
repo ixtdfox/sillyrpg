@@ -1,6 +1,6 @@
 import type { EdisonPlugin, EdisonPluginContext } from "./EdisonPlugin";
 import type { EdisonPluginManifest } from "./EdisonPluginManifest";
-import { EdisonPluginZipInstaller } from "./EdisonPluginZipInstaller";
+import type { EdisonPluginZipInstallResult } from "./EdisonPluginZipInstaller";
 import { createDeleteTool } from "../tools/DeleteTool";
 import { createMoveTool } from "../tools/MoveTool";
 import { createRotateTool } from "../tools/RotateTool";
@@ -10,7 +10,7 @@ import { InspectorPanel } from "../ui/panels/InspectorPanel";
 import { SceneViewPanel } from "../ui/panels/SceneViewPanel";
 
 export interface BuiltinCorePluginOptions {
-  readonly zipInstaller: EdisonPluginZipInstaller;
+  readonly installPluginZip: (file: File) => Promise<EdisonPluginZipInstallResult>;
   readonly onBackToMenu: () => void;
   readonly reloadSceneContent: () => Promise<void>;
 }
@@ -114,7 +114,7 @@ export class BuiltinCorePlugin implements EdisonPlugin {
             return;
           }
 
-          const result = await this.options.zipInstaller.install(file);
+          const result = await this.options.installPluginZip(file);
           context.events.emit("edison.message", { text: result.message });
         }
       }),

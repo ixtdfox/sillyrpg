@@ -1,0 +1,9 @@
+{
+  "id": "sillyrpg.terrain-tools",
+  "name": "Terrain Tools",
+  "version": "0.1.7",
+  "author": "SillyRPG",
+  "description": "Procedural terrain generation and height-band terrain coloring for Edison.",
+  "entry": "dist/index.js",
+  "edisonApiVersion": "1"
+}

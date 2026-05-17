@@ -17,7 +17,9 @@ export class ModelInstantiationAdapter {
       rootNamePrefix: "edison",
       descriptorPath: option.rawDescriptorPath,
       descriptor,
-      generatedTerrainLodEnabled: true
+      // Edison is an editor viewport, so generated terrain should match the
+      // legacy editor preview exactly instead of using runtime LOD patches.
+      generatedTerrainLodEnabled: false
     });
   }
 }

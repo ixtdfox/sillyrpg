@@ -1,5 +1,10 @@
 import { Vector3 } from "@babylonjs/core";
-import { cloneSceneDescriptor, type SceneDescriptor, type SceneObjectDescriptor } from "../../core/world/scene/SceneDescriptor";
+import {
+  cloneSceneDescriptor,
+  type SceneDescriptor,
+  type SceneObjectDescriptor,
+  type SceneTerrainDescriptor
+} from "../../core/world/scene/SceneDescriptor";
 import type { EdisonLoadedSceneDescriptor, EdisonSceneOption } from "../adapters/SceneDescriptorAdapter";
 import { SceneDescriptorAdapter } from "../adapters/SceneDescriptorAdapter";
 import { TerrainCoreAdapter } from "../adapters/TerrainCoreAdapter";
@@ -127,6 +132,16 @@ export class EdisonSceneDocumentService {
     };
     this.markDirty("Object deleted.");
     return true;
+  }
+
+  public setTerrain(terrain: SceneTerrainDescriptor | null, message = "Terrain changed."): SceneDescriptor {
+    const descriptor = this.requireDescriptor();
+    this.descriptor = {
+      ...descriptor,
+      terrain: terrain ? JSON.parse(JSON.stringify(terrain)) as SceneTerrainDescriptor : null
+    };
+    this.markDirty(message);
+    return this.requireDescriptor();
   }
 
   public async save(): Promise<void> {

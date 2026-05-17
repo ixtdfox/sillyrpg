@@ -20,7 +20,7 @@ The legacy editor grew around concrete workflows: terrain generation, terrain pa
 - `core/` contains editor services: commands, events, selection, object registry, document state, transforms, viewport, and persistence.
 - `layout/` contains dock slots, panel registry, toolbar registry, status bar, and layout types.
 - `tools/` contains the built-in select, move, rotate, delete, and editor camera tools.
-- `plugins/` contains the plugin manifest, plugin contract, plugin manager, zip installer stub, and built-in core plugin.
+- `plugins/` contains the plugin manifest, plugin contract, plugin manager, zip installer, and built-in core plugin.
 - `ui/` contains the DOM UI shell, theme, CSS, icons, and built-in panels.
 - `adapters/` bridges Edison to core scene, terrain, model instantiation, and lighting APIs.
 - `docs/` contains architecture and plugin authoring notes.
@@ -121,7 +121,7 @@ Edison v1 supports:
 ## v1 Limitations
 
 - Undo and redo buttons are present but disabled.
-- ZIP plugin installation has UI and service shape, but archive parsing is planned.
+- ZIP plugin installation is session-local in v1; persistent plugin storage and plugin asset URL resolution are planned.
 - Runtime loading of external plugin entry bundles is not implemented.
 - Move tool supports snapped X/Z dragging.
 - Rotate tool and transform buttons rotate around Y by 90 degrees.

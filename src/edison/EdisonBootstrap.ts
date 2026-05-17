@@ -17,7 +17,18 @@ export class EdisonBootstrap {
 
   public async start(): Promise<void> {
     await this.options.pluginManager.register(new BuiltinCorePlugin({
-      zipInstaller: this.options.zipInstaller,
+      installPluginZip: async (file) => {
+        const result = await this.options.zipInstaller.install(file);
+        if (result.ok && result.plugin) {
+          await this.options.pluginManager.register(result.plugin);
+          return {
+            ...result,
+            message: `Plugin '${result.plugin.manifest.name}' installed.`
+          };
+        }
+
+        return result;
+      },
       onBackToMenu: this.options.onBackToMenu,
       reloadSceneContent: this.options.reloadSceneContent
     }));

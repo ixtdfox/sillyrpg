@@ -1,6 +1,6 @@
 # Edison Plugin Authoring
 
-Edison plugins are declarative modules that receive an editor context during activation. Edison v1 supports DOM panels and in-memory registration. External zip archive parsing is planned.
+Edison plugins are declarative modules that receive an editor context during activation. Edison v1 supports DOM panels, in-memory registration, and session-local installation from ZIP archives.
 
 ## Manifest
 
@@ -155,7 +155,7 @@ export const plugin = {
 
 ## ZIP Plugin Format
 
-Future zip plugin archives are expected to use this structure:
+Zip plugin archives use this structure:
 
 ```text
 my-plugin.zip
@@ -178,10 +178,6 @@ my-plugin.zip
 
 ## ZIP Installer Status
 
-Edison v1 includes a `Plugins` top menu with an `Install from ZIP` file picker. `EdisonPluginZipInstaller` currently validates the `.zip` extension and returns:
+Edison v1 includes a `Plugins` top menu with an `Install from ZIP` file picker. `EdisonPluginZipInstaller` reads `edison-plugin.json`, imports the configured `entry` as an ES module, and registers the exported `plugin` or default export.
 
-```text
-ZIP plugin installation is planned; archive parsing is not implemented yet
-```
-
-No external zip dependency is included in v1.
+The installer is intentionally dependency-free. It supports stored ZIP entries and deflated entries when the browser provides `DecompressionStream`. Plugin installation is session-local in v1; persistent plugin storage and asset URL resolution are planned.

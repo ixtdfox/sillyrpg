@@ -11,8 +11,15 @@ import {
   type LinesMesh,
   type Scene
 } from "@babylonjs/core";
+import {
+  importSceneTerrainContent,
+  type ImportedSceneAssetNodes,
+  type ImportedSceneContent,
+  type ImportedSceneTerrainContent
+} from "../../core/world/scene/SceneContentLoader";
 import type { SceneDescriptor } from "../../core/world/scene/SceneDescriptor";
 import type { TerrainLodAnchor } from "../../core/world/terrain/lod/TerrainQuadtreeLodTypes";
+import { EdisonTerrainTexturePreviewAdapter } from "../adapters/EdisonTerrainTexturePreviewAdapter";
 import { LightingCoreAdapter } from "../adapters/LightingCoreAdapter";
 import { ModelInstantiationAdapter } from "../adapters/ModelInstantiationAdapter";
 import type { EdisonSceneOption } from "../adapters/SceneDescriptorAdapter";
@@ -26,16 +33,29 @@ import { EdisonEventBus } from "./EdisonEventBus";
 import { EdisonObjectRegistry } from "./EdisonObjectRegistry";
 import type { EdisonSelection } from "./EdisonSelectionService";
 
-const GRID_EXTENT = 80;
+const GRID_EXTENT = 200;
 const GRID_STEP = 1;
+const GRID_Y_OFFSET = 0.02;
+const BRUSH_PREVIEW_Y_OFFSET = 0.08;
+
+export interface EdisonTerrainBrushPreviewOptions {
+  readonly center: { readonly x: number; readonly y: number; readonly z: number };
+  readonly radius: number;
+  readonly shape: "circle" | "square";
+  readonly falloff: number;
+  readonly color?: string;
+  readonly gridColor?: string;
+}
 
 export class EdisonViewportService {
   private readonly modelAdapter = new ModelInstantiationAdapter();
   private readonly lightingAdapter: LightingCoreAdapter;
+  private readonly terrainTexturePreviewAdapter: EdisonTerrainTexturePreviewAdapter;
   private readonly cameraTool: EditorCameraTool;
   private readonly highlightLayer: HighlightLayer;
   private readonly highlightedMeshes: Mesh[] = [];
   private readonly gridMeshes: LinesMesh[];
+  private readonly brushPreviewMeshes: LinesMesh[] = [];
   private canvasRestore: { readonly parent: Node; readonly nextSibling: Node | null; readonly style: string } | null = null;
   private gridVisible = true;
   private axesVisible = true;
@@ -49,6 +69,7 @@ export class EdisonViewportService {
     private readonly events: EdisonEventBus
   ) {
     this.lightingAdapter = new LightingCoreAdapter(scene);
+    this.terrainTexturePreviewAdapter = new EdisonTerrainTexturePreviewAdapter(scene);
     this.cameraTool = new EditorCameraTool(scene, canvas, () => this.frameScene());
     this.highlightLayer = new HighlightLayer("edison-selection-highlight", scene);
     this.gridMeshes = this.createGridMeshes();
@@ -72,10 +93,78 @@ export class EdisonViewportService {
     this.engine.resize();
   }
 
+  public readonly getCanvas = (): HTMLCanvasElement => {
+    return this.canvas;
+  };
+
+  public readonly projectWorldPoint = (point: { readonly x: number; readonly y: number; readonly z: number }): { readonly x: number; readonly y: number } | null => {
+    if (!this.scene.activeCamera) {
+      return null;
+    }
+
+    const viewport = this.scene.activeCamera.viewport.toGlobal(this.engine.getRenderWidth(), this.engine.getRenderHeight());
+    const projected = Vector3.Project(
+      new Vector3(point.x, point.y, point.z),
+      Matrix.Identity(),
+      this.scene.getTransformMatrix(),
+      viewport
+    );
+
+    if (!Number.isFinite(projected.x) || !Number.isFinite(projected.y) || !Number.isFinite(projected.z)) {
+      return null;
+    }
+
+    const rect = this.canvas.getBoundingClientRect();
+    const renderWidth = Math.max(1, this.engine.getRenderWidth());
+    const renderHeight = Math.max(1, this.engine.getRenderHeight());
+    return {
+      x: rect.left + projected.x * (rect.width / renderWidth),
+      y: rect.top + projected.y * (rect.height / renderHeight)
+    };
+  };
+
+  public readonly setTerrainBrushPreview = (options: EdisonTerrainBrushPreviewOptions): void => {
+    this.clearTerrainBrushPreview();
+    const preview = this.buildTerrainBrushPreviewLines(options);
+    if (!preview) {
+      return;
+    }
+
+    const outline = MeshBuilder.CreateLineSystem("edison-terrain-brush-preview-outline", {
+      lines: preview.outlineLines,
+      updatable: false
+    }, this.scene);
+    outline.color = Color3.FromHexString(options.color ?? "#F7B84B");
+    outline.isPickable = false;
+    outline.alwaysSelectAsActiveMesh = true;
+    outline.metadata = { edisonBrushPreview: true, gameHelper: true };
+    this.brushPreviewMeshes.push(outline);
+
+    if (preview.gridLines.length > 0) {
+      const grid = MeshBuilder.CreateLineSystem("edison-terrain-brush-preview-grid", {
+        lines: preview.gridLines,
+        updatable: false
+      }, this.scene);
+      grid.color = Color3.FromHexString(options.gridColor ?? "#4FB9ED");
+      grid.isPickable = false;
+      grid.alwaysSelectAsActiveMesh = true;
+      grid.metadata = { edisonBrushPreview: true, gameHelper: true };
+      this.brushPreviewMeshes.push(grid);
+    }
+  };
+
+  public readonly clearTerrainBrushPreview = (): void => {
+    for (const mesh of this.brushPreviewMeshes.splice(0)) {
+      mesh.dispose(false);
+    }
+  };
+
   public async loadScene(option: EdisonSceneOption, descriptor: SceneDescriptor): Promise<void> {
     this.clearSceneContent();
     const content = await this.modelAdapter.importScene(this.scene, option, descriptor);
     this.objects.setContent(content);
+    await this.applyTerrainTexturePreview(content.terrainContent);
+    this.applyGridVisibility();
     this.lightingAdapter.apply(content.lightingDescriptor, [
       {
         ownerId: "edison:terrain",
@@ -91,6 +180,39 @@ export class EdisonViewportService {
     this.frameScene();
     this.refreshTerrainLod(1);
   }
+
+  public readonly replaceTerrain = async (descriptor: SceneDescriptor): Promise<void> => {
+    const current = this.objects.getContent();
+    if (!current) {
+      return;
+    }
+
+    const nextTerrain = descriptor.terrain
+      ? await importSceneTerrainContent(this.scene, descriptor.terrain, current.root, "edison", {
+          generatedTerrainLodEnabled: false
+        })
+      : null;
+
+    this.clearTerrainBrushPreview();
+    this.disposeTerrainContent(current.terrainContent ?? null);
+    const nextContent = this.rebuildContentWithTerrain(current, nextTerrain, descriptor);
+    this.objects.setContent(nextContent);
+    await this.applyTerrainTexturePreview(nextContent.terrainContent);
+    this.applyGridVisibility();
+    this.lightingAdapter.apply(nextContent.lightingDescriptor, [
+      {
+        ownerId: "edison:terrain",
+        source: "terrain",
+        meshes: nextContent.terrainMeshes
+      },
+      {
+        ownerId: "edison:scene-objects",
+        source: "sceneObject",
+        meshes: nextContent.sceneObjects.flatMap((object) => object.renderableMeshes)
+      }
+    ]);
+    this.refreshTerrainLod(1);
+  };
 
   public update(deltaSeconds: number): void {
     if (!this.terrainLodNeedsRefresh) {
@@ -227,40 +349,24 @@ export class EdisonViewportService {
   }
 
   public clearSceneContent(): void {
+    this.clearTerrainBrushPreview();
+    this.terrainTexturePreviewAdapter.dispose();
     const content = this.objects.getContent();
     if (content) {
-      for (const controller of content.terrainLodControllers) {
-        controller.dispose();
-      }
-      for (const animationGroup of content.animationGroups) {
-        animationGroup.dispose();
-      }
-      for (const particleSystem of content.particleSystems) {
-        particleSystem.dispose();
-      }
-      for (const skeleton of content.skeletons) {
-        skeleton.dispose();
-      }
+      this.disposeImportedNodes(content);
       if (!content.root.isDisposed()) {
         content.root.dispose(false);
-      }
-      for (const transformNode of content.transformNodes) {
-        if (!transformNode.isDisposed()) {
-          transformNode.dispose(false);
-        }
-      }
-      for (const mesh of content.meshes) {
-        if (!mesh.isDisposed()) {
-          mesh.dispose(false, true);
-        }
       }
     }
 
     this.objects.clear();
+    this.applyGridVisibility();
     this.updateSelectionHighlight(null);
   }
 
   public dispose(): void {
+    this.clearTerrainBrushPreview();
+    this.terrainTexturePreviewAdapter.dispose();
     this.clearSceneContent();
     for (const mesh of this.gridMeshes) {
       mesh.dispose(false);
@@ -283,12 +389,12 @@ export class EdisonViewportService {
   private createGridMeshes(): LinesMesh[] {
     const lines: Vector3[][] = [];
     for (let index = -GRID_EXTENT; index <= GRID_EXTENT; index += GRID_STEP) {
-      lines.push([new Vector3(-GRID_EXTENT, 0, index), new Vector3(GRID_EXTENT, 0, index)]);
-      lines.push([new Vector3(index, 0, -GRID_EXTENT), new Vector3(index, 0, GRID_EXTENT)]);
+      lines.push([new Vector3(-GRID_EXTENT, GRID_Y_OFFSET, index), new Vector3(GRID_EXTENT, GRID_Y_OFFSET, index)]);
+      lines.push([new Vector3(index, GRID_Y_OFFSET, -GRID_EXTENT), new Vector3(index, GRID_Y_OFFSET, GRID_EXTENT)]);
     }
 
     const grid = MeshBuilder.CreateLineSystem("edison-grid", { lines, updatable: false }, this.scene);
-    grid.color = Color3.FromHexString("#334563");
+    grid.color = new Color3(0.31, 0.73, 0.93);
     grid.isPickable = false;
     return [grid];
   }
@@ -296,6 +402,223 @@ export class EdisonViewportService {
   private applyGridVisibility(): void {
     for (const mesh of this.gridMeshes) {
       mesh.isVisible = this.gridVisible;
+    }
+  }
+
+  private buildTerrainBrushPreviewLines(options: EdisonTerrainBrushPreviewOptions): {
+    readonly outlineLines: Vector3[][];
+    readonly gridLines: Vector3[][];
+  } | null {
+    const terrain = this.objects.getTerrain();
+    if (terrain?.descriptor.kind !== "generated" || !terrain.heightField) {
+      return null;
+    }
+
+    const radius = Math.max(0.05, Math.min(512, options.radius));
+    const falloff = Math.max(0, Math.min(1, options.falloff));
+    const worldMatrix = terrain.root.computeWorldMatrix(true);
+    const inverseWorld = worldMatrix.clone().invert();
+    const centerLocal = Vector3.TransformCoordinates(new Vector3(options.center.x, options.center.y, options.center.z), inverseWorld);
+    const sample = (x: number, z: number): Vector3 | null => {
+      const y = terrain.heightField?.sampleBilinearLocal(x, z);
+      if (y === null || y === undefined) {
+        return null;
+      }
+      return Vector3.TransformCoordinates(new Vector3(x, y + BRUSH_PREVIEW_Y_OFFSET, z), worldMatrix);
+    };
+
+    const outlineLines = [
+      ...this.buildBrushShapeLines(options.shape, centerLocal, radius, sample)
+    ];
+    const innerRadius = radius * (1 - falloff);
+    if (falloff > 0.01 && innerRadius > 0.05 && innerRadius < radius * 0.98) {
+      outlineLines.push(...this.buildBrushShapeLines(options.shape, centerLocal, innerRadius, sample));
+    }
+
+    if (outlineLines.length === 0) {
+      return null;
+    }
+
+    return {
+      outlineLines,
+      gridLines: this.buildBrushGridLines(options.shape, centerLocal, radius, terrain.descriptor.terrainGridStep ?? 1, sample)
+    };
+  }
+
+  private buildBrushShapeLines(
+    shape: "circle" | "square",
+    centerLocal: Vector3,
+    radius: number,
+    sample: (x: number, z: number) => Vector3 | null
+  ): Vector3[][] {
+    if (shape === "square") {
+      const minX = centerLocal.x - radius;
+      const maxX = centerLocal.x + radius;
+      const minZ = centerLocal.z - radius;
+      const maxZ = centerLocal.z + radius;
+      const segments = Math.max(4, Math.ceil((radius * 2) / Math.max(0.5, radius / 24)));
+      return [
+        this.compactSampledLine(this.buildAxisLineCoordinates(minX, minZ, maxX, minZ, segments), sample),
+        this.compactSampledLine(this.buildAxisLineCoordinates(maxX, minZ, maxX, maxZ, segments), sample),
+        this.compactSampledLine(this.buildAxisLineCoordinates(maxX, maxZ, minX, maxZ, segments), sample),
+        this.compactSampledLine(this.buildAxisLineCoordinates(minX, maxZ, minX, minZ, segments), sample)
+      ].filter((line) => line.length >= 2);
+    }
+
+    const points: Vector3[] = [];
+    const segments = 96;
+    for (let index = 0; index <= segments; index += 1) {
+      const angle = (index / segments) * Math.PI * 2;
+      const point = sample(centerLocal.x + Math.cos(angle) * radius, centerLocal.z + Math.sin(angle) * radius);
+      if (point) {
+        points.push(point);
+      }
+    }
+    return points.length >= 2 ? [points] : [];
+  }
+
+  private buildBrushGridLines(
+    shape: "circle" | "square",
+    centerLocal: Vector3,
+    radius: number,
+    terrainGridStep: number,
+    sample: (x: number, z: number) => Vector3 | null
+  ): Vector3[][] {
+    const lines: Vector3[][] = [];
+    const step = Math.max(0.25, terrainGridStep, radius / 28);
+    const minX = centerLocal.x - radius;
+    const maxX = centerLocal.x + radius;
+    const minZ = centerLocal.z - radius;
+    const maxZ = centerLocal.z + radius;
+    const firstX = Math.ceil(minX / step) * step;
+    const firstZ = Math.ceil(minZ / step) * step;
+    const appendLine = (coordinates: Array<readonly [number, number]>): void => {
+      const line = this.compactSampledLine(coordinates, sample);
+      if (line.length >= 2) {
+        lines.push(line);
+      }
+    };
+
+    for (let x = firstX; x <= maxX + 1e-6; x += step) {
+      if (shape === "circle") {
+        const dx = x - centerLocal.x;
+        const extent = Math.sqrt(Math.max(0, radius * radius - dx * dx));
+        appendLine(this.buildAxisLineCoordinates(x, centerLocal.z - extent, x, centerLocal.z + extent, Math.max(2, Math.ceil((extent * 2) / Math.max(0.5, step * 0.5)))));
+      } else {
+        appendLine(this.buildAxisLineCoordinates(x, minZ, x, maxZ, Math.max(2, Math.ceil((maxZ - minZ) / Math.max(0.5, step * 0.5)))));
+      }
+    }
+
+    for (let z = firstZ; z <= maxZ + 1e-6; z += step) {
+      if (shape === "circle") {
+        const dz = z - centerLocal.z;
+        const extent = Math.sqrt(Math.max(0, radius * radius - dz * dz));
+        appendLine(this.buildAxisLineCoordinates(centerLocal.x - extent, z, centerLocal.x + extent, z, Math.max(2, Math.ceil((extent * 2) / Math.max(0.5, step * 0.5)))));
+      } else {
+        appendLine(this.buildAxisLineCoordinates(minX, z, maxX, z, Math.max(2, Math.ceil((maxX - minX) / Math.max(0.5, step * 0.5)))));
+      }
+    }
+
+    return lines;
+  }
+
+  private buildAxisLineCoordinates(x0: number, z0: number, x1: number, z1: number, segments: number): Array<readonly [number, number]> {
+    const coordinates: Array<readonly [number, number]> = [];
+    const safeSegments = Math.max(1, Math.min(96, segments));
+    for (let index = 0; index <= safeSegments; index += 1) {
+      const t = index / safeSegments;
+      coordinates.push([
+        x0 + (x1 - x0) * t,
+        z0 + (z1 - z0) * t
+      ]);
+    }
+    return coordinates;
+  }
+
+  private compactSampledLine(
+    coordinates: Array<readonly [number, number]>,
+    sample: (x: number, z: number) => Vector3 | null
+  ): Vector3[] {
+    const points: Vector3[] = [];
+    for (const [x, z] of coordinates) {
+      const point = sample(x, z);
+      if (point) {
+        points.push(point);
+      }
+    }
+    return points;
+  }
+
+  private rebuildContentWithTerrain(
+    current: ImportedSceneContent,
+    terrainContent: ImportedSceneTerrainContent | null,
+    descriptor: SceneDescriptor
+  ): ImportedSceneContent {
+    const sceneObjectMeshes = current.sceneObjects.flatMap((object) => object.meshes);
+    const sceneObjectRenderableMeshes = current.sceneObjects.flatMap((object) => object.renderableMeshes);
+    const sceneObjectHelperMeshes = current.sceneObjects.flatMap((object) => object.helperMeshes);
+    const sceneObjectTransformNodes = current.sceneObjects.flatMap((object) => object.transformNodes);
+    const sceneObjectSkeletons = current.sceneObjects.flatMap((object) => object.skeletons);
+    const sceneObjectAnimationGroups = current.sceneObjects.flatMap((object) => object.animationGroups);
+    const sceneObjectParticleSystems = current.sceneObjects.flatMap((object) => object.particleSystems);
+
+    return {
+      ...current,
+      terrainContent,
+      terrainRoot: terrainContent?.root,
+      terrainMeshes: terrainContent?.terrainSurfaceMeshes ?? [],
+      terrainLodControllers: terrainContent?.terrainLodControllers ?? [],
+      terrainDescriptor: descriptor.terrain,
+      meshes: [...(terrainContent?.meshes ?? []), ...sceneObjectMeshes],
+      renderableMeshes: [...(terrainContent?.renderableMeshes ?? []), ...sceneObjectRenderableMeshes],
+      helperMeshes: [...(terrainContent?.helperMeshes ?? []), ...sceneObjectHelperMeshes],
+      transformNodes: [...(terrainContent?.transformNodes ?? []), ...sceneObjectTransformNodes],
+      skeletons: [...(terrainContent?.skeletons ?? []), ...sceneObjectSkeletons],
+      animationGroups: [...(terrainContent?.animationGroups ?? []), ...sceneObjectAnimationGroups],
+      particleSystems: [...(terrainContent?.particleSystems ?? []), ...sceneObjectParticleSystems],
+      summary: {
+        ...current.summary,
+        terrainLabel: descriptor.terrain ? `${descriptor.terrain.kind}:${descriptor.terrain.id}` : "none"
+      }
+    };
+  }
+
+  private disposeTerrainContent(terrain: ImportedSceneTerrainContent | null): void {
+    if (!terrain) {
+      return;
+    }
+
+    this.disposeImportedNodes(terrain);
+    if (!terrain.root.isDisposed()) {
+      terrain.root.dispose(false);
+    }
+  }
+
+  private disposeImportedNodes(nodes: ImportedSceneAssetNodes): void {
+    const terrainLodControllers = "terrainLodControllers" in nodes
+      ? (nodes.terrainLodControllers as ImportedSceneContent["terrainLodControllers"])
+      : [];
+    for (const controller of terrainLodControllers) {
+      controller.dispose();
+    }
+    for (const animationGroup of nodes.animationGroups) {
+      animationGroup.dispose();
+    }
+    for (const particleSystem of nodes.particleSystems) {
+      particleSystem.dispose();
+    }
+    for (const skeleton of nodes.skeletons) {
+      skeleton.dispose();
+    }
+    for (const transformNode of nodes.transformNodes) {
+      if (!transformNode.isDisposed()) {
+        transformNode.dispose(false);
+      }
+    }
+    for (const mesh of nodes.meshes) {
+      if (!mesh.isDisposed()) {
+        mesh.dispose(false, true);
+      }
     }
   }
 
@@ -351,5 +674,18 @@ export class EdisonViewportService {
       x: ((clientX - rect.left) / rect.width) * this.engine.getRenderWidth(),
       y: ((clientY - rect.top) / rect.height) * this.engine.getRenderHeight()
     };
+  }
+
+  private async applyTerrainTexturePreview(terrain: ImportedSceneContent["terrainContent"]): Promise<void> {
+    try {
+      const applied = await this.terrainTexturePreviewAdapter.apply(terrain);
+      if (applied) {
+        this.events.emit("edison.message", { text: "Loaded terrain texture paint preview." });
+      }
+    } catch (error) {
+      this.events.emit("edison.message", {
+        text: `Unable to load terrain texture paint preview. ${error instanceof Error ? error.message : String(error)}`
+      });
+    }
   }
 }
