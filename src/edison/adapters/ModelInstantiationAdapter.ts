@@ -1,6 +1,11 @@
 import { TransformNode, type Scene } from "@babylonjs/core";
-import { importSceneContent, type ImportedSceneContent } from "../../core/world/scene/SceneContentLoader";
-import type { SceneDescriptor } from "../../core/world/scene/SceneDescriptor";
+import {
+  importSceneContent,
+  importSceneObjectContent,
+  type ImportedSceneContent,
+  type ImportedSceneObjectContent
+} from "../../core/world/scene/SceneContentLoader";
+import type { SceneDescriptor, SceneObjectDescriptor } from "../../core/world/scene/SceneDescriptor";
 import type { EdisonSceneOption } from "./SceneDescriptorAdapter";
 
 export class ModelInstantiationAdapter {
@@ -21,5 +26,13 @@ export class ModelInstantiationAdapter {
       // legacy editor preview exactly instead of using runtime LOD patches.
       generatedTerrainLodEnabled: false
     });
+  }
+
+  public async importObject(
+    scene: Scene,
+    descriptor: SceneObjectDescriptor,
+    parent: TransformNode
+  ): Promise<ImportedSceneObjectContent> {
+    return importSceneObjectContent(scene, descriptor, parent, "edison");
   }
 }

@@ -37,6 +37,13 @@ export interface EdisonSaveParticipant {
   prepare(context: EdisonSaveParticipantContext): void | Promise<void>;
 }
 
+export interface EdisonPlaceableModelAsset {
+  readonly id: string;
+  readonly title: string;
+  readonly modelPath: string;
+  readonly objectType: string;
+}
+
 export class EdisonSceneDocumentService {
   private sceneOptions: readonly EdisonSceneOption[] = [];
   private option: EdisonSceneOption | null = null;
@@ -103,6 +110,30 @@ export class EdisonSceneDocumentService {
 
   public getObject(objectId: string): SceneObjectDescriptor | null {
     return this.descriptor?.objects.find((object) => object.id === objectId) ?? null;
+  }
+
+  public createObjectDescriptorFromModel(asset: EdisonPlaceableModelAsset, position: Vector3): SceneObjectDescriptor {
+    return {
+      id: this.createNextObjectId(asset.objectType, this.resolveObjectAssetId(asset)),
+      type: asset.objectType,
+      asset: asset.modelPath,
+      position: this.toTuple(position),
+      rotation: [0, 0, 0],
+      scale: [1, 1, 1]
+    };
+  }
+
+  public addObject(object: SceneObjectDescriptor, message = "Object added."): void {
+    const descriptor = this.requireDescriptor();
+    if (descriptor.objects.some((candidate) => candidate.id === object.id)) {
+      throw new Error(`Scene object '${object.id}' already exists.`);
+    }
+
+    this.descriptor = {
+      ...descriptor,
+      objects: [...descriptor.objects, JSON.parse(JSON.stringify(object)) as SceneObjectDescriptor]
+    };
+    this.markDirty(message);
   }
 
   public updateObjectTransform(
@@ -184,11 +215,11 @@ export class EdisonSceneDocumentService {
 
   public async save(): Promise<void> {
     const descriptorPath = this.descriptorPath;
-    let descriptor = this.requireDescriptor();
     if (!descriptorPath) {
       throw new Error("No Edison scene descriptor is loaded.");
     }
 
+    const warnings: string[] = [];
     this.emitSaveProgress({ active: true, message: "Preparing scene save...", progress: 0 });
     try {
       const participants = [...this.saveParticipants.values()];
@@ -201,27 +232,52 @@ export class EdisonSceneDocumentService {
           message: participant.title,
           progress: baseProgress
         });
-        await participant.prepare({
-          descriptorPath,
-          descriptor: this.requireDescriptor(),
-          queueSaveAssets: (assets) => this.queueSaveAssets(assets),
-          report: (report) => {
-            this.emitSaveProgress({
-              active: true,
-              message: report.message,
-              progress: baseProgress + Math.max(0, Math.min(1, report.progress)) * progressSpan
-            });
-          }
-        });
+        try {
+          await participant.prepare({
+            descriptorPath,
+            descriptor: this.requireDescriptor(),
+            queueSaveAssets: (assets) => this.queueSaveAssets(assets),
+            report: (report) => {
+              this.emitSaveProgress({
+                active: true,
+                message: report.message,
+                progress: baseProgress + Math.max(0, Math.min(1, report.progress)) * progressSpan
+              });
+            }
+          });
+        } catch (error) {
+          warnings.push(`${participant.title}: ${this.formatErrorMessage(error)}`);
+        }
       }
 
-      descriptor = this.requireDescriptor();
-      this.emitSaveProgress({ active: true, message: "Writing scene files...", progress: 0.86 });
-      await this.persistence.save(descriptorPath, descriptor, [...this.saveAssets.values()]);
-      this.emitSaveProgress({ active: true, message: "Save complete.", progress: 1 });
-      this.saveAssets.clear();
+      const descriptor = cloneSceneDescriptor(this.requireDescriptor());
+      const assets = [...this.saveAssets.values()];
+      this.emitSaveProgress({ active: true, message: "Writing scene descriptor...", progress: 0.82 });
+      await this.persistence.saveDescriptor(descriptorPath, descriptor);
+      this.emitSaveProgress({ active: true, message: "Verifying scene save...", progress: 0.96 });
+      await this.verifySavedDescriptor(descriptorPath, descriptor);
       this.dirty = false;
-      this.emitChanged("Scene saved.");
+      this.emitChanged(this.createSaveCompleteMessage(descriptor, warnings));
+      const warningCountBeforeAssets = warnings.length;
+      if (assets.length > 0) {
+        this.emitSaveProgress({ active: true, message: "Writing generated assets...", progress: 0.98 });
+        try {
+          await this.persistence.saveAssets(assets);
+          this.saveAssets.clear();
+        } catch (error) {
+          warnings.push(`Generated assets: ${this.formatErrorMessage(error)}`);
+        }
+      } else {
+        this.saveAssets.clear();
+      }
+      this.emitSaveProgress({
+        active: true,
+        message: warnings.length > 0 ? "Save complete with warnings." : "Save complete.",
+        progress: 1
+      });
+      if (warnings.length !== warningCountBeforeAssets) {
+        this.emitChanged(this.createSaveCompleteMessage(descriptor, warnings));
+      }
     } finally {
       this.emitSaveProgress({ active: false, message: "", progress: 1 });
     }
@@ -274,8 +330,75 @@ export class EdisonSceneDocumentService {
     this.events.emit("edison.save.progress", payload);
   }
 
+  private async verifySavedDescriptor(descriptorPath: string, descriptor: SceneDescriptor): Promise<void> {
+    const savedDescriptor = await this.persistence.loadSavedDescriptor(descriptorPath);
+    const savedObjectIds = new Set(savedDescriptor.objects.map((object) => object.id));
+    const missingObjectIds = descriptor.objects
+      .map((object) => object.id)
+      .filter((objectId) => !savedObjectIds.has(objectId));
+
+    if (missingObjectIds.length > 0) {
+      throw new Error(`Scene save verification failed. Missing objects: ${missingObjectIds.join(", ")}.`);
+    }
+  }
+
+  private createSaveCompleteMessage(descriptor: SceneDescriptor, warnings: readonly string[]): string {
+    if (warnings.length === 0) {
+      return `Scene saved (${descriptor.objects.length} objects).`;
+    }
+
+    const warningSummary = warnings
+      .map((warning) => warning.length > 180 ? `${warning.slice(0, 177)}...` : warning)
+      .join(" | ");
+    return `Scene saved (${descriptor.objects.length} objects). Warnings: ${warningSummary}`;
+  }
+
+  private formatErrorMessage(error: unknown): string {
+    return error instanceof Error ? error.message : String(error);
+  }
+
   private toTuple(vector: Vector3): readonly [number, number, number] {
     return [vector.x, vector.y, vector.z] as const;
+  }
+
+  private createNextObjectId(objectType: string, assetId: string): string {
+    const safeType = this.slugify(objectType || "model");
+    const safeAssetId = this.slugify(assetId || "asset");
+    const prefix = `${safeType}-${safeAssetId}-`;
+    let maxSuffix = 0;
+
+    for (const object of this.requireDescriptor().objects) {
+      if (!object.id.startsWith(prefix)) {
+        continue;
+      }
+
+      const suffix = Number.parseInt(object.id.slice(prefix.length), 10);
+      if (Number.isFinite(suffix)) {
+        maxSuffix = Math.max(maxSuffix, suffix);
+      }
+    }
+
+    return `${prefix}${String(maxSuffix + 1).padStart(3, "0")}`;
+  }
+
+  private resolveObjectAssetId(asset: EdisonPlaceableModelAsset): string {
+    if (asset.objectType === "building") {
+      const buildingPath = asset.modelPath.replace(/\\/gu, "/");
+      const buildingPrefix = "assets/models/buildings/";
+      if (buildingPath.startsWith(buildingPrefix)) {
+        return buildingPath.slice(buildingPrefix.length).replace(/\.[^.]+$/u, "");
+      }
+    }
+
+    return asset.id;
+  }
+
+  private slugify(value: string): string {
+    return value
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/gu, "-")
+      .replace(/^-+|-+$/gu, "")
+      .replace(/-{2,}/gu, "-") || "model";
   }
 
   private createExportFileName(descriptorPath: string): string {

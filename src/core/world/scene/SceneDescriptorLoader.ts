@@ -7,9 +7,17 @@ export interface LoadedSceneDescriptor {
   readonly descriptor: SceneDescriptor;
 }
 
-export async function loadSceneDescriptor(descriptorPath: string): Promise<LoadedSceneDescriptor> {
+export interface LoadSceneDescriptorOptions {
+  readonly cacheBust?: string;
+}
+
+export async function loadSceneDescriptor(
+  descriptorPath: string,
+  options: LoadSceneDescriptorOptions = {}
+): Promise<LoadedSceneDescriptor> {
   const url = normalizeAssetPath(descriptorPath);
-  const response = await fetch(url);
+  const requestUrl = options.cacheBust ? appendCacheBust(url, options.cacheBust) : url;
+  const response = await fetch(requestUrl, { cache: "no-store" });
   if (!response.ok) {
     throw new Error(`Failed to load scene descriptor '${descriptorPath}': ${response.status}`);
   }
@@ -17,4 +25,9 @@ export async function loadSceneDescriptor(descriptorPath: string): Promise<Loade
   const payload = (await response.json()) as unknown;
   const descriptor = parseSceneDescriptor(payload, `Scene descriptor '${descriptorPath}'`);
   return { path: descriptorPath, url, descriptor };
+}
+
+function appendCacheBust(url: string, cacheBust: string): string {
+  const separator = url.includes("?") ? "&" : "?";
+  return `${url}${separator}edisonCacheBust=${encodeURIComponent(cacheBust)}`;
 }

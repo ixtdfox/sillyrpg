@@ -4,7 +4,7 @@
       "manifest": {
         "id": "sillyrpg.terrain-tools",
         "name": "Terrain Tools",
-        "version": "0.1.16",
+        "version": "0.1.17",
         "author": "SillyRPG",
         "description": "Procedural terrain generation, sculpting, and texture paint for Edison.",
         "entry": "dist/index.js",
@@ -13,7 +13,7 @@
       "directory": "sillyrpg.terrain-tools",
       "entry": "dist/index.js",
       "installedAt": "2026-05-18T11:30:14.241Z",
-      "updatedAt": "2026-05-18T11:53:00.712Z"
+      "updatedAt": "2026-05-18T18:39:46.955Z"
     }
   ]
 }

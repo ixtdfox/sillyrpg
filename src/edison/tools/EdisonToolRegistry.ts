@@ -27,7 +27,7 @@ export class EdisonToolRegistry {
 
     return () => {
       if (this.activeToolId === tool.id) {
-        tool.deactivate?.();
+        this.runToolLifecycle(tool, "deactivate");
         this.activeToolId = null;
       }
       this.tools.delete(tool.id);
@@ -57,9 +57,13 @@ export class EdisonToolRegistry {
       throw new Error(`Edison tool '${toolId}' is not registered.`);
     }
 
-    this.getActiveTool()?.deactivate?.();
+    const previousTool = this.getActiveTool();
+    if (previousTool) {
+      this.runToolLifecycle(previousTool, "deactivate");
+    }
+
     this.activeToolId = toolId;
-    nextTool.activate?.();
+    this.runToolLifecycle(nextTool, "activate");
     this.events.emit("edison.tool.changed", { toolId });
     this.notifyChanged();
   }
@@ -84,7 +88,10 @@ export class EdisonToolRegistry {
   }
 
   public dispose(): void {
-    this.getActiveTool()?.deactivate?.();
+    const activeTool = this.getActiveTool();
+    if (activeTool) {
+      this.runToolLifecycle(activeTool, "deactivate");
+    }
     this.tools.clear();
     this.listeners.clear();
     this.activeToolId = null;
@@ -98,7 +105,27 @@ export class EdisonToolRegistry {
       return false;
     }
 
-    return callback(tool, context) === true;
+    try {
+      return callback(tool, context) === true;
+    } catch (error) {
+      this.reportToolError(tool, "handle pointer input", error);
+      return true;
+    }
+  }
+
+  private runToolLifecycle(tool: EdisonTool, phase: "activate" | "deactivate"): void {
+    try {
+      tool[phase]?.();
+    } catch (error) {
+      this.reportToolError(tool, phase, error);
+    }
+  }
+
+  private reportToolError(tool: EdisonTool, action: string, error: unknown): void {
+    const detail = error instanceof Error ? error.message : String(error);
+    const message = `Tool '${tool.title}' failed to ${action}. ${detail}`;
+    console.error(message, error);
+    this.events.emit("edison.message", { text: message });
   }
 
   private notifyChanged(): void {

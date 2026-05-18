@@ -37,6 +37,7 @@ Edison core includes:
 - Save, export JSON, and reload commands.
 - Basic scene object transforms through Inspector fields.
 - Built-in tools: Select, Move, Rotate, Delete.
+- Built-in Models View that discovers `.glb` and `.gltf` files under `assets/models`, groups them by top-level directory, and supports drag-and-drop placement into Scene View.
 - Toolbar, status bar, hierarchy, inspector, tools, scene view, settings, and a Plugin Manager dialog.
 - Plugin API for commands, toolbar buttons, panels, tools, and inspector sections.
 - Local editor/plugin preferences for UI state such as Grid/Axes and plugin tool settings.
@@ -48,7 +49,6 @@ These are not part of Edison core:
 - Terrain generation.
 - Terrain painting.
 - Terrain sculpting.
-- Building browser.
 - Prop browser.
 - Lighting editor UI.
 - Custom import/export workflows.
@@ -124,6 +124,7 @@ Edison v1 supports:
 - Event bus messages.
 - Preference storage through `context.preferences`.
 - Persistent ZIP plugin installation through the dev-server `/__edison/plugins` endpoint.
+- Core model placement through the built-in Models View. Domain-specific model authoring workflows can still extend this with custom panels or inspectors.
 
 ## v1 Limitations
 

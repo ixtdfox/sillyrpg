@@ -7,6 +7,7 @@ import { createRotateTool } from "../tools/RotateTool";
 import { createSelectTool } from "../tools/SelectTool";
 import { HierarchyPanel } from "../ui/panels/HierarchyPanel";
 import { InspectorPanel } from "../ui/panels/InspectorPanel";
+import { ModelsPanel } from "../ui/panels/ModelsPanel";
 import { SceneViewPanel } from "../ui/panels/SceneViewPanel";
 
 export interface BuiltinCorePluginOptions {
@@ -183,6 +184,7 @@ export class BuiltinCorePlugin implements EdisonPlugin {
     const sceneView = new SceneViewPanel();
     const hierarchy = new HierarchyPanel();
     const inspector = new InspectorPanel();
+    const models = new ModelsPanel();
 
     this.disposers.push(
       context.panels.registerPanel({
@@ -205,7 +207,17 @@ export class BuiltinCorePlugin implements EdisonPlugin {
         slot: "right.inspector",
         order: 0,
         render: (host, panelContext) => inspector.render(host, panelContext)
-      })
+      }),
+      context.panels.registerPanel({
+        id: "edison.models",
+        title: "Models",
+        slot: "right.plugins",
+        order: -1000,
+        render: (host, panelContext) => models.render(host, panelContext)
+      }),
+      () => {
+        models.dispose();
+      }
     );
   }
 }

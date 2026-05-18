@@ -1,7 +1,9 @@
-import type { Engine, Scene } from "@babylonjs/core";
+import { Vector3, type Engine, type Scene } from "@babylonjs/core";
 import type { LangManager } from "../core/lang/LangManager";
+import { RECT_TILE_SIZE, WORLD_GRID_ORIGIN_X, WORLD_GRID_ORIGIN_Y, WORLD_GRID_ORIGIN_Z } from "../core/grid/WorldGridConstants";
 import { SceneDescriptorAdapter } from "./adapters/SceneDescriptorAdapter";
 import { TerrainCoreAdapter } from "./adapters/TerrainCoreAdapter";
+import { readEdisonModelAssetDragData } from "./assets/EdisonModelDragDrop";
 import { EdisonBootstrap } from "./EdisonBootstrap";
 import { EdisonCommandRegistry } from "./core/EdisonCommandRegistry";
 import type { EdisonPluginContext } from "./core/EdisonContext";
@@ -73,6 +75,27 @@ export class EdisonRuntime {
     }
   };
 
+  private readonly onCanvasDragOver = (event: DragEvent): void => {
+    if (!readEdisonModelAssetDragData(event.dataTransfer)) {
+      return;
+    }
+
+    event.preventDefault();
+    if (event.dataTransfer) {
+      event.dataTransfer.dropEffect = "copy";
+    }
+  };
+
+  private readonly onCanvasDrop = (event: DragEvent): void => {
+    const model = readEdisonModelAssetDragData(event.dataTransfer);
+    if (!model) {
+      return;
+    }
+
+    event.preventDefault();
+    void this.placeDroppedModel(model, event.clientX, event.clientY);
+  };
+
   public constructor(
     private readonly engine: Engine,
     private readonly babylonScene: Scene,
@@ -127,6 +150,8 @@ export class EdisonRuntime {
 
     this.canvas.addEventListener("pointerdown", this.onPointerDown);
     this.canvas.addEventListener("pointermove", this.onPointerMove);
+    this.canvas.addEventListener("dragover", this.onCanvasDragOver);
+    this.canvas.addEventListener("drop", this.onCanvasDrop);
     window.addEventListener("pointerup", this.onPointerUp);
   }
 
@@ -184,6 +209,8 @@ export class EdisonRuntime {
   public dispose(): void {
     this.canvas.removeEventListener("pointerdown", this.onPointerDown);
     this.canvas.removeEventListener("pointermove", this.onPointerMove);
+    this.canvas.removeEventListener("dragover", this.onCanvasDragOver);
+    this.canvas.removeEventListener("drop", this.onCanvasDrop);
     window.removeEventListener("pointerup", this.onPointerUp);
     for (const dispose of this.disposers.splice(0)) {
       dispose();
@@ -201,5 +228,46 @@ export class EdisonRuntime {
 
   private applyToolCursor(): void {
     this.canvas.style.cursor = this.tools.getActiveTool()?.cursor ?? "default";
+  }
+
+  private async placeDroppedModel(
+    model: {
+      readonly id: string;
+      readonly title: string;
+      readonly modelPath: string;
+      readonly objectType: string;
+    },
+    clientX: number,
+    clientY: number
+  ): Promise<void> {
+    try {
+      const placementPoint = this.viewport.pickGroundPoint(clientX, clientY);
+      if (!placementPoint) {
+        this.events.emit("edison.message", { text: "Drop over terrain or the ground plane to place a model." });
+        return;
+      }
+
+      const snappedPosition = this.snapPlacementPoint(placementPoint);
+      const objectDescriptor = this.sceneDocuments.createObjectDescriptorFromModel(model, snappedPosition);
+      this.sceneDocuments.addObject(objectDescriptor, `Placed ${model.title}.`);
+      try {
+        await this.viewport.addSceneObject(objectDescriptor);
+        this.selection.selectSceneObject(objectDescriptor.id);
+        this.events.emit("edison.message", { text: `Placed ${model.title}.` });
+      } catch (error) {
+        this.sceneDocuments.removeObject(objectDescriptor.id);
+        throw error;
+      }
+    } catch (error) {
+      this.events.emit("edison.message", { text: error instanceof Error ? error.message : String(error) });
+    }
+  }
+
+  private snapPlacementPoint(point: Vector3): Vector3 {
+    return new Vector3(
+      WORLD_GRID_ORIGIN_X + Math.round((point.x - WORLD_GRID_ORIGIN_X) / RECT_TILE_SIZE) * RECT_TILE_SIZE,
+      WORLD_GRID_ORIGIN_Y,
+      WORLD_GRID_ORIGIN_Z + Math.round((point.z - WORLD_GRID_ORIGIN_Z) / RECT_TILE_SIZE) * RECT_TILE_SIZE
+    );
   }
 }

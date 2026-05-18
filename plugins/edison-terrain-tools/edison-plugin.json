@@ -1,7 +1,7 @@
 {
   "id": "sillyrpg.terrain-tools",
   "name": "Terrain Tools",
-  "version": "0.1.16",
+  "version": "0.1.17",
   "author": "SillyRPG",
   "description": "Procedural terrain generation, sculpting, and texture paint for Edison.",
   "entry": "dist/index.js",

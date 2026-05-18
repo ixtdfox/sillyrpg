@@ -160,7 +160,13 @@ export class EdisonUi {
       } else {
         button.textContent = tool.title.slice(0, 1).toUpperCase();
       }
-      button.addEventListener("click", () => context.tools.setActiveTool(tool.id));
+      button.addEventListener("click", () => {
+        try {
+          context.tools.setActiveTool(tool.id);
+        } catch (error) {
+          context.events.emit("edison.message", { text: error instanceof Error ? error.message : String(error) });
+        }
+      });
       toolHost.appendChild(button);
     }
     host.appendChild(toolHost);

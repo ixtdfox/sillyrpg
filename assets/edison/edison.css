@@ -14,6 +14,7 @@
   z-index: 20;
 }
 .edison-toolbar {
+  position: relative;
   grid-row: 1;
   display: flex;
   align-items: center;
@@ -21,6 +22,7 @@
   padding: 6px 10px;
   border-bottom: 1px solid #263954;
   background: #0A1424;
+  z-index: 50;
 }
 .edison-brand {
   display: flex;
@@ -64,7 +66,7 @@
   top: 34px;
   left: 0;
   min-width: 150px;
-  z-index: 30;
+  z-index: 60;
   border: 1px solid #2C405E;
   border-radius: 6px;
   background: #0D1828;
@@ -615,4 +617,173 @@
   border-color: #F7B84B;
   color: #FFF0C2;
   background: #21304A;
+}
+.edison-models-host {
+  display: grid;
+  gap: 10px;
+  align-content: start;
+}
+.edison-models-header {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  align-items: start;
+}
+.edison-models-title {
+  color: #E7EDF7;
+  font-weight: 700;
+}
+.edison-models-subtitle,
+.edison-models-drop-hint {
+  color: #9EAEC6;
+  font-size: 12px;
+}
+.edison-models-drop-hint {
+  border: 1px solid #2C405E;
+  border-radius: 999px;
+  padding: 3px 8px;
+  background: #101E31;
+  white-space: nowrap;
+}
+.edison-models-search {
+  display: grid;
+  grid-template-columns: 50px minmax(0, 1fr);
+  gap: 8px;
+  align-items: center;
+  color: #B9C6D9;
+  font-size: 12px;
+}
+.edison-models-search input {
+  min-width: 0;
+  height: 30px;
+  box-sizing: border-box;
+  border: 1px solid #2C405E;
+  border-radius: 6px;
+  background: #081323;
+  color: #E7EDF7;
+  padding: 0 9px;
+  font: inherit;
+}
+.edison-models-search input:focus {
+  outline: 1px solid #F7B84B;
+  outline-offset: 1px;
+}
+.edison-models-categories {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.edison-models-category {
+  min-width: 0;
+  min-height: 28px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border: 1px solid #2C405E;
+  border-radius: 999px;
+  background: #122037;
+  color: #DDE7F6;
+  padding: 0 8px;
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+}
+.edison-models-category strong {
+  color: #9EAEC6;
+  font-size: 11px;
+  font-weight: 600;
+}
+.edison-models-category:hover,
+.edison-models-category.is-active {
+  border-color: #F7B84B;
+  background: #21304A;
+  color: #FFF0C2;
+}
+.edison-models-content {
+  min-height: 0;
+}
+.edison-models-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(136px, 1fr));
+  gap: 8px;
+}
+.edison-models-empty {
+  border: 1px solid #263954;
+  border-radius: 7px;
+  background: #101E31;
+  color: #9EAEC6;
+  padding: 12px;
+  font-size: 12px;
+}
+.edison-model-card {
+  min-width: 0;
+  display: grid;
+  grid-template-rows: 86px minmax(0, auto);
+  gap: 7px;
+  border: 1px solid #263954;
+  border-radius: 7px;
+  background: #101E31;
+  color: #DDE7F6;
+  padding: 7px;
+  text-align: left;
+  font: inherit;
+  cursor: grab;
+}
+.edison-model-card:hover,
+.edison-model-card.is-dragging {
+  border-color: #F7B84B;
+  background: #17263D;
+}
+.edison-model-card:active {
+  cursor: grabbing;
+}
+.edison-model-card-thumb {
+  position: relative;
+  display: grid;
+  place-items: center;
+  min-width: 0;
+  overflow: hidden;
+  border: 1px solid rgba(221, 231, 246, 0.14);
+  border-radius: 6px;
+  background:
+    linear-gradient(135deg, rgba(79, 185, 237, 0.16), rgba(247, 184, 75, 0.12)),
+    #081323;
+  background-size: cover;
+  background-position: center;
+}
+.edison-model-card-thumb.is-ready .edison-model-card-thumb-fallback {
+  display: none;
+}
+.edison-model-card-thumb-fallback {
+  width: 34px;
+  height: 34px;
+  display: grid;
+  place-items: center;
+  border: 1px solid rgba(247, 184, 75, 0.45);
+  border-radius: 7px;
+  color: #FFF0C2;
+  background: rgba(8, 19, 35, 0.72);
+  font-weight: 700;
+}
+.edison-model-card-body {
+  min-width: 0;
+  display: grid;
+  gap: 3px;
+}
+.edison-model-card-title {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: #E7EDF7;
+  font-size: 12px;
+  font-weight: 700;
+}
+.edison-model-card-meta,
+.edison-model-card-path {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: #9EAEC6;
+  font-size: 11px;
 }

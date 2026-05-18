@@ -1,4 +1,4 @@
-import { mkdir, writeFile } from "node:fs/promises";
+import { mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 import type { Plugin } from "vite";
 import {
@@ -22,10 +22,64 @@ interface EditorSceneSavePayload {
   readonly assets: readonly EditorSceneAssetPayload[];
 }
 
+interface EditorSceneAssetsPayload {
+  readonly assets: readonly EditorSceneAssetPayload[];
+}
+
 export function editorSceneFsPlugin(): Plugin {
   return {
     name: "editor-scene-fs",
     configureServer(server) {
+      server.middlewares.use(async (req, res, next) => {
+        if (req.method !== "GET") {
+          next();
+          return;
+        }
+
+        const scenePath = parseEditableSceneRequestPath(req.url);
+        if (!scenePath) {
+          next();
+          return;
+        }
+
+        try {
+          const relativePath = validateScenePath(scenePath);
+          const absolutePath = path.resolve(process.cwd(), relativePath);
+          const content = await readFile(absolutePath, "utf8");
+          res.statusCode = 200;
+          res.setHeader("Content-Type", "application/json; charset=utf-8");
+          res.setHeader("Cache-Control", "no-store, max-age=0");
+          res.end(content);
+        } catch (error) {
+          res.statusCode = 404;
+          res.end(error instanceof Error ? error.message : String(error));
+        }
+      });
+
+      server.middlewares.use("/__editor/scene/assets", async (req, res) => {
+        if (req.method !== "POST") {
+          res.statusCode = 405;
+          res.end("Only POST /__editor/scene/assets is supported.");
+          return;
+        }
+
+        try {
+          const body = await readAssetsJsonBody(req);
+          await writeGeneratedAssets(body.assets);
+
+          res.statusCode = 200;
+          res.setHeader("Content-Type", "application/json");
+          res.setHeader("Cache-Control", "no-store, max-age=0");
+          res.end(JSON.stringify({
+            ok: true,
+            assetCount: body.assets.length
+          }));
+        } catch (error) {
+          res.statusCode = 400;
+          res.end(error instanceof Error ? error.message : String(error));
+        }
+      });
+
       server.middlewares.use("/__editor/scene", async (req, res) => {
         if (req.method !== "POST") {
           res.statusCode = 405;
@@ -39,19 +93,18 @@ export function editorSceneFsPlugin(): Plugin {
           const descriptor = body.descriptor;
           const absolutePath = path.resolve(process.cwd(), relativePath);
 
-          for (const asset of body.assets) {
-            const assetPath = validateEditorGeneratedAssetPath(asset.path);
-            const assetAbsolutePath = path.resolve(process.cwd(), assetPath);
-            await mkdir(path.dirname(assetAbsolutePath), { recursive: true });
-            await writeFile(assetAbsolutePath, decodeEditorAssetData(asset));
-          }
-
           await mkdir(path.dirname(absolutePath), { recursive: true });
           await writeFile(absolutePath, `${JSON.stringify(descriptor, null, 2)}\n`, "utf8");
+          await writeGeneratedAssets(body.assets);
 
           res.statusCode = 200;
           res.setHeader("Content-Type", "application/json");
-          res.end(JSON.stringify({ ok: true }));
+          res.setHeader("Cache-Control", "no-store, max-age=0");
+          res.end(JSON.stringify({
+            ok: true,
+            path: relativePath,
+            objectCount: countSceneObjects(descriptor)
+          }));
         } catch (error) {
           res.statusCode = 400;
           res.end(error instanceof Error ? error.message : String(error));
@@ -59,6 +112,37 @@ export function editorSceneFsPlugin(): Plugin {
       });
     }
   };
+}
+
+async function writeGeneratedAssets(assets: readonly EditorSceneAssetPayload[]): Promise<void> {
+  for (const asset of assets) {
+    const assetPath = validateEditorGeneratedAssetPath(asset.path);
+    const assetAbsolutePath = path.resolve(process.cwd(), assetPath);
+    await mkdir(path.dirname(assetAbsolutePath), { recursive: true });
+    await writeFile(assetAbsolutePath, decodeEditorAssetData(asset));
+  }
+}
+
+function parseEditableSceneRequestPath(requestUrl: string | undefined): string | null {
+  if (!requestUrl) {
+    return null;
+  }
+
+  const pathname = new URL(requestUrl, "http://localhost").pathname;
+  if (!pathname.startsWith("/assets/data/scenes/") || !pathname.endsWith(".json")) {
+    return null;
+  }
+
+  return decodeURIComponent(pathname.slice(1));
+}
+
+function countSceneObjects(descriptor: unknown): number {
+  if (!descriptor || typeof descriptor !== "object" || Array.isArray(descriptor)) {
+    return 0;
+  }
+
+  const objects = (descriptor as { readonly objects?: unknown }).objects;
+  return Array.isArray(objects) ? objects.length : 0;
 }
 
 async function readJsonBody(request: NodeJS.ReadableStream): Promise<EditorSceneSavePayload> {
@@ -78,6 +162,19 @@ async function readJsonBody(request: NodeJS.ReadableStream): Promise<EditorScene
     path: payload.path,
     descriptor: payload.descriptor,
     assets
+  };
+}
+
+async function readAssetsJsonBody(request: NodeJS.ReadableStream): Promise<EditorSceneAssetsPayload> {
+  const chunks: Buffer[] = [];
+  for await (const chunk of request) {
+    chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(String(chunk)));
+  }
+
+  const payload = JSON.parse(Buffer.concat(chunks).toString("utf8")) as Record<string, unknown>;
+
+  return {
+    assets: parseAssetPayloads(payload.assets)
   };
 }
 

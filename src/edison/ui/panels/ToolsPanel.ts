@@ -13,7 +13,11 @@ export class ToolsPanel {
       button.title = tool.title;
       button.textContent = tool.title;
       button.addEventListener("click", () => {
-        context.tools.setActiveTool(tool.id);
+        try {
+          context.tools.setActiveTool(tool.id);
+        } catch (error) {
+          context.events.emit("edison.message", { text: error instanceof Error ? error.message : String(error) });
+        }
       });
       toolGrid.appendChild(button);
     }

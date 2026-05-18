@@ -22,7 +22,7 @@ import {
   type ImportedSceneContent,
   type ImportedSceneTerrainContent
 } from "../../core/world/scene/SceneContentLoader";
-import type { SceneDescriptor } from "../../core/world/scene/SceneDescriptor";
+import type { SceneDescriptor, SceneObjectDescriptor } from "../../core/world/scene/SceneDescriptor";
 import { TerrainHeightFieldSerializer } from "../../core/world/terrain/TerrainHeightFieldSerializer";
 import { TerrainMaterialBuilder } from "../../core/world/terrain/TerrainMaterialBuilder";
 import { TerrainMeshBuilder } from "../../core/world/terrain/TerrainMeshBuilder";
@@ -269,6 +269,45 @@ export class EdisonViewportService {
     this.refreshTerrainLod(1);
     return true;
   };
+
+  public async addSceneObject(descriptor: SceneObjectDescriptor): Promise<void> {
+    const current = this.objects.getContent();
+    if (!current) {
+      throw new Error("Load a scene before placing models.");
+    }
+
+    const importedObject = await this.modelAdapter.importObject(this.scene, descriptor, current.root);
+    const nextContent: ImportedSceneContent = {
+      ...current,
+      meshes: [...current.meshes, ...importedObject.meshes],
+      renderableMeshes: [...current.renderableMeshes, ...importedObject.renderableMeshes],
+      helperMeshes: [...current.helperMeshes, ...importedObject.helperMeshes],
+      transformNodes: [...current.transformNodes, ...importedObject.transformNodes],
+      skeletons: [...current.skeletons, ...importedObject.skeletons],
+      animationGroups: [...current.animationGroups, ...importedObject.animationGroups],
+      particleSystems: [...current.particleSystems, ...importedObject.particleSystems],
+      sceneObjects: [...current.sceneObjects, importedObject],
+      summary: {
+        ...current.summary,
+        objectCount: current.summary.objectCount + 1
+      }
+    };
+
+    this.objects.setContent(nextContent);
+    this.lightingAdapter.apply(nextContent.lightingDescriptor, [
+      {
+        ownerId: "edison:terrain",
+        source: "terrain",
+        meshes: nextContent.terrainMeshes
+      },
+      {
+        ownerId: "edison:scene-objects",
+        source: "sceneObject",
+        meshes: nextContent.sceneObjects.flatMap((object) => object.renderableMeshes)
+      }
+    ]);
+    this.refreshTerrainLod(1);
+  }
 
   private collectTerrainPreviewMeshes(current: ImportedSceneContent, terrainId: string): Mesh[] {
     const terrainContent = current.terrainContent;

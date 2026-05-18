@@ -1,7 +1,7 @@
 const manifest = {
   id: "sillyrpg.terrain-tools",
   name: "Terrain Tools",
-  version: "0.1.16",
+  version: "0.1.17",
   author: "SillyRPG",
   description: "Procedural terrain generation, sculpting, and texture paint for Edison.",
   entry: "dist/index.js",
@@ -370,6 +370,7 @@ class TerrainToolsPluginRuntime {
     this.activeStroke = null;
     this.lastStrokeRefreshAt = 0;
     this.brushPreview = null;
+    this.activateBrushOnNextRender = false;
     this.message = "Generate terrain or recolor the current generated terrain.";
     this.brush = {
       shape: "circle",
@@ -471,6 +472,7 @@ class TerrainToolsPluginRuntime {
 
     if (["generate", "paint", "brush"].includes(state.activeTab)) {
       this.activeTab = state.activeTab;
+      this.activateBrushOnNextRender = this.activeTab === "brush";
     }
     if (typeof state.activeColorPreset === "string" && state.activeColorPreset in COLOR_PRESETS) {
       this.activeColorPreset = state.activeColorPreset;
@@ -896,7 +898,8 @@ class TerrainToolsPluginRuntime {
       void this.runAction("Clearing terrain texture paint...", () => this.clearTexturePaint(), host);
     });
     this.refreshSliderOutputs(host);
-    if (this.activeTab === "brush") {
+    if (this.activeTab === "brush" && this.activateBrushOnNextRender) {
+      this.activateBrushOnNextRender = false;
       this.activateBrushTool();
     }
   }
