@@ -9,6 +9,10 @@
  */
 export function normalizeSceneAssetPath(assetPath: string): string {
   const trimmedPath = assetPath.trim();
+  if (trimmedPath.startsWith("data:") || trimmedPath.startsWith("blob:")) {
+    return trimmedPath;
+  }
+
   if (trimmedPath.startsWith("/")) {
     return trimmedPath;
   }

@@ -1,10 +1,13 @@
 import {
   Color3,
+  DynamicTexture,
   HighlightLayer,
   Matrix,
   Mesh,
   MeshBuilder,
   Plane,
+  StandardMaterial,
+  Texture,
   VertexData,
   Vector3,
   type AbstractMesh,
@@ -51,6 +54,8 @@ export interface EdisonTerrainBrushPreviewOptions {
   readonly color?: string;
   readonly gridColor?: string;
 }
+
+export type EdisonTerrainTexturePaintPreviewSource = HTMLCanvasElement | string;
 
 export class EdisonViewportService {
   private readonly modelAdapter = new ModelInstantiationAdapter();
@@ -226,6 +231,80 @@ export class EdisonViewportService {
     ]);
     this.refreshTerrainLod(1);
   };
+
+  public readonly applyTerrainTexturePaintPreview = (
+    descriptor: SceneDescriptor,
+    textureSource: EdisonTerrainTexturePaintPreviewSource
+  ): boolean => {
+    const current = this.objects.getContent();
+    const terrainDescriptor = descriptor.terrain;
+    const terrainContent = current?.terrainContent;
+    if (!current || terrainDescriptor?.kind !== "generated" || terrainContent?.descriptor.kind !== "generated") {
+      return false;
+    }
+
+    const meshes = this.collectTerrainPreviewMeshes(current, terrainDescriptor.id);
+    if (meshes.length === 0) {
+      return false;
+    }
+
+    const texture = this.createBakedTexturePreview(`terrain-texture-preview:${terrainDescriptor.id}`, textureSource);
+    texture.wrapU = Texture.CLAMP_ADDRESSMODE;
+    texture.wrapV = Texture.CLAMP_ADDRESSMODE;
+    texture.anisotropicFilteringLevel = 8;
+    for (const mesh of meshes) {
+      this.applyBakedTexturePreviewToMesh(mesh, terrainDescriptor.id, texture);
+      mesh.metadata = {
+        ...(mesh.metadata as Record<string, unknown> | undefined),
+        generatedTerrainDescriptor: terrainDescriptor
+      };
+    }
+
+    const nextTerrainContent: ImportedSceneTerrainContent = {
+      ...terrainContent,
+      descriptor: terrainDescriptor
+    };
+    this.objects.setContent(this.rebuildContentWithTerrain(current, nextTerrainContent, descriptor));
+    this.applyGridVisibility();
+    this.refreshTerrainLod(1);
+    return true;
+  };
+
+  private collectTerrainPreviewMeshes(current: ImportedSceneContent, terrainId: string): Mesh[] {
+    const terrainContent = current.terrainContent;
+    const meshes = new Set<Mesh>();
+    const append = (mesh: AbstractMesh): void => {
+      if (mesh instanceof Mesh && !mesh.isDisposed()) {
+        meshes.add(mesh);
+      }
+    };
+
+    for (const mesh of current.terrainMeshes) {
+      append(mesh);
+    }
+    for (const mesh of terrainContent?.terrainSurfaceMeshes ?? []) {
+      append(mesh);
+    }
+    for (const mesh of terrainContent?.renderableMeshes ?? []) {
+      append(mesh);
+    }
+    for (const mesh of terrainContent?.meshes ?? []) {
+      append(mesh);
+    }
+    for (const mesh of this.scene.meshes) {
+      const metadata = (mesh.metadata ?? null) as Record<string, unknown> | null;
+      const descriptor = metadata?.generatedTerrainDescriptor as { readonly id?: unknown } | undefined;
+      if (
+        metadata?.terrainKind === "generated" ||
+        descriptor?.id === terrainId ||
+        mesh.name.startsWith(`terrain:${terrainId}`)
+      ) {
+        append(mesh);
+      }
+    }
+
+    return [...meshes];
+  }
 
   public update(deltaSeconds: number): void {
     if (!this.terrainLodNeedsRefresh) {
@@ -633,6 +712,58 @@ export class EdisonViewportService {
     ]);
     this.refreshTerrainLod(1);
     return true;
+  }
+
+  private applyBakedTexturePreviewToMesh(
+    mesh: Mesh,
+    terrainId: string,
+    texture: Texture
+  ): void {
+    const previousMaterial = mesh.material;
+    const material = previousMaterial instanceof StandardMaterial
+      ? previousMaterial
+      : new StandardMaterial(`terrain-material:${terrainId}`, this.scene);
+    const previousTexture = material.diffuseTexture;
+
+    mesh.useVertexColors = false;
+    material.disableLighting = false;
+    material.specularColor = new Color3(0, 0, 0);
+    material.ambientColor = new Color3(0.12, 0.12, 0.12);
+    material.diffuseColor = new Color3(1, 1, 1);
+    material.diffuseTexture = texture;
+    mesh.material = material;
+
+    if (previousTexture && previousTexture !== texture) {
+      previousTexture.dispose();
+    }
+    if (previousMaterial && previousMaterial !== material) {
+      previousMaterial.dispose();
+    }
+  }
+
+  private createBakedTexturePreview(
+    name: string,
+    textureSource: EdisonTerrainTexturePaintPreviewSource
+  ): Texture {
+    if (typeof textureSource === "string") {
+      return new Texture(textureSource, this.scene, false, false, Texture.TRILINEAR_SAMPLINGMODE);
+    }
+
+    const texture = new DynamicTexture(
+      name,
+      {
+        width: textureSource.width,
+        height: textureSource.height
+      },
+      this.scene,
+      false,
+      Texture.TRILINEAR_SAMPLINGMODE
+    );
+    const context = texture.getContext();
+    context.clearRect(0, 0, textureSource.width, textureSource.height);
+    context.drawImage(textureSource, 0, 0);
+    texture.update(false);
+    return texture;
   }
 
   private rebuildContentWithTerrain(

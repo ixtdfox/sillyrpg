@@ -64,6 +64,8 @@ Edison does not copy terrain runtime code. It uses adapters over `src/core`:
 - `TerrainCoreAdapter` describes terrain state without generation logic.
 - `LightingCoreAdapter` applies scene lighting through core lighting and shadow registries.
 
+`EdisonSceneDocumentService` also exposes a save-assets queue and save participants for plugins that generate files. Terrain texture painting uses this to save raw editable splat PNG data immediately, then bake the heavier runtime albedo texture only during `Save`, while Edison displays a blocking progress dialog. This keeps texture-paint logic out of Edison core.
+
 The first scene is loaded from the existing location store. If loading fails, Edison stays open and reports the error in the status bar.
 
 ## Layout Slots

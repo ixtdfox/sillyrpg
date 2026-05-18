@@ -130,12 +130,15 @@ export class InGameScene implements Scene {
         locationTriggerSystem.refresh();
         const hasTerrainLodControllers = this.locationManager.hasTerrainLodControllers();
         inGameTopPanelUi.setTerrainLodDebugAvailable(hasTerrainLodControllers);
+        inGameTopPanelUi.setTerrainPolygonWireDebugAvailable(hasTerrainLodControllers);
         inGameTopPanelUi.setTerrainLodTuningAvailable(hasTerrainLodControllers);
         if (!hasTerrainLodControllers) {
           terrainLodTuningPanel?.setVisible(false);
+          inGameTopPanelUi.setTerrainPolygonWireDebugEnabled(false);
           inGameTopPanelUi.setTerrainLodTuningEnabled(false);
         }
         inGameTopPanelUi.setTerrainLodDebugEnabled(this.locationManager.getTerrainLodDebugEnabled());
+        inGameTopPanelUi.setTerrainPolygonWireDebugEnabled(this.locationManager.getTerrainPolygonWireDebugEnabled());
       }
     );
     inGameTopPanelUi = new InGameTopPanelUi(scene, () => {
@@ -149,6 +152,14 @@ export class InGameScene implements Scene {
 
       const isEnabled = this.locationManager.toggleTerrainLodDebug();
       inGameTopPanelUi.setTerrainLodDebugEnabled(isEnabled);
+    }, () => {
+      if (!this.locationManager.hasTerrainLodControllers()) {
+        console.info("[TerrainWire] No terrain LOD controller is active for the current runtime scene.");
+        return;
+      }
+
+      const isEnabled = this.locationManager.toggleTerrainPolygonWireDebug();
+      inGameTopPanelUi.setTerrainPolygonWireDebugEnabled(isEnabled);
     }, () => {
       const isEnabled = terrainLodTuningPanel?.toggle() ?? false;
       inGameTopPanelUi.setTerrainLodTuningEnabled(isEnabled);
@@ -181,8 +192,10 @@ export class InGameScene implements Scene {
     });
     inGameTopPanelUi.setRectGridDebugEnabled(gridRuntime.getIsDebugEnabled());
     inGameTopPanelUi.setTerrainLodDebugAvailable(this.locationManager.hasTerrainLodControllers());
+    inGameTopPanelUi.setTerrainPolygonWireDebugAvailable(this.locationManager.hasTerrainLodControllers());
     inGameTopPanelUi.setTerrainLodTuningAvailable(this.locationManager.hasTerrainLodControllers());
     inGameTopPanelUi.setTerrainLodDebugEnabled(this.locationManager.getTerrainLodDebugEnabled());
+    inGameTopPanelUi.setTerrainPolygonWireDebugEnabled(this.locationManager.getTerrainPolygonWireDebugEnabled());
     inGameTopPanelUi.setTerrainLodTuningEnabled(false);
     inGameTopPanelUi.setPerformanceDebugEnabled(false);
     let isPerformanceToggleKeyDown = false;

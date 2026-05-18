@@ -1,6 +1,7 @@
 import {
   Color3,
   MeshBuilder,
+  VertexBuffer,
   Vector3,
   type LinesMesh,
   type Material,
@@ -110,6 +111,7 @@ interface TerrainPatchLifecycleCounters {
 export class TerrainQuadtreeLodController {
   private static readonly CAMERA_GUARD_RADIUS_MULTIPLIER = 1.15;
   private static readonly CAMERA_GUARD_MAX_NEAR_RADIUS_MULTIPLIER = 3;
+  private static readonly POLYGON_WIRE_Y_OFFSET = 0.08;
 
   private readonly scene: Scene;
   private readonly terrainRoot: TransformNode;
@@ -136,6 +138,9 @@ export class TerrainQuadtreeLodController {
   private activeLeaves: readonly TerrainQuadtreeLeafSelection[];
   private debugLineMesh: LinesMesh | null;
   private debugLineSignature: string | null;
+  private polygonWireDebugEnabled: boolean;
+  private polygonWireLineMesh: LinesMesh | null;
+  private polygonWireLineSignature: string | null;
   private updateAccumulatorSeconds: number;
   private debugLogAccumulatorSeconds: number;
   private debugEnabled: boolean;
@@ -190,6 +195,9 @@ export class TerrainQuadtreeLodController {
     this.activeLeaves = [];
     this.debugLineMesh = null;
     this.debugLineSignature = null;
+    this.polygonWireDebugEnabled = false;
+    this.polygonWireLineMesh = null;
+    this.polygonWireLineSignature = null;
     this.updateAccumulatorSeconds = this.lodDescriptor.updateIntervalSeconds;
     this.debugLogAccumulatorSeconds = 0;
     this.debugEnabled = false;
@@ -259,6 +267,7 @@ export class TerrainQuadtreeLodController {
     this.activeNearFullResolutionRadius = selectionDescriptor.nearFullResolutionRadius;
     this.hideCanonicalVisualSurface();
     this.syncDebugLineMeshes();
+    this.syncPolygonWireDebugMesh();
     this.lastSelectionAnchorLocal = anchorLocal.clone();
     this.lastSelectionDebugMode = debugMode;
     this.lastSelectionNearFullResolutionRadius = selectionDescriptor.nearFullResolutionRadius;
@@ -289,6 +298,24 @@ export class TerrainQuadtreeLodController {
    */
   public isDebugEnabled(): boolean {
     return this.debugEnabled;
+  }
+
+  public setPolygonWireDebugEnabled(enabled: boolean): void {
+    if (this.disposed || this.polygonWireDebugEnabled === enabled) {
+      return;
+    }
+
+    this.polygonWireDebugEnabled = enabled;
+    if (enabled) {
+      this.syncPolygonWireDebugMesh();
+      return;
+    }
+
+    this.disposePolygonWireDebugMesh();
+  }
+
+  public isPolygonWireDebugEnabled(): boolean {
+    return this.polygonWireDebugEnabled;
   }
 
   public setRuntimeLodTuning(tuning: TerrainQuadtreeLodRuntimeTuning | null): void {
@@ -427,6 +454,7 @@ export class TerrainQuadtreeLodController {
     }
 
     this.disposeDebugLineMeshes();
+    this.disposePolygonWireDebugMesh();
     for (const record of this.patchMeshes.values()) {
       if (!record.mesh.isDisposed()) {
         record.mesh.dispose(false, false);
@@ -771,6 +799,136 @@ export class TerrainQuadtreeLodController {
     }
     this.debugLineMesh = null;
     this.debugLineSignature = null;
+  }
+
+  private syncPolygonWireDebugMesh(): void {
+    if (!this.polygonWireDebugEnabled) {
+      this.disposePolygonWireDebugMesh();
+      return;
+    }
+
+    const activeRecords = [...this.patchMeshes.values()].filter((record) => {
+      return record.active && record.mesh.isEnabled() && !record.mesh.isDisposed();
+    });
+    const signature = activeRecords
+      .map((record) => `${record.mesh.uniqueId}:${record.vertexCount}:${record.triangleCount}`)
+      .join("|");
+
+    if (
+      this.polygonWireLineSignature === signature &&
+      this.polygonWireLineMesh &&
+      !this.polygonWireLineMesh.isDisposed()
+    ) {
+      this.polygonWireLineMesh.setEnabled(true);
+      return;
+    }
+
+    this.disposePolygonWireDebugMesh();
+    const lines = activeRecords.flatMap((record) => this.buildPolygonWireLines(record.mesh));
+    if (lines.length === 0) {
+      return;
+    }
+
+    const lineMesh = MeshBuilder.CreateLineSystem(
+      `terrain:${this.terrainDescriptor.id}:polygon-wire-debug`,
+      { lines },
+      this.scene
+    );
+    lineMesh.color = new Color3(1, 0.08, 0.08);
+    lineMesh.isPickable = false;
+    lineMesh.checkCollisions = false;
+    lineMesh.alwaysSelectAsActiveMesh = true;
+    lineMesh.metadata = {
+      ...(lineMesh.metadata as Record<string, unknown> | undefined),
+      terrainVisualOnly: true,
+      terrainDebugOnly: true,
+      terrainSurfaceCanonical: false,
+      terrainKind: "generated-polygon-wire-debug",
+      terrainPolygonWireDebug: true,
+      terrainDebugPatchCount: activeRecords.length
+    };
+    this.polygonWireLineMesh = lineMesh;
+    this.polygonWireLineSignature = signature;
+  }
+
+  private disposePolygonWireDebugMesh(): void {
+    if (this.polygonWireLineMesh && !this.polygonWireLineMesh.isDisposed()) {
+      this.polygonWireLineMesh.dispose(false);
+    }
+    this.polygonWireLineMesh = null;
+    this.polygonWireLineSignature = null;
+  }
+
+  private buildPolygonWireLines(mesh: Mesh): Vector3[][] {
+    const positions = mesh.getVerticesData(VertexBuffer.PositionKind);
+    if (!positions || positions.length < 9) {
+      return [];
+    }
+
+    const indices = mesh.getIndices();
+    const edgeKeys = new Set<string>();
+    const lines: Vector3[][] = [];
+    const worldMatrix = mesh.computeWorldMatrix(true);
+    const appendEdge = (leftIndex: number, rightIndex: number): void => {
+      if (leftIndex === rightIndex) {
+        return;
+      }
+
+      const minIndex = Math.min(leftIndex, rightIndex);
+      const maxIndex = Math.max(leftIndex, rightIndex);
+      const key = `${minIndex}:${maxIndex}`;
+      if (edgeKeys.has(key)) {
+        return;
+      }
+
+      const left = this.readPolygonWirePosition(positions, leftIndex, worldMatrix);
+      const right = this.readPolygonWirePosition(positions, rightIndex, worldMatrix);
+      if (!left || !right) {
+        return;
+      }
+
+      edgeKeys.add(key);
+      lines.push([left, right]);
+    };
+
+    if (indices && indices.length >= 3) {
+      for (let index = 0; index + 2 < indices.length; index += 3) {
+        const a = indices[index] ?? 0;
+        const b = indices[index + 1] ?? 0;
+        const c = indices[index + 2] ?? 0;
+        appendEdge(a, b);
+        appendEdge(b, c);
+        appendEdge(c, a);
+      }
+      return lines;
+    }
+
+    const vertexCount = Math.floor(positions.length / 3);
+    for (let index = 0; index + 2 < vertexCount; index += 3) {
+      appendEdge(index, index + 1);
+      appendEdge(index + 1, index + 2);
+      appendEdge(index + 2, index);
+    }
+    return lines;
+  }
+
+  private readPolygonWirePosition(
+    positions: ArrayLike<number>,
+    vertexIndex: number,
+    worldMatrix: ReturnType<Mesh["computeWorldMatrix"]>
+  ): Vector3 | null {
+    const offset = vertexIndex * 3;
+    const x = positions[offset];
+    const y = positions[offset + 1];
+    const z = positions[offset + 2];
+    if (x === undefined || y === undefined || z === undefined) {
+      return null;
+    }
+
+    return Vector3.TransformCoordinates(
+      new Vector3(x, y + TerrainQuadtreeLodController.POLYGON_WIRE_Y_OFFSET, z),
+      worldMatrix
+    );
   }
 
   /**

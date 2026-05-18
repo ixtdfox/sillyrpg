@@ -13,6 +13,7 @@ export class InGameTopPanelUi {
   private readonly phoneDialogUi: PhoneDialogUi;
   private readonly phoneToggleButton: Button;
   private readonly terrainLodDebugButton: Button;
+  private readonly terrainPolygonWireDebugButton: Button;
   private readonly terrainLodTuningButton: Button;
   private readonly performanceDebugButton: Button;
 
@@ -26,6 +27,7 @@ export class InGameTopPanelUi {
     scene: Scene,
     onRectGridToggleRequested: () => void,
     onTerrainLodDebugToggleRequested?: () => void,
+    onTerrainPolygonWireDebugToggleRequested?: () => void,
     onTerrainLodTuningToggleRequested?: () => void,
     onPerformanceDebugToggleRequested?: () => void
   ) {
@@ -65,6 +67,22 @@ export class InGameTopPanelUi {
       onTerrainLodDebugToggleRequested?.();
     });
     content.addControl(this.terrainLodDebugButton);
+
+    this.terrainPolygonWireDebugButton = Button.CreateSimpleButton("in-game-terrain-polygon-wire-debug-toggle", "Poly Wire");
+    this.terrainPolygonWireDebugButton.width = "96px";
+    this.terrainPolygonWireDebugButton.height = "38px";
+    this.terrainPolygonWireDebugButton.cornerRadius = 4;
+    this.terrainPolygonWireDebugButton.color = "#E7EDF9";
+    this.terrainPolygonWireDebugButton.background = "#1F2937";
+    this.terrainPolygonWireDebugButton.thickness = 1;
+    this.terrainPolygonWireDebugButton.paddingLeft = "8px";
+    this.terrainPolygonWireDebugButton.fontSize = 14;
+    this.terrainPolygonWireDebugButton.isVisible = onTerrainPolygonWireDebugToggleRequested !== undefined;
+    this.terrainPolygonWireDebugButton.isEnabled = onTerrainPolygonWireDebugToggleRequested !== undefined;
+    this.terrainPolygonWireDebugButton.onPointerUpObservable.add(() => {
+      onTerrainPolygonWireDebugToggleRequested?.();
+    });
+    content.addControl(this.terrainPolygonWireDebugButton);
 
     this.terrainLodTuningButton = Button.CreateSimpleButton("in-game-terrain-lod-tuning-toggle", "LOD Dist");
     this.terrainLodTuningButton.width = "86px";
@@ -153,6 +171,16 @@ export class InGameTopPanelUi {
   public setTerrainLodDebugEnabled(isEnabled: boolean): void {
     this.terrainLodDebugButton.background = isEnabled ? "#2563EB" : "#1F2937";
     this.terrainLodDebugButton.color = isEnabled ? "#FFFFFF" : "#E7EDF9";
+  }
+
+  public setTerrainPolygonWireDebugAvailable(isAvailable: boolean): void {
+    this.terrainPolygonWireDebugButton.isVisible = isAvailable;
+    this.terrainPolygonWireDebugButton.isEnabled = isAvailable;
+  }
+
+  public setTerrainPolygonWireDebugEnabled(isEnabled: boolean): void {
+    this.terrainPolygonWireDebugButton.background = isEnabled ? "#DC2626" : "#1F2937";
+    this.terrainPolygonWireDebugButton.color = isEnabled ? "#FFFFFF" : "#E7EDF9";
   }
 
   public setTerrainLodTuningAvailable(isAvailable: boolean): void {

@@ -10,6 +10,7 @@ export class EdisonUi {
   private readonly layout = new EdisonLayout();
   private readonly elements = this.layout.create();
   private readonly statusBar = new EdisonStatusBar(this.elements.statusHost);
+  private readonly saveOverlay = this.createSaveOverlay();
   private context: EdisonPluginContext | null = null;
   private openMenu: HTMLDetailsElement | null = null;
   private readonly disposers: Array<() => void> = [];
@@ -31,6 +32,7 @@ export class EdisonUi {
   public constructor() {
     ensureEdisonCss();
     this.root = this.elements.root;
+    this.root.appendChild(this.saveOverlay.root);
     document.body.appendChild(this.root);
     document.addEventListener("pointerdown", this.onDocumentPointerDown, true);
   }
@@ -48,6 +50,9 @@ export class EdisonUi {
         this.renderStatus();
       }),
       context.events.on("edison.document.changed", () => this.renderNonViewportPanels()),
+      context.events.on<{ active: boolean; message: string; progress: number }>("edison.save.progress", (payload) => {
+        this.renderSaveOverlay(payload);
+      }),
       context.events.on("edison.viewport.changed", () => {
         this.renderToolbar();
         this.renderStatus();
@@ -265,6 +270,56 @@ export class EdisonUi {
     if (this.context) {
       this.statusBar.render(this.context);
     }
+  }
+
+  private createSaveOverlay(): {
+    readonly root: HTMLElement;
+    readonly message: HTMLElement;
+    readonly progress: HTMLElement;
+    readonly percent: HTMLElement;
+  } {
+    const root = document.createElement("div");
+    root.className = "edison-save-overlay";
+    root.hidden = true;
+
+    const dialog = document.createElement("div");
+    dialog.className = "edison-save-dialog";
+    dialog.setAttribute("role", "alertdialog");
+    dialog.setAttribute("aria-modal", "true");
+
+    const title = document.createElement("div");
+    title.className = "edison-save-title";
+    title.textContent = "Save Progress";
+
+    const message = document.createElement("div");
+    message.className = "edison-save-message";
+    message.textContent = "Preparing scene save...";
+
+    const track = document.createElement("div");
+    track.className = "edison-save-progress-track";
+    const progress = document.createElement("div");
+    progress.className = "edison-save-progress-bar";
+    track.appendChild(progress);
+
+    const percent = document.createElement("div");
+    percent.className = "edison-save-percent";
+    percent.textContent = "0%";
+
+    dialog.append(title, message, track, percent);
+    root.appendChild(dialog);
+    return { root, message, progress, percent };
+  }
+
+  private renderSaveOverlay(payload: { readonly active: boolean; readonly message: string; readonly progress: number }): void {
+    this.saveOverlay.root.hidden = !payload.active;
+    if (!payload.active) {
+      return;
+    }
+
+    const progress = Math.max(0, Math.min(1, payload.progress));
+    this.saveOverlay.message.textContent = payload.message;
+    this.saveOverlay.progress.style.width = `${Math.round(progress * 100)}%`;
+    this.saveOverlay.percent.textContent = `${Math.round(progress * 100)}%`;
   }
 
   private isToolbarButtonActive(commandId: string, context: EdisonPluginContext): boolean {

@@ -1,7 +1,18 @@
 import type { SceneDescriptor } from "../../core/world/scene/SceneDescriptor";
 
+export interface EdisonSaveAsset {
+  readonly path: string;
+  readonly encoding: "base64" | "dataUrl";
+  readonly mimeType: "image/png";
+  readonly data: string;
+}
+
 export class EdisonPersistenceService {
-  public async save(descriptorPath: string, descriptor: SceneDescriptor): Promise<void> {
+  public async save(
+    descriptorPath: string,
+    descriptor: SceneDescriptor,
+    assets: readonly EdisonSaveAsset[] = []
+  ): Promise<void> {
     const response = await fetch("/__editor/scene", {
       method: "POST",
       headers: {
@@ -9,7 +20,8 @@ export class EdisonPersistenceService {
       },
       body: JSON.stringify({
         path: descriptorPath,
-        descriptor
+        descriptor,
+        assets
       })
     });
 

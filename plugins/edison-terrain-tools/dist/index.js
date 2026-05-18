@@ -1,9 +1,9 @@
 const manifest = {
   id: "sillyrpg.terrain-tools",
   name: "Terrain Tools",
-  version: "0.1.7",
+  version: "0.1.14",
   author: "SillyRPG",
-  description: "Procedural terrain generation and height-band terrain coloring for Edison.",
+  description: "Procedural terrain generation, sculpting, and texture paint for Edison.",
   entry: "dist/index.js",
   edisonApiVersion: "1"
 };
@@ -15,8 +15,45 @@ const DEFAULT_GRID_STEP = 1;
 const DEFAULT_PRESET = "urban-pad";
 const MIN_RESOLUTION = 9;
 const MAX_RESOLUTION = 513;
+const TEXTURE_PREVIEW_PIXELS_PER_WORLD_UNIT = 12;
+const TEXTURE_RUNTIME_PIXELS_PER_WORLD_UNIT = 32;
+const TEXTURE_MIN_BAKE_RESOLUTION = 1024;
+const TEXTURE_PREVIEW_MAX_BAKE_RESOLUTION = 2048;
+const TEXTURE_RUNTIME_MAX_BAKE_RESOLUTION = 4096;
+const TEXTURE_PAINT_STRENGTH_SCALE = 0.1;
+const LAYER_SAMPLE_SIZE = 256;
 const WORLD_VERTICAL_TILE_SIZE = 1;
 const WORLD_GRID_ORIGIN_Y = 0;
+const layerImageCache = new Map();
+
+const TERRAIN_TEXTURE_LAYERS = [
+  "dirt_1.png",
+  "dirt_2.png",
+  "dirt_3.png",
+  "dirt snow.png",
+  "g_pal_00_color.png",
+  "grass (2).png",
+  "grass_1.png",
+  "grass_3.png",
+  "grass_4.png",
+  "grass_5.png",
+  "grass snow.png",
+  "ice.png",
+  "leaves.png",
+  "leaves snow.png",
+  "road.png",
+  "road dirt.png",
+  "road sand.png",
+  "road snow.png",
+  "snow.png"
+].map((filename) => {
+  const id = filename.replace(/\.png$/i, "");
+  return {
+    id,
+    label: toReadableLabel(id),
+    url: terrainTextureUrl(filename)
+  };
+});
 
 const DEFAULT_HEIGHT_BANDS = [
   { id: "low", label: "Low", minHeight: -160, maxHeight: -8, color: "#475D52" },
@@ -321,6 +358,13 @@ class TerrainToolsPluginRuntime {
     this.activeTab = "generate";
     this.activeColorPreset = "natural";
     this.activeBrushTool = "raise";
+    this.activeTextureLayerId = TERRAIN_TEXTURE_LAYERS[0]?.id ?? "";
+    this.textureSplatMap = null;
+    this.textureSplatSignature = "none";
+    this.textureMapLoadPromise = null;
+    this.textureMapLoadToken = null;
+    this.textureRuntimeBakeJobId = 0;
+    this.textureSaveBakeRequired = false;
     this.activeStroke = null;
     this.lastStrokeRefreshAt = 0;
     this.brushPreview = null;
@@ -395,6 +439,14 @@ class TerrainToolsPluginRuntime {
         this.syncDraftFromDocument();
       })
     );
+    const unregisterSaveParticipant = context.scene.registerSaveParticipant?.({
+      id: "sillyrpg.terrainTools.textureBake",
+      title: "Baking terrain texture",
+      prepare: (saveContext) => this.prepareTextureAssetsForSave(saveContext)
+    });
+    if (unregisterSaveParticipant) {
+      this.disposers.push(unregisterSaveParticipant);
+    }
     this.syncDraftFromDocument();
   }
 
@@ -430,9 +482,15 @@ class TerrainToolsPluginRuntime {
       this.draft = normalizeDescriptor(clone(terrain));
       this.appliedTerrainSignature = nextSignature;
       this.draftDirty = false;
+      this.prepareTextureMapForTerrain(terrain);
       return;
     }
 
+    this.textureSplatMap = null;
+    this.textureSplatSignature = "none";
+    this.textureMapLoadPromise = null;
+    this.textureMapLoadToken = null;
+    this.textureSaveBakeRequired = false;
     this.draft = normalizeDescriptor(createDescriptorFromPreset(DEFAULT_PRESET, {
       id: terrain?.id ?? DEFAULT_TERRAIN_ID,
       size: terrain?.size ?? DEFAULT_TERRAIN_SIZE,
@@ -498,6 +556,7 @@ class TerrainToolsPluginRuntime {
     }).join("");
     const falloff = this.draft.generator.falloff ?? { enabled: false, mode: "none", radius: 0.8, strength: 0 };
     const shaping = this.draft.generator.shaping ?? {};
+    const sourceQuadSize = resolveSourceQuadSize(this.draft);
     return `
       <div class="terrain-tools-card">
         <label class="terrain-tools-field">
@@ -515,8 +574,13 @@ class TerrainToolsPluginRuntime {
         ${numberField("width", "Width", this.draft.size[0], 1, 512, 1)}
         ${numberField("depth", "Depth", this.draft.size[1], 1, 512, 1)}
         ${numberField("gridStep", "Grid step", this.draft.terrainGridStep ?? DEFAULT_GRID_STEP, 0.25, 16, 0.25)}
-        ${numberField("resolutionX", "Resolution X", this.draft.resolution[0], MIN_RESOLUTION, MAX_RESOLUTION, 2)}
-        ${numberField("resolutionZ", "Resolution Z", this.draft.resolution[1], MIN_RESOLUTION, MAX_RESOLUTION, 2)}
+        ${numberField("resolutionX", "Resolution X", this.draft.resolution[0], MIN_RESOLUTION, MAX_RESOLUTION, 2, true)}
+        ${numberField("resolutionZ", "Resolution Z", this.draft.resolution[1], MIN_RESOLUTION, MAX_RESOLUTION, 2, true)}
+      </div>
+      <div class="terrain-tools-card">
+        <div class="terrain-tools-card-title">Source Grid</div>
+        <div class="terrain-tools-message">Quad size: ${sourceQuadSize[0].toFixed(2)} x ${sourceQuadSize[1].toFixed(2)} world units.</div>
+        <div class="terrain-tools-message">Resolution follows Grid step; one gameplay grid cell is 1 world unit.</div>
       </div>
       <div class="terrain-tools-card">
         <div class="terrain-tools-card-title">Noise</div>
@@ -594,9 +658,11 @@ class TerrainToolsPluginRuntime {
           ${toolButton("smooth", "Smooth", this.activeBrushTool)}
           ${toolButton("flatten", "Flatten", this.activeBrushTool)}
           ${toolButton("flattenToHeight", "Flatten To Height", this.activeBrushTool)}
+          ${toolButton("paintTexture", "Paint Texture", this.activeBrushTool)}
         </div>
         <div class="terrain-tools-actions">
           <button type="button" data-action="clear-height-edits">Clear Height Edits</button>
+          <button type="button" data-action="clear-texture-paint">Clear Texture Paint</button>
         </div>
       </div>
       <div class="terrain-tools-card">
@@ -606,6 +672,27 @@ class TerrainToolsPluginRuntime {
         ${sliderField("brushStrength", "Strength", this.brush.strength, 0.1, 100, 0.5)}
         ${sliderField("brushFalloff", "Falloff", this.brush.falloff, 0, 1, 0.05)}
         ${sliderField("targetHeight", "Target height", this.brush.targetHeight, -200, 200, 1)}
+      </div>
+      ${this.renderTexturePalette()}
+    `;
+  }
+
+  renderTexturePalette() {
+    const tiles = TERRAIN_TEXTURE_LAYERS.map((layer, index) => `
+      <button
+        type="button"
+        class="terrain-tools-texture-tile${layer.id === this.activeTextureLayerId ? " is-active" : ""}"
+        data-texture-layer="${escapeHtml(layer.id)}"
+        title="${escapeHtml(layer.label)}"
+      >
+        <span class="terrain-tools-texture-swatch" style="background-image: url('${escapeHtml(layer.url)}')"></span>
+        <span>${escapeHtml(layer.label)}</span>
+      </button>
+    `).join("");
+    return `
+      <div class="terrain-tools-card">
+        <div class="terrain-tools-card-title">Texture Paint</div>
+        <div class="terrain-tools-texture-grid">${tiles}</div>
       </div>
     `;
   }
@@ -623,12 +710,14 @@ class TerrainToolsPluginRuntime {
     host.querySelectorAll("[data-field]").forEach((input) => {
       input.addEventListener("input", () => {
         this.readDraftFromHost(host);
+        this.syncGeneratedResolutionFields(host);
         this.readBrushFromHost(host);
         this.refreshSliderOutputs(host);
         this.brushPreview?.refresh();
       });
       input.addEventListener("change", () => {
         this.readDraftFromHost(host);
+        this.syncGeneratedResolutionFields(host);
         this.readBrushFromHost(host);
         this.refreshSliderOutputs(host);
         this.brushPreview?.refresh();
@@ -648,6 +737,15 @@ class TerrainToolsPluginRuntime {
       button.addEventListener("click", () => {
         this.activeBrushTool = button.dataset.brushTool ?? "raise";
         this.activateBrushTool();
+        this.render(host);
+      });
+    });
+    host.querySelectorAll("[data-texture-layer]").forEach((button) => {
+      button.addEventListener("click", () => {
+        this.activeTextureLayerId = button.dataset.textureLayer ?? this.activeTextureLayerId;
+        this.activeBrushTool = "paintTexture";
+        this.activateBrushTool();
+        this.message = `Texture selected: ${this.getActiveTextureLayer().label}.`;
         this.render(host);
       });
     });
@@ -671,6 +769,9 @@ class TerrainToolsPluginRuntime {
     });
     host.querySelector("[data-action='clear-height-edits']")?.addEventListener("click", () => {
       void this.runAction("Clearing terrain height edits...", () => this.clearHeightEdits(), host);
+    });
+    host.querySelector("[data-action='clear-texture-paint']")?.addEventListener("click", () => {
+      void this.runAction("Clearing terrain texture paint...", () => this.clearTexturePaint(), host);
     });
     this.refreshSliderOutputs(host);
     if (this.activeTab === "brush") {
@@ -773,17 +874,17 @@ class TerrainToolsPluginRuntime {
       return input ? Boolean(input.checked) : fallback;
     };
     const preset = getPreset(readString("preset", this.draft.generator.preset));
+    const size = [readNumber("width", this.draft.size[0]), readNumber("depth", this.draft.size[1])];
+    const terrainGridStep = readNumber("gridStep", this.draft.terrainGridStep ?? DEFAULT_GRID_STEP);
+    const gridLayout = resolveGridAlignedLayout(size, terrainGridStep);
     this.draft = normalizeDescriptor({
       ...this.draft,
       editedHeightMap: hasGeneratorFields ? undefined : this.draft.editedHeightMap,
       editedTextureMap: hasGeneratorFields ? undefined : this.draft.editedTextureMap,
-      size: [readNumber("width", this.draft.size[0]), readNumber("depth", this.draft.size[1])],
-      terrainGridStep: readNumber("gridStep", this.draft.terrainGridStep ?? DEFAULT_GRID_STEP),
-      resolutionMode: "manual",
-      resolution: [
-        readNumber("resolutionX", this.draft.resolution[0]),
-        readNumber("resolutionZ", this.draft.resolution[1])
-      ],
+      size: gridLayout.size,
+      terrainGridStep: gridLayout.gridStep,
+      resolutionMode: "gridStep",
+      resolution: gridLayout.resolution,
       generator: {
         ...this.draft.generator,
         preset: preset.id,
@@ -812,6 +913,20 @@ class TerrainToolsPluginRuntime {
       }
     });
     this.draftDirty = true;
+  }
+
+  syncGeneratedResolutionFields(host) {
+    if (!this.draft) {
+      return;
+    }
+    const resolutionX = host.querySelector("[data-field='resolutionX']");
+    const resolutionZ = host.querySelector("[data-field='resolutionZ']");
+    if (resolutionX) {
+      resolutionX.value = String(this.draft.resolution[0]);
+    }
+    if (resolutionZ) {
+      resolutionZ.value = String(this.draft.resolution[1]);
+    }
   }
 
   readBrushFromHost(host) {
@@ -904,6 +1019,7 @@ class TerrainToolsPluginRuntime {
       editedHeightMap: serializeHeightMap(field),
       editedTextureMap: undefined
     };
+    this.resetTexturePaintState();
     await this.applyTerrainDescriptor(descriptor, message);
   }
 
@@ -918,8 +1034,10 @@ class TerrainToolsPluginRuntime {
     }
     const descriptor = {
       ...terrain,
-      material: clone(this.draft.material ?? resolveHeightBandMaterial(null))
+      material: clone(this.draft.material ?? resolveHeightBandMaterial(null)),
+      editedTextureMap: undefined
     };
+    this.resetTexturePaintState();
     await this.applyTerrainDescriptor(descriptor, "Terrain colors applied.");
   }
 
@@ -929,9 +1047,11 @@ class TerrainToolsPluginRuntime {
     }
     const color = host.querySelector("[data-field='materialColor']")?.value ?? "#8D9298";
     const terrain = this.getGeneratedTerrain() ?? this.draft;
+    this.resetTexturePaintState();
     await this.applyTerrainDescriptor({
       ...terrain,
-      material: { kind: "flat", color }
+      material: { kind: "flat", color },
+      editedTextureMap: undefined
     }, "Flat terrain color applied.");
   }
 
@@ -950,7 +1070,86 @@ class TerrainToolsPluginRuntime {
     await this.applyTerrainDescriptor(descriptor, "Terrain height edits cleared.");
   }
 
-  async applyTerrainDescriptor(descriptor, message) {
+  async clearTexturePaint() {
+    const terrain = this.getGeneratedTerrain();
+    if (!terrain || !this.context) {
+      return;
+    }
+
+    this.resetTexturePaintState();
+    const descriptor = {
+      ...terrain,
+      editedTextureMap: undefined,
+      material: resolveHeightBandMaterial(this.draft?.material)
+    };
+    await this.applyTerrainDescriptor(descriptor, "Terrain texture paint cleared.");
+  }
+
+  resetTexturePaintState() {
+    this.textureSplatMap = null;
+    this.textureSplatSignature = "none";
+    this.textureMapLoadPromise = null;
+    this.textureMapLoadToken = null;
+    this.textureRuntimeBakeJobId += 1;
+  }
+
+  getActiveTextureLayer() {
+    return TERRAIN_TEXTURE_LAYERS.find((layer) => layer.id === this.activeTextureLayerId) ?? TERRAIN_TEXTURE_LAYERS[0];
+  }
+
+  prepareTextureMapForTerrain(terrain) {
+    const signature = textureMapSignatureForTerrain(terrain);
+    if (signature === this.textureSplatSignature) {
+      return;
+    }
+
+    this.textureSplatMap = null;
+    this.textureSplatSignature = signature;
+    if (!terrain.editedTextureMap) {
+      return;
+    }
+
+    const token = {};
+    this.textureMapLoadToken = token;
+    this.textureMapLoadPromise = loadTextureSplatMapFromDescriptor(terrain.editedTextureMap, TERRAIN_TEXTURE_LAYERS)
+      .then((splatMap) => {
+        if (this.textureMapLoadToken === token && this.textureSplatSignature === signature) {
+          this.textureSplatMap = ensureSplatMapResolution(splatMap, terrain.resolution[0], terrain.resolution[1]);
+          this.textureSaveBakeRequired = this.textureSaveBakeRequired || needsRuntimeTextureRebake(terrain);
+        }
+      })
+      .catch((error) => {
+        this.message = `Texture paint raw data could not be loaded. ${error instanceof Error ? error.message : String(error)}`;
+        this.context?.events.emit("edison.message", { text: this.message });
+      })
+      .finally(() => {
+        if (this.textureMapLoadToken === token && this.textureSplatSignature === signature) {
+          this.textureMapLoadPromise = null;
+          this.textureMapLoadToken = null;
+        }
+      });
+  }
+
+  ensureTextureSplatMap(terrain) {
+    const signature = textureMapSignatureForTerrain(terrain);
+    if (this.textureSplatSignature !== signature) {
+      this.prepareTextureMapForTerrain(terrain);
+    }
+    if (this.textureMapLoadPromise && !this.textureSplatMap) {
+      this.textureMapLoadToken = null;
+      this.textureMapLoadPromise = null;
+      this.message = "Started a fresh texture paint map for immediate editing.";
+      this.context?.events.emit("edison.message", { text: this.message });
+    }
+    if (!this.textureSplatMap) {
+      this.textureSplatMap = new TerrainSplatMap(terrain.resolution[0], terrain.resolution[1], TERRAIN_TEXTURE_LAYERS.length, 0);
+      this.textureSplatSignature = signature;
+    }
+    this.textureSplatMap = ensureSplatMapResolution(this.textureSplatMap, terrain.resolution[0], terrain.resolution[1]);
+    return this.textureSplatMap;
+  }
+
+  async applyTerrainDescriptor(descriptor, message, options = {}) {
     if (!this.context) {
       return;
     }
@@ -960,11 +1159,17 @@ class TerrainToolsPluginRuntime {
       this.context.events.emit("edison.message", { text: this.message });
       return;
     }
+    if (options.saveAssets?.length) {
+      this.context.scene.queueSaveAssets?.(options.saveAssets);
+    }
     const nextDescriptor = this.context.scene.setTerrain(descriptor, message);
+    const viewportDescriptor = options.previewTerrain
+      ? { ...nextDescriptor, terrain: options.previewTerrain }
+      : nextDescriptor;
     if (this.context.viewport.replaceTerrain) {
-      await this.context.viewport.replaceTerrain(nextDescriptor);
+      await this.context.viewport.replaceTerrain(viewportDescriptor);
     } else {
-      await this.context.viewport.loadScene(snapshot.option, nextDescriptor);
+      await this.context.viewport.loadScene(snapshot.option, viewportDescriptor);
     }
     this.draft = normalizeDescriptor(clone(descriptor));
     this.appliedTerrainSignature = terrainSignature(descriptor);
@@ -993,10 +1198,18 @@ class TerrainToolsPluginRuntime {
     if (!point) {
       return false;
     }
+    const textureSplatMap = this.activeBrushTool === "paintTexture"
+      ? this.ensureTextureSplatMap(terrain)
+      : null;
+    if (this.activeBrushTool === "paintTexture" && !textureSplatMap) {
+      return true;
+    }
     this.activeStroke = {
+      kind: this.activeBrushTool === "paintTexture" ? "texture" : "height",
       pointerId: event.pointerId,
       flattenHeight: point.y,
-      field: generateHeightField(terrain),
+      field: this.activeBrushTool === "paintTexture" ? null : generateHeightField(terrain),
+      splatMap: textureSplatMap?.clone() ?? null,
       descriptor: terrain,
       lastTimestamp: performance.now()
     };
@@ -1017,7 +1230,8 @@ class TerrainToolsPluginRuntime {
     const deltaTime = clamp((now - this.activeStroke.lastTimestamp) / 1000, 1 / 120, 0.2);
     this.activeStroke.lastTimestamp = now;
     this.applyBrushAtPoint(point, deltaTime);
-    if (now - this.lastStrokeRefreshAt > 260) {
+    const refreshDelay = this.activeStroke.kind === "texture" ? 650 : 260;
+    if (now - this.lastStrokeRefreshAt > refreshDelay) {
       this.lastStrokeRefreshAt = now;
       void this.commitStroke("Terrain brush applied.");
     }
@@ -1039,7 +1253,26 @@ class TerrainToolsPluginRuntime {
     }
     const terrain = this.activeStroke.descriptor;
     const center = worldPointToTerrainLocal(point, terrain);
+    if (this.activeStroke.kind === "texture") {
+      if (!this.activeStroke.splatMap) {
+        return;
+      }
+      const layerIndex = TERRAIN_TEXTURE_LAYERS.findIndex((layer) => layer.id === this.activeTextureLayerId);
+      paintTextureAtPoint(this.activeStroke.splatMap, {
+        center,
+        terrainWidth: terrain.size[0],
+        terrainDepth: terrain.size[1],
+        brush: this.brush,
+        layerIndex: Math.max(0, layerIndex),
+        deltaTime
+      });
+      return;
+    }
+
     const field = this.activeStroke.field;
+    if (!field) {
+      return;
+    }
     const settings = {
       tool: this.activeBrushTool,
       brush: this.brush,
@@ -1064,6 +1297,10 @@ class TerrainToolsPluginRuntime {
     if (!this.activeStroke || !this.context) {
       return;
     }
+    if (this.activeStroke.kind === "texture") {
+      await this.commitTextureStroke(message);
+      return;
+    }
     const descriptor = {
       ...this.activeStroke.descriptor,
       editedHeightMap: serializeHeightMap(this.activeStroke.field)
@@ -1073,20 +1310,161 @@ class TerrainToolsPluginRuntime {
       this.activeStroke.descriptor = descriptor;
     }
   }
+
+  async commitTextureStroke(message) {
+    const stroke = this.activeStroke;
+    if (!stroke?.splatMap || !this.context) {
+      return;
+    }
+
+    const terrain = stroke.descriptor;
+    const splatMap = stroke.splatMap.clone();
+    normalizeWholeSplatMap(splatMap);
+    const sceneId = sanitizeAssetSegment(this.context.scene.getSnapshot().descriptor?.id ?? "scene");
+    const terrainId = sanitizeAssetSegment(terrain.id ?? DEFAULT_TERRAIN_ID);
+    const bakedTexturePath = `assets/generated/terrain/${sceneId}/${terrainId}_albedo.png`;
+    const previewResolution = resolveTexturePreviewBakeResolution(terrain.size[0], terrain.size[1]);
+    const runtimeResolution = resolveTextureRuntimeBakeResolution(terrain.size[0], terrain.size[1]);
+    const previewTextureCanvas = await bakeTextureMapToCanvas({
+      splatMap,
+      layers: TERRAIN_TEXTURE_LAYERS,
+      terrainWidth: terrain.size[0],
+      terrainDepth: terrain.size[1],
+      outputResolution: previewResolution
+    });
+    const serialized = serializeTextureSplatMap({
+      sceneId,
+      terrainId,
+      splatMap,
+      layers: TERRAIN_TEXTURE_LAYERS,
+      bakedTexturePath,
+      bakeResolution: runtimeResolution
+    });
+    const savedTerrain = {
+      ...terrain,
+      material: {
+        kind: "bakedTexture",
+        texture: bakedTexturePath,
+        color: "#FFFFFF"
+      },
+      editedTextureMap: serialized.editedTextureMap
+    };
+    this.textureSplatMap = splatMap.clone();
+    this.textureSplatSignature = textureMapSignatureForTerrain(savedTerrain);
+    this.textureMapLoadPromise = null;
+    this.textureSaveBakeRequired = true;
+
+    this.context.scene.queueSaveAssets?.(serialized.assets);
+    const nextDescriptor = this.context.scene.setTerrain(savedTerrain, message);
+    const previewApplied = this.context.viewport.applyTerrainTexturePaintPreview?.(nextDescriptor, previewTextureCanvas) === true;
+    if (!previewApplied) {
+      const bakedTextureDataUrl = previewTextureCanvas.toDataURL("image/png");
+      const previewTerrain = {
+        ...savedTerrain,
+        material: {
+          ...savedTerrain.material,
+          texture: bakedTextureDataUrl
+        },
+        editedTextureMap: undefined
+      };
+      await this.applyTerrainDescriptor(savedTerrain, message, {
+        previewTerrain,
+        saveAssets: serialized.assets
+      });
+      return;
+    }
+
+    this.draft = normalizeDescriptor(clone(savedTerrain));
+    this.appliedTerrainSignature = terrainSignature(savedTerrain);
+    this.draftDirty = false;
+    this.message = message;
+    this.context.events.emit("edison.message", { text: message });
+    if (this.activeStroke) {
+      this.activeStroke.descriptor = savedTerrain;
+      this.activeStroke.splatMap = splatMap;
+    }
+  }
+
+  async prepareTextureAssetsForSave(saveContext) {
+    if (!this.context) {
+      return;
+    }
+    const terrain = this.context.scene.getSnapshot().descriptor?.terrain;
+    if (terrain?.kind !== "generated" || terrain.material?.kind !== "bakedTexture") {
+      return;
+    }
+    if (!this.textureSaveBakeRequired && !needsRuntimeTextureRebake(terrain)) {
+      return;
+    }
+
+    let splatMap = this.textureSplatMap;
+    if (this.textureMapLoadPromise) {
+      saveContext.report({ message: "Loading editable terrain texture data...", progress: 0.05 });
+      await this.textureMapLoadPromise;
+      splatMap = this.textureSplatMap;
+    }
+    if (!splatMap && terrain.editedTextureMap) {
+      saveContext.report({ message: "Loading editable terrain texture data...", progress: 0.08 });
+      splatMap = await loadTextureSplatMapFromDescriptor(terrain.editedTextureMap, TERRAIN_TEXTURE_LAYERS);
+      splatMap = ensureSplatMapResolution(splatMap, terrain.resolution[0], terrain.resolution[1]);
+      this.textureSplatMap = splatMap;
+      this.textureSplatSignature = textureMapSignatureForTerrain(terrain);
+    }
+    if (!splatMap) {
+      return;
+    }
+
+    const sceneId = sanitizeAssetSegment(saveContext.descriptor.id ?? "scene");
+    const terrainId = sanitizeAssetSegment(terrain.id ?? DEFAULT_TERRAIN_ID);
+    const bakedTexturePath = `assets/generated/terrain/${sceneId}/${terrainId}_albedo.png`;
+    const runtimeResolution = resolveTextureRuntimeBakeResolution(terrain.size[0], terrain.size[1]);
+    saveContext.report({ message: "Baking high resolution terrain texture...", progress: 0.12 });
+    const runtimeCanvas = await bakeTextureMapToCanvas({
+      splatMap: splatMap.clone(),
+      layers: TERRAIN_TEXTURE_LAYERS,
+      terrainWidth: terrain.size[0],
+      terrainDepth: terrain.size[1],
+      outputResolution: runtimeResolution,
+      yieldEveryRows: 32,
+      onProgress: (progress) => {
+        saveContext.report({
+          message: "Baking high resolution terrain texture...",
+          progress: 0.12 + progress * 0.78
+        });
+      }
+    });
+
+    saveContext.report({ message: "Encoding terrain texture PNG...", progress: 0.94 });
+    saveContext.queueSaveAssets([{
+      path: bakedTexturePath,
+      encoding: "dataUrl",
+      mimeType: "image/png",
+      data: runtimeCanvas.toDataURL("image/png")
+    }]);
+    const currentDescriptor = this.context.scene.getSnapshot().descriptor;
+    const currentTerrain = currentDescriptor?.terrain;
+    if (currentTerrain?.kind === "generated" && currentTerrain.id === terrain.id) {
+      this.context.viewport.applyTerrainTexturePaintPreview?.(currentDescriptor, runtimeCanvas);
+    }
+    this.textureSaveBakeRequired = false;
+    saveContext.report({ message: "Terrain texture bake ready.", progress: 1 });
+  }
 }
 
 function createDescriptorFromPreset(presetId, options = {}) {
   const preset = getPreset(presetId);
   const size = options.size ?? DEFAULT_TERRAIN_SIZE;
   const gridStep = options.terrainGridStep ?? DEFAULT_GRID_STEP;
-  const resolution = options.resolution ?? resolveGridResolution(size, gridStep);
+  const gridLayout = options.resolution
+    ? { size, gridStep, resolution: options.resolution }
+    : resolveGridAlignedLayout(size, gridStep);
   return normalizeDescriptor({
     id: options.id ?? DEFAULT_TERRAIN_ID,
     kind: "generated",
-    size,
-    terrainGridStep: gridStep,
+    size: gridLayout.size,
+    terrainGridStep: gridLayout.gridStep,
     resolutionMode: options.resolution ? "manual" : "gridStep",
-    resolution,
+    resolution: gridLayout.resolution,
     position: options.position ?? [0, 0, 0],
     rotation: options.rotation ?? [0, 0, 0],
     scale: options.scale ?? [1, 1, 1],
@@ -1102,18 +1480,25 @@ function normalizeDescriptor(descriptor) {
     clampFinite(descriptor.size?.[1], 1, 512, DEFAULT_TERRAIN_SIZE[1])
   ];
   const gridStep = clampFinite(descriptor.terrainGridStep, 0.25, 64, DEFAULT_GRID_STEP);
-  const resolution = [
-    normalizeResolution(descriptor.resolution?.[0] ?? resolveGridResolution(size, gridStep)[0]),
-    normalizeResolution(descriptor.resolution?.[1] ?? resolveGridResolution(size, gridStep)[1])
-  ];
+  const resolutionMode = descriptor.resolutionMode === "manual" ? "manual" : "gridStep";
+  const gridLayout = resolutionMode === "gridStep"
+    ? resolveGridAlignedLayout(size, gridStep)
+    : {
+        size,
+        gridStep,
+        resolution: [
+          normalizeResolution(descriptor.resolution?.[0] ?? resolveGridResolution(size, gridStep)[0]),
+          normalizeResolution(descriptor.resolution?.[1] ?? resolveGridResolution(size, gridStep)[1])
+        ]
+      };
   return {
     ...clone(descriptor),
     id: descriptor.id || DEFAULT_TERRAIN_ID,
     kind: "generated",
-    size,
-    terrainGridStep: gridStep,
-    resolutionMode: descriptor.resolutionMode ?? "manual",
-    resolution,
+    size: gridLayout.size,
+    terrainGridStep: gridLayout.gridStep,
+    resolutionMode,
+    resolution: gridLayout.resolution,
     position: descriptor.position ?? [0, 0, 0],
     rotation: descriptor.rotation ?? [0, 0, 0],
     scale: descriptor.scale ?? [1, 1, 1],
@@ -1504,6 +1889,625 @@ function serializeHeightMap(field) {
   };
 }
 
+class TerrainSplatMap {
+  constructor(resolutionX, resolutionZ, layerCount, initialLayerIndex = 0) {
+    this.resolutionX = Math.max(1, Math.round(resolutionX));
+    this.resolutionZ = Math.max(1, Math.round(resolutionZ));
+    this.layerCount = Math.max(1, Math.round(layerCount));
+    this.weights = new Float32Array(this.resolutionX * this.resolutionZ * this.layerCount);
+    const layerIndex = clampIndex(initialLayerIndex, this.layerCount);
+    for (let iz = 0; iz < this.resolutionZ; iz += 1) {
+      for (let ix = 0; ix < this.resolutionX; ix += 1) {
+        this.weights[this.getOffset(ix, iz, layerIndex)] = 1;
+      }
+    }
+  }
+
+  getWeight(ix, iz, layerIndex) {
+    return this.weights[this.getOffset(ix, iz, layerIndex)] ?? 0;
+  }
+
+  setWeight(ix, iz, layerIndex, weight) {
+    this.weights[this.getOffset(ix, iz, layerIndex)] = clamp01(weight);
+  }
+
+  normalizeTexel(ix, iz) {
+    const texelOffset = this.getTexelOffset(ix, iz);
+    let sum = 0;
+    for (let layerIndex = 0; layerIndex < this.layerCount; layerIndex += 1) {
+      const offset = texelOffset + layerIndex;
+      const value = clamp01(this.weights[offset] ?? 0);
+      this.weights[offset] = value;
+      sum += value;
+    }
+
+    if (sum <= 0.000001) {
+      this.weights[texelOffset] = 1;
+      for (let layerIndex = 1; layerIndex < this.layerCount; layerIndex += 1) {
+        this.weights[texelOffset + layerIndex] = 0;
+      }
+      return;
+    }
+
+    for (let layerIndex = 0; layerIndex < this.layerCount; layerIndex += 1) {
+      const offset = texelOffset + layerIndex;
+      this.weights[offset] = (this.weights[offset] ?? 0) / sum;
+    }
+  }
+
+  getSplatTextureCount() {
+    return Math.ceil(this.layerCount / 4);
+  }
+
+  clone() {
+    const cloned = new TerrainSplatMap(this.resolutionX, this.resolutionZ, this.layerCount);
+    cloned.weights.set(this.weights);
+    return cloned;
+  }
+
+  resampled(resolutionX, resolutionZ) {
+    const nextResolutionX = Math.max(1, Math.round(resolutionX));
+    const nextResolutionZ = Math.max(1, Math.round(resolutionZ));
+    if (nextResolutionX === this.resolutionX && nextResolutionZ === this.resolutionZ) {
+      return this.clone();
+    }
+
+    const resampled = new TerrainSplatMap(nextResolutionX, nextResolutionZ, this.layerCount);
+    resampled.weights.fill(0);
+    for (let iz = 0; iz < nextResolutionZ; iz += 1) {
+      const v = nextResolutionZ <= 1 ? 0 : iz / (nextResolutionZ - 1);
+      for (let ix = 0; ix < nextResolutionX; ix += 1) {
+        const u = nextResolutionX <= 1 ? 0 : ix / (nextResolutionX - 1);
+        for (let layerIndex = 0; layerIndex < this.layerCount; layerIndex += 1) {
+          resampled.setWeight(ix, iz, layerIndex, this.sampleWeightBilinear(u, v, layerIndex));
+        }
+        resampled.normalizeTexel(ix, iz);
+      }
+    }
+    return resampled;
+  }
+
+  toRgba8ArrayForChunk(chunkIndex, flipZ = false) {
+    const normalizedChunkIndex = clampIndex(chunkIndex, this.getSplatTextureCount());
+    const baseLayerIndex = normalizedChunkIndex * 4;
+    const bytes = new Uint8Array(this.resolutionX * this.resolutionZ * 4);
+    for (let iz = 0; iz < this.resolutionZ; iz += 1) {
+      const sourceZ = flipZ ? this.resolutionZ - 1 - iz : iz;
+      for (let ix = 0; ix < this.resolutionX; ix += 1) {
+        const byteOffset = ((iz * this.resolutionX) + ix) * 4;
+        for (let channelIndex = 0; channelIndex < 4; channelIndex += 1) {
+          const layerIndex = baseLayerIndex + channelIndex;
+          if (layerIndex < this.layerCount) {
+            bytes[byteOffset + channelIndex] = Math.round(clamp01(this.getWeight(ix, sourceZ, layerIndex)) * 255);
+          }
+        }
+      }
+    }
+    return bytes;
+  }
+
+  sampleWeightBilinear(u, v, layerIndex) {
+    const x = clamp01(u) * Math.max(0, this.resolutionX - 1);
+    const z = clamp01(v) * Math.max(0, this.resolutionZ - 1);
+    const x0 = Math.floor(x);
+    const z0 = Math.floor(z);
+    const x1 = Math.min(this.resolutionX - 1, x0 + 1);
+    const z1 = Math.min(this.resolutionZ - 1, z0 + 1);
+    const tx = x - x0;
+    const tz = z - z0;
+    return lerp(
+      lerp(this.getWeight(x0, z0, layerIndex), this.getWeight(x1, z0, layerIndex), tx),
+      lerp(this.getWeight(x0, z1, layerIndex), this.getWeight(x1, z1, layerIndex), tx),
+      tz
+    );
+  }
+
+  static fromRgba8Chunks(resolutionX, resolutionZ, layerCount, chunks, flipZ = false) {
+    const map = new TerrainSplatMap(resolutionX, resolutionZ, layerCount);
+    map.weights.fill(0);
+    const expectedChunkCount = map.getSplatTextureCount();
+    if (chunks.length !== expectedChunkCount) {
+      throw new Error(`Expected ${expectedChunkCount} splat chunk(s), received ${chunks.length}.`);
+    }
+
+    const expectedLength = map.resolutionX * map.resolutionZ * 4;
+    for (let chunkIndex = 0; chunkIndex < expectedChunkCount; chunkIndex += 1) {
+      const chunk = chunks[chunkIndex];
+      if (!chunk || chunk.length !== expectedLength) {
+        throw new Error(`Terrain splat chunk ${chunkIndex} has invalid byte length.`);
+      }
+
+      const baseLayerIndex = chunkIndex * 4;
+      for (let iz = 0; iz < map.resolutionZ; iz += 1) {
+        const targetZ = flipZ ? map.resolutionZ - 1 - iz : iz;
+        for (let ix = 0; ix < map.resolutionX; ix += 1) {
+          const byteOffset = ((iz * map.resolutionX) + ix) * 4;
+          for (let channelIndex = 0; channelIndex < 4; channelIndex += 1) {
+            const layerIndex = baseLayerIndex + channelIndex;
+            if (layerIndex < map.layerCount) {
+              map.setWeight(ix, targetZ, layerIndex, (chunk[byteOffset + channelIndex] ?? 0) / 255);
+            }
+          }
+        }
+      }
+    }
+
+    normalizeWholeSplatMap(map);
+    return map;
+  }
+
+  getOffset(ix, iz, layerIndex) {
+    return this.getTexelOffset(ix, iz) + clampIndex(layerIndex, this.layerCount);
+  }
+
+  getTexelOffset(ix, iz) {
+    return ((clampIndex(iz, this.resolutionZ) * this.resolutionX) + clampIndex(ix, this.resolutionX)) * this.layerCount;
+  }
+}
+
+function paintTextureAtPoint(splatMap, options) {
+  if (options.layerIndex < 0 || options.layerIndex >= splatMap.layerCount) {
+    return { changedTexelCount: 0 };
+  }
+
+  const paintAmount = clamp01(Math.abs(options.brush.strength) * TEXTURE_PAINT_STRENGTH_SCALE * clamp(options.deltaTime, 0, 0.25));
+  if (paintAmount <= 0) {
+    return { changedTexelCount: 0 };
+  }
+
+  const radius = Math.max(0.0001, options.brush.radius);
+  const terrainWidth = Math.max(0.0001, Math.abs(options.terrainWidth));
+  const terrainDepth = Math.max(0.0001, Math.abs(options.terrainDepth));
+  let changedTexelCount = 0;
+  for (let iz = 0; iz < splatMap.resolutionZ; iz += 1) {
+    const v = splatMap.resolutionZ <= 1 ? 0.5 : iz / (splatMap.resolutionZ - 1);
+    const z = (0.5 - v) * terrainDepth;
+    for (let ix = 0; ix < splatMap.resolutionX; ix += 1) {
+      const u = splatMap.resolutionX <= 1 ? 0.5 : ix / (splatMap.resolutionX - 1);
+      const x = (u - 0.5) * terrainWidth;
+      const influence = clamp01(brushWeight(options.brush.shape, x - options.center.x, z - options.center.z, radius, options.brush.falloff) * paintAmount);
+      if (influence <= 0) {
+        continue;
+      }
+
+      paintTextureTexel(splatMap, ix, iz, options.layerIndex, influence);
+      changedTexelCount += 1;
+    }
+  }
+  return { changedTexelCount };
+}
+
+function paintTextureTexel(splatMap, ix, iz, selectedLayerIndex, influence) {
+  const currentSelectedWeight = splatMap.getWeight(ix, iz, selectedLayerIndex);
+  const nextSelectedWeight = clamp01(currentSelectedWeight + ((1 - currentSelectedWeight) * influence));
+  const currentOtherWeight = 1 - currentSelectedWeight;
+  const nextOtherWeight = 1 - nextSelectedWeight;
+  const otherScale = currentOtherWeight > 0.000001 ? nextOtherWeight / currentOtherWeight : 0;
+  for (let layerIndex = 0; layerIndex < splatMap.layerCount; layerIndex += 1) {
+    if (layerIndex === selectedLayerIndex) {
+      splatMap.setWeight(ix, iz, layerIndex, nextSelectedWeight);
+    } else {
+      splatMap.setWeight(ix, iz, layerIndex, splatMap.getWeight(ix, iz, layerIndex) * otherScale);
+    }
+  }
+  splatMap.normalizeTexel(ix, iz);
+}
+
+function normalizeWholeSplatMap(splatMap) {
+  for (let iz = 0; iz < splatMap.resolutionZ; iz += 1) {
+    for (let ix = 0; ix < splatMap.resolutionX; ix += 1) {
+      splatMap.normalizeTexel(ix, iz);
+    }
+  }
+}
+
+function getActiveSplatLayerIndices(splatMap) {
+  const active = [];
+  for (let layerIndex = 0; layerIndex < splatMap.layerCount; layerIndex += 1) {
+    let hasWeight = false;
+    for (let offset = layerIndex; offset < splatMap.weights.length; offset += splatMap.layerCount) {
+      if ((splatMap.weights[offset] ?? 0) > 0.0001) {
+        hasWeight = true;
+        break;
+      }
+    }
+    if (hasWeight) {
+      active.push(layerIndex);
+    }
+  }
+  return active.length > 0 ? active : [0];
+}
+
+function ensureSplatMapResolution(splatMap, resolutionX, resolutionZ) {
+  let map = splatMap;
+  if (map.layerCount !== TERRAIN_TEXTURE_LAYERS.length) {
+    const remapped = new TerrainSplatMap(map.resolutionX, map.resolutionZ, TERRAIN_TEXTURE_LAYERS.length);
+    remapped.weights.fill(0);
+    const copyLayerCount = Math.min(map.layerCount, remapped.layerCount);
+    for (let iz = 0; iz < map.resolutionZ; iz += 1) {
+      for (let ix = 0; ix < map.resolutionX; ix += 1) {
+        for (let layerIndex = 0; layerIndex < copyLayerCount; layerIndex += 1) {
+          remapped.setWeight(ix, iz, layerIndex, map.getWeight(ix, iz, layerIndex));
+        }
+        remapped.normalizeTexel(ix, iz);
+      }
+    }
+    map = remapped;
+  }
+  if (map.resolutionX !== resolutionX || map.resolutionZ !== resolutionZ) {
+    return map.resampled(resolutionX, resolutionZ);
+  }
+  return map;
+}
+
+function serializeTextureSplatMap(input) {
+  if (input.layers.length !== input.splatMap.layerCount) {
+    throw new Error("Texture splat map layer count does not match terrain texture registry.");
+  }
+
+  const normalized = input.splatMap.clone();
+  normalizeWholeSplatMap(normalized);
+  const assets = [];
+  const weightPaths = [];
+  for (let chunkIndex = 0; chunkIndex < normalized.getSplatTextureCount(); chunkIndex += 1) {
+    const bytes = normalized.toRgba8ArrayForChunk(chunkIndex, true);
+    const assetPath = `assets/generated/terrain/${input.sceneId}/${input.terrainId}_splat_${chunkIndex}.png`;
+    weightPaths.push(assetPath);
+    assets.push({
+      path: assetPath,
+      encoding: "dataUrl",
+      mimeType: "image/png",
+      data: encodeRgbaBytesToPngDataUrl(bytes, normalized.resolutionX, normalized.resolutionZ)
+    });
+  }
+
+  return {
+    editedTextureMap: {
+      encoding: "splatRgba8",
+      resolution: [normalized.resolutionX, normalized.resolutionZ],
+      layers: input.layers.map((layer) => layer.id),
+      weights: weightPaths,
+      bakedTexture: input.bakedTexturePath,
+      bakeResolution: input.bakeResolution
+    },
+    assets
+  };
+}
+
+async function loadTextureSplatMapFromDescriptor(editedTextureMap, availableLayers) {
+  const chunks = await Promise.all(
+    editedTextureMap.weights.map((weightPath) => loadPngRgbaBytes(weightPath, editedTextureMap.resolution))
+  );
+  const savedMap = TerrainSplatMap.fromRgba8Chunks(
+    editedTextureMap.resolution[0],
+    editedTextureMap.resolution[1],
+    editedTextureMap.layers.length,
+    chunks,
+    true
+  );
+  const remapped = new TerrainSplatMap(savedMap.resolutionX, savedMap.resolutionZ, availableLayers.length);
+  remapped.weights.fill(0);
+  for (let savedLayerIndex = 0; savedLayerIndex < editedTextureMap.layers.length; savedLayerIndex += 1) {
+    const availableLayerIndex = availableLayers.findIndex((layer) => layer.id === editedTextureMap.layers[savedLayerIndex]);
+    if (availableLayerIndex < 0) {
+      continue;
+    }
+    for (let iz = 0; iz < savedMap.resolutionZ; iz += 1) {
+      for (let ix = 0; ix < savedMap.resolutionX; ix += 1) {
+        remapped.setWeight(ix, iz, availableLayerIndex, savedMap.getWeight(ix, iz, savedLayerIndex));
+      }
+    }
+  }
+  normalizeWholeSplatMap(remapped);
+  return remapped;
+}
+
+async function bakeTextureMapToCanvas(input) {
+  if (input.layers.length === 0 || input.layers.length !== input.splatMap.layerCount) {
+    throw new Error("Texture baking requires layers to match the splat map.");
+  }
+
+  const outputResolution = input.outputResolution ?? resolveTextureRuntimeBakeResolution(input.terrainWidth, input.terrainDepth);
+  const yieldEveryRows = Math.max(0, Math.round(input.yieldEveryRows ?? 0));
+  const activeLayerIndices = getActiveSplatLayerIndices(input.splatMap);
+  const layerImages = new Map(await Promise.all(activeLayerIndices.map(async (layerIndex) => [
+    layerIndex,
+    await loadLayerImage(input.layers[layerIndex])
+  ])));
+  const canvas = createCanvas(outputResolution[0], outputResolution[1]);
+  const context = canvas.getContext("2d");
+  if (!context) {
+    throw new Error("Terrain texture baking could not acquire a 2D canvas context.");
+  }
+
+  const imageData = context.createImageData(outputResolution[0], outputResolution[1]);
+  const target = imageData.data;
+  const tileScale = resolveTextureTileScale(input.terrainWidth, input.terrainDepth);
+  for (let y = 0; y < outputResolution[1]; y += 1) {
+    if (yieldEveryRows > 0 && y > 0 && y % yieldEveryRows === 0) {
+      input.onProgress?.(y / Math.max(1, outputResolution[1] - 1));
+      await waitForIdleSlice();
+    }
+    const textureV = outputResolution[1] <= 1 ? 0 : y / (outputResolution[1] - 1);
+    const terrainV = 1 - textureV;
+    for (let x = 0; x < outputResolution[0]; x += 1) {
+      const textureU = outputResolution[0] <= 1 ? 0 : x / (outputResolution[0] - 1);
+      const pixelOffset = ((y * outputResolution[0]) + x) * 4;
+      let red = 0;
+      let green = 0;
+      let blue = 0;
+      let totalWeight = 0;
+      for (const layerIndex of activeLayerIndices) {
+        const weight = input.splatMap.sampleWeightBilinear(textureU, terrainV, layerIndex);
+        if (weight <= 0.0001) {
+          continue;
+        }
+        const layerImage = layerImages.get(layerIndex);
+        if (!layerImage) {
+          continue;
+        }
+        const sample = sampleLayerColor(layerImage, textureU, textureV, tileScale);
+        red += sample[0] * weight;
+        green += sample[1] * weight;
+        blue += sample[2] * weight;
+        totalWeight += weight;
+      }
+      const divisor = Math.max(totalWeight, 0.0001);
+      target[pixelOffset] = clampByte(red / divisor);
+      target[pixelOffset + 1] = clampByte(green / divisor);
+      target[pixelOffset + 2] = clampByte(blue / divisor);
+      target[pixelOffset + 3] = 255;
+    }
+  }
+
+  context.putImageData(imageData, 0, 0);
+  input.onProgress?.(1);
+  return canvas;
+}
+
+async function loadLayerImage(layer) {
+  const cached = layerImageCache.get(layer.id);
+  if (cached) {
+    return cached;
+  }
+
+  const canvas = createCanvas(LAYER_SAMPLE_SIZE, LAYER_SAMPLE_SIZE);
+  const context = canvas.getContext("2d");
+  if (!context) {
+    throw new Error("Terrain texture baking could not acquire a 2D canvas context.");
+  }
+
+  context.fillStyle = resolveFallbackLayerColor(layer.id);
+  context.fillRect(0, 0, LAYER_SAMPLE_SIZE, LAYER_SAMPLE_SIZE);
+  if ("imageSmoothingEnabled" in context) {
+    context.imageSmoothingEnabled = true;
+  }
+
+  try {
+    const image = await loadImage(layer.url);
+    context.drawImage(image, 0, 0, LAYER_SAMPLE_SIZE, LAYER_SAMPLE_SIZE);
+  } catch {
+    // Keep deterministic fallback color if a texture is unavailable.
+  }
+
+  const imageData = context.getImageData(0, 0, LAYER_SAMPLE_SIZE, LAYER_SAMPLE_SIZE);
+  const sample = {
+    width: imageData.width,
+    height: imageData.height,
+    data: imageData.data
+  };
+  layerImageCache.set(layer.id, sample);
+  return sample;
+}
+
+function sampleLayerColor(image, u, v, tileScale) {
+  const sampleU = clampAtlasUv(fract(u * tileScale));
+  const sampleV = clampAtlasUv(fract(v * tileScale));
+  const x = sampleU * Math.max(0, image.width - 1);
+  const y = sampleV * Math.max(0, image.height - 1);
+  const x0 = Math.floor(x);
+  const y0 = Math.floor(y);
+  const x1 = Math.min(image.width - 1, x0 + 1);
+  const y1 = Math.min(image.height - 1, y0 + 1);
+  const tx = x - x0;
+  const ty = y - y0;
+  return [
+    bilinearChannel(image, x0, y0, x1, y1, tx, ty, 0),
+    bilinearChannel(image, x0, y0, x1, y1, tx, ty, 1),
+    bilinearChannel(image, x0, y0, x1, y1, tx, ty, 2)
+  ];
+}
+
+function bilinearChannel(image, x0, y0, x1, y1, tx, ty, channel) {
+  return lerp(
+    lerp(readChannel(image, x0, y0, channel), readChannel(image, x1, y0, channel), tx),
+    lerp(readChannel(image, x0, y1, channel), readChannel(image, x1, y1, channel), tx),
+    ty
+  );
+}
+
+function readChannel(image, x, y, channel) {
+  return image.data[((y * image.width) + x) * 4 + channel] ?? 0;
+}
+
+function encodeRgbaBytesToPngDataUrl(bytes, width, height) {
+  const packed = packRawSplatChunkForOpaquePng(bytes, width, height);
+  const canvas = createCanvas(packed.width, packed.height);
+  const context = canvas.getContext("2d");
+  if (!context) {
+    throw new Error("Terrain texture map persistence could not acquire a 2D canvas context.");
+  }
+
+  const imageData = context.createImageData(packed.width, packed.height);
+  imageData.data.set(packed.bytes);
+  context.putImageData(imageData, 0, 0);
+  return canvas.toDataURL("image/png");
+}
+
+async function loadPngRgbaBytes(assetPath, resolution) {
+  const image = await loadImage(assetUrl(assetPath));
+  const canvas = createCanvas(Math.max(resolution[0], resolution[0] * 2), resolution[1]);
+  const context = canvas.getContext("2d");
+  if (!context) {
+    throw new Error("Terrain texture map persistence could not acquire a 2D canvas context.");
+  }
+
+  if ("imageSmoothingEnabled" in context) {
+    context.imageSmoothingEnabled = false;
+  }
+  context.clearRect(0, 0, canvas.width, canvas.height);
+  context.drawImage(image, 0, 0, image.width, image.height);
+  const imageData = context.getImageData(0, 0, image.width, image.height);
+  return unpackOpaquePngToRawSplatChunk(new Uint8Array(imageData.data), image.width, image.height, resolution);
+}
+
+function packRawSplatChunkForOpaquePng(bytes, width, height) {
+  const expectedLength = width * height * 4;
+  if (bytes.length !== expectedLength) {
+    throw new Error(`Terrain splat chunk must contain ${expectedLength} rgba bytes.`);
+  }
+
+  const packedWidth = width * 2;
+  const packed = new Uint8Array(packedWidth * height * 4);
+  for (let pixelIndex = 0; pixelIndex < width * height; pixelIndex += 1) {
+    const sourceOffset = pixelIndex * 4;
+    const packedOffset = pixelIndex * 8;
+    packed[packedOffset] = bytes[sourceOffset] ?? 0;
+    packed[packedOffset + 1] = bytes[sourceOffset + 1] ?? 0;
+    packed[packedOffset + 2] = bytes[sourceOffset + 2] ?? 0;
+    packed[packedOffset + 3] = 255;
+    packed[packedOffset + 4] = bytes[sourceOffset + 3] ?? 0;
+    packed[packedOffset + 5] = 0;
+    packed[packedOffset + 6] = 0;
+    packed[packedOffset + 7] = 255;
+  }
+  return { bytes: packed, width: packedWidth, height };
+}
+
+function unpackOpaquePngToRawSplatChunk(bytes, imageWidth, imageHeight, resolution) {
+  if (imageHeight !== resolution[1]) {
+    throw new Error(`Terrain splat asset height ${imageHeight} does not match expected ${resolution[1]}.`);
+  }
+
+  if (imageWidth === resolution[0]) {
+    return bytes;
+  }
+
+  if (imageWidth !== resolution[0] * 2) {
+    throw new Error(`Terrain splat asset width ${imageWidth} does not match expected ${resolution[0]} or ${resolution[0] * 2}.`);
+  }
+
+  const unpacked = new Uint8Array(resolution[0] * resolution[1] * 4);
+  for (let pixelIndex = 0; pixelIndex < resolution[0] * resolution[1]; pixelIndex += 1) {
+    const packedOffset = pixelIndex * 8;
+    const unpackedOffset = pixelIndex * 4;
+    unpacked[unpackedOffset] = bytes[packedOffset] ?? 0;
+    unpacked[unpackedOffset + 1] = bytes[packedOffset + 1] ?? 0;
+    unpacked[unpackedOffset + 2] = bytes[packedOffset + 2] ?? 0;
+    unpacked[unpackedOffset + 3] = bytes[packedOffset + 4] ?? 0;
+  }
+  return unpacked;
+}
+
+function createCanvas(width, height) {
+  const canvas = document.createElement("canvas");
+  canvas.width = width;
+  canvas.height = height;
+  return canvas;
+}
+
+function loadImage(url) {
+  return new Promise((resolve, reject) => {
+    const image = new Image();
+    image.onload = () => resolve(image);
+    image.onerror = () => reject(new Error(`Failed to load image '${url}'.`));
+    image.src = url;
+  });
+}
+
+function waitForIdleSlice() {
+  return new Promise((resolve) => {
+    window.setTimeout(resolve, 0);
+  });
+}
+
+function resolveTextureTileScale(terrainWidth, terrainDepth) {
+  const maxSize = Math.max(Math.abs(terrainWidth), Math.abs(terrainDepth), 1);
+  return Math.max(4, Math.min(24, maxSize / 6));
+}
+
+function resolveTexturePreviewBakeResolution(terrainWidth, terrainDepth) {
+  return resolveSquareBakeResolution(
+    terrainWidth,
+    terrainDepth,
+    TEXTURE_PREVIEW_PIXELS_PER_WORLD_UNIT,
+    TEXTURE_MIN_BAKE_RESOLUTION,
+    TEXTURE_PREVIEW_MAX_BAKE_RESOLUTION
+  );
+}
+
+function resolveTextureRuntimeBakeResolution(terrainWidth, terrainDepth) {
+  return resolveSquareBakeResolution(
+    terrainWidth,
+    terrainDepth,
+    TEXTURE_RUNTIME_PIXELS_PER_WORLD_UNIT,
+    TEXTURE_MIN_BAKE_RESOLUTION,
+    TEXTURE_RUNTIME_MAX_BAKE_RESOLUTION
+  );
+}
+
+function resolveSquareBakeResolution(terrainWidth, terrainDepth, pixelsPerWorldUnit, minResolution, maxResolution) {
+  const maxWorldSize = Math.max(Math.abs(terrainWidth), Math.abs(terrainDepth), 1);
+  const resolution = clampPowerOfTwo(maxWorldSize * pixelsPerWorldUnit, minResolution, maxResolution);
+  return [resolution, resolution];
+}
+
+function clampPowerOfTwo(value, minResolution, maxResolution) {
+  const clamped = Math.max(minResolution, Math.min(maxResolution, Math.round(value)));
+  let power = 1;
+  while (power < clamped) {
+    power *= 2;
+  }
+  return Math.max(minResolution, Math.min(maxResolution, power));
+}
+
+function terrainTextureUrl(filename) {
+  return `/assets/textures/terrain/${filename.split("/").map(encodeURIComponent).join("/")}`;
+}
+
+function assetUrl(path) {
+  if (path.startsWith("/") || path.startsWith("data:") || path.startsWith("blob:") || /^https?:\/\//i.test(path)) {
+    return path;
+  }
+  return `/${path}`;
+}
+
+function textureMapSignatureForTerrain(terrain) {
+  return terrain
+    ? `${terrain.id}|${terrain.resolution?.[0]}x${terrain.resolution?.[1]}|${JSON.stringify(terrain.editedTextureMap ?? null)}`
+    : "none";
+}
+
+function needsRuntimeTextureRebake(terrain) {
+  const bakeResolution = terrain.editedTextureMap?.bakeResolution;
+  const requiredResolution = resolveTextureRuntimeBakeResolution(terrain.size?.[0] ?? 1, terrain.size?.[1] ?? 1);
+  if (!bakeResolution) {
+    return terrain.material?.kind === "bakedTexture";
+  }
+  return (
+    (bakeResolution[0] ?? 0) < requiredResolution[0] ||
+    (bakeResolution[1] ?? 0) < requiredResolution[1]
+  );
+}
+
+function sanitizeAssetSegment(value) {
+  return String(value)
+    .trim()
+    .replace(/[^a-z0-9._-]+/gi, "-")
+    .replace(/^-+|-+$/g, "")
+    || "terrain";
+}
+
 function computeStats(field) {
   let minHeight = Number.POSITIVE_INFINITY;
   let maxHeight = Number.NEGATIVE_INFINITY;
@@ -1519,11 +2523,43 @@ function computeStats(field) {
   };
 }
 
+function resolveSourceQuadSize(descriptor) {
+  return [
+    descriptor.size[0] / Math.max(1, descriptor.resolution[0] - 1),
+    descriptor.size[1] / Math.max(1, descriptor.resolution[1] - 1)
+  ];
+}
+
 function resolveGridResolution(size, gridStep) {
   return [
     normalizeResolution(Math.floor(size[0] / gridStep) + 1),
     normalizeResolution(Math.floor(size[1] / gridStep) + 1)
   ];
+}
+
+function resolveGridAlignedLayout(size, gridStep) {
+  const normalizedGridStep = clampFinite(gridStep, 0.25, 64, DEFAULT_GRID_STEP);
+  const normalizedSize = [
+    clampFinite(size?.[0], 1, 512, DEFAULT_TERRAIN_SIZE[0]),
+    clampFinite(size?.[1], 1, 512, DEFAULT_TERRAIN_SIZE[1])
+  ];
+  const quadCounts = [
+    snapEvenQuadCount(normalizedSize[0] / normalizedGridStep),
+    snapEvenQuadCount(normalizedSize[1] / normalizedGridStep)
+  ];
+  return {
+    size: [
+      Number((quadCounts[0] * normalizedGridStep).toFixed(6)),
+      Number((quadCounts[1] * normalizedGridStep).toFixed(6))
+    ],
+    gridStep: normalizedGridStep,
+    resolution: [quadCounts[0] + 1, quadCounts[1] + 1]
+  };
+}
+
+function snapEvenQuadCount(requestedQuadCount) {
+  const nearestEven = Math.round(requestedQuadCount / 2) * 2;
+  return Math.max(MIN_RESOLUTION - 1, Math.min(MAX_RESOLUTION - 1, nearestEven));
 }
 
 function normalizeResolution(value) {
@@ -1636,6 +2672,11 @@ function ensureStyle() {
     .terrain-tools-band-head,
     .terrain-tools-band { display: grid; grid-template-columns: 28px 1fr 58px 58px; gap: 6px; align-items: center; font-size: 12px; color: #B9C6D9; }
     .terrain-tools-band input[type="color"] { padding: 0; }
+    .terrain-tools-texture-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; }
+    .terrain-tools-texture-tile { min-width: 0; border: 1px solid #2C405E; border-radius: 6px; background: #0B1728; color: #DDE7F6; padding: 6px; display: grid; grid-template-columns: 34px minmax(0, 1fr); gap: 7px; align-items: center; text-align: left; font: inherit; cursor: pointer; }
+    .terrain-tools-texture-tile.is-active { border-color: #F7B84B; background: #21304A; color: #FFF0C2; }
+    .terrain-tools-texture-swatch { width: 34px; height: 26px; border-radius: 4px; border: 1px solid rgba(221, 231, 246, 0.2); background-size: cover; background-position: center; box-shadow: inset 0 0 0 1px rgba(8, 19, 35, 0.35); }
+    .terrain-tools-texture-tile span:last-child { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     .terrain-tools-message,
     .terrain-tools-empty { color: #9EAEC6; font-size: 12px; line-height: 1.4; }
     .terrain-brush-preview { position: absolute; z-index: 20; pointer-events: none; box-sizing: border-box; transform: translate(-50%, -50%); border: 2px solid rgba(247, 184, 75, 0.95); background: rgba(247, 184, 75, 0.08); box-shadow: 0 0 0 1px rgba(8, 19, 35, 0.75), 0 0 18px rgba(247, 184, 75, 0.35); }
@@ -1644,11 +2685,11 @@ function ensureStyle() {
   document.head.appendChild(style);
 }
 
-function numberField(field, label, value, min, max, step) {
+function numberField(field, label, value, min, max, step, disabled = false) {
   return `
     <label class="terrain-tools-field">
       <span>${escapeHtml(label)}</span>
-      <input type="number" data-field="${escapeHtml(field)}" value="${escapeHtml(String(value))}" min="${min}" max="${max}" step="${step}">
+      <input type="number" data-field="${escapeHtml(field)}" value="${escapeHtml(String(value))}" min="${min}" max="${max}" step="${step}" ${disabled ? "disabled" : ""}>
     </label>
   `;
 }
@@ -1724,8 +2765,43 @@ function clamp01(value) {
   return clamp(value, 0, 1);
 }
 
+function clampIndex(value, count) {
+  return Math.max(0, Math.min(Math.max(0, count - 1), Math.round(value)));
+}
+
+function clampByte(value) {
+  if (!Number.isFinite(value)) {
+    return 0;
+  }
+  return Math.max(0, Math.min(255, Math.round(value)));
+}
+
 function lerp(left, right, amount) {
   return left + (right - left) * clamp01(amount);
+}
+
+function fract(value) {
+  return value - Math.floor(value);
+}
+
+function clampAtlasUv(value) {
+  return clamp(value, 0.002, 0.998);
+}
+
+function resolveFallbackLayerColor(layerId) {
+  let hash = 0;
+  for (let index = 0; index < layerId.length; index += 1) {
+    hash = ((hash << 5) - hash + layerId.charCodeAt(index)) | 0;
+  }
+  return `hsl(${Math.abs(hash) % 360}, 36%, 48%)`;
+}
+
+function toReadableLabel(filenameWithoutExtension) {
+  return filenameWithoutExtension
+    .replace(/[_-]+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim()
+    .replace(/\b\w/g, (letter) => letter.toUpperCase());
 }
 
 function fade(value) {

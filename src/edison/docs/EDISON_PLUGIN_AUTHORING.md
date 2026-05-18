@@ -122,6 +122,44 @@ context.panels.registerInspectorSection({
 });
 ```
 
+## Queue Generated Assets for Save
+
+Plugins that generate editor assets can queue PNG payloads before marking the scene dirty. Edison writes queued assets together with the next `Save` command, using the same `/__editor/scene` save endpoint as the legacy editor.
+
+```ts
+context.scene.queueSaveAssets([
+  {
+    path: "assets/generated/terrain/my-scene/terrain-0_albedo.png",
+    encoding: "dataUrl",
+    mimeType: "image/png",
+    data: "data:image/png;base64,..."
+  }
+]);
+```
+
+Use this for generated runtime-ready assets while keeping editable raw data referenced from the scene descriptor.
+
+For expensive save-time work, register a save participant. Edison runs participants before writing files and shows their progress in the blocking save dialog.
+
+```ts
+const dispose = context.scene.registerSaveParticipant({
+  id: "example.textureBake",
+  title: "Baking terrain texture",
+  async prepare(save) {
+    save.report({ message: "Baking terrain texture...", progress: 0.25 });
+    save.queueSaveAssets([
+      {
+        path: "assets/generated/terrain/my-scene/terrain-0_albedo.png",
+        encoding: "dataUrl",
+        mimeType: "image/png",
+        data: "data:image/png;base64,..."
+      }
+    ]);
+    save.report({ message: "Terrain texture ready.", progress: 1 });
+  }
+});
+```
+
 ## Minimal Plugin Example
 
 ```ts

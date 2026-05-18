@@ -159,6 +159,7 @@ export class LocationManager {
   /** Global lighting descriptor from the district initial chunk. */
   private activeLightingDescriptor: SceneLightingDescriptor | null;
   private terrainLodDebugEnabled: boolean;
+  private terrainPolygonWireDebugEnabled: boolean;
   private terrainLodRuntimeTuning: TerrainQuadtreeLodRuntimeTuning | null;
 
   /**
@@ -173,6 +174,7 @@ export class LocationManager {
     this.activeDistrictScenes = new Map();
     this.activeLightingDescriptor = null;
     this.terrainLodDebugEnabled = false;
+    this.terrainPolygonWireDebugEnabled = false;
     this.terrainLodRuntimeTuning = null;
   }
 
@@ -406,6 +408,20 @@ export class LocationManager {
 
   public getTerrainLodDebugEnabled(): boolean {
     return this.terrainLodDebugEnabled;
+  }
+
+  public toggleTerrainPolygonWireDebug(): boolean {
+    this.terrainPolygonWireDebugEnabled = !this.terrainPolygonWireDebugEnabled;
+    for (const content of this.activeDistrictScenes.values()) {
+      for (const controller of content.terrainLodControllers) {
+        controller.setPolygonWireDebugEnabled(this.terrainPolygonWireDebugEnabled);
+      }
+    }
+    return this.terrainPolygonWireDebugEnabled;
+  }
+
+  public getTerrainPolygonWireDebugEnabled(): boolean {
+    return this.terrainPolygonWireDebugEnabled;
   }
 
   public setTerrainLodRuntimeTuning(tuning: TerrainQuadtreeLodRuntimeTuning): void {
@@ -1046,6 +1062,7 @@ export class LocationManager {
     });
     for (const controller of importedContent.terrainLodControllers) {
       controller.setDebugEnabled(this.terrainLodDebugEnabled);
+      controller.setPolygonWireDebugEnabled(this.terrainPolygonWireDebugEnabled);
       if (this.terrainLodRuntimeTuning) {
         controller.setRuntimeLodTuning(this.terrainLodRuntimeTuning);
       }
