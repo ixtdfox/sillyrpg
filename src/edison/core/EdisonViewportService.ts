@@ -5,6 +5,7 @@ import {
   Mesh,
   MeshBuilder,
   Plane,
+  VertexData,
   Vector3,
   type AbstractMesh,
   type Engine,
@@ -12,12 +13,16 @@ import {
   type Scene
 } from "@babylonjs/core";
 import {
+  applyTransform,
   importSceneTerrainContent,
   type ImportedSceneAssetNodes,
   type ImportedSceneContent,
   type ImportedSceneTerrainContent
 } from "../../core/world/scene/SceneContentLoader";
 import type { SceneDescriptor } from "../../core/world/scene/SceneDescriptor";
+import { TerrainHeightFieldSerializer } from "../../core/world/terrain/TerrainHeightFieldSerializer";
+import { TerrainMaterialBuilder } from "../../core/world/terrain/TerrainMaterialBuilder";
+import { TerrainMeshBuilder } from "../../core/world/terrain/TerrainMeshBuilder";
 import type { TerrainLodAnchor } from "../../core/world/terrain/lod/TerrainQuadtreeLodTypes";
 import { EdisonTerrainTexturePreviewAdapter } from "../adapters/EdisonTerrainTexturePreviewAdapter";
 import { LightingCoreAdapter } from "../adapters/LightingCoreAdapter";
@@ -51,6 +56,9 @@ export class EdisonViewportService {
   private readonly modelAdapter = new ModelInstantiationAdapter();
   private readonly lightingAdapter: LightingCoreAdapter;
   private readonly terrainTexturePreviewAdapter: EdisonTerrainTexturePreviewAdapter;
+  private readonly terrainHeightFieldSerializer = new TerrainHeightFieldSerializer();
+  private readonly terrainMaterialBuilder = new TerrainMaterialBuilder();
+  private readonly terrainMeshBuilder = new TerrainMeshBuilder();
   private readonly cameraTool: EditorCameraTool;
   private readonly highlightLayer: HighlightLayer;
   private readonly highlightedMeshes: Mesh[] = [];
@@ -187,6 +195,10 @@ export class EdisonViewportService {
       return;
     }
 
+    if (await this.updateGeneratedTerrainInPlace(current, descriptor)) {
+      return;
+    }
+
     const nextTerrain = descriptor.terrain
       ? await importSceneTerrainContent(this.scene, descriptor.terrain, current.root, "edison", {
           generatedTerrainLodEnabled: false
@@ -194,6 +206,7 @@ export class EdisonViewportService {
       : null;
 
     this.clearTerrainBrushPreview();
+    this.terrainTexturePreviewAdapter.dispose();
     this.disposeTerrainContent(current.terrainContent ?? null);
     const nextContent = this.rebuildContentWithTerrain(current, nextTerrain, descriptor);
     this.objects.setContent(nextContent);
@@ -547,6 +560,79 @@ export class EdisonViewportService {
       }
     }
     return points;
+  }
+
+  private async updateGeneratedTerrainInPlace(current: ImportedSceneContent, descriptor: SceneDescriptor): Promise<boolean> {
+    const terrainDescriptor = descriptor.terrain;
+    const terrainContent = current.terrainContent;
+    if (terrainDescriptor?.kind !== "generated" || terrainContent?.descriptor.kind !== "generated") {
+      return false;
+    }
+
+    const mesh = terrainContent.terrainSurfaceMeshes[0];
+    if (!(mesh instanceof Mesh)) {
+      return false;
+    }
+
+    const heightField = this.terrainHeightFieldSerializer.deserialize(terrainDescriptor);
+    if (!heightField) {
+      return false;
+    }
+
+    this.terrainTexturePreviewAdapter.dispose();
+    applyTransform(terrainContent.root, terrainDescriptor);
+    terrainContent.root.computeWorldMatrix(true);
+
+    const geometry = this.terrainMeshBuilder.buildVertexData(heightField, terrainDescriptor.normalMode);
+    const vertexData = new VertexData();
+    vertexData.positions = geometry.positions;
+    vertexData.indices = geometry.indices;
+    vertexData.normals = geometry.normals;
+    vertexData.uvs = geometry.uvs;
+    vertexData.applyToMesh(mesh, true);
+
+    mesh.metadata = {
+      ...(mesh.metadata as Record<string, unknown> | undefined),
+      terrainKind: "generated",
+      generatedTerrainDescriptor: terrainDescriptor,
+      generatedTerrainHeightField: heightField,
+      terrainSurfaceCanonical: true,
+      terrainCanonicalMeshMode: "FULL_RENDER_FALLBACK"
+    };
+    mesh.isPickable = true;
+    mesh.receiveShadows = true;
+    mesh.computeWorldMatrix(true);
+    mesh.refreshBoundingInfo();
+    mesh.material?.dispose();
+    mesh.material = this.terrainMaterialBuilder.build(this.scene, mesh, terrainDescriptor, heightField, geometry.vertexHeights);
+
+    const nextTerrainContent: ImportedSceneTerrainContent = {
+      ...terrainContent,
+      descriptor: terrainDescriptor,
+      heightField,
+      meshes: [mesh],
+      renderableMeshes: [mesh],
+      terrainSurfaceMeshes: [mesh],
+      terrainLodControllers: []
+    };
+    const nextContent = this.rebuildContentWithTerrain(current, nextTerrainContent, descriptor);
+    this.objects.setContent(nextContent);
+    await this.applyTerrainTexturePreview(nextContent.terrainContent);
+    this.applyGridVisibility();
+    this.lightingAdapter.apply(nextContent.lightingDescriptor, [
+      {
+        ownerId: "edison:terrain",
+        source: "terrain",
+        meshes: nextContent.terrainMeshes
+      },
+      {
+        ownerId: "edison:scene-objects",
+        source: "sceneObject",
+        meshes: nextContent.sceneObjects.flatMap((object) => object.renderableMeshes)
+      }
+    ]);
+    this.refreshTerrainLod(1);
+    return true;
   }
 
   private rebuildContentWithTerrain(
