@@ -1,4 +1,5 @@
 import type { EdisonPluginContext } from "../plugins/EdisonPlugin";
+import type { EdisonInstalledPlugin } from "../plugins/EdisonPluginManager";
 import type { EdisonPanelSlot } from "../layout/EdisonWindowTypes";
 import { EdisonLayout } from "../layout/EdisonLayout";
 import { EdisonStatusBar } from "../layout/EdisonStatusBar";
@@ -11,8 +12,10 @@ export class EdisonUi {
   private readonly elements = this.layout.create();
   private readonly statusBar = new EdisonStatusBar(this.elements.statusHost);
   private readonly saveOverlay = this.createSaveOverlay();
+  private readonly pluginManagerDialog = this.createPluginManagerDialog();
   private context: EdisonPluginContext | null = null;
   private openMenu: HTMLDetailsElement | null = null;
+  private installedPlugins: readonly EdisonInstalledPlugin[] = [];
   private readonly disposers: Array<() => void> = [];
   private readonly onDocumentPointerDown = (event: PointerEvent): void => {
     const target = event.target;
@@ -33,6 +36,7 @@ export class EdisonUi {
     ensureEdisonCss();
     this.root = this.elements.root;
     this.root.appendChild(this.saveOverlay.root);
+    this.root.appendChild(this.pluginManagerDialog.root);
     document.body.appendChild(this.root);
     document.addEventListener("pointerdown", this.onDocumentPointerDown, true);
   }
@@ -52,6 +56,13 @@ export class EdisonUi {
       context.events.on("edison.document.changed", () => this.renderNonViewportPanels()),
       context.events.on<{ active: boolean; message: string; progress: number }>("edison.save.progress", (payload) => {
         this.renderSaveOverlay(payload);
+      }),
+      context.events.on("edison.pluginManager.open", () => {
+        this.showPluginManagerDialog();
+      }),
+      context.events.on<{ plugins: readonly EdisonInstalledPlugin[] }>("edison.plugins.changed", (payload) => {
+        this.installedPlugins = payload.plugins;
+        this.renderPluginManagerDialog();
       }),
       context.events.on("edison.viewport.changed", () => {
         this.renderToolbar();
@@ -125,6 +136,7 @@ export class EdisonUi {
         { commandId: "edison.toggleAxes", label: "Axes", active: context.viewport.getAxesVisible() }
       ], context),
       this.createCommandMenu("Plugins", [
+        { commandId: "edison.openPluginManager", label: "Plugin Manager" },
         { commandId: "edison.installPluginZip", label: "Install from ZIP" }
       ], context)
     );
@@ -320,6 +332,112 @@ export class EdisonUi {
     this.saveOverlay.message.textContent = payload.message;
     this.saveOverlay.progress.style.width = `${Math.round(progress * 100)}%`;
     this.saveOverlay.percent.textContent = `${Math.round(progress * 100)}%`;
+  }
+
+  private createPluginManagerDialog(): {
+    readonly root: HTMLElement;
+    readonly list: HTMLElement;
+    readonly installButton: HTMLButtonElement;
+    readonly closeButton: HTMLButtonElement;
+  } {
+    const root = document.createElement("div");
+    root.className = "edison-plugin-manager-overlay";
+    root.hidden = true;
+
+    const dialog = document.createElement("section");
+    dialog.className = "edison-plugin-manager-dialog";
+    dialog.setAttribute("role", "dialog");
+    dialog.setAttribute("aria-modal", "true");
+    dialog.setAttribute("aria-label", "Plugin Manager");
+    dialog.addEventListener("pointerdown", (event) => event.stopPropagation());
+
+    const header = document.createElement("header");
+    header.className = "edison-plugin-manager-header";
+    const title = document.createElement("div");
+    title.className = "edison-plugin-manager-title";
+    title.textContent = "Plugin Manager";
+    const closeButton = document.createElement("button");
+    closeButton.type = "button";
+    closeButton.className = "edison-plugin-manager-close";
+    closeButton.textContent = "Close";
+    closeButton.addEventListener("click", () => this.hidePluginManagerDialog());
+    header.append(title, closeButton);
+
+    const body = document.createElement("div");
+    body.className = "edison-plugin-manager-body";
+    const list = document.createElement("div");
+    list.className = "edison-plugin-manager-list";
+    body.appendChild(list);
+
+    const footer = document.createElement("footer");
+    footer.className = "edison-plugin-manager-footer";
+    const installButton = document.createElement("button");
+    installButton.type = "button";
+    installButton.className = "edison-button";
+    installButton.textContent = "Install from ZIP";
+    installButton.addEventListener("click", () => {
+      if (!this.context) {
+        return;
+      }
+      void this.context.commands.execute("edison.installPluginZip").catch((error: unknown) => {
+        this.context?.events.emit("edison.message", { text: error instanceof Error ? error.message : String(error) });
+      });
+    });
+    footer.appendChild(installButton);
+
+    dialog.append(header, body, footer);
+    root.appendChild(dialog);
+    root.addEventListener("pointerdown", () => this.hidePluginManagerDialog());
+    return { root, list, installButton, closeButton };
+  }
+
+  private showPluginManagerDialog(): void {
+    this.closeOpenMenu();
+    this.pluginManagerDialog.root.hidden = false;
+    this.renderPluginManagerDialog();
+  }
+
+  private hidePluginManagerDialog(): void {
+    this.pluginManagerDialog.root.hidden = true;
+  }
+
+  private renderPluginManagerDialog(): void {
+    const { list, installButton } = this.pluginManagerDialog;
+    installButton.disabled = !this.context?.commands.canExecute("edison.installPluginZip");
+    list.replaceChildren();
+
+    if (this.installedPlugins.length === 0) {
+      const empty = document.createElement("div");
+      empty.className = "edison-plugin-manager-empty";
+      empty.textContent = "No plugins installed.";
+      list.appendChild(empty);
+      return;
+    }
+
+    for (const installed of this.installedPlugins) {
+      const row = document.createElement("article");
+      row.className = "edison-plugin-manager-row";
+
+      const main = document.createElement("div");
+      main.className = "edison-plugin-manager-row-main";
+      const name = document.createElement("div");
+      name.className = "edison-plugin-manager-row-name";
+      name.textContent = installed.manifest.name;
+      const meta = document.createElement("div");
+      meta.className = "edison-plugin-manager-row-meta";
+      meta.textContent = `${installed.manifest.id} v${installed.manifest.version}`;
+      const description = document.createElement("div");
+      description.className = "edison-plugin-manager-row-description";
+      description.textContent = installed.manifest.description ?? "";
+      main.append(name, meta, description);
+
+      const status = document.createElement("div");
+      status.className = `edison-plugin-manager-status${installed.active ? " is-active" : ""}`;
+      status.textContent = installed.active ? "Active" : "Inactive";
+
+      row.append(main, status);
+      list.appendChild(row);
+    }
   }
 
   private isToolbarButtonActive(commandId: string, context: EdisonPluginContext): boolean {

@@ -1,13 +1,22 @@
 import type { EdisonPlugin } from "./EdisonPlugin";
 import type { EdisonPluginManifest } from "./EdisonPluginManifest";
+import {
+  EdisonPluginPersistenceService,
+  type EdisonPersistedPlugin,
+  type EdisonPluginArchiveFilePayload
+} from "./EdisonPluginPersistenceService";
 
 export interface EdisonPluginZipInstallResult {
   readonly ok: boolean;
   readonly message: string;
   readonly plugin?: EdisonPlugin;
+  readonly persistedPlugin?: EdisonPersistedPlugin;
+  readonly action?: "installed" | "updated";
 }
 
 export class EdisonPluginZipInstaller {
+  public constructor(private readonly persistence = new EdisonPluginPersistenceService()) {}
+
   public async install(file: File): Promise<EdisonPluginZipInstallResult> {
     if (!file.name.toLowerCase().endsWith(".zip")) {
       return {
@@ -27,11 +36,15 @@ export class EdisonPluginZipInstaller {
         };
       }
 
-      const plugin = await this.importPluginModule(entrySource, manifest);
+      await this.importPluginSource(entrySource, manifest);
+      const persisted = await this.persistence.installPluginArchive(manifest, archive.toFilePayloads());
+      const plugin = await this.importPluginUrl(persisted.plugin.entryUrl, manifest, persisted.plugin.updatedAt);
       return {
         ok: true,
-        message: `Plugin '${plugin.manifest.name}' is ready to install.`,
-        plugin
+        message: `Plugin '${plugin.manifest.name}' ${persisted.action}.`,
+        plugin,
+        persistedPlugin: persisted.plugin,
+        action: persisted.action
       };
     } catch (error) {
       return {
@@ -39,6 +52,41 @@ export class EdisonPluginZipInstaller {
         message: error instanceof Error ? error.message : String(error)
       };
     }
+  }
+
+  public async loadInstalledPlugins(): Promise<readonly EdisonPluginZipInstallResult[]> {
+    let installedPlugins: readonly EdisonPersistedPlugin[];
+    try {
+      installedPlugins = await this.persistence.listInstalledPlugins();
+    } catch (error) {
+      return [{
+        ok: false,
+        message: error instanceof Error ? error.message : String(error)
+      }];
+    }
+
+    const results: EdisonPluginZipInstallResult[] = [];
+    for (const installed of installedPlugins) {
+      try {
+        const plugin = await this.importPluginUrl(installed.entryUrl, installed.manifest, installed.updatedAt);
+        results.push({
+          ok: true,
+          message: `Plugin '${plugin.manifest.name}' loaded.`,
+          plugin,
+          persistedPlugin: installed
+        });
+      } catch (error) {
+        results.push({
+          ok: false,
+          message: `Plugin '${installed.manifest.name}' could not be loaded. ${
+            error instanceof Error ? error.message : String(error)
+          }`,
+          persistedPlugin: installed
+        });
+      }
+    }
+
+    return results;
   }
 
   private readManifest(archive: EdisonZipArchive): EdisonPluginManifest {
@@ -67,30 +115,42 @@ export class EdisonPluginZipInstaller {
     };
   }
 
-  private async importPluginModule(entrySource: string, manifest: EdisonPluginManifest): Promise<EdisonPlugin> {
+  private async importPluginSource(entrySource: string, manifest: EdisonPluginManifest): Promise<EdisonPlugin> {
     const moduleUrl = URL.createObjectURL(new Blob([entrySource], { type: "text/javascript" }));
     try {
-      const module = await import(/* @vite-ignore */ moduleUrl) as {
-        readonly default?: unknown;
-        readonly plugin?: unknown;
-      };
-      const plugin = (module.plugin ?? module.default) as Partial<EdisonPlugin> | undefined;
-      if (!plugin || typeof plugin !== "object" || typeof plugin.activate !== "function") {
-        throw new Error(`Plugin '${manifest.id}' entry must export 'plugin' or default EdisonPlugin object.`);
-      }
-
-      if (!plugin.manifest) {
-        throw new Error(`Plugin '${manifest.id}' entry must expose a manifest.`);
-      }
-
-      if (plugin.manifest.id !== manifest.id || plugin.manifest.edisonApiVersion !== manifest.edisonApiVersion) {
-        throw new Error(`Plugin '${manifest.id}' entry manifest does not match edison-plugin.json.`);
-      }
-
-      return plugin as EdisonPlugin;
+      return await this.importPluginUrl(moduleUrl, manifest);
     } finally {
       URL.revokeObjectURL(moduleUrl);
     }
+  }
+
+  private async importPluginUrl(
+    moduleUrl: string,
+    manifest: EdisonPluginManifest,
+    cacheToken?: string
+  ): Promise<EdisonPlugin> {
+    const module = await import(/* @vite-ignore */ withCacheToken(moduleUrl, cacheToken)) as {
+      readonly default?: unknown;
+      readonly plugin?: unknown;
+    };
+    const plugin = (module.plugin ?? module.default) as Partial<EdisonPlugin> | undefined;
+    if (!plugin || typeof plugin !== "object" || typeof plugin.activate !== "function") {
+      throw new Error(`Plugin '${manifest.id}' entry must export 'plugin' or default EdisonPlugin object.`);
+    }
+
+    if (!plugin.manifest) {
+      throw new Error(`Plugin '${manifest.id}' entry must expose a manifest.`);
+    }
+
+    if (
+      plugin.manifest.id !== manifest.id ||
+      plugin.manifest.version !== manifest.version ||
+      plugin.manifest.edisonApiVersion !== manifest.edisonApiVersion
+    ) {
+      throw new Error(`Plugin '${manifest.id}' entry manifest does not match edison-plugin.json.`);
+    }
+
+    return plugin as EdisonPlugin;
   }
 }
 
@@ -100,6 +160,14 @@ class EdisonZipArchive {
   public readText(path: string): string | null {
     const bytes = this.entries.get(normalizeZipPath(path));
     return bytes ? new TextDecoder().decode(bytes) : null;
+  }
+
+  public toFilePayloads(): readonly EdisonPluginArchiveFilePayload[] {
+    return [...this.entries.entries()].map(([path, bytes]) => ({
+      path,
+      encoding: "base64" as const,
+      data: bytesToBase64(bytes)
+    }));
   }
 }
 
@@ -224,4 +292,25 @@ class EdisonZipArchiveReader {
 
 function normalizeZipPath(path: string): string {
   return path.replace(/\\/g, "/").replace(/^\/+/, "");
+}
+
+function bytesToBase64(bytes: Uint8Array): string {
+  const chunkSize = 0x8000;
+  let binary = "";
+  for (let offset = 0; offset < bytes.length; offset += chunkSize) {
+    const chunk = bytes.subarray(offset, offset + chunkSize);
+    binary += String.fromCharCode(...chunk);
+  }
+
+  return btoa(binary);
+}
+
+function withCacheToken(moduleUrl: string, cacheToken?: string): string {
+  if (!cacheToken || moduleUrl.startsWith("blob:")) {
+    return moduleUrl;
+  }
+
+  const url = new URL(moduleUrl, window.location.origin);
+  url.searchParams.set("edisonPluginUpdated", cacheToken);
+  return `${url.pathname}${url.search}${url.hash}`;
 }

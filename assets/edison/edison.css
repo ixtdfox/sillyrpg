@@ -505,3 +505,114 @@
   text-align: right;
   font-variant-numeric: tabular-nums;
 }
+.edison-plugin-manager-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 95;
+  display: grid;
+  place-items: center;
+  background: rgba(4, 9, 17, 0.58);
+  backdrop-filter: blur(2px);
+}
+.edison-plugin-manager-overlay[hidden] {
+  display: none;
+}
+.edison-plugin-manager-dialog {
+  width: min(620px, calc(100vw - 48px));
+  max-height: min(680px, calc(100vh - 48px));
+  display: grid;
+  grid-template-rows: 42px minmax(0, 1fr) 48px;
+  border: 1px solid #2C405E;
+  border-radius: 8px;
+  background: #0D1828;
+  box-shadow: 0 18px 52px rgba(0, 0, 0, 0.42);
+  overflow: hidden;
+}
+.edison-plugin-manager-header,
+.edison-plugin-manager-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 0 12px;
+  background: #101E31;
+}
+.edison-plugin-manager-header {
+  border-bottom: 1px solid #263954;
+}
+.edison-plugin-manager-footer {
+  border-top: 1px solid #263954;
+}
+.edison-plugin-manager-title {
+  color: #F7B84B;
+  font-weight: 700;
+}
+.edison-plugin-manager-close {
+  height: 28px;
+  border: 1px solid #2C405E;
+  border-radius: 6px;
+  background: #122037;
+  color: #E7EDF7;
+  padding: 0 10px;
+  font: inherit;
+  cursor: pointer;
+}
+.edison-plugin-manager-close:hover {
+  border-color: #F7B84B;
+  background: #182A45;
+}
+.edison-plugin-manager-body {
+  min-height: 0;
+  overflow: auto;
+  padding: 10px;
+}
+.edison-plugin-manager-list {
+  display: grid;
+  gap: 8px;
+}
+.edison-plugin-manager-empty,
+.edison-plugin-manager-row {
+  border: 1px solid #263954;
+  border-radius: 7px;
+  background: #101E31;
+}
+.edison-plugin-manager-empty {
+  padding: 14px;
+  color: #9EAEC6;
+}
+.edison-plugin-manager-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 12px;
+  align-items: start;
+  padding: 10px;
+}
+.edison-plugin-manager-row-main {
+  min-width: 0;
+  display: grid;
+  gap: 3px;
+}
+.edison-plugin-manager-row-name {
+  color: #E7EDF7;
+  font-weight: 700;
+}
+.edison-plugin-manager-row-meta,
+.edison-plugin-manager-row-description {
+  color: #9EAEC6;
+  font-size: 12px;
+  overflow-wrap: anywhere;
+}
+.edison-plugin-manager-status {
+  min-width: 70px;
+  border: 1px solid #2C405E;
+  border-radius: 999px;
+  color: #9EAEC6;
+  padding: 3px 8px;
+  font-size: 11px;
+  text-align: center;
+}
+.edison-plugin-manager-status.is-active {
+  border-color: #F7B84B;
+  color: #FFF0C2;
+  background: #21304A;
+}

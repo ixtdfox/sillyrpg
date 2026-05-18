@@ -20,7 +20,7 @@ The legacy editor grew around concrete workflows: terrain generation, terrain pa
 - `core/` contains editor services: commands, events, selection, object registry, document state, transforms, viewport, and persistence.
 - `layout/` contains dock slots, panel registry, toolbar registry, status bar, and layout types.
 - `tools/` contains the built-in select, move, rotate, delete, and editor camera tools.
-- `plugins/` contains the plugin manifest, plugin contract, plugin manager, zip installer, and built-in core plugin.
+- `plugins/` contains the plugin manifest, plugin contract, plugin manager, zip installer, persistent plugin loader, and built-in core plugin.
 - `ui/` contains the DOM UI shell, theme, CSS, icons, and built-in panels.
 - `adapters/` bridges Edison to core scene, terrain, model instantiation, and lighting APIs.
 - `docs/` contains architecture and plugin authoring notes.
@@ -37,8 +37,9 @@ Edison core includes:
 - Save, export JSON, and reload commands.
 - Basic scene object transforms through Inspector fields.
 - Built-in tools: Select, Move, Rotate, Delete.
-- Toolbar, status bar, hierarchy, inspector, tools, scene view, settings, and plugin manager panels.
+- Toolbar, status bar, hierarchy, inspector, tools, scene view, settings, and a Plugin Manager dialog.
 - Plugin API for commands, toolbar buttons, panels, tools, and inspector sections.
+- Local editor/plugin preferences for UI state such as Grid/Axes and plugin tool settings.
 
 ## What Must Be a Plugin
 
@@ -104,6 +105,8 @@ Panels are registered with `context.panels.registerPanel`. Edison v1 panels are 
 
 Inspector sections are registered with `context.panels.registerInspectorSection`. Edison renders matching sections after its built-in object or terrain inspector.
 
+Plugin settings are stored through `context.preferences`. Use `getPluginValue` and `setPluginValue` for per-plugin UI state such as selected tabs, brush size, active texture, or generator defaults.
+
 ## Extension Points Available Now
 
 Edison v1 supports:
@@ -119,12 +122,14 @@ Edison v1 supports:
 - Object registry access.
 - Transform service access.
 - Event bus messages.
+- Preference storage through `context.preferences`.
+- Persistent ZIP plugin installation through the dev-server `/__edison/plugins` endpoint.
 
 ## v1 Limitations
 
 - Undo and redo buttons are present but disabled.
-- ZIP plugin installation is session-local in v1; persistent plugin storage and plugin asset URL resolution are planned.
-- Runtime loading of external plugin entry bundles is not implemented.
+- ZIP plugin installation is persistent in the Vite dev environment. Archives are unpacked under `assets/edison/plugins/installed/` and reloaded on Edison startup.
+- Production packaging for externally installed plugins is still planned.
 - Move tool supports snapped X/Z dragging.
 - Rotate tool and transform buttons rotate around Y by 90 degrees.
 - Terrain/building/lighting authoring UI is intentionally not ported into Edison core.

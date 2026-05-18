@@ -1,6 +1,7 @@
 import type { EdisonCommandRegistry } from "./EdisonCommandRegistry";
 import type { EdisonEventBus } from "./EdisonEventBus";
 import type { EdisonObjectRegistry } from "./EdisonObjectRegistry";
+import type { EdisonPreferencesService } from "./EdisonPreferencesService";
 import type { EdisonSceneDocumentService } from "./EdisonSceneDocumentService";
 import type { EdisonSelectionService } from "./EdisonSelectionService";
 import type { EdisonTransformService } from "./EdisonTransformService";
@@ -21,4 +22,5 @@ export interface EdisonPluginContext {
   readonly objects: EdisonObjectRegistry;
   readonly transforms: EdisonTransformService;
   readonly events: EdisonEventBus;
+  readonly preferences: EdisonPreferencesService;
 }

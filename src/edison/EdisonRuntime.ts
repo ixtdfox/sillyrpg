@@ -8,6 +8,7 @@ import type { EdisonPluginContext } from "./core/EdisonContext";
 import { EdisonEventBus } from "./core/EdisonEventBus";
 import { EdisonObjectRegistry } from "./core/EdisonObjectRegistry";
 import { EdisonPersistenceService } from "./core/EdisonPersistenceService";
+import { EdisonPreferencesService } from "./core/EdisonPreferencesService";
 import { EdisonSceneDocumentService } from "./core/EdisonSceneDocumentService";
 import { EdisonSelectionService } from "./core/EdisonSelectionService";
 import { EdisonTransformService } from "./core/EdisonTransformService";
@@ -27,6 +28,7 @@ export class EdisonRuntime {
   private readonly objects = new EdisonObjectRegistry();
   private readonly tools = new EdisonToolRegistry(this.events);
   private readonly persistence = new EdisonPersistenceService();
+  private readonly preferences = new EdisonPreferencesService();
   private readonly terrain = new TerrainCoreAdapter();
   private readonly sceneDocuments: EdisonSceneDocumentService;
   private readonly viewport: EdisonViewportService;
@@ -104,7 +106,8 @@ export class EdisonRuntime {
       viewport: this.viewport,
       objects: this.objects,
       transforms: this.transforms,
-      events: this.events
+      events: this.events,
+      preferences: this.preferences
     };
     this.tools.bindContext(this.context);
     this.pluginManager = new EdisonPluginManager(this.context);

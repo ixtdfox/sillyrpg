@@ -31,6 +31,7 @@ export class BuiltinCorePlugin implements EdisonPlugin {
   public constructor(private readonly options: BuiltinCorePluginOptions) {}
 
   public activate(context: EdisonPluginContext): void {
+    this.restoreEditorPreferences(context);
     this.registerCommands(context);
     this.registerToolbar(context);
     this.registerTools(context);
@@ -85,12 +86,27 @@ export class BuiltinCorePlugin implements EdisonPlugin {
       context.commands.register({
         id: "edison.toggleGrid",
         title: "Grid",
-        execute: () => context.viewport.setGridVisible(!context.viewport.getGridVisible())
+        execute: () => {
+          const nextVisible = !context.viewport.getGridVisible();
+          context.viewport.setGridVisible(nextVisible);
+          context.preferences.set("edison.viewport.gridVisible", nextVisible);
+        }
       }),
       context.commands.register({
         id: "edison.toggleAxes",
         title: "Axes",
-        execute: () => context.viewport.setAxesVisible(!context.viewport.getAxesVisible())
+        execute: () => {
+          const nextVisible = !context.viewport.getAxesVisible();
+          context.viewport.setAxesVisible(nextVisible);
+          context.preferences.set("edison.viewport.axesVisible", nextVisible);
+        }
+      }),
+      context.commands.register({
+        id: "edison.openPluginManager",
+        title: "Plugin Manager",
+        execute: () => {
+          context.events.emit("edison.pluginManager.open", {});
+        }
       }),
       context.commands.register({
         id: "edison.installPluginZip",
@@ -142,6 +158,11 @@ export class BuiltinCorePlugin implements EdisonPlugin {
         isEnabled: () => context.selection.getSelectedObjectId() !== null
       })
     );
+  }
+
+  private restoreEditorPreferences(context: EdisonPluginContext): void {
+    context.viewport.setGridVisible(context.preferences.get("edison.viewport.gridVisible", context.viewport.getGridVisible()));
+    context.viewport.setAxesVisible(context.preferences.get("edison.viewport.axesVisible", context.viewport.getAxesVisible()));
   }
 
   private registerToolbar(context: EdisonPluginContext): void {

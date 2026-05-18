@@ -21,10 +21,6 @@ export class EdisonBootstrap {
         const result = await this.options.zipInstaller.install(file);
         if (result.ok && result.plugin) {
           await this.options.pluginManager.register(result.plugin);
-          return {
-            ...result,
-            message: `Plugin '${result.plugin.manifest.name}' installed.`
-          };
         }
 
         return result;
@@ -32,6 +28,15 @@ export class EdisonBootstrap {
       onBackToMenu: this.options.onBackToMenu,
       reloadSceneContent: this.options.reloadSceneContent
     }));
+
+    const installedPlugins = await this.options.zipInstaller.loadInstalledPlugins();
+    for (const result of installedPlugins) {
+      if (result.ok && result.plugin) {
+        await this.options.pluginManager.register(result.plugin);
+      } else if (result.message) {
+        this.options.context.events.emit("edison.message", { text: result.message });
+      }
+    }
 
     await this.options.loadInitialSceneContent();
   }

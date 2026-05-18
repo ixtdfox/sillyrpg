@@ -1,6 +1,6 @@
 # Edison Plugin Authoring
 
-Edison plugins are declarative modules that receive an editor context during activation. Edison v1 supports DOM panels, in-memory registration, and session-local installation from ZIP archives.
+Edison plugins are declarative modules that receive an editor context during activation. Edison v1 supports DOM panels, persistent dev-server ZIP installation, and local preference storage.
 
 ## Manifest
 
@@ -45,6 +45,7 @@ export interface EdisonPluginContext {
   readonly objects: EdisonObjectRegistry;
   readonly transforms: EdisonTransformService;
   readonly events: EdisonEventBus;
+  readonly preferences: EdisonPreferencesService;
 }
 ```
 
@@ -160,6 +161,22 @@ const dispose = context.scene.registerSaveParticipant({
 });
 ```
 
+## Persist Plugin Settings
+
+Use `context.preferences` for UI state that should survive Edison and dev-server restarts. Prefer the plugin-scoped helpers so keys stay isolated:
+
+```ts
+const settings = context.preferences.getPluginValue("example.hello", "settings", {
+  brushSize: 8,
+  activeTab: "generate"
+});
+
+context.preferences.setPluginValue("example.hello", "settings", {
+  ...settings,
+  brushSize: 12
+});
+```
+
 ## Minimal Plugin Example
 
 ```ts
@@ -216,6 +233,8 @@ my-plugin.zip
 
 ## ZIP Installer Status
 
-Edison v1 includes a `Plugins` top menu with an `Install from ZIP` file picker. `EdisonPluginZipInstaller` reads `edison-plugin.json`, imports the configured `entry` as an ES module, and registers the exported `plugin` or default export.
+Edison v1 includes a `Plugins` top menu with `Plugin Manager` and `Install from ZIP`. `EdisonPluginZipInstaller` reads `edison-plugin.json`, persists the archive under `assets/edison/plugins/installed/`, imports the configured `entry` as an ES module, and registers the exported `plugin` or default export.
 
-The installer is intentionally dependency-free. It supports stored ZIP entries and deflated entries when the browser provides `DecompressionStream`. Plugin installation is session-local in v1; persistent plugin storage and asset URL resolution are planned.
+Installing another archive with the same plugin `id` updates the existing installation. Edison reloads installed plugins on startup through the dev-server `/__edison/plugins` endpoint.
+
+The installer is intentionally dependency-free. It supports stored ZIP entries and deflated entries when the browser provides `DecompressionStream`. Production packaging for externally installed plugins is still planned.
