@@ -37,15 +37,15 @@ export class TerrainMaterialBuilder {
     if (descriptor.material?.kind === "bakedTexture") {
       material.diffuseColor = this.colorResolver.resolveColor3(descriptor.material.color ?? "#FFFFFF");
       const texture = new Texture(
-        normalizeAssetPath(descriptor.material.texture),
+        resolveRuntimeTerrainTextureUrl(normalizeAssetPath(descriptor.material.texture)),
         scene,
         false,
         false,
-        Texture.TRILINEAR_SAMPLINGMODE
+        Texture.BILINEAR_SAMPLINGMODE
       );
       texture.wrapU = Texture.CLAMP_ADDRESSMODE;
       texture.wrapV = Texture.CLAMP_ADDRESSMODE;
-      texture.anisotropicFilteringLevel = 8;
+      texture.anisotropicFilteringLevel = 16;
       if (descriptor.material.uvScale) {
         texture.uScale = descriptor.material.uvScale[0];
         texture.vScale = descriptor.material.uvScale[1];
@@ -71,4 +71,19 @@ export class TerrainMaterialBuilder {
   private buildBandColors(vertexHeights: readonly number[], bands: readonly SceneTerrainMaterialBandDescriptor[]): number[] {
     return this.colorResolver.buildHeightBandColors(vertexHeights, bands);
   }
+}
+
+function resolveRuntimeTerrainTextureUrl(textureUrl: string): string {
+  if (
+    textureUrl.startsWith("data:") ||
+    textureUrl.startsWith("blob:") ||
+    !textureUrl.startsWith("/assets/generated/terrain/")
+  ) {
+    return textureUrl;
+  }
+
+  const baseUrl = typeof window === "undefined" ? "http://localhost" : window.location.origin;
+  const url = new URL(textureUrl, baseUrl);
+  url.searchParams.set("terrainTextureRev", String(Date.now()));
+  return `${url.pathname}${url.search}${url.hash}`;
 }

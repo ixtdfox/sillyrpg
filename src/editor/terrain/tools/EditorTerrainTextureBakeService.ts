@@ -5,8 +5,8 @@ import type { TerrainTextureLayerDescriptor } from "../editing/TerrainTextureLay
 
 const DEFAULT_BAKE_PIXELS_PER_WORLD_UNIT = 32;
 const MIN_BAKE_RESOLUTION = 1024;
-const MAX_BAKE_RESOLUTION = 4096;
-const LAYER_SAMPLE_SIZE = 256;
+const MAX_BAKE_RESOLUTION = 8192;
+const LAYER_SAMPLE_SIZE = 512;
 
 interface LayerImageSample {
   readonly width: number;

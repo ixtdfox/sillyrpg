@@ -1,7 +1,7 @@
 const manifest = {
   id: "sillyrpg.terrain-tools",
   name: "Terrain Tools",
-  version: "0.1.15",
+  version: "0.1.16",
   author: "SillyRPG",
   description: "Procedural terrain generation, sculpting, and texture paint for Edison.",
   entry: "dist/index.js",
@@ -19,10 +19,10 @@ const MAX_RESOLUTION = 513;
 const TEXTURE_PREVIEW_PIXELS_PER_WORLD_UNIT = 12;
 const TEXTURE_RUNTIME_PIXELS_PER_WORLD_UNIT = 32;
 const TEXTURE_MIN_BAKE_RESOLUTION = 1024;
-const TEXTURE_PREVIEW_MAX_BAKE_RESOLUTION = 2048;
-const TEXTURE_RUNTIME_MAX_BAKE_RESOLUTION = 4096;
+const TEXTURE_PREVIEW_MAX_BAKE_RESOLUTION = 4096;
+const TEXTURE_RUNTIME_MAX_BAKE_RESOLUTION = 8192;
 const TEXTURE_PAINT_STRENGTH_SCALE = 0.1;
-const LAYER_SAMPLE_SIZE = 256;
+const LAYER_SAMPLE_SIZE = 512;
 const WORLD_VERTICAL_TILE_SIZE = 1;
 const WORLD_GRID_ORIGIN_Y = 0;
 const layerImageCache = new Map();

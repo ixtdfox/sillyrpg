@@ -251,7 +251,7 @@ export class EdisonViewportService {
     const texture = this.createBakedTexturePreview(`terrain-texture-preview:${terrainDescriptor.id}`, textureSource);
     texture.wrapU = Texture.CLAMP_ADDRESSMODE;
     texture.wrapV = Texture.CLAMP_ADDRESSMODE;
-    texture.anisotropicFilteringLevel = 8;
+    texture.anisotropicFilteringLevel = 16;
     for (const mesh of meshes) {
       this.applyBakedTexturePreviewToMesh(mesh, terrainDescriptor.id, texture);
       mesh.metadata = {
@@ -746,7 +746,7 @@ export class EdisonViewportService {
     textureSource: EdisonTerrainTexturePaintPreviewSource
   ): Texture {
     if (typeof textureSource === "string") {
-      return new Texture(textureSource, this.scene, false, false, Texture.TRILINEAR_SAMPLINGMODE);
+      return new Texture(textureSource, this.scene, false, false, Texture.BILINEAR_SAMPLINGMODE);
     }
 
     const texture = new DynamicTexture(
@@ -757,7 +757,7 @@ export class EdisonViewportService {
       },
       this.scene,
       false,
-      Texture.TRILINEAR_SAMPLINGMODE
+      Texture.BILINEAR_SAMPLINGMODE
     );
     const context = texture.getContext();
     context.clearRect(0, 0, textureSource.width, textureSource.height);
