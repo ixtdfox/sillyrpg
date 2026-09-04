@@ -8,6 +8,7 @@ export interface EdisonModelAssetDragPayload {
   readonly modelPath: string;
   readonly category: string;
   readonly objectType: string;
+  readonly connectedPresetId?: string;
 }
 
 export function createEdisonModelAssetDragPayload(model: EdisonModelAssetOption): EdisonModelAssetDragPayload {
@@ -16,7 +17,8 @@ export function createEdisonModelAssetDragPayload(model: EdisonModelAssetOption)
     title: model.title,
     modelPath: model.rawModelPath,
     category: model.category,
-    objectType: model.objectType
+    objectType: model.objectType,
+    connectedPresetId: model.connectedPresetId
   };
 }
 
@@ -49,7 +51,8 @@ export function readEdisonModelAssetDragData(dataTransfer: DataTransfer | null):
       title: parsed.title,
       modelPath: parsed.modelPath,
       category: parsed.category,
-      objectType: parsed.objectType
+      objectType: parsed.objectType,
+      connectedPresetId: parsed.connectedPresetId
     };
   } catch {
     return null;

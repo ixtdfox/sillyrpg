@@ -20,6 +20,7 @@ import {
   importSceneTerrainContent,
   type ImportedSceneAssetNodes,
   type ImportedSceneContent,
+  type ImportedSceneObjectContent,
   type ImportedSceneTerrainContent
 } from "../../core/world/scene/SceneContentLoader";
 import type { SceneDescriptor, SceneObjectDescriptor } from "../../core/world/scene/SceneDescriptor";
@@ -69,6 +70,8 @@ export class EdisonViewportService {
   private readonly highlightedMeshes: Mesh[] = [];
   private readonly gridMeshes: LinesMesh[];
   private readonly brushPreviewMeshes: LinesMesh[] = [];
+  private placementPreview: ImportedSceneObjectContent | null = null;
+  private placementPreviewRequest = 0;
   private canvasRestore: { readonly parent: Node; readonly nextSibling: Node | null; readonly style: string } | null = null;
   private gridVisible = true;
   private axesVisible = true;
@@ -309,6 +312,97 @@ export class EdisonViewportService {
     this.refreshTerrainLod(1);
   }
 
+  public async setPlacementPreview(descriptor: SceneObjectDescriptor): Promise<void> {
+    const request = ++this.placementPreviewRequest;
+    this.disposePlacementPreview();
+    const current = this.objects.getContent();
+    if (!current) {
+      return;
+    }
+
+    const imported = await this.modelAdapter.importObject(this.scene, descriptor, current.root);
+    if (request !== this.placementPreviewRequest || current !== this.objects.getContent()) {
+      this.disposeImportedNodes(imported);
+      if (!imported.root.isDisposed()) {
+        imported.root.dispose(false);
+      }
+      return;
+    }
+
+    this.placementPreview = imported;
+    this.placementPreview.root.setEnabled(false);
+    for (const mesh of imported.meshes) {
+      mesh.isPickable = false;
+      mesh.visibility = 0.45;
+      mesh.metadata = {
+        ...(mesh.metadata as Record<string, unknown> | undefined),
+        edisonPlacementPreview: true,
+        gameHelper: true
+      };
+    }
+  }
+
+  public updatePlacementPreviewPosition(position: Vector3): void {
+    if (!this.placementPreview) {
+      return;
+    }
+
+    applyTransform(this.placementPreview.root, {
+      position: [position.x, position.y, position.z]
+    });
+    this.placementPreview.root.computeWorldMatrix(true);
+  }
+
+  public setPlacementPreviewVisible(visible: boolean): void {
+    this.placementPreview?.root.setEnabled(visible);
+  }
+
+  public clearPlacementPreview(): void {
+    this.placementPreviewRequest += 1;
+    this.disposePlacementPreview();
+  }
+
+  public async replaceSceneObject(descriptor: SceneObjectDescriptor): Promise<void> {
+    const current = this.objects.getContent();
+    if (!current) {
+      throw new Error("Load a scene before replacing an object.");
+    }
+
+    const existing = current.sceneObjects.find((object) => object.objectId === descriptor.id);
+    if (!existing) {
+      throw new Error(`Scene object '${descriptor.id}' is not loaded.`);
+    }
+
+    const importedObject = await this.modelAdapter.importObject(this.scene, descriptor, current.root);
+    this.objects.removeObject(existing.objectId);
+    const nextContent: ImportedSceneContent = {
+      ...current,
+      meshes: replaceImportedNodes(current.meshes, existing.meshes, importedObject.meshes),
+      renderableMeshes: replaceImportedNodes(current.renderableMeshes, existing.renderableMeshes, importedObject.renderableMeshes),
+      helperMeshes: replaceImportedNodes(current.helperMeshes, existing.helperMeshes, importedObject.helperMeshes),
+      transformNodes: replaceImportedNodes(current.transformNodes, existing.transformNodes, importedObject.transformNodes),
+      skeletons: replaceImportedNodes(current.skeletons, existing.skeletons, importedObject.skeletons),
+      animationGroups: replaceImportedNodes(current.animationGroups, existing.animationGroups, importedObject.animationGroups),
+      particleSystems: replaceImportedNodes(current.particleSystems, existing.particleSystems, importedObject.particleSystems),
+      sceneObjects: current.sceneObjects.map((object) => object.objectId === descriptor.id ? importedObject : object)
+    };
+
+    this.objects.setContent(nextContent);
+    this.lightingAdapter.apply(nextContent.lightingDescriptor, [
+      {
+        ownerId: "edison:terrain",
+        source: "terrain",
+        meshes: nextContent.terrainMeshes
+      },
+      {
+        ownerId: "edison:scene-objects",
+        source: "sceneObject",
+        meshes: nextContent.sceneObjects.flatMap((object) => object.renderableMeshes)
+      }
+    ]);
+    this.refreshTerrainLod(1);
+  }
+
   private collectTerrainPreviewMeshes(current: ImportedSceneContent, terrainId: string): Mesh[] {
     const terrainContent = current.terrainContent;
     const meshes = new Set<Mesh>();
@@ -480,6 +574,7 @@ export class EdisonViewportService {
   }
 
   public clearSceneContent(): void {
+    this.clearPlacementPreview();
     this.clearTerrainBrushPreview();
     this.terrainTexturePreviewAdapter.dispose();
     const content = this.objects.getContent();
@@ -850,6 +945,18 @@ export class EdisonViewportService {
     }
   }
 
+  private disposePlacementPreview(): void {
+    if (!this.placementPreview) {
+      return;
+    }
+
+    this.disposeImportedNodes(this.placementPreview);
+    if (!this.placementPreview.root.isDisposed()) {
+      this.placementPreview.root.dispose(false);
+    }
+    this.placementPreview = null;
+  }
+
   private disposeImportedNodes(nodes: ImportedSceneAssetNodes): void {
     const terrainLodControllers = "terrainLodControllers" in nodes
       ? (nodes.terrainLodControllers as ImportedSceneContent["terrainLodControllers"])
@@ -944,4 +1051,13 @@ export class EdisonViewportService {
       });
     }
   }
+}
+
+function replaceImportedNodes<T>(
+  allNodes: readonly T[],
+  removedNodes: readonly T[],
+  addedNodes: readonly T[]
+): readonly T[] {
+  const removed = new Set(removedNodes);
+  return [...allNodes.filter((node) => !removed.has(node)), ...addedNodes];
 }

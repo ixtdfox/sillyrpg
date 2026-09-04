@@ -92,6 +92,23 @@ export class EdisonObjectRegistry {
 
     this.disposeImportedObject(object);
     this.objects.delete(objectId);
+    if (this.content) {
+      this.content = {
+        ...this.content,
+        meshes: removeImportedNodes(this.content.meshes, object.meshes),
+        renderableMeshes: removeImportedNodes(this.content.renderableMeshes, object.renderableMeshes),
+        helperMeshes: removeImportedNodes(this.content.helperMeshes, object.helperMeshes),
+        transformNodes: removeImportedNodes(this.content.transformNodes, object.transformNodes),
+        skeletons: removeImportedNodes(this.content.skeletons, object.skeletons),
+        animationGroups: removeImportedNodes(this.content.animationGroups, object.animationGroups),
+        particleSystems: removeImportedNodes(this.content.particleSystems, object.particleSystems),
+        sceneObjects: this.content.sceneObjects.filter((candidate) => candidate.objectId !== objectId),
+        summary: {
+          ...this.content.summary,
+          objectCount: Math.max(0, this.content.summary.objectCount - 1)
+        }
+      };
+    }
     return true;
   }
 
@@ -157,4 +174,9 @@ export class EdisonObjectRegistry {
       }
     }
   }
+}
+
+function removeImportedNodes<T>(allNodes: readonly T[], removedNodes: readonly T[]): readonly T[] {
+  const removed = new Set(removedNodes);
+  return allNodes.filter((node) => !removed.has(node));
 }

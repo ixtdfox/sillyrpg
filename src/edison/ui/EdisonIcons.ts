@@ -1,4 +1,5 @@
 import deleteIcon from "../../../assets/edison/icons/delete.svg?raw";
+import connectedIcon from "../../../assets/edison/icons/connected.svg?raw";
 import moveIcon from "../../../assets/edison/icons/move.svg?raw";
 import rotateIcon from "../../../assets/edison/icons/rotate.svg?raw";
 import selectIcon from "../../../assets/edison/icons/select.svg?raw";
@@ -34,6 +35,7 @@ export function getEdisonIcon(icon: string | undefined, fallback: string): strin
 
 const SVG_ICONS: Record<string, string> = {
   delete: deleteIcon,
+  connected: connectedIcon,
   move: moveIcon,
   rotate: rotateIcon,
   select: selectIcon

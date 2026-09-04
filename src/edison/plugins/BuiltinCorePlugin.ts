@@ -9,6 +9,7 @@ import { HierarchyPanel } from "../ui/panels/HierarchyPanel";
 import { InspectorPanel } from "../ui/panels/InspectorPanel";
 import { ModelsPanel } from "../ui/panels/ModelsPanel";
 import { SceneViewPanel } from "../ui/panels/SceneViewPanel";
+import { EDISON_TERRAIN_SNAP_PREFERENCE_KEY } from "../core/EdisonTerrainSnapService";
 
 export interface BuiltinCorePluginOptions {
   readonly installPluginZip: (file: File) => Promise<EdisonPluginZipInstallResult>;
@@ -103,6 +104,18 @@ export class BuiltinCorePlugin implements EdisonPlugin {
         }
       }),
       context.commands.register({
+        id: "edison.toggleTerrainSnap",
+        title: "Terrain Snap",
+        execute: () => {
+          const nextEnabled = !context.terrainSnap.isEnabled();
+          context.terrainSnap.setEnabled(nextEnabled);
+          context.preferences.set(EDISON_TERRAIN_SNAP_PREFERENCE_KEY, nextEnabled);
+          context.events.emit("edison.message", {
+            text: `Terrain snap ${nextEnabled ? "enabled" : "disabled"}.`
+          });
+        }
+      }),
+      context.commands.register({
         id: "edison.openPluginManager",
         title: "Plugin Manager",
         execute: () => {
@@ -164,6 +177,7 @@ export class BuiltinCorePlugin implements EdisonPlugin {
   private restoreEditorPreferences(context: EdisonPluginContext): void {
     context.viewport.setGridVisible(context.preferences.get("edison.viewport.gridVisible", context.viewport.getGridVisible()));
     context.viewport.setAxesVisible(context.preferences.get("edison.viewport.axesVisible", context.viewport.getAxesVisible()));
+    context.terrainSnap.setEnabled(context.preferences.get(EDISON_TERRAIN_SNAP_PREFERENCE_KEY, true));
   }
 
   private registerToolbar(context: EdisonPluginContext): void {

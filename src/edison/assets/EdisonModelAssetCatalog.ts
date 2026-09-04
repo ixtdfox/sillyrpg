@@ -15,6 +15,8 @@ export interface EdisonModelAssetOption {
   readonly filename: string;
   readonly extension: string;
   readonly tags: readonly string[];
+  readonly connectedPresetId?: string;
+  readonly gridSize?: number;
 }
 
 export interface EdisonModelCategoryOption {
@@ -24,8 +26,8 @@ export interface EdisonModelCategoryOption {
 }
 
 export class EdisonModelAssetCatalog {
-  public getModelOptions(): readonly EdisonModelAssetOption[] {
-    return discoveredModelAssets.map((asset) => {
+  public getModelOptions(connectedObjects: readonly EdisonModelAssetOption[] = []): readonly EdisonModelAssetOption[] {
+    const models = discoveredModelAssets.filter((asset) => asset.category !== "connected").map((asset) => {
       const category = asset.category || "unknown";
       return {
         id: asset.id,
@@ -43,30 +45,21 @@ export class EdisonModelAssetCatalog {
         tags: [...asset.tags]
       };
     });
+
+    return [...models, ...connectedObjects];
   }
 
   public getCategories(models = this.getModelOptions()): readonly EdisonModelCategoryOption[] {
-    const counts = new Map<string, { label: string; count: number }>();
+    const counts = new Map<string, number>();
     for (const model of models) {
-      const current = counts.get(model.category) ?? { label: model.categoryLabel, count: 0 };
-      counts.set(model.category, { label: current.label, count: current.count + 1 });
+      counts.set(model.category, (counts.get(model.category) ?? 0) + 1);
     }
 
-    return [...counts.entries()]
-      .map(([id, value]) => ({
-        id,
-        label: value.label,
-        count: value.count
-      }))
-      .sort((left, right) => {
-        if (left.id === "unknown") {
-          return 1;
-        }
-        if (right.id === "unknown") {
-          return -1;
-        }
-        return left.label.localeCompare(right.label);
-      });
+    return [
+      { id: "buildings", label: "Buildings", count: counts.get("buildings") ?? 0 },
+      { id: "terrain", label: "Terrain", count: counts.get("terrain") ?? 0 },
+      { id: "connected", label: "Connected Objects", count: counts.get("connected") ?? 0 }
+    ];
   }
 }
 

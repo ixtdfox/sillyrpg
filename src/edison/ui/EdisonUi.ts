@@ -49,6 +49,9 @@ export class EdisonUi {
       context.commands.onDidChange(() => this.renderToolbar()),
       context.tools.onDidChange(() => this.renderNonViewportPanels()),
       context.selection.onDidChange(() => this.renderNonViewportPanels()),
+      context.placement.onDidChange(() => this.renderNonViewportPanels()),
+      context.events.on("edison.connectedObjects.changed", () => this.renderNonViewportPanels()),
+      context.events.on("edison.terrainSnap.changed", () => this.renderNonViewportPanels()),
       context.events.on<{ text: string }>("edison.message", (payload) => {
         this.statusBar.setMessage(payload.text);
         this.renderStatus();
@@ -133,7 +136,8 @@ export class EdisonUi {
       this.createCommandMenu("Settings", [
         { commandId: "edison.frameScene", label: "Fit View" },
         { commandId: "edison.toggleGrid", label: "Grid", active: context.viewport.getGridVisible() },
-        { commandId: "edison.toggleAxes", label: "Axes", active: context.viewport.getAxesVisible() }
+        { commandId: "edison.toggleAxes", label: "Axes", active: context.viewport.getAxesVisible() },
+        { commandId: "edison.toggleTerrainSnap", label: "Terrain Snap", active: context.terrainSnap.isEnabled(), checkbox: true }
       ], context),
       this.createCommandMenu("Plugins", [
         { commandId: "edison.openPluginManager", label: "Plugin Manager" },
@@ -199,7 +203,12 @@ export class EdisonUi {
 
   private createCommandMenu(
     label: string,
-    items: ReadonlyArray<{ readonly commandId: string; readonly label: string; readonly active?: boolean }>,
+    items: ReadonlyArray<{
+      readonly commandId: string;
+      readonly label: string;
+      readonly active?: boolean;
+      readonly checkbox?: boolean;
+    }>,
     context: EdisonPluginContext
   ): HTMLElement {
     const menu = document.createElement("details");
@@ -226,10 +235,34 @@ export class EdisonUi {
     const popover = document.createElement("div");
     popover.className = "edison-menu-popover";
     for (const item of items) {
+      if (item.checkbox && item.active !== undefined) {
+        const checkboxLabel = document.createElement("label");
+        const commandEnabled = context.commands.canExecute(item.commandId);
+        checkboxLabel.className = `edison-menu-item edison-menu-checkbox${item.active ? " is-active" : ""}${commandEnabled ? "" : " is-disabled"}`;
+        const checkbox = document.createElement("input");
+        checkbox.type = "checkbox";
+        checkbox.checked = item.active;
+        checkbox.disabled = !commandEnabled;
+        checkbox.addEventListener("change", () => {
+          this.closeOpenMenu();
+          void context.commands.execute(item.commandId).catch((error: unknown) => {
+            context.events.emit("edison.message", { text: error instanceof Error ? error.message : String(error) });
+          });
+        });
+        const checkboxText = document.createElement("span");
+        checkboxText.textContent = item.label;
+        checkboxLabel.append(checkbox, checkboxText);
+        popover.appendChild(checkboxLabel);
+        continue;
+      }
+
       const button = document.createElement("button");
       button.type = "button";
       button.className = `edison-menu-item${item.active ? " is-active" : ""}`;
-      button.textContent = item.label;
+      button.textContent = item.active === undefined ? item.label : `${item.active ? "[x]" : "[ ]"} ${item.label}`;
+      if (item.active !== undefined) {
+        button.setAttribute("aria-pressed", String(item.active));
+      }
       button.disabled = !context.commands.canExecute(item.commandId);
       button.addEventListener("click", () => {
         this.closeOpenMenu();

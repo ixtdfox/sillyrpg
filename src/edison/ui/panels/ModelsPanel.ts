@@ -1,6 +1,6 @@
 import { EdisonModelAssetCatalog, type EdisonModelAssetOption } from "../../assets/EdisonModelAssetCatalog";
 import { EdisonModelThumbnailService } from "../../assets/EdisonModelThumbnailService";
-import { writeEdisonModelAssetDragData } from "../../assets/EdisonModelDragDrop";
+import type { EdisonPlacementAsset } from "../../core/EdisonPlacementService";
 import type { EdisonPluginContext } from "../../plugins/EdisonPlugin";
 
 export class ModelsPanel {
@@ -12,7 +12,7 @@ export class ModelsPanel {
 
   public render(host: HTMLElement, context: EdisonPluginContext): void {
     const token = ++this.renderToken;
-    const models = this.catalog.getModelOptions();
+    const models = this.getModelOptions(context);
     const categories = this.catalog.getCategories(models);
     const filteredModels = this.filterModels(models);
 
@@ -21,7 +21,7 @@ export class ModelsPanel {
     host.append(
       this.renderHeader(models.length, filteredModels.length),
       this.renderSearch(host, context),
-      this.renderCategories(categories, context),
+      this.renderCategories(categories, models.length, context),
       this.renderContent(filteredModels, token, context)
     );
   }
@@ -39,7 +39,7 @@ export class ModelsPanel {
         <div class="edison-models-title">Model Library</div>
         <div class="edison-models-subtitle" data-model-count>${visibleCount} visible / ${totalCount} total</div>
       </div>
-      <div class="edison-models-drop-hint">Drag into Scene View</div>
+      <div class="edison-models-drop-hint">Click, then place in Scene View</div>
     `;
     return header;
   }
@@ -63,12 +63,13 @@ export class ModelsPanel {
 
   private renderCategories(
     categories: readonly { readonly id: string; readonly label: string; readonly count: number }[],
+    totalCount: number,
     context: EdisonPluginContext
   ): HTMLElement {
     const container = document.createElement("div");
     container.className = "edison-models-categories";
 
-    const allButton = this.createCategoryButton("all", "All", categories.reduce((count, category) => count + category.count, 0), context);
+    const allButton = this.createCategoryButton("all", "All", totalCount, context);
     container.appendChild(allButton);
     for (const category of categories) {
       container.appendChild(this.createCategoryButton(category.id, category.label, category.count, context));
@@ -119,10 +120,9 @@ export class ModelsPanel {
   private createModelCard(model: EdisonModelAssetOption, token: number, context: EdisonPluginContext): HTMLElement {
     const card = document.createElement("button");
     card.type = "button";
-    card.className = "edison-model-card";
-    card.draggable = true;
-    card.title = `Drag ${model.title} into Scene View`;
-    card.setAttribute("aria-label", `Drag model ${model.title} into Scene View`);
+    card.className = `edison-model-card${context.placement.getSelectedAsset()?.id === model.id ? " is-selected" : ""}`;
+    card.title = `Select ${model.title}, then click in Scene View to place it`;
+    card.setAttribute("aria-label", `Select model ${model.title} for placement`);
     card.innerHTML = `
       <span class="edison-model-card-thumb" data-model-thumb="${escapeHtml(model.id)}">
         <span class="edison-model-card-thumb-fallback">${escapeHtml(model.categoryLabel.slice(0, 1).toUpperCase())}</span>
@@ -135,19 +135,13 @@ export class ModelsPanel {
     `;
 
     card.addEventListener("click", () => {
-      context.events.emit("edison.message", { text: `Drag '${model.title}' into Scene View to place it.` });
-    });
-    card.addEventListener("dragstart", (event) => {
-      if (!event.dataTransfer) {
-        return;
-      }
-
-      writeEdisonModelAssetDragData(event.dataTransfer, model);
-      card.classList.add("is-dragging");
-      context.events.emit("edison.message", { text: `Drop '${model.title}' into Scene View.` });
-    });
-    card.addEventListener("dragend", () => {
-      card.classList.remove("is-dragging");
+      const wasSelected = context.placement.getSelectedAsset()?.id === model.id;
+      context.placement.toggle(this.toPlacementAsset(model));
+      context.events.emit("edison.message", {
+        text: wasSelected
+          ? `Placement disabled for '${model.title}'.`
+          : `Selected '${model.title}'. Click in Scene View to place it.`
+      });
     });
 
     void this.thumbnailService.getThumbnail(model.rawModelPath).then((thumbnailUrl) => {
@@ -190,7 +184,7 @@ export class ModelsPanel {
 
   private refreshResults(host: HTMLElement, context: EdisonPluginContext): void {
     const token = ++this.renderToken;
-    const models = this.catalog.getModelOptions();
+    const models = this.getModelOptions(context);
     const filteredModels = this.filterModels(models);
     const counter = host.querySelector<HTMLElement>("[data-model-count]");
     if (counter) {
@@ -204,6 +198,21 @@ export class ModelsPanel {
     } else {
       host.appendChild(nextContent);
     }
+  }
+
+  private getModelOptions(context: EdisonPluginContext): readonly EdisonModelAssetOption[] {
+    return this.catalog.getModelOptions(context.connectedObjects.getModelAssetOptions());
+  }
+
+  private toPlacementAsset(model: EdisonModelAssetOption): EdisonPlacementAsset {
+    return {
+      id: model.id,
+      title: model.title,
+      modelPath: model.rawModelPath,
+      objectType: model.objectType,
+      gridSize: model.gridSize ?? 1,
+      connectedPresetId: model.connectedPresetId
+    };
   }
 }
 

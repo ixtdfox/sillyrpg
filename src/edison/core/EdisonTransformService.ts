@@ -39,6 +39,18 @@ export class EdisonTransformService {
       readonly scale?: Vector3;
     }
   ): void {
+    this.updateObjectTransformInternal(objectId, transform, true);
+  }
+
+  private updateObjectTransformInternal(
+    objectId: string,
+    transform: {
+      readonly position?: Vector3;
+      readonly rotation?: Vector3;
+      readonly scale?: Vector3;
+    },
+    committed: boolean
+  ): void {
     const updated = this.scene.updateObjectTransform(objectId, transform);
     if (!updated) {
       return;
@@ -47,6 +59,9 @@ export class EdisonTransformService {
     this.objects.updateObjectTransform(updated);
     this.viewport.updateSelectionHighlight(this.selection.getSelection());
     this.events.emit("edison.transform.changed", { objectId });
+    if (committed) {
+      this.events.emit("edison.transform.committed", { objectId });
+    }
   }
 
   public rotateSelectedY(direction: -1 | 1): void {
@@ -78,6 +93,7 @@ export class EdisonTransformService {
 
     this.objects.removeObject(objectId);
     this.selection.clear();
+    this.events.emit("edison.object.deleted", { objectId });
     this.events.emit("edison.message", { text: "Object deleted." });
   }
 
@@ -113,7 +129,7 @@ export class EdisonTransformService {
       currentPosition.y,
       this.snapWorldZ(rawPosition.z)
     );
-    this.updateObjectTransform(this.moveSession.objectId, { position: nextPosition });
+    this.updateObjectTransformInternal(this.moveSession.objectId, { position: nextPosition }, false);
     return true;
   }
 
@@ -122,7 +138,9 @@ export class EdisonTransformService {
       return false;
     }
 
+    const objectId = this.moveSession.objectId;
     this.moveSession = null;
+    this.events.emit("edison.transform.committed", { objectId });
     this.events.emit("edison.message", { text: "Object moved." });
     return true;
   }
@@ -165,9 +183,9 @@ export class EdisonTransformService {
     const nextRotationY = this.normalizeQuarterTurn(
       this.normalizeQuarterTurn(this.rotateSession.startRotationY) + quarterSteps * quarterTurn
     );
-    this.updateObjectTransform(this.rotateSession.objectId, {
+    this.updateObjectTransformInternal(this.rotateSession.objectId, {
       rotation: new Vector3(object.rotation[0], nextRotationY, object.rotation[2])
-    });
+    }, false);
     return true;
   }
 
@@ -176,7 +194,9 @@ export class EdisonTransformService {
       return false;
     }
 
+    const objectId = this.rotateSession.objectId;
     this.rotateSession = null;
+    this.events.emit("edison.transform.committed", { objectId });
     this.events.emit("edison.message", { text: "Object rotated." });
     return true;
   }

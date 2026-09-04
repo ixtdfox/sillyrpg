@@ -167,6 +167,12 @@ export interface SceneObjectDescriptor {
   readonly position: SceneVector3Tuple;
   readonly rotation: SceneVector3Tuple;
   readonly scale: SceneVector3Tuple;
+  readonly connected?: SceneConnectedObjectDescriptor;
+}
+
+export interface SceneConnectedObjectDescriptor {
+  readonly groupId: string;
+  readonly presetId: string;
 }
 
 export interface SceneDescriptor {
@@ -629,6 +635,7 @@ function parseObjectDescriptor(value: unknown, sourceLabel: string): SceneObject
   const record = value as Record<string, unknown>;
   const asset = requireString(record.asset, `${sourceLabel}.asset must be a string.`);
   assertAllowedSceneAssetPath(asset, `${sourceLabel}.asset`);
+  const connected = parseConnectedObjectDescriptor(record.connected, `${sourceLabel}.connected`);
 
   return {
     id: requireString(record.id, `${sourceLabel}.id must be a string.`),
@@ -636,7 +643,24 @@ function parseObjectDescriptor(value: unknown, sourceLabel: string): SceneObject
     asset,
     position: parseVector3Tuple(record.position, `${sourceLabel}.position`) ?? DEFAULT_POSITION,
     rotation: parseVector3Tuple(record.rotation, `${sourceLabel}.rotation`) ?? DEFAULT_ROTATION,
-    scale: parseVector3Tuple(record.scale, `${sourceLabel}.scale`) ?? DEFAULT_SCALE
+    scale: parseVector3Tuple(record.scale, `${sourceLabel}.scale`) ?? DEFAULT_SCALE,
+    connected
+  };
+}
+
+function parseConnectedObjectDescriptor(value: unknown, sourceLabel: string): SceneConnectedObjectDescriptor | undefined {
+  if (value === undefined) {
+    return undefined;
+  }
+
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    throw new Error(`${sourceLabel} must be an object.`);
+  }
+
+  const record = value as Record<string, unknown>;
+  return {
+    groupId: requireString(record.groupId, `${sourceLabel}.groupId must be a string.`),
+    presetId: requireString(record.presetId, `${sourceLabel}.presetId must be a string.`)
   };
 }
 

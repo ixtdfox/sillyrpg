@@ -142,7 +142,8 @@ export class EdisonSceneDocumentService {
       readonly position?: Vector3;
       readonly rotation?: Vector3;
       readonly scale?: Vector3;
-    }
+    },
+    markDirty = true
   ): SceneObjectDescriptor | null {
     const descriptor = this.requireDescriptor();
     let updatedObject: SceneObjectDescriptor | null = null;
@@ -164,10 +165,43 @@ export class EdisonSceneDocumentService {
       })
     };
 
-    if (updatedObject) {
+    if (updatedObject && markDirty) {
       this.markDirty("Object transform changed.");
     }
 
+    return updatedObject;
+  }
+
+  public updateObjectVisual(
+    objectId: string,
+    visual: {
+      readonly asset: string;
+      readonly rotation: readonly [number, number, number];
+    },
+    markDirty = true
+  ): SceneObjectDescriptor | null {
+    const descriptor = this.requireDescriptor();
+    const object = descriptor.objects.find((candidate) => candidate.id === objectId);
+    if (!object) {
+      return null;
+    }
+
+    if (object.asset === visual.asset && object.rotation.every((value, index) => value === visual.rotation[index])) {
+      return object;
+    }
+
+    const updatedObject: SceneObjectDescriptor = {
+      ...object,
+      asset: visual.asset,
+      rotation: visual.rotation
+    };
+    this.descriptor = {
+      ...descriptor,
+      objects: descriptor.objects.map((candidate) => candidate.id === objectId ? updatedObject : candidate)
+    };
+    if (markDirty) {
+      this.markDirty("Connected object topology changed.");
+    }
     return updatedObject;
   }
 
@@ -186,13 +220,17 @@ export class EdisonSceneDocumentService {
     return true;
   }
 
-  public setTerrain(terrain: SceneTerrainDescriptor | null, message = "Terrain changed."): SceneDescriptor {
+  public setTerrain(terrain: SceneTerrainDescriptor | null, message = "Terrain changed.", markDirty = true): SceneDescriptor {
     const descriptor = this.requireDescriptor();
     this.descriptor = {
       ...descriptor,
       terrain: terrain ? JSON.parse(JSON.stringify(terrain)) as SceneTerrainDescriptor : null
     };
-    this.markDirty(message);
+    if (markDirty) {
+      this.markDirty(message);
+    } else {
+      this.emitChanged(message);
+    }
     return this.requireDescriptor();
   }
 

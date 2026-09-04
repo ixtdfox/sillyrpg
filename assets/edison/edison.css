@@ -97,6 +97,24 @@
   color: #68758A;
   cursor: default;
 }
+.edison-menu-checkbox {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.edison-menu-checkbox input {
+  accent-color: #F7B84B;
+  margin: 0;
+}
+.edison-menu-checkbox:hover:not(.is-disabled),
+.edison-menu-checkbox.is-active {
+  background: #21304A;
+  color: #FFF0C2;
+}
+.edison-menu-checkbox.is-disabled {
+  color: #68758A;
+  cursor: default;
+}
 .edison-button {
   height: 30px;
   border: 1px solid #2C405E;
@@ -727,15 +745,18 @@
   padding: 7px;
   text-align: left;
   font: inherit;
-  cursor: grab;
+  cursor: pointer;
 }
 .edison-model-card:hover,
-.edison-model-card.is-dragging {
+.edison-model-card.is-selected {
   border-color: #F7B84B;
   background: #17263D;
 }
+.edison-model-card.is-selected {
+  box-shadow: inset 3px 0 0 #F7B84B;
+}
 .edison-model-card:active {
-  cursor: grabbing;
+  cursor: pointer;
 }
 .edison-model-card-thumb {
   position: relative;
@@ -786,4 +807,48 @@
   white-space: nowrap;
   color: #9EAEC6;
   font-size: 11px;
+}
+.edison-connected-objects-host {
+  display: grid;
+  gap: 10px;
+  align-content: start;
+}
+.edison-connected-objects-grid {
+  display: grid;
+  gap: 8px;
+}
+.edison-connected-object-card {
+  display: grid;
+  gap: 5px;
+  border: 1px solid #2C405E;
+  border-radius: 7px;
+  background: linear-gradient(135deg, #17263D, #101E31);
+  color: #E7EDF7;
+  padding: 12px;
+  text-align: left;
+  font: inherit;
+  cursor: grab;
+}
+.edison-connected-object-icon {
+  width: 28px;
+  height: 28px;
+  display: grid;
+  place-items: center;
+  color: #F7B84B;
+}
+.edison-connected-object-icon .edison-svg-icon {
+  width: 24px;
+  height: 24px;
+}
+.edison-connected-object-card span {
+  color: #9EAEC6;
+  font-size: 11px;
+}
+.edison-connected-object-card:hover,
+.edison-connected-object-card.is-dragging {
+  border-color: #F7B84B;
+  background: #21304A;
+}
+.edison-connected-object-card:active {
+  cursor: grabbing;
 }

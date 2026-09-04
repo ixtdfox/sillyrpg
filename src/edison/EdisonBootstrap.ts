@@ -1,4 +1,5 @@
 import { BuiltinCorePlugin } from "./plugins/BuiltinCorePlugin";
+import { ConnectedObjectsPlugin } from "./plugins/ConnectedObjectsPlugin";
 import { EdisonPluginManager } from "./plugins/EdisonPluginManager";
 import { EdisonPluginZipInstaller } from "./plugins/EdisonPluginZipInstaller";
 import type { EdisonPluginContext } from "./plugins/EdisonPlugin";
@@ -28,6 +29,7 @@ export class EdisonBootstrap {
       onBackToMenu: this.options.onBackToMenu,
       reloadSceneContent: this.options.reloadSceneContent
     }));
+    await this.options.pluginManager.register(new ConnectedObjectsPlugin());
 
     const installedPlugins = await this.options.zipInstaller.loadInstalledPlugins();
     for (const result of installedPlugins) {
