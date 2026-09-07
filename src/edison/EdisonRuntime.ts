@@ -10,6 +10,7 @@ import { EdisonCommandRegistry } from "./core/EdisonCommandRegistry";
 import { EdisonConnectedObjectService } from "./core/EdisonConnectedObjectService";
 import type { EdisonPluginContext } from "./core/EdisonContext";
 import { EdisonEventBus } from "./core/EdisonEventBus";
+import { EdisonInteriorEditService } from "./core/EdisonInteriorEditService";
 import { EdisonObjectRegistry } from "./core/EdisonObjectRegistry";
 import { EdisonPlacementService, type EdisonPlacementAsset } from "./core/EdisonPlacementService";
 import { EdisonPersistenceService } from "./core/EdisonPersistenceService";
@@ -31,6 +32,7 @@ export class EdisonRuntime {
   private readonly toolbar = new EdisonToolbarRegistry();
   private readonly panels = new EdisonPanelRegistry();
   private readonly selection = new EdisonSelectionService();
+  private readonly interiorEdit = new EdisonInteriorEditService();
   private readonly objects = new EdisonObjectRegistry();
   private readonly placement = new EdisonPlacementService();
   private readonly tools = new EdisonToolRegistry(this.events);
@@ -61,7 +63,14 @@ export class EdisonRuntime {
       return;
     }
 
-    if (this.selection.getSelectedObjectId()) {
+    const selectedObjectId = this.selection.getSelectedObjectId();
+    if (selectedObjectId) {
+      if (!this.interiorEdit.canEditObject(this.sceneDocuments.getObject(selectedObjectId))) {
+        this.selection.clear();
+        event.preventDefault();
+        return;
+      }
+
       this.transforms.deleteSelected();
       event.preventDefault();
     }
@@ -135,6 +144,10 @@ export class EdisonRuntime {
     const connectedObject = readEdisonConnectedObjectDragData(event.dataTransfer);
     if (connectedObject) {
       event.preventDefault();
+      if (this.interiorEdit.isActive()) {
+        this.events.emit("edison.message", { text: "Interior edit mode only accepts Interior models." });
+        return;
+      }
       void this.placeDroppedConnectedObject(connectedObject.presetId, event.clientX, event.clientY);
       return;
     }
@@ -188,6 +201,7 @@ export class EdisonRuntime {
       apiVersion: "1",
       commands: this.commands,
       connectedObjects: this.connectedObjects,
+      interiorEdit: this.interiorEdit,
       toolbar: this.toolbar,
       panels: this.panels,
       tools: this.tools,
@@ -211,6 +225,15 @@ export class EdisonRuntime {
       this.selection.onDidChange((selection) => {
         this.viewport.updateSelectionHighlight(selection);
         this.events.emit("edison.selection.changed", { selection });
+      }),
+      this.interiorEdit.onDidChange((state) => {
+        const selectedAsset = this.placement.getSelectedAsset();
+        if (state && selectedAsset && selectedAsset.objectType !== "interior") {
+          this.placement.clear();
+        }
+        this.viewport.applyInteriorEditState(state);
+        this.synchronizeInteriorEditSelection(state);
+        this.events.emit("edison.interiorEdit.changed", { state });
       }),
       this.pluginManager.onDidChange(() => {
         this.events.emit("edison.plugins.changed", { plugins: this.pluginManager.listInstalledPlugins() });
@@ -271,6 +294,7 @@ export class EdisonRuntime {
       }
 
       this.placement.clear();
+      this.interiorEdit.exit();
       this.selection.clear();
       await this.viewport.loadScene(loaded.option, loaded.descriptor);
       await this.connectedObjects.refreshAll({ markDirty: false });
@@ -297,6 +321,7 @@ export class EdisonRuntime {
     this.toolbar.dispose();
     this.commands.dispose();
     this.selection.dispose();
+    this.interiorEdit.dispose();
     this.placement.dispose();
     this.connectedObjects.dispose();
     this.terrainSnap.dispose();
@@ -315,15 +340,24 @@ export class EdisonRuntime {
       readonly title: string;
       readonly modelPath: string;
       readonly objectType: string;
+      readonly defaultScale?: number;
       readonly connectedPresetId?: string;
     },
     clientX: number,
     clientY: number
   ): Promise<void> {
     try {
-      const placementPoint = this.viewport.pickGroundPoint(clientX, clientY);
+      if (!this.canPlaceModelInCurrentMode(model.objectType)) {
+        return;
+      }
+
+      const placementPoint = this.pickPlacementPoint(clientX, clientY, model);
       if (!placementPoint) {
-        this.events.emit("edison.message", { text: "Drop over terrain or the ground plane to place a model." });
+        this.events.emit("edison.message", {
+          text: this.interiorEdit.isActive()
+            ? "Drop over the selected building floor to place interior models."
+            : "Drop over terrain or the ground plane to place a model."
+        });
         return;
       }
 
@@ -333,8 +367,16 @@ export class EdisonRuntime {
         return;
       }
 
-      const snappedPosition = this.snapPlacementPoint(placementPoint);
-      const objectDescriptor = this.sceneDocuments.createObjectDescriptorFromModel(model, snappedPosition);
+      const snappedPosition = this.resolvePlacementPosition(placementPoint, model);
+      if (!snappedPosition) {
+        this.events.emit("edison.message", { text: "Drop interior models on or near the selected floor grid." });
+        return;
+      }
+      const objectDescriptor = this.sceneDocuments.createObjectDescriptorFromModel(
+        model,
+        snappedPosition,
+        this.createPlacementDescriptorOptions(model.objectType)
+      );
       this.sceneDocuments.addObject(objectDescriptor, `Placed ${model.title}.`);
       try {
         await this.viewport.addSceneObject(objectDescriptor);
@@ -380,7 +422,8 @@ export class EdisonRuntime {
         asset: asset.modelPath,
         position: [0, this.getPlacementY(asset), 0],
         rotation: [0, 0, 0],
-        scale: [1, 1, 1]
+        scale: this.toUniformScaleTuple(asset.defaultScale ?? 1),
+        ...this.createPlacementDescriptorOptions(asset.objectType)
       });
       if (request !== this.placementUpdateRequest || this.placement.getSelectedAsset()?.id !== asset.id) {
         return;
@@ -398,7 +441,7 @@ export class EdisonRuntime {
   }
 
   private updatePlacementPreview(clientX: number, clientY: number, asset: EdisonPlacementAsset): void {
-    const placementPoint = this.viewport.pickGroundPoint(clientX, clientY);
+    const placementPoint = this.pickPlacementPoint(clientX, clientY, asset);
     if (!placementPoint) {
       this.viewport.setPlacementPreviewVisible(false);
       return;
@@ -409,8 +452,14 @@ export class EdisonRuntime {
   }
 
   private updatePlacementPreviewAtPoint(point: Vector3, asset: EdisonPlacementAsset): void {
+    const position = this.resolvePlacementPosition(point, asset);
+    if (!position) {
+      this.viewport.setPlacementPreviewVisible(false);
+      return;
+    }
+
     this.viewport.setPlacementPreviewVisible(true);
-    this.viewport.updatePlacementPreviewPosition(this.snapPlacementPoint(point, asset.gridSize, this.getPlacementY(asset)));
+    this.viewport.updatePlacementPreviewPosition(position);
   }
 
   private async commitPlacement(clientX: number, clientY: number): Promise<void> {
@@ -419,13 +468,25 @@ export class EdisonRuntime {
       return;
     }
 
-    const placementPoint = this.viewport.pickGroundPoint(clientX, clientY);
-    if (!placementPoint) {
-      this.events.emit("edison.message", { text: "Click over terrain or the ground plane to place an object." });
+    if (!this.canPlaceModelInCurrentMode(asset.objectType)) {
       return;
     }
 
-    const snappedPosition = this.snapPlacementPoint(placementPoint, asset.gridSize, this.getPlacementY(asset));
+    const placementPoint = this.pickPlacementPoint(clientX, clientY, asset);
+    if (!placementPoint) {
+      this.events.emit("edison.message", {
+        text: this.interiorEdit.isActive()
+          ? "Click over the selected building floor to place interior models."
+          : "Click over terrain or the ground plane to place an object."
+      });
+      return;
+    }
+
+    const snappedPosition = this.resolvePlacementPosition(placementPoint, asset);
+    if (!snappedPosition) {
+      this.events.emit("edison.message", { text: "Place interior models on or near the selected floor grid." });
+      return;
+    }
     try {
       if (asset.connectedPresetId) {
         const objectId = await this.connectedObjects.place(asset.connectedPresetId, snappedPosition);
@@ -437,8 +498,9 @@ export class EdisonRuntime {
         id: asset.id,
         title: asset.title,
         modelPath: asset.modelPath,
-        objectType: asset.objectType
-      }, snappedPosition);
+        objectType: asset.objectType,
+        defaultScale: asset.defaultScale
+      }, snappedPosition, this.createPlacementDescriptorOptions(asset.objectType));
       this.sceneDocuments.addObject(objectDescriptor, `Placed ${asset.title}.`);
       try {
         await this.viewport.addSceneObject(objectDescriptor);
@@ -454,7 +516,19 @@ export class EdisonRuntime {
     }
   }
 
-  private snapPlacementPoint(point: Vector3, gridSize = RECT_TILE_SIZE, placementY = WORLD_GRID_ORIGIN_Y): Vector3 {
+  private resolvePlacementPosition(point: Vector3, asset: { readonly objectType: string; readonly connectedPresetId?: string; readonly gridSize?: number }): Vector3 | null {
+    const state = this.interiorEdit.getState();
+    if (state && asset.objectType === "interior") {
+      return this.viewport.snapInteriorFloorPoint(point, state.activeBuildingId, state.activeStoryIndex);
+    }
+
+    const snappedPosition = this.snapPlacementPoint(point, asset.gridSize, this.getPlacementY(asset, point.y));
+    return asset.connectedPresetId
+      ? snappedPosition
+      : this.viewport.projectPointOntoTerrain(snappedPosition);
+  }
+
+  private snapPlacementPoint(point: Vector3, gridSize = RECT_TILE_SIZE, placementY = point.y): Vector3 {
     return new Vector3(
       WORLD_GRID_ORIGIN_X + Math.round((point.x - WORLD_GRID_ORIGIN_X) / gridSize) * gridSize,
       placementY,
@@ -462,12 +536,57 @@ export class EdisonRuntime {
     );
   }
 
-  private getPlacementY(asset: EdisonPlacementAsset): number {
+  private getPlacementY(asset: { readonly connectedPresetId?: string }, pickedY = WORLD_GRID_ORIGIN_Y): number {
     if (!asset.connectedPresetId) {
-      return WORLD_GRID_ORIGIN_Y;
+      return pickedY;
     }
 
     return this.connectedObjects.getDefinition(asset.connectedPresetId)?.placementY ?? WORLD_GRID_ORIGIN_Y;
+  }
+
+  private pickPlacementPoint(clientX: number, clientY: number, asset: { readonly objectType: string }): Vector3 | null {
+    const state = this.interiorEdit.getState();
+    if (state && asset.objectType === "interior") {
+      return this.viewport.pickInteriorFloorPoint(clientX, clientY, state.activeBuildingId, state.activeStoryIndex);
+    }
+
+    return this.viewport.pickGroundPoint(clientX, clientY);
+  }
+
+  private createPlacementDescriptorOptions(objectType: string): { readonly interiorBuildingId?: string } {
+    const activeBuildingId = this.interiorEdit.getActiveBuildingId();
+    return activeBuildingId && objectType === "interior"
+      ? { interiorBuildingId: activeBuildingId }
+      : {};
+  }
+
+  private canPlaceModelInCurrentMode(objectType: string): boolean {
+    if (!this.interiorEdit.isActive() || objectType === "interior") {
+      return true;
+    }
+
+    this.events.emit("edison.message", { text: "Interior edit mode only accepts Interior models." });
+    return false;
+  }
+
+  private synchronizeInteriorEditSelection(state: ReturnType<EdisonInteriorEditService["getState"]>): void {
+    if (!state) {
+      return;
+    }
+
+    const selection = this.selection.getSelection();
+    if (selection?.kind !== "scene-object") {
+      this.selection.clear();
+      return;
+    }
+
+    if (!this.interiorEdit.canEditObject(this.sceneDocuments.getObject(selection.objectId))) {
+      this.selection.clear();
+    }
+  }
+
+  private toUniformScaleTuple(scale: number): readonly [number, number, number] {
+    return [scale, scale, scale] as const;
   }
 
   private isEditingText(target: EventTarget | null): boolean {

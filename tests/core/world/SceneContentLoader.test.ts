@@ -15,7 +15,11 @@ import {
   instantiateCachedSceneAsset
 } from "../../../src/core/world/scene/SceneContentLoader";
 import { RuntimeSceneObjectPreparer } from "../../../src/core/world/scene/RuntimeSceneObjectPreparer";
-import type { SceneDescriptor, SceneObjectDescriptor } from "../../../src/core/world/scene/SceneDescriptor";
+import {
+  parseSceneDescriptor,
+  type SceneDescriptor,
+  type SceneObjectDescriptor
+} from "../../../src/core/world/scene/SceneDescriptor";
 
 function assert(condition: boolean, message: string): void {
   if (!condition) {
@@ -103,6 +107,27 @@ function testUncachedMeshesDisposeOwnedMaterials(): void {
 
   scene.dispose();
   engine.dispose();
+}
+
+function testSceneDescriptorPreservesInteriorBuildingOwnership(): void {
+  const descriptor = parseSceneDescriptor({
+    schemaVersion: 2,
+    id: "owned-interior-scene",
+    objects: [{
+      id: "interior-chair-001",
+      type: "interior",
+      asset: "assets/models/interior/Chair/Chair_1.glb",
+      interiorBuildingId: "building-villa-001",
+      position: [1, 0, 1],
+      rotation: [0, 0, 0],
+      scale: [0.5, 0.5, 0.5]
+    }]
+  }, "Owned interior scene");
+
+  assert(
+    descriptor.objects[0]?.interiorBuildingId === "building-villa-001",
+    "Expected parsed interior descriptor to preserve its building owner."
+  );
 }
 
 function testRuntimeBuildingPreparationKeepsNavigationPickableAndFreezesStaticTransforms(): void {
@@ -209,6 +234,46 @@ function testRuntimePreparationDoesNotChangeEditorStyleNonBuildingContent(): voi
   engine.dispose();
 }
 
+function testRuntimePreparationFreezesStaticStreetPropsWithoutChangingPicking(): void {
+  const engine = new NullEngine();
+  const scene = new Scene(engine);
+  const root = new TransformNode("street-root", scene);
+  const mesh = MeshBuilder.CreateBox("street-prop", { size: 1 }, scene);
+  mesh.parent = root;
+  mesh.isPickable = true;
+  const descriptor: SceneObjectDescriptor = {
+    id: "street-prop-a",
+    type: "street",
+    asset: "/assets/models/street/Bench/model.glb",
+    position: [0, 0, 0],
+    rotation: [0, 0, 0],
+    scale: [1, 1, 1]
+  };
+  const content = {
+    objectId: descriptor.id,
+    type: descriptor.type,
+    root,
+    descriptor,
+    cullingBounds: null,
+    meshes: [mesh],
+    renderableMeshes: [mesh],
+    helperMeshes: [],
+    transformNodes: [],
+    skeletons: [],
+    animationGroups: [],
+    particleSystems: []
+  };
+
+  const result = new RuntimeSceneObjectPreparer().prepare(content);
+
+  assert(result.prepared && result.frozenNodeCount === 2, "Expected a static street prop to be prepared for broad-phase culling.");
+  assert(root.isWorldMatrixFrozen && mesh.isWorldMatrixFrozen, "Expected static street transforms to be frozen.");
+  assert(mesh.isPickable, "Expected street prop picking to remain available.");
+
+  scene.dispose();
+  engine.dispose();
+}
+
 function testRuntimePreparationDoesNotFreezeInteractiveBuildingTransforms(): void {
   const engine = new NullEngine();
   const scene = new Scene(engine);
@@ -286,14 +351,53 @@ async function testSceneContentReportsMonotonicLoadingProgress(): Promise<void> 
   engine.dispose();
 }
 
+async function testSceneContentDefersInteriorObjectsWithoutImportingTheirAssets(): Promise<void> {
+  const engine = new NullEngine();
+  const scene = new Scene(engine);
+  const root = new TransformNode("scene-root", scene);
+  const interiorObject: SceneObjectDescriptor = {
+    id: "interior-chair-001",
+    type: "interior",
+    asset: "/assets/models/interior/Chair/Chair_1.glb",
+    position: [1, 0, 1],
+    rotation: [0, 0, 0],
+    scale: [1, 1, 1]
+  };
+  const descriptor: SceneDescriptor = {
+    schemaVersion: 2,
+    id: "deferred-interior-scene",
+    terrain: null,
+    objects: [interiorObject]
+  };
+
+  const content = await importSceneContent({
+    scene,
+    sceneId: descriptor.id,
+    root,
+    rootNamePrefix: "deferred-test",
+    descriptor,
+    shouldDeferSceneObject: (object) => object.type === "interior"
+  });
+
+  assert(content.sceneObjects.length === 0, "Expected deferred interiors to stay out of the initial imported scene.");
+  assert(content.deferredSceneObjects.length === 1, "Expected the interior descriptor to be retained for streaming.");
+  assert(content.deferredSceneObjects[0]?.id === interiorObject.id, "Expected the original interior descriptor to be deferred.");
+
+  scene.dispose();
+  engine.dispose();
+}
+
 async function run(): Promise<void> {
   testAdoptImportedSceneNodesPreservesLocalImportedTransforms();
   testCachedInstancesDoNotDisposeSharedMaterials();
   testUncachedMeshesDisposeOwnedMaterials();
+  testSceneDescriptorPreservesInteriorBuildingOwnership();
   testRuntimeBuildingPreparationKeepsNavigationPickableAndFreezesStaticTransforms();
   testRuntimePreparationDoesNotChangeEditorStyleNonBuildingContent();
+  testRuntimePreparationFreezesStaticStreetPropsWithoutChangingPicking();
   testRuntimePreparationDoesNotFreezeInteractiveBuildingTransforms();
   await testSceneContentReportsMonotonicLoadingProgress();
+  await testSceneContentDefersInteriorObjectsWithoutImportingTheirAssets();
   await testGeneratedTerrainWithLodUsesPickSurfaceInsteadOfFullCanonicalMesh();
   await testGeneratedTerrainWithBakedHeightMapImportsInCoreRuntime();
   await testGeneratedTerrainWithoutBakedHeightMapIsRejectedByCoreRuntimeImport();

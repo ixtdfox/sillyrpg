@@ -8,6 +8,7 @@ export interface EdisonModelAssetDragPayload {
   readonly modelPath: string;
   readonly category: string;
   readonly objectType: string;
+  readonly defaultScale?: number;
   readonly connectedPresetId?: string;
 }
 
@@ -18,6 +19,7 @@ export function createEdisonModelAssetDragPayload(model: EdisonModelAssetOption)
     modelPath: model.rawModelPath,
     category: model.category,
     objectType: model.objectType,
+    defaultScale: model.defaultScale,
     connectedPresetId: model.connectedPresetId
   };
 }
@@ -52,6 +54,7 @@ export function readEdisonModelAssetDragData(dataTransfer: DataTransfer | null):
       modelPath: parsed.modelPath,
       category: parsed.category,
       objectType: parsed.objectType,
+      defaultScale: typeof parsed.defaultScale === "number" ? parsed.defaultScale : undefined,
       connectedPresetId: parsed.connectedPresetId
     };
   } catch {

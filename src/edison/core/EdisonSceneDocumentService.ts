@@ -42,6 +42,7 @@ export interface EdisonPlaceableModelAsset {
   readonly title: string;
   readonly modelPath: string;
   readonly objectType: string;
+  readonly defaultScale?: number;
 }
 
 export class EdisonSceneDocumentService {
@@ -112,14 +113,19 @@ export class EdisonSceneDocumentService {
     return this.descriptor?.objects.find((object) => object.id === objectId) ?? null;
   }
 
-  public createObjectDescriptorFromModel(asset: EdisonPlaceableModelAsset, position: Vector3): SceneObjectDescriptor {
+  public createObjectDescriptorFromModel(
+    asset: EdisonPlaceableModelAsset,
+    position: Vector3,
+    options: { readonly interiorBuildingId?: string } = {}
+  ): SceneObjectDescriptor {
     return {
       id: this.createNextObjectId(asset.objectType, this.resolveObjectAssetId(asset)),
       type: asset.objectType,
       asset: asset.modelPath,
       position: this.toTuple(position),
       rotation: [0, 0, 0],
-      scale: [1, 1, 1]
+      scale: this.toUniformScaleTuple(asset.defaultScale ?? 1),
+      ...(options.interiorBuildingId ? { interiorBuildingId: options.interiorBuildingId } : {})
     };
   }
 
@@ -397,6 +403,10 @@ export class EdisonSceneDocumentService {
 
   private toTuple(vector: Vector3): readonly [number, number, number] {
     return [vector.x, vector.y, vector.z] as const;
+  }
+
+  private toUniformScaleTuple(scale: number): readonly [number, number, number] {
+    return [scale, scale, scale] as const;
   }
 
   private createNextObjectId(objectType: string, assetId: string): string {

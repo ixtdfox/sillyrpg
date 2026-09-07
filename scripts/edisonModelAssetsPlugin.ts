@@ -78,13 +78,16 @@ function discoverModelAssets(rootDirectory: string): DiscoveredEdisonModelAsset[
     const pathSegments = normalizedDirectory ? normalizedDirectory.split("/") : [];
     const category = pathSegments[0] ?? "unknown";
     const baseName = filename.replace(/\.[^.]+$/, "");
+    const titleSource = /^(model|object)$/i.test(baseName)
+      ? pathSegments.at(-1) ?? baseName
+      : baseName;
     const baseId = slugify(relativePath.replace(/\.[^.]+$/, ""));
     const id = ensureUniqueId(baseId, relativePath, seenIds);
     const extension = path.posix.extname(filename).toLowerCase();
 
     return {
       id,
-      title: humanize(baseName),
+      title: humanize(titleSource),
       model: toAssetModelPath(relativePath),
       relativePath,
       directory: normalizedDirectory,
@@ -146,7 +149,11 @@ function toAssetModelPath(relativePath: string): string {
 }
 
 function humanize(value: string): string {
-  return value.replace(/[_-]+/g, " ").replace(/\s+/g, " ").trim();
+  return value
+    .replace(/([a-z0-9])([A-Z])/g, "$1 $2")
+    .replace(/[_-]+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
 }
 
 function slugify(value: string): string {

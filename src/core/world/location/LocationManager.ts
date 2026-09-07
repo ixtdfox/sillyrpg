@@ -27,10 +27,14 @@ import type { District } from "./district/District";
 import type { DistrictModelData, DistrictSceneData } from "./district/DistrictModelData";
 import { GameDistrict } from "./district/GameDistrict";
 import {
+  disposeImportedSceneObjectContent,
   disposeImportedSceneMesh,
   importSceneContent,
+  importSceneObjectContent,
   type ImportedSceneObjectContent
 } from "../scene/SceneContentLoader";
+import { RuntimeSceneObjectPreparer } from "../scene/RuntimeSceneObjectPreparer";
+import type { SceneObjectDescriptor } from "../scene/SceneDescriptor";
 import type { SceneLightingDescriptor } from "../../lighting/LightingTypes";
 import type { ShadowMeshBatch } from "../../lighting/SceneShadowRegistry";
 import { selectSceneObjectShadowMeshes } from "../../lighting/BuildingShadowMeshSelector";
@@ -54,6 +58,10 @@ interface LoadedDistrictSceneContent {
   readonly terrainLodControllers: TerrainQuadtreeLodController[];
   readonly sceneObjectMeshes: AbstractMesh[];
   readonly sceneObjects: ImportedSceneObjectContent[];
+  readonly deferredInteriorObjects: SceneObjectDescriptor[];
+  readonly loadedInteriorObjects: Map<string, ImportedSceneObjectContent>;
+  readonly loadingInteriorObjectIds: Set<string>;
+  readonly failedInteriorObjectIds: Set<string>;
   readonly transformNodes: TransformNode[];
   readonly skeletons: Skeleton[];
   readonly animationGroups: AnimationGroup[];
@@ -150,6 +158,9 @@ export class LocationManager {
     loadMargin: 8,
     unloadDistance: 2
   };
+  private static readonly INTERIOR_LOAD_DISTANCE = 6;
+  private static readonly INTERIOR_UNLOAD_DISTANCE = 10;
+  private static readonly MAX_CONCURRENT_INTERIOR_LOADS = 2;
 
   /** Shared language manager used by location and district entities. */
   private readonly langManager: LangManager;
@@ -176,6 +187,11 @@ export class LocationManager {
   private terrainLodDebugEnabled: boolean;
   private terrainPolygonWireDebugEnabled: boolean;
   private terrainLodRuntimeTuning: TerrainQuadtreeLodRuntimeTuning | null;
+  private readonly runtimeSceneObjectPreparer: RuntimeSceneObjectPreparer;
+  private lastInteriorPlayerPosition: Vector3 | null;
+  private contentRevision: number;
+  private structuralContentRevision: number;
+  private activeInteriorLoadCount: number;
 
   /**
    * Creates a location manager.
@@ -197,6 +213,11 @@ export class LocationManager {
     this.terrainLodDebugEnabled = false;
     this.terrainPolygonWireDebugEnabled = false;
     this.terrainLodRuntimeTuning = null;
+    this.runtimeSceneObjectPreparer = new RuntimeSceneObjectPreparer();
+    this.lastInteriorPlayerPosition = null;
+    this.contentRevision = 0;
+    this.structuralContentRevision = 0;
+    this.activeInteriorLoadCount = 0;
   }
 
   /**
@@ -269,6 +290,7 @@ export class LocationManager {
     onProgress?: LoadingProgressReporter
   ): Promise<DistrictSceneInitializationResult> {
     this.activeDistrict = district;
+    this.lastInteriorPlayerPosition = null;
     this.disposeActiveDistrictScenes();
     const initialScene = district.getInitialScene();
     onProgress?.({ progress: 0.02, message: `Opening ${district.getTitle()}` });
@@ -344,6 +366,8 @@ export class LocationManager {
       mapLoadingProgress(onProgress, 0.04, 0.96)
     );
     this.activeDistrictScenes.set(coordKey, content);
+    this.contentRevision += 1;
+    this.structuralContentRevision += 1;
     console.info(
       `[DistrictStreaming] chunkLoad complete coord=${coordKey} descriptor=${content.descriptorPath ?? "none"} terrain=${content.terrainModelPath ?? "none"} objects=${content.objectCount} meshes=${content.meshes.length}`
     );
@@ -367,6 +391,8 @@ export class LocationManager {
     this.disposeLoadedDistrictScene(content);
     this.activeDistrictScenes.delete(coordKey);
     this.invalidateActiveDistrictCaches();
+    this.contentRevision += 1;
+    this.structuralContentRevision += 1;
   }
 
   /**
@@ -418,6 +444,50 @@ export class LocationManager {
     }
 
     return this.activeDistrictSceneObjectsCache;
+  }
+
+  /** Revision of loaded runtime content, including dynamically streamed interiors. */
+  public getContentRevision(): number {
+    return this.contentRevision;
+  }
+
+  /** Revision for chunk changes that require navigation and trigger rebuilding. */
+  public getStructuralContentRevision(): number {
+    return this.structuralContentRevision;
+  }
+
+  /** Starts interior imports near the closest building and unloads them outside the hysteresis range. */
+  public updateInteriorSceneObjects(scene: BabylonScene, playerPosition: Vector3): void {
+    if (!this.lastInteriorPlayerPosition) {
+      this.lastInteriorPlayerPosition = playerPosition.clone();
+    } else {
+      this.lastInteriorPlayerPosition.copyFrom(playerPosition);
+    }
+
+    for (const content of this.activeDistrictScenes.values()) {
+      for (const descriptor of content.deferredInteriorObjects) {
+        const distance = this.getInteriorDistanceToClosestBuilding(content, descriptor, playerPosition);
+        if (distance > LocationManager.INTERIOR_UNLOAD_DISTANCE) {
+          content.failedInteriorObjectIds.delete(descriptor.id);
+        }
+        const loadedObject = content.loadedInteriorObjects.get(descriptor.id);
+        if (loadedObject) {
+          if (distance > LocationManager.INTERIOR_UNLOAD_DISTANCE) {
+            this.unloadInteriorObject(content, loadedObject);
+          }
+          continue;
+        }
+
+        if (
+          distance <= LocationManager.INTERIOR_LOAD_DISTANCE &&
+          this.activeInteriorLoadCount < LocationManager.MAX_CONCURRENT_INTERIOR_LOADS &&
+          !content.loadingInteriorObjectIds.has(descriptor.id) &&
+          !content.failedInteriorObjectIds.has(descriptor.id)
+        ) {
+          void this.loadInteriorObject(scene, content, descriptor);
+        }
+      }
+    }
   }
 
   public getShadowMeshBatches(): readonly ShadowMeshBatch[] {
@@ -1076,6 +1146,145 @@ export class LocationManager {
     return "mixed";
   }
 
+  private async loadInteriorObject(
+    scene: BabylonScene,
+    content: LoadedDistrictSceneContent,
+    descriptor: SceneObjectDescriptor
+  ): Promise<void> {
+    content.loadingInteriorObjectIds.add(descriptor.id);
+    this.activeInteriorLoadCount += 1;
+    let importedObject: ImportedSceneObjectContent | null = null;
+
+    try {
+      importedObject = await importSceneObjectContent(
+        scene,
+        descriptor,
+        content.root,
+        "district-interior",
+        true
+      );
+      if (scene.isDisposed || content.root.isDisposed()) {
+        disposeImportedSceneObjectContent(importedObject);
+        importedObject = null;
+        return;
+      }
+      const preparation = this.runtimeSceneObjectPreparer.prepare(importedObject);
+      if (preparation.frozenNodeCount === 0) {
+        importedObject = { ...importedObject, cullingBounds: null };
+      }
+
+      const activeContent = this.activeDistrictScenes.get(this.createCoordKey(content.coord));
+      const playerPosition = this.lastInteriorPlayerPosition;
+      if (
+        activeContent !== content ||
+        scene.isDisposed ||
+        content.root.isDisposed() ||
+        !playerPosition ||
+        this.getInteriorDistanceToClosestBuilding(content, descriptor, playerPosition) >
+          LocationManager.INTERIOR_UNLOAD_DISTANCE
+      ) {
+        disposeImportedSceneObjectContent(importedObject);
+        return;
+      }
+
+      this.appendInteriorObject(content, importedObject);
+      importedObject = null;
+    } catch (error) {
+      if (this.activeDistrictScenes.get(this.createCoordKey(content.coord)) === content) {
+        content.failedInteriorObjectIds.add(descriptor.id);
+        console.warn(`[InteriorStreaming] Failed to load '${descriptor.id}' from '${descriptor.asset}'.`, error);
+      }
+      if (importedObject) {
+        disposeImportedSceneObjectContent(importedObject);
+      }
+    } finally {
+      content.loadingInteriorObjectIds.delete(descriptor.id);
+      this.activeInteriorLoadCount = Math.max(0, this.activeInteriorLoadCount - 1);
+    }
+  }
+
+  private appendInteriorObject(
+    content: LoadedDistrictSceneContent,
+    importedObject: ImportedSceneObjectContent
+  ): void {
+    content.loadedInteriorObjects.set(importedObject.objectId, importedObject);
+    content.sceneObjects.push(importedObject);
+    content.meshes.push(...importedObject.meshes);
+    content.renderableMeshes.push(...importedObject.renderableMeshes);
+    content.sceneObjectMeshes.push(...importedObject.renderableMeshes);
+    content.transformNodes.push(...importedObject.transformNodes);
+    content.skeletons.push(...importedObject.skeletons);
+    content.animationGroups.push(...importedObject.animationGroups);
+    content.particleSystems.push(...importedObject.particleSystems);
+    this.invalidateActiveDistrictCaches();
+    this.contentRevision += 1;
+  }
+
+  private unloadInteriorObject(
+    content: LoadedDistrictSceneContent,
+    importedObject: ImportedSceneObjectContent
+  ): void {
+    content.loadedInteriorObjects.delete(importedObject.objectId);
+    removeArrayItem(content.sceneObjects, importedObject);
+    removeArrayItems(content.meshes, importedObject.meshes);
+    removeArrayItems(content.renderableMeshes, importedObject.renderableMeshes);
+    removeArrayItems(content.sceneObjectMeshes, importedObject.renderableMeshes);
+    removeArrayItems(content.transformNodes, importedObject.transformNodes);
+    removeArrayItems(content.skeletons, importedObject.skeletons);
+    removeArrayItems(content.animationGroups, importedObject.animationGroups);
+    removeArrayItems(content.particleSystems, importedObject.particleSystems);
+    disposeImportedSceneObjectContent(importedObject);
+    this.invalidateActiveDistrictCaches();
+    this.contentRevision += 1;
+  }
+
+  private getInteriorDistanceToClosestBuilding(
+    content: LoadedDistrictSceneContent,
+    descriptor: SceneObjectDescriptor,
+    playerPosition: Vector3
+  ): number {
+    content.root.computeWorldMatrix(true);
+    const interiorPosition = Vector3.TransformCoordinates(
+      new Vector3(descriptor.position[0], descriptor.position[1], descriptor.position[2]),
+      content.root.getWorldMatrix()
+    );
+
+    if (descriptor.interiorBuildingId) {
+      for (const districtContent of this.activeDistrictScenes.values()) {
+        const owner = districtContent.sceneObjects.find((sceneObject) => {
+          return sceneObject.type === "building" && sceneObject.objectId === descriptor.interiorBuildingId;
+        });
+        if (owner?.cullingBounds) {
+          return distanceToBoundsXZ(owner.cullingBounds, playerPosition);
+        }
+      }
+    }
+
+    let closestBuilding: ImportedSceneObjectContent | null = null;
+    let closestDistance = Number.POSITIVE_INFINITY;
+
+    for (const districtContent of this.activeDistrictScenes.values()) {
+      for (const sceneObject of districtContent.sceneObjects) {
+        if (sceneObject.type !== "building" || !sceneObject.cullingBounds) {
+          continue;
+        }
+
+        const distance = distanceToBoundsXZ(sceneObject.cullingBounds, interiorPosition);
+        if (
+          distance < closestDistance ||
+          (distance === closestDistance && sceneObject.objectId.localeCompare(closestBuilding?.objectId ?? "") < 0)
+        ) {
+          closestDistance = distance;
+          closestBuilding = sceneObject;
+        }
+      }
+    }
+
+    return closestBuilding?.cullingBounds
+      ? distanceToBoundsXZ(closestBuilding.cullingBounds, playerPosition)
+      : Math.hypot(interiorPosition.x - playerPosition.x, interiorPosition.z - playerPosition.z);
+  }
+
   /**
    * Disposes previously loaded district scene resources.
    */
@@ -1150,6 +1359,7 @@ export class LocationManager {
       generatedTerrainLodEnabled: true,
       runtimeStaticPreparationEnabled: true,
       runtimeConnectedObjectBatchingEnabled: true,
+      shouldDeferSceneObject: (descriptor) => descriptor.type === "interior",
       onProgress
     });
     for (const controller of importedContent.terrainLodControllers) {
@@ -1170,6 +1380,10 @@ export class LocationManager {
       terrainLodControllers: [...importedContent.terrainLodControllers],
       sceneObjectMeshes: importedContent.sceneObjects.flatMap((object) => object.renderableMeshes),
       sceneObjects: [...importedContent.sceneObjects],
+      deferredInteriorObjects: [...importedContent.deferredSceneObjects],
+      loadedInteriorObjects: new Map(),
+      loadingInteriorObjectIds: new Set(),
+      failedInteriorObjectIds: new Set(),
       transformNodes: [...importedContent.transformNodes],
       skeletons: [...importedContent.skeletons],
       animationGroups: [...importedContent.animationGroups],
@@ -1221,4 +1435,26 @@ export class LocationManager {
 
 function isTerrainVisualOnlyMesh(mesh: AbstractMesh): boolean {
   return (mesh.metadata as { terrainVisualOnly?: unknown } | null | undefined)?.terrainVisualOnly === true;
+}
+
+function distanceToBoundsXZ(bounds: { readonly minimumWorld: Vector3; readonly maximumWorld: Vector3 }, point: Vector3): number {
+  const dx = Math.max(bounds.minimumWorld.x - point.x, 0, point.x - bounds.maximumWorld.x);
+  const dz = Math.max(bounds.minimumWorld.z - point.z, 0, point.z - bounds.maximumWorld.z);
+  return Math.sqrt(dx * dx + dz * dz);
+}
+
+function removeArrayItem<T>(target: T[], item: T): void {
+  const index = target.indexOf(item);
+  if (index >= 0) {
+    target.splice(index, 1);
+  }
+}
+
+function removeArrayItems<T>(target: T[], items: readonly T[]): void {
+  const removals = new Set(items);
+  for (let index = target.length - 1; index >= 0; index -= 1) {
+    if (removals.has(target[index]!)) {
+      target.splice(index, 1);
+    }
+  }
 }

@@ -167,6 +167,7 @@ export interface SceneObjectDescriptor {
   readonly position: SceneVector3Tuple;
   readonly rotation: SceneVector3Tuple;
   readonly scale: SceneVector3Tuple;
+  readonly interiorBuildingId?: string;
   readonly connected?: SceneConnectedObjectDescriptor;
 }
 
@@ -635,6 +636,10 @@ function parseObjectDescriptor(value: unknown, sourceLabel: string): SceneObject
   const record = value as Record<string, unknown>;
   const asset = requireString(record.asset, `${sourceLabel}.asset must be a string.`);
   assertAllowedSceneAssetPath(asset, `${sourceLabel}.asset`);
+  const interiorBuildingId = optionalString(
+    record.interiorBuildingId,
+    `${sourceLabel}.interiorBuildingId must be a string if provided.`
+  );
   const connected = parseConnectedObjectDescriptor(record.connected, `${sourceLabel}.connected`);
 
   return {
@@ -644,6 +649,7 @@ function parseObjectDescriptor(value: unknown, sourceLabel: string): SceneObject
     position: parseVector3Tuple(record.position, `${sourceLabel}.position`) ?? DEFAULT_POSITION,
     rotation: parseVector3Tuple(record.rotation, `${sourceLabel}.rotation`) ?? DEFAULT_ROTATION,
     scale: parseVector3Tuple(record.scale, `${sourceLabel}.scale`) ?? DEFAULT_SCALE,
+    ...(interiorBuildingId ? { interiorBuildingId } : {}),
     connected
   };
 }

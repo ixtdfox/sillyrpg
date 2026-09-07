@@ -4,6 +4,7 @@ export interface EdisonPlacementAsset {
   readonly modelPath: string;
   readonly objectType: string;
   readonly gridSize: number;
+  readonly defaultScale?: number;
   readonly connectedPresetId?: string;
 }
 

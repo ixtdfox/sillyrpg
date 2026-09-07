@@ -4,6 +4,7 @@ import type {
   ShadowCasterMode,
   ShadowReceiverMode
 } from "./LightingTypes";
+import { RUNTIME_FRUSTUM_CULLED_METADATA_KEY } from "../scene/visibility/SceneObjectVisibilityController";
 
 export type ShadowMeshSource = "terrain" | "sceneObject" | "character" | "unknown";
 
@@ -219,7 +220,12 @@ export class ShadowMeshPolicy {
    * которые не должны участвовать в runtime-освещении.
    */
   private isEligibleMesh(mesh: AbstractMesh): boolean {
-    if (mesh.isDisposed() || !mesh.isEnabled() || !mesh.isVisible || mesh.getTotalVertices() <= 0) {
+    if (
+      mesh.isDisposed() ||
+      (!mesh.isEnabled() && !this.isRuntimeFrustumCulled(mesh)) ||
+      !mesh.isVisible ||
+      mesh.getTotalVertices() <= 0
+    ) {
       return false;
     }
 
@@ -228,5 +234,18 @@ export class ShadowMeshPolicy {
     }
 
     return true;
+  }
+
+  private isRuntimeFrustumCulled(mesh: AbstractMesh): boolean {
+    let node: Node | null = mesh.parent;
+    while (node) {
+      const metadata = node.metadata as Record<string, unknown> | null | undefined;
+      if (metadata?.[RUNTIME_FRUSTUM_CULLED_METADATA_KEY] === true) {
+        return true;
+      }
+      node = node.parent;
+    }
+
+    return false;
   }
 }

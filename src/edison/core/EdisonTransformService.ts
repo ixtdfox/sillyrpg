@@ -10,7 +10,10 @@ interface MoveSession {
   readonly pointerId: number;
   readonly objectId: string;
   readonly offset: Vector3;
+  readonly snapPosition?: EdisonMovePositionSnapper;
 }
+
+export type EdisonMovePositionSnapper = (rawPosition: Vector3, currentPosition: Vector3) => Vector3 | null;
 
 interface RotateSession {
   readonly pointerId: number;
@@ -97,7 +100,12 @@ export class EdisonTransformService {
     this.events.emit("edison.message", { text: "Object deleted." });
   }
 
-  public beginMove(pointerId: number, objectId: string, placementPoint: Vector3 | null): boolean {
+  public beginMove(
+    pointerId: number,
+    objectId: string,
+    placementPoint: Vector3 | null,
+    snapPosition?: EdisonMovePositionSnapper
+  ): boolean {
     const object = this.scene.getObject(objectId);
     if (!object || !placementPoint) {
       return false;
@@ -107,7 +115,8 @@ export class EdisonTransformService {
     this.moveSession = {
       pointerId,
       objectId,
-      offset: objectPosition.subtract(placementPoint)
+      offset: objectPosition.subtract(placementPoint),
+      snapPosition
     };
     return true;
   }
@@ -124,11 +133,17 @@ export class EdisonTransformService {
 
     const currentPosition = new Vector3(object.position[0], object.position[1], object.position[2]);
     const rawPosition = placementPoint.add(this.moveSession.offset);
-    const nextPosition = new Vector3(
-      this.snapWorldX(rawPosition.x),
-      currentPosition.y,
-      this.snapWorldZ(rawPosition.z)
-    );
+    const nextPosition = this.moveSession.snapPosition
+      ? this.moveSession.snapPosition(rawPosition, currentPosition)
+      : new Vector3(
+          this.snapWorldX(rawPosition.x),
+          currentPosition.y,
+          this.snapWorldZ(rawPosition.z)
+        );
+    if (!nextPosition) {
+      return false;
+    }
+
     this.updateObjectTransformInternal(this.moveSession.objectId, { position: nextPosition }, false);
     return true;
   }
@@ -147,6 +162,10 @@ export class EdisonTransformService {
 
   public isMovingPointer(pointerId: number): boolean {
     return this.moveSession?.pointerId === pointerId;
+  }
+
+  public getMovingObjectId(pointerId: number): string | null {
+    return this.moveSession?.pointerId === pointerId ? this.moveSession.objectId : null;
   }
 
   public beginRotate(pointerId: number, objectId: string, clientX: number, clientY: number): boolean {

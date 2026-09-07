@@ -1,0 +1,978 @@
+{
+  "assets": [
+    {
+      "source": "ATM/ATM.fbx",
+      "asset": "assets/models/street/ATM/ATM.glb",
+      "category": "street",
+      "meshCount": 1,
+      "sizeBytes": 49972
+    },
+    {
+      "source": "Adventurer/Adventurer.fbx",
+      "asset": "assets/models/street/Adventurer/Adventurer.glb",
+      "category": "street",
+      "meshCount": 5,
+      "sizeBytes": 1121452
+    },
+    {
+      "source": "Air conditioner/1286_Air Conditioner.obj",
+      "asset": "assets/models/street/Air conditioner/1286_Air Conditioner.glb",
+      "category": "street",
+      "meshCount": 1,
+      "sizeBytes": 88484
+    },
+    {
+      "source": "Animated Woman/Casual.fbx",
+      "asset": "assets/models/street/Animated Woman/Casual.glb",
+      "category": "street",
+      "meshCount": 4,
+      "sizeBytes": 738196
+    },
+    {
+      "source": "Animated Woman/Formal.fbx",
+      "asset": "assets/models/street/Animated Woman/Formal.glb",
+      "category": "street",
+      "meshCount": 4,
+      "sizeBytes": 695296
+    },
+    {
+      "source": "Animated Woman-9kF7eTDbhO/Animated Woman.fbx",
+      "asset": "assets/models/street/Animated Woman-9kF7eTDbhO/Animated Woman.glb",
+      "category": "street",
+      "meshCount": 1,
+      "sizeBytes": 289124
+    },
+    {
+      "source": "Bench/model.obj",
+      "asset": "assets/models/street/Bench/model.glb",
+      "category": "street",
+      "meshCount": 1,
+      "sizeBytes": 11736
+    },
+    {
+      "source": "Bicycle/Bike.obj",
+      "asset": "assets/models/street/Bicycle/Bike.glb",
+      "category": "street",
+      "meshCount": 1,
+      "sizeBytes": 2387216
+    },
+    {
+      "source": "Big Building/Building3_Big.fbx",
+      "asset": "assets/models/street/Big Building/Building3_Big.glb",
+      "category": "street",
+      "meshCount": 1,
+      "sizeBytes": 338452
+    },
+    {
+      "source": "Billboard/Billboard 1.obj",
+      "asset": "assets/models/street/Billboard/Billboard 1.glb",
+      "category": "street",
+      "meshCount": 1,
+      "sizeBytes": 65732
+    },
+    {
+      "source": "Box/box_A.fbx",
+      "asset": "assets/models/street/Box/box_A.glb",
+      "category": "street",
+      "meshCount": 1,
+      "sizeBytes": 46356
+    },
+    {
+      "source": "Brown Building/BrownBuilding.fbx",
+      "asset": "assets/models/street/Brown Building/BrownBuilding.glb",
+      "category": "street",
+      "meshCount": 1,
+      "sizeBytes": 55240
+    },
+    {
+      "source": "Building Green/BuildingGreen.fbx",
+      "asset": "assets/models/street/Building Green/BuildingGreen.glb",
+      "category": "street",
+      "meshCount": 1,
+      "sizeBytes": 119548
+    },
+    {
+      "source": "Building Red/buildingRed1.fbx",
+      "asset": "assets/models/street/Building Red/buildingRed1.glb",
+      "category": "street",
+      "meshCount": 1,
+      "sizeBytes": 136672
+    },
+    {
+      "source": "Building Red Corner/buildingRedCorner.fbx",
+      "asset": "assets/models/street/Building Red Corner/buildingRedCorner.glb",
+      "category": "street",
+      "meshCount": 1,
+      "sizeBytes": 172648
+    },
+    {
+      "source": "Bus/1376 Bus.obj",
+      "asset": "assets/models/street/Bus/1376 Bus.glb",
+      "category": "street",
+      "meshCount": 1,
+      "sizeBytes": 127100
+    },
+    {
+      "source": "Bus Stop/BusStop.obj",
+      "asset": "assets/models/street/Bus Stop/BusStop.glb",
+      "category": "street",
+      "meshCount": 1,
+      "sizeBytes": 33868
+    },
+    {
+      "source": "Bus stop sign/bussy.fbx",
+      "asset": "assets/models/street/Bus stop sign/bussy.glb",
+      "category": "street",
+      "meshCount": 1,
+      "sizeBytes": 88592
+    },
+    {
+      "source": "Car/NormalCar1.obj",
+      "asset": "assets/models/street/Car/NormalCar1.glb",
+      "category": "street",
+      "meshCount": 4,
+      "sizeBytes": 163160
+    },
+    {
+      "source": "Car/NormalCar2.obj",
+      "asset": "assets/models/street/Car/NormalCar2.glb",
+      "category": "street",
+      "meshCount": 4,
+      "sizeBytes": 172588
+    },
+    {
+      "source": "Cone/Cone.obj",
+      "asset": "assets/models/street/Cone/Cone.glb",
+      "category": "street",
+      "meshCount": 1,
+      "sizeBytes": 20600
+    },
+    {
+      "source": "Debris Papers/Debris_Papers_2.fbx",
+      "asset": "assets/models/street/Debris Papers/Debris_Papers_2.glb",
+      "category": "street",
+      "meshCount": 1,
+      "sizeBytes": 2148
+    },
+    {
+      "source": "Dumpster/TrashContainer.fbx",
+      "asset": "assets/models/street/Dumpster/TrashContainer.glb",
+      "category": "street",
+      "meshCount": 1,
+      "sizeBytes": 17524
+    },
+    {
+      "source": "Fence/fence.obj",
+      "asset": "assets/models/street/Fence/fence.glb",
+      "category": "street",
+      "meshCount": 1,
+      "sizeBytes": 52692
+    },
+    {
+      "source": "Fence End/FenceEnd.fbx",
+      "asset": "assets/models/street/Fence End/FenceEnd.glb",
+      "category": "street",
+      "meshCount": 1,
+      "sizeBytes": 39296
+    },
+    {
+      "source": "Fence Piece/FencePiece.fbx",
+      "asset": "assets/models/street/Fence Piece/FencePiece.glb",
+      "category": "street",
+      "meshCount": 1,
+      "sizeBytes": 28548
+    },
+    {
+      "source": "Fire Exit/FireExit.fbx",
+      "asset": "assets/models/street/Fire Exit/FireExit.glb",
+      "category": "street",
+      "meshCount": 1,
+      "sizeBytes": 76324
+    },
+    {
+      "source": "Fire hydrant/Fire Hydrant.obj",
+      "asset": "assets/models/street/Fire hydrant/Fire Hydrant.glb",
+      "category": "street",
+      "meshCount": 1,
+      "sizeBytes": 42788
+    },
+    {
+      "source": "Floor Hole/FloorHole.fbx",
+      "asset": "assets/models/street/Floor Hole/FloorHole.glb",
+      "category": "street",
+      "meshCount": 1,
+      "sizeBytes": 4192
+    },
+    {
+      "source": "Flower Pot/FlowerPot4.fbx",
+      "asset": "assets/models/street/Flower Pot/FlowerPot4.glb",
+      "category": "street",
+      "meshCount": 1,
+      "sizeBytes": 54796
+    },
+    {
+      "source": "Flower Pot/FlowerPot7.fbx",
+      "asset": "assets/models/street/Flower Pot/FlowerPot7.glb",
+      "category": "street",
+      "meshCount": 1,
+      "sizeBytes": 21584
+    },
+    {
+      "source": "Gb Blank/GBBlank.fbx",
+      "asset": "assets/models/street/Gb Blank/GBBlank.glb",
+      "category": "street",
+      "meshCount": 1,
+      "sizeBytes": 109100
+    },
+    {
+      "source": "Greenhouse/greenhouse.obj",
+      "asset": "assets/models/street/Greenhouse/greenhouse.glb",
+      "category": "street",
+      "meshCount": 1,
+      "sizeBytes": 31468
+    },
+    {
+      "source": "Mailbox/Mailbox.fbx",
+      "asset": "assets/models/street/Mailbox/Mailbox.glb",
+      "category": "street",
+      "meshCount": 1,
+      "sizeBytes": 20160
+    },
+    {
+      "source": "Man/Male_Casual.fbx",
+      "asset": "assets/models/street/Man/Male_Casual.glb",
+      "category": "street",
+      "meshCount": 1,
+      "sizeBytes": 204012
+    },
+    {
+      "source": "Manhole Cover/ManholeCover.fbx",
+      "asset": "assets/models/street/Manhole Cover/ManholeCover.glb",
+      "category": "street",
+      "meshCount": 1,
+      "sizeBytes": 11972
+    },
+    {
+      "source": "Motorcycle/1388 Motorcycle.obj",
+      "asset": "assets/models/street/Motorcycle/1388 Motorcycle.glb",
+      "category": "street",
+      "meshCount": 1,
+      "sizeBytes": 382568
+    },
+    {
+      "source": "Pickup Truck/Vehicle_Pickup.fbx",
+      "asset": "assets/models/street/Pickup Truck/Vehicle_Pickup.glb",
+      "category": "street",
+      "meshCount": 4,
+      "sizeBytes": 275652
+    },
+    {
+      "source": "Pizza Corner/PizzaCorner.fbx",
+      "asset": "assets/models/street/Pizza Corner/PizzaCorner.glb",
+      "category": "street",
+      "meshCount": 1,
+      "sizeBytes": 187364
+    },
+    {
+      "source": "Planter & Bushes/PlanterAndBushes.fbx",
+      "asset": "assets/models/street/Planter & Bushes/PlanterAndBushes.glb",
+      "category": "street",
+      "meshCount": 1,
+      "sizeBytes": 50788
+    },
+    {
+      "source": "Police Car/Cop.obj",
+      "asset": "assets/models/street/Police Car/Cop.glb",
+      "category": "street",
+      "meshCount": 4,
+      "sizeBytes": 178888
+    },
+    {
+      "source": "Power Box/PowerBox.fbx",
+      "asset": "assets/models/street/Power Box/PowerBox.glb",
+      "category": "street",
+      "meshCount": 1,
+      "sizeBytes": 15056
+    },
+    {
+      "source": "RB Blank/RBBlank.fbx",
+      "asset": "assets/models/street/RB Blank/RBBlank.glb",
+      "category": "street",
+      "meshCount": 1,
+      "sizeBytes": 109092
+    },
+    {
+      "source": "Road Bits/Road Bits.fbx",
+      "asset": "assets/models/street/Road Bits/Road Bits.glb",
+      "category": "street",
+      "meshCount": 6,
+      "sizeBytes": 88552
+    },
+    {
+      "source": "Rock band poster/Rock_Band_Poster_01.obj",
+      "asset": "assets/models/street/Rock band poster/Rock_Band_Poster_01.glb",
+      "category": "street",
+      "meshCount": 1,
+      "sizeBytes": 11728
+    },
+    {
+      "source": "Roof Exit/RoofExit.fbx",
+      "asset": "assets/models/street/Roof Exit/RoofExit.glb",
+      "category": "street",
+      "meshCount": 1,
+      "sizeBytes": 17332
+    },
+    {
+      "source": "SUV/SUV.obj",
+      "asset": "assets/models/street/SUV/SUV.glb",
+      "category": "street",
+      "meshCount": 4,
+      "sizeBytes": 180320
+    },
+    {
+      "source": "Sports Car/SportsCar2.obj",
+      "asset": "assets/models/street/Sports Car/SportsCar2.glb",
+      "category": "street",
+      "meshCount": 4,
+      "sizeBytes": 173588
+    },
+    {
+      "source": "Sports Car-Gzj704DXdr/Vehicle_Sports.fbx",
+      "asset": "assets/models/street/Sports Car-Gzj704DXdr/Vehicle_Sports.glb",
+      "category": "street",
+      "meshCount": 4,
+      "sizeBytes": 255272
+    },
+    {
+      "source": "Stop sign/1358 Stop Sign.obj",
+      "asset": "assets/models/street/Stop sign/1358 Stop Sign.glb",
+      "category": "street",
+      "meshCount": 1,
+      "sizeBytes": 13688
+    },
+    {
+      "source": "Traffic Light/TrafficLight_2.fbx",
+      "asset": "assets/models/street/Traffic Light/TrafficLight_2.glb",
+      "category": "street",
+      "meshCount": 1,
+      "sizeBytes": 62820
+    },
+    {
+      "source": "Trash Can/TrashCan_02.obj",
+      "asset": "assets/models/street/Trash Can/TrashCan_02.glb",
+      "category": "street",
+      "meshCount": 1,
+      "sizeBytes": 11560
+    },
+    {
+      "source": "Tree/tree01.obj",
+      "asset": "assets/models/street/Tree/tree01.glb",
+      "category": "street",
+      "meshCount": 1,
+      "sizeBytes": 15720
+    },
+    {
+      "source": "Van/1387 Van.obj",
+      "asset": "assets/models/street/Van/1387 Van.glb",
+      "category": "street",
+      "meshCount": 1,
+      "sizeBytes": 129484
+    },
+    {
+      "source": "Washing Line/washingLine.fbx",
+      "asset": "assets/models/street/Washing Line/washingLine.glb",
+      "category": "street",
+      "meshCount": 1,
+      "sizeBytes": 37704
+    },
+    {
+      "source": "Yellow Post-it/model.obj",
+      "asset": "assets/models/street/Yellow Post-it/model.glb",
+      "category": "street",
+      "meshCount": 1,
+      "sizeBytes": 1768
+    },
+    {
+      "source": "trah bag grey/model.obj",
+      "asset": "assets/models/street/trah bag grey/model.glb",
+      "category": "street",
+      "meshCount": 1,
+      "sizeBytes": 20088
+    },
+    {
+      "source": "Bathroom Sink/Bathroom_Sink.fbx",
+      "asset": "assets/models/interior/Bathroom Sink/Bathroom_Sink.glb",
+      "category": "interior",
+      "meshCount": 1,
+      "sizeBytes": 11936
+    },
+    {
+      "source": "Bathroom Toilet Paper/Bathroom_ToiletPaper.fbx",
+      "asset": "assets/models/interior/Bathroom Toilet Paper/Bathroom_ToiletPaper.glb",
+      "category": "interior",
+      "meshCount": 1,
+      "sizeBytes": 12400
+    },
+    {
+      "source": "Bathtub/Bathroom_Bathtub.fbx",
+      "asset": "assets/models/interior/Bathtub/Bathroom_Bathtub.glb",
+      "category": "interior",
+      "meshCount": 1,
+      "sizeBytes": 10136
+    },
+    {
+      "source": "Bed King/Bed_King.fbx",
+      "asset": "assets/models/interior/Bed King/Bed_King.glb",
+      "category": "interior",
+      "meshCount": 1,
+      "sizeBytes": 23800
+    },
+    {
+      "source": "Bed Single/Bed_Single.fbx",
+      "asset": "assets/models/interior/Bed Single/Bed_Single.glb",
+      "category": "interior",
+      "meshCount": 1,
+      "sizeBytes": 20620
+    },
+    {
+      "source": "Bunk Bed/Bed_Bunk.fbx",
+      "asset": "assets/models/interior/Bunk Bed/Bed_Bunk.glb",
+      "category": "interior",
+      "meshCount": 1,
+      "sizeBytes": 30416
+    },
+    {
+      "source": "Cactus/Houseplant_3.fbx",
+      "asset": "assets/models/interior/Cactus/Houseplant_3.glb",
+      "category": "interior",
+      "meshCount": 1,
+      "sizeBytes": 21772
+    },
+    {
+      "source": "Ceiling Light/Light_Ceiling2.fbx",
+      "asset": "assets/models/interior/Ceiling Light/Light_Ceiling2.glb",
+      "category": "interior",
+      "meshCount": 1,
+      "sizeBytes": 8012
+    },
+    {
+      "source": "Chair/Chair_1.fbx",
+      "asset": "assets/models/interior/Chair/Chair_1.glb",
+      "category": "interior",
+      "meshCount": 1,
+      "sizeBytes": 12188
+    },
+    {
+      "source": "Chair/Chair_4.fbx",
+      "asset": "assets/models/interior/Chair/Chair_4.glb",
+      "category": "interior",
+      "meshCount": 1,
+      "sizeBytes": 13148
+    },
+    {
+      "source": "Column Round/Column_Round1.fbx",
+      "asset": "assets/models/interior/Column Round/Column_Round1.glb",
+      "category": "interior",
+      "meshCount": 1,
+      "sizeBytes": 10252
+    },
+    {
+      "source": "Couch Large/Couch_Large1.fbx",
+      "asset": "assets/models/interior/Couch Large/Couch_Large1.glb",
+      "category": "interior",
+      "meshCount": 1,
+      "sizeBytes": 30044
+    },
+    {
+      "source": "Couch Medium/Couch_Medium1.fbx",
+      "asset": "assets/models/interior/Couch Medium/Couch_Medium1.glb",
+      "category": "interior",
+      "meshCount": 1,
+      "sizeBytes": 22172
+    },
+    {
+      "source": "Couch Medium/Couch_Medium2.fbx",
+      "asset": "assets/models/interior/Couch Medium/Couch_Medium2.glb",
+      "category": "interior",
+      "meshCount": 1,
+      "sizeBytes": 22984
+    },
+    {
+      "source": "Couch Small/Couch_Small1.fbx",
+      "asset": "assets/models/interior/Couch Small/Couch_Small1.glb",
+      "category": "interior",
+      "meshCount": 1,
+      "sizeBytes": 18284
+    },
+    {
+      "source": "Couch Small/Couch_Small2.fbx",
+      "asset": "assets/models/interior/Couch Small/Couch_Small2.glb",
+      "category": "interior",
+      "meshCount": 1,
+      "sizeBytes": 14188
+    },
+    {
+      "source": "Curtains Double/Curtains_Double.fbx",
+      "asset": "assets/models/interior/Curtains Double/Curtains_Double.glb",
+      "category": "interior",
+      "meshCount": 1,
+      "sizeBytes": 12552
+    },
+    {
+      "source": "Dead Houseplant/Houseplant_8.fbx",
+      "asset": "assets/models/interior/Dead Houseplant/Houseplant_8.glb",
+      "category": "interior",
+      "meshCount": 1,
+      "sizeBytes": 18552
+    },
+    {
+      "source": "Door/Door_1.fbx",
+      "asset": "assets/models/interior/Door/Door_1.glb",
+      "category": "interior",
+      "meshCount": 1,
+      "sizeBytes": 20868
+    },
+    {
+      "source": "Door/Door_3.fbx",
+      "asset": "assets/models/interior/Door/Door_3.glb",
+      "category": "interior",
+      "meshCount": 1,
+      "sizeBytes": 29972
+    },
+    {
+      "source": "Door/Door_4.fbx",
+      "asset": "assets/models/interior/Door/Door_4.glb",
+      "category": "interior",
+      "meshCount": 1,
+      "sizeBytes": 36048
+    },
+    {
+      "source": "Door/Door_6.fbx",
+      "asset": "assets/models/interior/Door/Door_6.glb",
+      "category": "interior",
+      "meshCount": 1,
+      "sizeBytes": 33244
+    },
+    {
+      "source": "Door/Door_7.fbx",
+      "asset": "assets/models/interior/Door/Door_7.glb",
+      "category": "interior",
+      "meshCount": 1,
+      "sizeBytes": 10276
+    },
+    {
+      "source": "Door Double/Door_Double.fbx",
+      "asset": "assets/models/interior/Door Double/Door_Double.glb",
+      "category": "interior",
+      "meshCount": 2,
+      "sizeBytes": 62576
+    },
+    {
+      "source": "Door-8it1hH1oRu/Door_9.fbx",
+      "asset": "assets/models/interior/Door-8it1hH1oRu/Door_9.glb",
+      "category": "interior",
+      "meshCount": 1,
+      "sizeBytes": 36052
+    },
+    {
+      "source": "Door-b0AIfzp6VL/Door_8.fbx",
+      "asset": "assets/models/interior/Door-b0AIfzp6VL/Door_8.glb",
+      "category": "interior",
+      "meshCount": 1,
+      "sizeBytes": 91780
+    },
+    {
+      "source": "Door-xuFNaNLzfE/Door_5.fbx",
+      "asset": "assets/models/interior/Door-xuFNaNLzfE/Door_5.glb",
+      "category": "interior",
+      "meshCount": 1,
+      "sizeBytes": 49128
+    },
+    {
+      "source": "Drawer/Drawer_1.fbx",
+      "asset": "assets/models/interior/Drawer/Drawer_1.glb",
+      "category": "interior",
+      "meshCount": 1,
+      "sizeBytes": 13532
+    },
+    {
+      "source": "Drawer/Drawer_2.fbx",
+      "asset": "assets/models/interior/Drawer/Drawer_2.glb",
+      "category": "interior",
+      "meshCount": 1,
+      "sizeBytes": 14492
+    },
+    {
+      "source": "Drawer/Drawer_3.fbx",
+      "asset": "assets/models/interior/Drawer/Drawer_3.glb",
+      "category": "interior",
+      "meshCount": 1,
+      "sizeBytes": 26648
+    },
+    {
+      "source": "Drawer/Drawer_4.fbx",
+      "asset": "assets/models/interior/Drawer/Drawer_4.glb",
+      "category": "interior",
+      "meshCount": 1,
+      "sizeBytes": 16104
+    },
+    {
+      "source": "Drawer/Drawer_5.fbx",
+      "asset": "assets/models/interior/Drawer/Drawer_5.glb",
+      "category": "interior",
+      "meshCount": 1,
+      "sizeBytes": 17380
+    },
+    {
+      "source": "Fireplace/Fireplace.fbx",
+      "asset": "assets/models/interior/Fireplace/Fireplace.glb",
+      "category": "interior",
+      "meshCount": 1,
+      "sizeBytes": 17228
+    },
+    {
+      "source": "Houseplant/Houseplant_4.fbx",
+      "asset": "assets/models/interior/Houseplant/Houseplant_4.glb",
+      "category": "interior",
+      "meshCount": 1,
+      "sizeBytes": 13400
+    },
+    {
+      "source": "Houseplant/Houseplant_7.fbx",
+      "asset": "assets/models/interior/Houseplant/Houseplant_7.glb",
+      "category": "interior",
+      "meshCount": 1,
+      "sizeBytes": 15612
+    },
+    {
+      "source": "Houseplant-IBLX2Jz90O/Houseplant_5.fbx",
+      "asset": "assets/models/interior/Houseplant-IBLX2Jz90O/Houseplant_5.glb",
+      "category": "interior",
+      "meshCount": 1,
+      "sizeBytes": 19780
+    },
+    {
+      "source": "Houseplant-Kr4kr7OCCQ/Houseplant_2.fbx",
+      "asset": "assets/models/interior/Houseplant-Kr4kr7OCCQ/Houseplant_2.glb",
+      "category": "interior",
+      "meshCount": 1,
+      "sizeBytes": 16684
+    },
+    {
+      "source": "Houseplant-dveIJ0xNpX/Houseplant_6.fbx",
+      "asset": "assets/models/interior/Houseplant-dveIJ0xNpX/Houseplant_6.glb",
+      "category": "interior",
+      "meshCount": 1,
+      "sizeBytes": 24868
+    },
+    {
+      "source": "Houseplant-f6GPjbEgg0/Houseplant_1.fbx",
+      "asset": "assets/models/interior/Houseplant-f6GPjbEgg0/Houseplant_1.glb",
+      "category": "interior",
+      "meshCount": 1,
+      "sizeBytes": 9680
+    },
+    {
+      "source": "Kitchen Fridge/Kitchen_Fridge.fbx",
+      "asset": "assets/models/interior/Kitchen Fridge/Kitchen_Fridge.glb",
+      "category": "interior",
+      "meshCount": 1,
+      "sizeBytes": 16592
+    },
+    {
+      "source": "Kitchen Sink/Kitchen_Sink.fbx",
+      "asset": "assets/models/interior/Kitchen Sink/Kitchen_Sink.glb",
+      "category": "interior",
+      "meshCount": 1,
+      "sizeBytes": 24216
+    },
+    {
+      "source": "L Couch/Couch_L.fbx",
+      "asset": "assets/models/interior/L Couch/Couch_L.glb",
+      "category": "interior",
+      "meshCount": 1,
+      "sizeBytes": 30020
+    },
+    {
+      "source": "Lamp/Light_Floor2.fbx",
+      "asset": "assets/models/interior/Lamp/Light_Floor2.glb",
+      "category": "interior",
+      "meshCount": 1,
+      "sizeBytes": 9380
+    },
+    {
+      "source": "Light Ceiling/Light_Ceiling1.fbx",
+      "asset": "assets/models/interior/Light Ceiling/Light_Ceiling1.glb",
+      "category": "interior",
+      "meshCount": 1,
+      "sizeBytes": 9480
+    },
+    {
+      "source": "Light Ceiling Single/Light_CeilingSingle.fbx",
+      "asset": "assets/models/interior/Light Ceiling Single/Light_CeilingSingle.glb",
+      "category": "interior",
+      "meshCount": 1,
+      "sizeBytes": 9520
+    },
+    {
+      "source": "Light Ceiling-NNlnaiDJIh/Light_Ceiling4.fbx",
+      "asset": "assets/models/interior/Light Ceiling-NNlnaiDJIh/Light_Ceiling4.glb",
+      "category": "interior",
+      "meshCount": 1,
+      "sizeBytes": 25708
+    },
+    {
+      "source": "Light Ceiling-ToOLJDO5FI/Light_Ceiling3.fbx",
+      "asset": "assets/models/interior/Light Ceiling-ToOLJDO5FI/Light_Ceiling3.glb",
+      "category": "interior",
+      "meshCount": 1,
+      "sizeBytes": 25728
+    },
+    {
+      "source": "Light Chandelier/Light_Chandelier.fbx",
+      "asset": "assets/models/interior/Light Chandelier/Light_Chandelier.glb",
+      "category": "interior",
+      "meshCount": 1,
+      "sizeBytes": 24800
+    },
+    {
+      "source": "Light Cube/Light_Cube.fbx",
+      "asset": "assets/models/interior/Light Cube/Light_Cube.glb",
+      "category": "interior",
+      "meshCount": 1,
+      "sizeBytes": 22432
+    },
+    {
+      "source": "Light Cube-gJpALEpLcy/Light_Cube2.fbx",
+      "asset": "assets/models/interior/Light Cube-gJpALEpLcy/Light_Cube2.glb",
+      "category": "interior",
+      "meshCount": 1,
+      "sizeBytes": 23284
+    },
+    {
+      "source": "Light Desk/Light_Desk.fbx",
+      "asset": "assets/models/interior/Light Desk/Light_Desk.glb",
+      "category": "interior",
+      "meshCount": 1,
+      "sizeBytes": 11812
+    },
+    {
+      "source": "Light Floor/Light_Floor1.fbx",
+      "asset": "assets/models/interior/Light Floor/Light_Floor1.glb",
+      "category": "interior",
+      "meshCount": 1,
+      "sizeBytes": 9280
+    },
+    {
+      "source": "Light Floor/Light_Floor3.fbx",
+      "asset": "assets/models/interior/Light Floor/Light_Floor3.glb",
+      "category": "interior",
+      "meshCount": 1,
+      "sizeBytes": 9204
+    },
+    {
+      "source": "Light Icosahedron/Light_Icosahedron.fbx",
+      "asset": "assets/models/interior/Light Icosahedron/Light_Icosahedron.glb",
+      "category": "interior",
+      "meshCount": 1,
+      "sizeBytes": 60784
+    },
+    {
+      "source": "Light Stand/Light_Stand1.fbx",
+      "asset": "assets/models/interior/Light Stand/Light_Stand1.glb",
+      "category": "interior",
+      "meshCount": 1,
+      "sizeBytes": 10164
+    },
+    {
+      "source": "Night Stand/NightStand_1.fbx",
+      "asset": "assets/models/interior/Night Stand/NightStand_1.glb",
+      "category": "interior",
+      "meshCount": 1,
+      "sizeBytes": 9736
+    },
+    {
+      "source": "Night Stand/NightStand_2.fbx",
+      "asset": "assets/models/interior/Night Stand/NightStand_2.glb",
+      "category": "interior",
+      "meshCount": 1,
+      "sizeBytes": 10384
+    },
+    {
+      "source": "Night Stand-7cobkfclNv/NightStand_3.fbx",
+      "asset": "assets/models/interior/Night Stand-7cobkfclNv/NightStand_3.glb",
+      "category": "interior",
+      "meshCount": 1,
+      "sizeBytes": 13604
+    },
+    {
+      "source": "Oven/Kitchen_Oven_Large.fbx",
+      "asset": "assets/models/interior/Oven/Kitchen_Oven_Large.glb",
+      "category": "interior",
+      "meshCount": 1,
+      "sizeBytes": 21524
+    },
+    {
+      "source": "Round Rug/Carpet_Round.fbx",
+      "asset": "assets/models/interior/Round Rug/Carpet_Round.glb",
+      "category": "interior",
+      "meshCount": 1,
+      "sizeBytes": 5876
+    },
+    {
+      "source": "Rug/Carpet_1.fbx",
+      "asset": "assets/models/interior/Rug/Carpet_1.glb",
+      "category": "interior",
+      "meshCount": 1,
+      "sizeBytes": 5268
+    },
+    {
+      "source": "Shelf Large/Shelf_Large.fbx",
+      "asset": "assets/models/interior/Shelf Large/Shelf_Large.glb",
+      "category": "interior",
+      "meshCount": 1,
+      "sizeBytes": 12496
+    },
+    {
+      "source": "Shelf Small/Shelf_Small1.fbx",
+      "asset": "assets/models/interior/Shelf Small/Shelf_Small1.glb",
+      "category": "interior",
+      "meshCount": 1,
+      "sizeBytes": 7748
+    },
+    {
+      "source": "Shelf Small/Shelf_Small2.fbx",
+      "asset": "assets/models/interior/Shelf Small/Shelf_Small2.glb",
+      "category": "interior",
+      "meshCount": 1,
+      "sizeBytes": 5972
+    },
+    {
+      "source": "Square Plate/Plate_2.fbx",
+      "asset": "assets/models/interior/Square Plate/Plate_2.glb",
+      "category": "interior",
+      "meshCount": 1,
+      "sizeBytes": 5880
+    },
+    {
+      "source": "Stool/Stool.fbx",
+      "asset": "assets/models/interior/Stool/Stool.glb",
+      "category": "interior",
+      "meshCount": 1,
+      "sizeBytes": 17316
+    },
+    {
+      "source": "Table Lamp/Light_Floor4.fbx",
+      "asset": "assets/models/interior/Table Lamp/Light_Floor4.glb",
+      "category": "interior",
+      "meshCount": 1,
+      "sizeBytes": 9396
+    },
+    {
+      "source": "Table Round Large/Table_RoundLarge.fbx",
+      "asset": "assets/models/interior/Table Round Large/Table_RoundLarge.glb",
+      "category": "interior",
+      "meshCount": 1,
+      "sizeBytes": 22424
+    },
+    {
+      "source": "Table Round Small/Table_RoundSmall.fbx",
+      "asset": "assets/models/interior/Table Round Small/Table_RoundSmall.glb",
+      "category": "interior",
+      "meshCount": 1,
+      "sizeBytes": 18196
+    },
+    {
+      "source": "Table Round Small/Table_RoundSmall2.fbx",
+      "asset": "assets/models/interior/Table Round Small/Table_RoundSmall2.glb",
+      "category": "interior",
+      "meshCount": 1,
+      "sizeBytes": 24728
+    },
+    {
+      "source": "Toilet/Bathroom_Toilet.fbx",
+      "asset": "assets/models/interior/Toilet/Bathroom_Toilet.glb",
+      "category": "interior",
+      "meshCount": 1,
+      "sizeBytes": 13836
+    },
+    {
+      "source": "Toilet Paper stack/Bathroom_ToiletPaperPile.fbx",
+      "asset": "assets/models/interior/Toilet Paper stack/Bathroom_ToiletPaperPile.glb",
+      "category": "interior",
+      "meshCount": 1,
+      "sizeBytes": 13528
+    },
+    {
+      "source": "Towel Rack/Bathroom_Towel.fbx",
+      "asset": "assets/models/interior/Towel Rack/Bathroom_Towel.glb",
+      "category": "interior",
+      "meshCount": 1,
+      "sizeBytes": 10552
+    },
+    {
+      "source": "Trashcan/Trashcan_Cylindric.fbx",
+      "asset": "assets/models/interior/Trashcan/Trashcan_Cylindric.glb",
+      "category": "interior",
+      "meshCount": 1,
+      "sizeBytes": 12136
+    },
+    {
+      "source": "Trashcan Large/Trashcan_Large.fbx",
+      "asset": "assets/models/interior/Trashcan Large/Trashcan_Large.glb",
+      "category": "interior",
+      "meshCount": 1,
+      "sizeBytes": 20636
+    },
+    {
+      "source": "Trashcan Small/Trashcan_Small1.fbx",
+      "asset": "assets/models/interior/Trashcan Small/Trashcan_Small1.glb",
+      "category": "interior",
+      "meshCount": 1,
+      "sizeBytes": 11032
+    },
+    {
+      "source": "Trashcan Small/Trashcan_Small2.fbx",
+      "asset": "assets/models/interior/Trashcan Small/Trashcan_Small2.glb",
+      "category": "interior",
+      "meshCount": 1,
+      "sizeBytes": 13352
+    },
+    {
+      "source": "Trashcan-XSwahu252t/Trashcan_Green.fbx",
+      "asset": "assets/models/interior/Trashcan-XSwahu252t/Trashcan_Green.glb",
+      "category": "interior",
+      "meshCount": 1,
+      "sizeBytes": 23692
+    },
+    {
+      "source": "Washing Machine/Bathroom_WashingMachine.fbx",
+      "asset": "assets/models/interior/Washing Machine/Bathroom_WashingMachine.glb",
+      "category": "interior",
+      "meshCount": 1,
+      "sizeBytes": 15536
+    },
+    {
+      "source": "Window Large/Window_Large2.fbx",
+      "asset": "assets/models/interior/Window Large/Window_Large2.glb",
+      "category": "interior",
+      "meshCount": 1,
+      "sizeBytes": 18064
+    },
+    {
+      "source": "Window Round/Window_Round3.fbx",
+      "asset": "assets/models/interior/Window Round/Window_Round3.glb",
+      "category": "interior",
+      "meshCount": 1,
+      "sizeBytes": 7944
+    },
+    {
+      "source": "Window Small/Window_Small2.fbx",
+      "asset": "assets/models/interior/Window Small/Window_Small2.glb",
+      "category": "interior",
+      "meshCount": 1,
+      "sizeBytes": 7924
+    }
+  ],
+  "errors": []
+}

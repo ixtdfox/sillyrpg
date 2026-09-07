@@ -48,6 +48,7 @@ export interface SceneContentImportOptions {
   readonly generatedTerrainLodEnabled?: boolean;
   readonly runtimeStaticPreparationEnabled?: boolean;
   readonly runtimeConnectedObjectBatchingEnabled?: boolean;
+  readonly shouldDeferSceneObject?: (descriptor: SceneObjectDescriptor) => boolean;
   readonly onProgress?: LoadingProgressReporter;
 }
 
@@ -80,6 +81,7 @@ export interface ImportedSceneTerrainContent extends ImportedSceneAssetNodes {
 export interface ImportedSceneContent extends ImportedSceneAssetNodes {
   readonly root: TransformNode;
   readonly sceneObjects: readonly ImportedSceneObjectContent[];
+  readonly deferredSceneObjects: readonly SceneObjectDescriptor[];
   readonly terrainContent?: ImportedSceneTerrainContent | null;
   readonly terrainRoot?: TransformNode;
   readonly terrainMeshes: readonly AbstractMesh[];
@@ -104,6 +106,13 @@ const RUNTIME_TERRAIN_MESH_BUILDER = new TerrainMeshBuilder();
 const RUNTIME_TERRAIN_LOD_DESCRIPTOR_RESOLVER = new TerrainQuadtreeLodDescriptorResolver();
 const SCENE_ASSET_CONTAINER_CACHES = new WeakMap<Scene, SceneAssetContainerCache>();
 const CACHED_SCENE_ASSET_INSTANCE_MESHES = new WeakSet<AbstractMesh>();
+const NON_STATIC_STREET_ASSETS = new Set([
+  "assets/models/street/Adventurer/Adventurer.glb",
+  "assets/models/street/Animated Woman/Casual.glb",
+  "assets/models/street/Animated Woman/Formal.glb",
+  "assets/models/street/Animated Woman-9kF7eTDbhO/Animated Woman.glb",
+  "assets/models/street/Man/Male_Casual.glb"
+].map(normalizeAssetPath));
 
 interface SceneAssetContainerCache {
   readonly containersByAssetPath: Map<string, Promise<AssetContainer | null>>;
@@ -138,6 +147,11 @@ export async function importSceneContent(options: SceneContentImportOptions): Pr
   options.onProgress?.({ progress: 0.2, message: "Terrain ready" });
 
   const sceneObjects: ImportedSceneObjectContent[] = [];
+  const deferredSceneObjects: SceneObjectDescriptor[] = [];
+  const objectDescriptors: SceneObjectDescriptor[] = [];
+  for (const object of descriptor.objects) {
+    (options.shouldDeferSceneObject?.(object) ? deferredSceneObjects : objectDescriptors).push(object);
+  }
   const runtimeSceneObjectPreparer = options.runtimeStaticPreparationEnabled
     ? new RuntimeSceneObjectPreparer()
     : null;
@@ -145,13 +159,13 @@ export async function importSceneContent(options: SceneContentImportOptions): Pr
     options.runtimeConnectedObjectBatchingEnabled === true;
   const objectProgressStart = 0.2;
   const objectProgressEnd = 0.9;
-  const objectProgressSpan = descriptor.objects.length > 0
-    ? (objectProgressEnd - objectProgressStart) / descriptor.objects.length
+  const objectProgressSpan = objectDescriptors.length > 0
+    ? (objectProgressEnd - objectProgressStart) / objectDescriptors.length
     : 0;
-  for (const [objectIndex, objectDescriptor] of descriptor.objects.entries()) {
+  for (const [objectIndex, objectDescriptor] of objectDescriptors.entries()) {
     const objectNumber = objectIndex + 1;
     const objectStart = objectProgressStart + objectProgressSpan * objectIndex;
-    const objectMessage = `Loading scene object ${objectNumber} / ${descriptor.objects.length}`;
+    const objectMessage = `Loading scene object ${objectNumber} / ${objectDescriptors.length}`;
     options.onProgress?.({ progress: objectStart, message: objectMessage });
     const importedObject = await importSceneObjectContent(
       options.scene,
@@ -167,12 +181,12 @@ export async function importSceneContent(options: SceneContentImportOptions): Pr
       }
     );
     const preparation = runtimeSceneObjectPreparer?.prepare(importedObject);
-    sceneObjects.push(preparation && preparation.frozenNodeCount === 0
+    sceneObjects.push(preparation && preparation.frozenNodeCount === 0 && importedObject.type !== "building"
       ? { ...importedObject, cullingBounds: null }
       : importedObject);
     options.onProgress?.({
       progress: objectStart + objectProgressSpan,
-      message: `Scene object ${objectNumber} / ${descriptor.objects.length} ready`
+      message: `Scene object ${objectNumber} / ${objectDescriptors.length} ready`
     });
   }
   options.onProgress?.({ progress: objectProgressEnd, message: "Optimizing scene objects" });
@@ -197,6 +211,7 @@ export async function importSceneContent(options: SceneContentImportOptions): Pr
     animationGroups: aggregate.animationGroups,
     particleSystems: aggregate.particleSystems,
     sceneObjects: preparedSceneObjects,
+    deferredSceneObjects,
     terrainContent: importedTerrain,
     terrainRoot: importedTerrain?.root,
     terrainMeshes: importedTerrain?.terrainSurfaceMeshes ?? [],
@@ -418,17 +433,25 @@ export async function importSceneObjectContent(
     ...runtimeObjectMetadata
   };
 
-  const imported = await importSceneAsset(
-    scene,
-    descriptor.asset,
-    objectRoot,
-    useAssetContainerCache && (
-      descriptor.type === "building" ||
-      (descriptor.type === "connected-object" && descriptor.connected !== undefined)
-    ),
-    descriptor.type === "building",
-    onAssetProgress
-  );
+  let imported: ImportedAssetNodesInternal;
+  try {
+    imported = await importSceneAsset(
+      scene,
+      descriptor.asset,
+      objectRoot,
+      useAssetContainerCache && (
+        descriptor.type === "building" ||
+        descriptor.type === "interior" ||
+        (descriptor.type === "street" && !NON_STATIC_STREET_ASSETS.has(normalizeAssetPath(descriptor.asset))) ||
+        (descriptor.type === "connected-object" && descriptor.connected !== undefined)
+      ),
+      descriptor.type === "building",
+      onAssetProgress
+    );
+  } catch (error) {
+    objectRoot.dispose(false);
+    throw error;
+  }
   const cullingBounds = resolveRenderableBounds(imported.renderableMeshes);
 
   for (const transformNode of imported.transformNodes) {
@@ -746,6 +769,30 @@ export function instantiateCachedSceneAsset(
 export function disposeImportedSceneMesh(mesh: AbstractMesh): void {
   if (!mesh.isDisposed()) {
     mesh.dispose(false, !CACHED_SCENE_ASSET_INSTANCE_MESHES.has(mesh));
+  }
+}
+
+/** Releases one dynamically imported scene object and all resources it owns. */
+export function disposeImportedSceneObjectContent(content: ImportedSceneObjectContent): void {
+  for (const animationGroup of content.animationGroups) {
+    animationGroup.dispose();
+  }
+  for (const particleSystem of content.particleSystems) {
+    particleSystem.dispose();
+  }
+  for (const skeleton of content.skeletons) {
+    skeleton.dispose();
+  }
+  for (const mesh of content.meshes) {
+    disposeImportedSceneMesh(mesh);
+  }
+  for (const transformNode of content.transformNodes) {
+    if (!transformNode.isDisposed()) {
+      transformNode.dispose(false);
+    }
+  }
+  if (!content.root.isDisposed()) {
+    content.root.dispose(false);
   }
 }
 

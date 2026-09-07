@@ -457,6 +457,16 @@
   color: #E7EDF7;
   margin-bottom: 4px;
 }
+.edison-interior-edit-card {
+  border-color: #F7B84B;
+  background: linear-gradient(180deg, #172946, #101E31);
+}
+.edison-floor-button-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 10px 0;
+}
 .edison-status {
   grid-row: 3;
   display: grid;

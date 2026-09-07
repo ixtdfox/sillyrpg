@@ -17,13 +17,15 @@ export class RuntimeSceneObjectPreparer {
   ) {}
 
   public prepare(content: ImportedSceneObjectContent): RuntimeSceneObjectPreparationResult {
-    if (content.type !== "building") {
+    if (content.type !== "building" && content.type !== "street" && content.type !== "interior") {
       return this.createSkippedResult(content);
     }
 
     const pickableMeshCountBefore = content.renderableMeshes.filter((mesh) => mesh.isPickable).length;
-    for (const mesh of content.renderableMeshes) {
-      mesh.isPickable = this.mustRemainPickable(mesh);
+    if (content.type === "building") {
+      for (const mesh of content.renderableMeshes) {
+        mesh.isPickable = this.mustRemainPickable(mesh);
+      }
     }
 
     let frozenNodeCount = 0;

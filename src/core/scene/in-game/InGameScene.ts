@@ -26,6 +26,9 @@ import type { TerrainLodAnchor } from "../../world/terrain/lod/TerrainQuadtreeLo
 import { RuntimePerformancePanelUi } from "./performance/RuntimePerformancePanelUi";
 import { RuntimePerformanceSampler } from "./performance/RuntimePerformanceSampler";
 import { mapLoadingProgress, type LoadingProgressReporter } from "../../game/LoadingProgress";
+import { SceneObjectVisibilityController } from "../visibility/SceneObjectVisibilityController";
+
+const INTERIOR_STREAMING_UPDATE_INTERVAL_SECONDS = 0.15;
 
 /**
  * Implements the in-game scene that loads a default world location district.
@@ -135,6 +138,10 @@ export class InGameScene implements Scene {
     let inGameTopPanelUi: InGameTopPanelUi;
     let performancePanel: RuntimePerformancePanelUi | null = null;
     let terrainLodTuningPanel: TerrainLodTuningPanelUi | null = null;
+    const sceneObjectVisibilityController = new SceneObjectVisibilityController();
+    let runtimeContentRevision = this.locationManager.getContentRevision();
+    let runtimeStructuralContentRevision = this.locationManager.getStructuralContentRevision();
+    let interiorStreamingElapsedSeconds = INTERIOR_STREAMING_UPDATE_INTERVAL_SECONDS;
     const streamingController = new DistrictSceneStreamingController(
       scene,
       this.entityManager,
@@ -146,7 +153,7 @@ export class InGameScene implements Scene {
         if (localPlayer) {
           this.refreshPlayerGridPosition(localPlayer, gridRuntime, false);
         }
-        shadowRegistry.registerBatches(this.locationManager.getShadowMeshBatches());
+        shadowRegistry.replaceBatchesForOwnerPrefix("district:", this.locationManager.getShadowMeshBatches());
         locationTriggerSystem.refresh();
         const hasTerrainLodControllers = this.locationManager.hasTerrainLodControllers();
         inGameTopPanelUi.setTerrainLodDebugAvailable(hasTerrainLodControllers);
@@ -159,6 +166,8 @@ export class InGameScene implements Scene {
         }
         inGameTopPanelUi.setTerrainLodDebugEnabled(this.locationManager.getTerrainLodDebugEnabled());
         inGameTopPanelUi.setTerrainPolygonWireDebugEnabled(this.locationManager.getTerrainPolygonWireDebugEnabled());
+        runtimeContentRevision = this.locationManager.getContentRevision();
+        runtimeStructuralContentRevision = this.locationManager.getStructuralContentRevision();
       }
     );
     inGameTopPanelUi = new InGameTopPanelUi(scene, () => {
@@ -248,6 +257,32 @@ export class InGameScene implements Scene {
     const triggerObserver = scene.onBeforeRenderObservable.add(() => {
       const deltaSeconds = scene.getEngine().getDeltaTime() / 1000;
       streamingController.update();
+      const localPlayer = this.resolveLocalPlayer();
+      const playerPosition = localPlayer?.tryGetComponent(TransformComponent)?.value;
+      interiorStreamingElapsedSeconds += Math.max(0, deltaSeconds);
+      if (playerPosition && interiorStreamingElapsedSeconds >= INTERIOR_STREAMING_UPDATE_INTERVAL_SECONDS) {
+        this.locationManager.updateInteriorSceneObjects(scene, playerPosition);
+        interiorStreamingElapsedSeconds = 0;
+      }
+      const nextStructuralContentRevision = this.locationManager.getStructuralContentRevision();
+      if (runtimeStructuralContentRevision !== nextStructuralContentRevision) {
+        this.tryRebuildRectGridRuntime(gridRuntime, scene);
+        if (localPlayer) {
+          this.refreshPlayerGridPosition(localPlayer, gridRuntime, false);
+        }
+        locationTriggerSystem.refresh();
+        runtimeStructuralContentRevision = nextStructuralContentRevision;
+      }
+      const nextContentRevision = this.locationManager.getContentRevision();
+      if (runtimeContentRevision !== nextContentRevision) {
+        shadowRegistry.replaceBatchesForOwnerPrefix("district:", this.locationManager.getShadowMeshBatches());
+        runtimeContentRevision = nextContentRevision;
+      }
+      sceneObjectVisibilityController.update(
+        deltaSeconds,
+        scene.activeCamera,
+        this.locationManager.getActiveDistrictSceneObjects()
+      );
       locationTriggerSystem.update();
       const lodAnchor = this.resolveTerrainLodAnchor(scene);
       if (lodAnchor) {
@@ -264,6 +299,7 @@ export class InGameScene implements Scene {
       gridRuntime.dispose();
       inGameTopPanelUi.dispose();
       streamingController.dispose();
+      sceneObjectVisibilityController.dispose();
       locationTriggerSystem.dispose();
       if (performanceKeyboardObserver) {
         scene.onKeyboardObservable.remove(performanceKeyboardObserver);

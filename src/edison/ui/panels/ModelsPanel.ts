@@ -6,12 +6,29 @@ import type { EdisonPluginContext } from "../../plugins/EdisonPlugin";
 export class ModelsPanel {
   private readonly catalog = new EdisonModelAssetCatalog();
   private readonly thumbnailService = new EdisonModelThumbnailService();
+  private readonly thumbnailObserver: IntersectionObserver | null;
+  private readonly observedThumbnailCards = new Map<HTMLElement, {
+    readonly model: EdisonModelAssetOption;
+    readonly token: number;
+  }>();
   private searchQuery = "";
   private activeCategory = "all";
   private renderToken = 0;
 
+  public constructor() {
+    this.thumbnailObserver = typeof IntersectionObserver === "undefined"
+      ? null
+      : new IntersectionObserver((entries) => this.handleThumbnailIntersections(entries), {
+          rootMargin: "240px"
+        });
+  }
+
   public render(host: HTMLElement, context: EdisonPluginContext): void {
+    this.clearObservedThumbnailCards();
     const token = ++this.renderToken;
+    if (context.interiorEdit.isActive() && this.activeCategory !== "interior") {
+      this.activeCategory = "interior";
+    }
     const models = this.getModelOptions(context);
     const categories = this.catalog.getCategories(models);
     const filteredModels = this.filterModels(models);
@@ -28,6 +45,8 @@ export class ModelsPanel {
 
   public dispose(): void {
     this.renderToken += 1;
+    this.clearObservedThumbnailCards();
+    this.thumbnailObserver?.disconnect();
     this.thumbnailService.dispose();
   }
 
@@ -69,8 +88,9 @@ export class ModelsPanel {
     const container = document.createElement("div");
     container.className = "edison-models-categories";
 
-    const allButton = this.createCategoryButton("all", "All", totalCount, context);
-    container.appendChild(allButton);
+    if (!context.interiorEdit.isActive()) {
+      container.appendChild(this.createCategoryButton("all", "All", totalCount, context));
+    }
     for (const category of categories) {
       container.appendChild(this.createCategoryButton(category.id, category.label, category.count, context));
     }
@@ -144,6 +164,17 @@ export class ModelsPanel {
       });
     });
 
+    if (this.thumbnailObserver) {
+      this.observedThumbnailCards.set(card, { model, token });
+      this.thumbnailObserver.observe(card);
+    } else {
+      this.loadThumbnail(card, model, token);
+    }
+
+    return card;
+  }
+
+  private loadThumbnail(card: HTMLElement, model: EdisonModelAssetOption, token: number): void {
     void this.thumbnailService.getThumbnail(model.rawModelPath).then((thumbnailUrl) => {
       if (this.renderToken !== token || !thumbnailUrl || !card.isConnected) {
         return;
@@ -157,8 +188,30 @@ export class ModelsPanel {
       thumbnail.style.backgroundImage = `url("${thumbnailUrl}")`;
       thumbnail.classList.add("is-ready");
     });
+  }
 
-    return card;
+  private handleThumbnailIntersections(entries: readonly IntersectionObserverEntry[]): void {
+    for (const entry of entries) {
+      if (!entry.isIntersecting || !(entry.target instanceof HTMLElement)) {
+        continue;
+      }
+
+      const request = this.observedThumbnailCards.get(entry.target);
+      if (!request) {
+        continue;
+      }
+
+      this.thumbnailObserver?.unobserve(entry.target);
+      this.observedThumbnailCards.delete(entry.target);
+      this.loadThumbnail(entry.target, request.model, request.token);
+    }
+  }
+
+  private clearObservedThumbnailCards(): void {
+    for (const card of this.observedThumbnailCards.keys()) {
+      this.thumbnailObserver?.unobserve(card);
+    }
+    this.observedThumbnailCards.clear();
   }
 
   private filterModels(models: readonly EdisonModelAssetOption[]): readonly EdisonModelAssetOption[] {
@@ -183,6 +236,7 @@ export class ModelsPanel {
   }
 
   private refreshResults(host: HTMLElement, context: EdisonPluginContext): void {
+    this.clearObservedThumbnailCards();
     const token = ++this.renderToken;
     const models = this.getModelOptions(context);
     const filteredModels = this.filterModels(models);
@@ -201,7 +255,10 @@ export class ModelsPanel {
   }
 
   private getModelOptions(context: EdisonPluginContext): readonly EdisonModelAssetOption[] {
-    return this.catalog.getModelOptions(context.connectedObjects.getModelAssetOptions());
+    const options = this.catalog.getModelOptions(context.connectedObjects.getModelAssetOptions());
+    return context.interiorEdit.isActive()
+      ? options.filter((model) => model.objectType === "interior")
+      : options;
   }
 
   private toPlacementAsset(model: EdisonModelAssetOption): EdisonPlacementAsset {
@@ -211,6 +268,7 @@ export class ModelsPanel {
       modelPath: model.rawModelPath,
       objectType: model.objectType,
       gridSize: model.gridSize ?? 1,
+      defaultScale: model.defaultScale,
       connectedPresetId: model.connectedPresetId
     };
   }

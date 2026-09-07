@@ -2425,10 +2425,10 @@
         -4,
         -4,
         -3,
-        -3,
-        -3,
-        -1,
-        1,
+        -0.10000000149011612,
+        -0.10000000149011612,
+        -0.10000000149011612,
+        -0.10000000149011612,
         -0.10000000149011612,
         -0.10000000149011612,
         -0.10000000149011612,
@@ -2506,10 +2506,10 @@
         -5,
         -4,
         -4,
-        -4,
-        -4,
-        -2,
-        1,
+        -0.10000000149011612,
+        -0.10000000149011612,
+        -0.10000000149011612,
+        -0.10000000149011612,
         -0.10000000149011612,
         -0.10000000149011612,
         -0.10000000149011612,
@@ -2587,10 +2587,10 @@
         -3,
         -3,
         -2,
-        -3,
-        -3,
-        0,
-        0.05000000074505806,
+        -0.10000000149011612,
+        -0.10000000149011612,
+        -0.10000000149011612,
+        -0.10000000149011612,
         -0.10000000149011612,
         -0.10000000149011612,
         -0.10000000149011612,
@@ -2668,10 +2668,10 @@
         -2,
         -1,
         -1,
-        -1,
-        -1,
-        0,
-        0.05000000074505806,
+        -0.10000000149011612,
+        -0.10000000149011612,
+        -0.10000000149011612,
+        -0.10000000149011612,
         -0.10000000149011612,
         -0.10000000149011612,
         -0.10000000149011612,
@@ -2749,10 +2749,10 @@
         0,
         0,
         1,
-        1,
-        0,
-        0.05000000074505806,
-        0.05000000074505806,
+        -0.10000000149011612,
+        -0.10000000149011612,
+        -0.10000000149011612,
+        -0.10000000149011612,
         0.05000000074505806,
         0.05000000074505806,
         0.05000000074505806,
@@ -8016,6 +8016,6495 @@
         1,
         1,
         1
+      ]
+    },
+    {
+      "id": "interior-furnished-building-silent-1-001-f1-couch-1",
+      "type": "interior",
+      "asset": "assets/models/interior/Couch Small/Couch_Small1.glb",
+      "position": [
+        -10.5,
+        0,
+        -17.5
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        0.5,
+        0.5,
+        0.5
+      ],
+      "interiorBuildingId": "building-silent-1-001"
+    },
+    {
+      "id": "interior-furnished-building-silent-1-001-f1-rug-2",
+      "type": "interior",
+      "asset": "assets/models/interior/Round Rug/Carpet_Round.glb",
+      "position": [
+        -10.5,
+        0.025,
+        -16.5
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        0.5,
+        0.5,
+        0.5
+      ],
+      "interiorBuildingId": "building-silent-1-001"
+    },
+    {
+      "id": "interior-furnished-building-silent-1-001-f1-table-3",
+      "type": "interior",
+      "asset": "assets/models/interior/Table Round Small/Table_RoundSmall.glb",
+      "position": [
+        -9.5,
+        0,
+        -16.5
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        0.5,
+        0.5,
+        0.5
+      ],
+      "interiorBuildingId": "building-silent-1-001"
+    },
+    {
+      "id": "interior-furnished-building-silent-1-001-f1-chair-4",
+      "type": "interior",
+      "asset": "assets/models/interior/Chair/Chair_1.glb",
+      "position": [
+        -15.5,
+        0,
+        -14.5
+      ],
+      "rotation": [
+        0,
+        3.142,
+        0
+      ],
+      "scale": [
+        0.5,
+        0.5,
+        0.5
+      ],
+      "interiorBuildingId": "building-silent-1-001"
+    },
+    {
+      "id": "interior-furnished-building-silent-1-001-f1-plant-5",
+      "type": "interior",
+      "asset": "assets/models/interior/Cactus/Houseplant_3.glb",
+      "position": [
+        -5.5,
+        0,
+        -14.5
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        0.5,
+        0.5,
+        0.5
+      ],
+      "interiorBuildingId": "building-silent-1-001"
+    },
+    {
+      "id": "interior-furnished-building-silent-1-001-f1-ceiling-light-6",
+      "type": "interior",
+      "asset": "assets/models/interior/Ceiling Light/Light_Ceiling2.glb",
+      "position": [
+        -10.5,
+        3,
+        -17.5
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        0.5,
+        0.5,
+        0.5
+      ],
+      "interiorBuildingId": "building-silent-1-001"
+    },
+    {
+      "id": "interior-furnished-building-silent-1-001-f2-bed-1",
+      "type": "interior",
+      "asset": "assets/models/interior/Bed King/Bed_King.glb",
+      "position": [
+        -14.5,
+        3.1,
+        -17.5
+      ],
+      "rotation": [
+        0,
+        1.571,
+        0
+      ],
+      "scale": [
+        0.5,
+        0.5,
+        0.5
+      ],
+      "interiorBuildingId": "building-silent-1-001"
+    },
+    {
+      "id": "interior-furnished-building-silent-1-001-f2-night-stand-2",
+      "type": "interior",
+      "asset": "assets/models/interior/Night Stand/NightStand_1.glb",
+      "position": [
+        -13.5,
+        3.1,
+        -16.5
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        0.5,
+        0.5,
+        0.5
+      ],
+      "interiorBuildingId": "building-silent-1-001"
+    },
+    {
+      "id": "interior-furnished-building-silent-1-001-f2-drawer-3",
+      "type": "interior",
+      "asset": "assets/models/interior/Drawer/Drawer_4.glb",
+      "position": [
+        -13.5,
+        3.1,
+        -14.5
+      ],
+      "rotation": [
+        0,
+        3.142,
+        0
+      ],
+      "scale": [
+        0.5,
+        0.5,
+        0.5
+      ],
+      "interiorBuildingId": "building-silent-1-001"
+    },
+    {
+      "id": "interior-furnished-building-silent-1-001-f2-rug-4",
+      "type": "interior",
+      "asset": "assets/models/interior/Round Rug/Carpet_Round.glb",
+      "position": [
+        -14.5,
+        3.125,
+        -17.5
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        0.5,
+        0.5,
+        0.5
+      ],
+      "interiorBuildingId": "building-silent-1-001"
+    },
+    {
+      "id": "interior-furnished-building-silent-1-001-f2-table-light-5",
+      "type": "interior",
+      "asset": "assets/models/interior/Lamp/Light_Floor2.glb",
+      "position": [
+        -13.5,
+        3.58,
+        -16.5
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        0.5,
+        0.5,
+        0.5
+      ],
+      "interiorBuildingId": "building-silent-1-001"
+    },
+    {
+      "id": "interior-furnished-building-silent-1-001-f2-ceiling-light-6",
+      "type": "interior",
+      "asset": "assets/models/interior/Light Ceiling-ToOLJDO5FI/Light_Ceiling3.glb",
+      "position": [
+        -15.5,
+        6.1,
+        -19.5
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        0.5,
+        0.5,
+        0.5
+      ],
+      "interiorBuildingId": "building-silent-1-001"
+    },
+    {
+      "id": "interior-furnished-building-silent-1-002-f1-dining-table-1",
+      "type": "interior",
+      "asset": "assets/models/interior/Table Round Large/Table_RoundLarge.glb",
+      "position": [
+        40.5,
+        0,
+        -17.5
+      ],
+      "rotation": [
+        0,
+        1.571,
+        0
+      ],
+      "scale": [
+        0.5,
+        0.5,
+        0.5
+      ],
+      "interiorBuildingId": "building-silent-1-002"
+    },
+    {
+      "id": "interior-furnished-building-silent-1-002-f1-chair-a-2",
+      "type": "interior",
+      "asset": "assets/models/interior/Chair/Chair_4.glb",
+      "position": [
+        39.5,
+        0,
+        -17.5
+      ],
+      "rotation": [
+        0,
+        1.571,
+        0
+      ],
+      "scale": [
+        0.5,
+        0.5,
+        0.5
+      ],
+      "interiorBuildingId": "building-silent-1-002"
+    },
+    {
+      "id": "interior-furnished-building-silent-1-002-f1-chair-b-3",
+      "type": "interior",
+      "asset": "assets/models/interior/Chair/Chair_1.glb",
+      "position": [
+        41.5,
+        0,
+        -17.5
+      ],
+      "rotation": [
+        0,
+        -1.571,
+        0
+      ],
+      "scale": [
+        0.5,
+        0.5,
+        0.5
+      ],
+      "interiorBuildingId": "building-silent-1-002"
+    },
+    {
+      "id": "interior-furnished-building-silent-1-002-f1-fridge-4",
+      "type": "interior",
+      "asset": "assets/models/interior/Kitchen Fridge/Kitchen_Fridge.glb",
+      "position": [
+        47.5,
+        0,
+        -14.5
+      ],
+      "rotation": [
+        0,
+        3.142,
+        0
+      ],
+      "scale": [
+        0.5,
+        0.5,
+        0.5
+      ],
+      "interiorBuildingId": "building-silent-1-002"
+    },
+    {
+      "id": "interior-furnished-building-silent-1-002-f1-sink-5",
+      "type": "interior",
+      "asset": "assets/models/interior/Kitchen Sink/Kitchen_Sink.glb",
+      "position": [
+        34.5,
+        0,
+        -21.5
+      ],
+      "rotation": [
+        0,
+        3.142,
+        0
+      ],
+      "scale": [
+        0.5,
+        0.5,
+        0.5
+      ],
+      "interiorBuildingId": "building-silent-1-002"
+    },
+    {
+      "id": "interior-furnished-building-silent-1-002-f1-ceiling-light-6",
+      "type": "interior",
+      "asset": "assets/models/interior/Light Ceiling-NNlnaiDJIh/Light_Ceiling4.glb",
+      "position": [
+        40.5,
+        3.25,
+        -17.5
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        0.5,
+        0.5,
+        0.5
+      ],
+      "interiorBuildingId": "building-silent-1-002"
+    },
+    {
+      "id": "interior-furnished-building-silent-1-002-f2-meeting-table-1",
+      "type": "interior",
+      "asset": "assets/models/interior/Table Round Large/Table_RoundLarge.glb",
+      "position": [
+        41.5,
+        3.35,
+        -18.5
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        0.5,
+        0.5,
+        0.5
+      ],
+      "interiorBuildingId": "building-silent-1-002"
+    },
+    {
+      "id": "interior-furnished-building-silent-1-002-f2-chair-a-2",
+      "type": "interior",
+      "asset": "assets/models/interior/Chair/Chair_1.glb",
+      "position": [
+        40.5,
+        3.35,
+        -18.5
+      ],
+      "rotation": [
+        0,
+        1.571,
+        0
+      ],
+      "scale": [
+        0.5,
+        0.5,
+        0.5
+      ],
+      "interiorBuildingId": "building-silent-1-002"
+    },
+    {
+      "id": "interior-furnished-building-silent-1-002-f2-chair-b-3",
+      "type": "interior",
+      "asset": "assets/models/interior/Chair/Chair_4.glb",
+      "position": [
+        42.5,
+        3.35,
+        -18.5
+      ],
+      "rotation": [
+        0,
+        -1.571,
+        0
+      ],
+      "scale": [
+        0.5,
+        0.5,
+        0.5
+      ],
+      "interiorBuildingId": "building-silent-1-002"
+    },
+    {
+      "id": "interior-furnished-building-silent-1-002-f2-shelf-4",
+      "type": "interior",
+      "asset": "assets/models/interior/Shelf Small/Shelf_Small1.glb",
+      "position": [
+        47.5,
+        3.35,
+        -16.5
+      ],
+      "rotation": [
+        0,
+        3.142,
+        0
+      ],
+      "scale": [
+        0.5,
+        0.5,
+        0.5
+      ],
+      "interiorBuildingId": "building-silent-1-002"
+    },
+    {
+      "id": "interior-furnished-building-silent-1-002-f2-plant-5",
+      "type": "interior",
+      "asset": "assets/models/interior/Houseplant-IBLX2Jz90O/Houseplant_5.glb",
+      "position": [
+        36.5,
+        3.35,
+        -21.5
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        0.5,
+        0.5,
+        0.5
+      ],
+      "interiorBuildingId": "building-silent-1-002"
+    },
+    {
+      "id": "interior-furnished-building-silent-1-002-f2-ceiling-light-6",
+      "type": "interior",
+      "asset": "assets/models/interior/Light Ceiling/Light_Ceiling1.glb",
+      "position": [
+        41.5,
+        6.6,
+        -18.5
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        0.5,
+        0.5,
+        0.5
+      ],
+      "interiorBuildingId": "building-silent-1-002"
+    },
+    {
+      "id": "interior-furnished-building-silent-1-002-f3-bathtub-1",
+      "type": "interior",
+      "asset": "assets/models/interior/Bathtub/Bathroom_Bathtub.glb",
+      "position": [
+        42.5,
+        6.7,
+        -17.5
+      ],
+      "rotation": [
+        0,
+        1.571,
+        0
+      ],
+      "scale": [
+        0.5,
+        0.5,
+        0.5
+      ],
+      "interiorBuildingId": "building-silent-1-002"
+    },
+    {
+      "id": "interior-furnished-building-silent-1-002-f3-toilet-2",
+      "type": "interior",
+      "asset": "assets/models/interior/Toilet/Bathroom_Toilet.glb",
+      "position": [
+        35.5,
+        6.7,
+        -19.5
+      ],
+      "rotation": [
+        0,
+        3.142,
+        0
+      ],
+      "scale": [
+        0.5,
+        0.5,
+        0.5
+      ],
+      "interiorBuildingId": "building-silent-1-002"
+    },
+    {
+      "id": "interior-furnished-building-silent-1-002-f3-sink-3",
+      "type": "interior",
+      "asset": "assets/models/interior/Bathroom Sink/Bathroom_Sink.glb",
+      "position": [
+        37.5,
+        6.7,
+        -19.5
+      ],
+      "rotation": [
+        0,
+        3.142,
+        0
+      ],
+      "scale": [
+        0.5,
+        0.5,
+        0.5
+      ],
+      "interiorBuildingId": "building-silent-1-002"
+    },
+    {
+      "id": "interior-furnished-building-silent-1-002-f3-washing-machine-4",
+      "type": "interior",
+      "asset": "assets/models/interior/Washing Machine/Bathroom_WashingMachine.glb",
+      "position": [
+        46.5,
+        6.7,
+        -16.5
+      ],
+      "rotation": [
+        0,
+        3.142,
+        0
+      ],
+      "scale": [
+        0.5,
+        0.5,
+        0.5
+      ],
+      "interiorBuildingId": "building-silent-1-002"
+    },
+    {
+      "id": "interior-furnished-building-silent-1-002-f3-trashcan-5",
+      "type": "interior",
+      "asset": "assets/models/interior/Trashcan Small/Trashcan_Small2.glb",
+      "position": [
+        48.5,
+        6.7,
+        -16.5
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        0.5,
+        0.5,
+        0.5
+      ],
+      "interiorBuildingId": "building-silent-1-002"
+    },
+    {
+      "id": "interior-furnished-building-silent-1-002-f3-ceiling-light-6",
+      "type": "interior",
+      "asset": "assets/models/interior/Light Chandelier/Light_Chandelier.glb",
+      "position": [
+        42.5,
+        9.95,
+        -17.5
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        0.5,
+        0.5,
+        0.5
+      ],
+      "interiorBuildingId": "building-silent-1-002"
+    },
+    {
+      "id": "interior-furnished-building-silent-2-001-f1-bathtub-1",
+      "type": "interior",
+      "asset": "assets/models/interior/Bathtub/Bathroom_Bathtub.glb",
+      "position": [
+        -15.5,
+        0,
+        25.5
+      ],
+      "rotation": [
+        0,
+        3.142,
+        0
+      ],
+      "scale": [
+        0.5,
+        0.5,
+        0.5
+      ],
+      "interiorBuildingId": "building-silent-2-001"
+    },
+    {
+      "id": "interior-furnished-building-silent-2-001-f1-toilet-2",
+      "type": "interior",
+      "asset": "assets/models/interior/Toilet/Bathroom_Toilet.glb",
+      "position": [
+        -6.5,
+        0,
+        27.5
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        0.5,
+        0.5,
+        0.5
+      ],
+      "interiorBuildingId": "building-silent-2-001"
+    },
+    {
+      "id": "interior-furnished-building-silent-2-001-f1-sink-3",
+      "type": "interior",
+      "asset": "assets/models/interior/Bathroom Sink/Bathroom_Sink.glb",
+      "position": [
+        -8.5,
+        0,
+        27.5
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        0.5,
+        0.5,
+        0.5
+      ],
+      "interiorBuildingId": "building-silent-2-001"
+    },
+    {
+      "id": "interior-furnished-building-silent-2-001-f1-washing-machine-4",
+      "type": "interior",
+      "asset": "assets/models/interior/Washing Machine/Bathroom_WashingMachine.glb",
+      "position": [
+        -20.5,
+        0,
+        20.5
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        0.5,
+        0.5,
+        0.5
+      ],
+      "interiorBuildingId": "building-silent-2-001"
+    },
+    {
+      "id": "interior-furnished-building-silent-2-001-f1-trashcan-5",
+      "type": "interior",
+      "asset": "assets/models/interior/Trashcan-XSwahu252t/Trashcan_Green.glb",
+      "position": [
+        -22.5,
+        0,
+        20.5
+      ],
+      "rotation": [
+        0,
+        3.142,
+        0
+      ],
+      "scale": [
+        0.5,
+        0.5,
+        0.5
+      ],
+      "interiorBuildingId": "building-silent-2-001"
+    },
+    {
+      "id": "interior-furnished-building-silent-2-001-f1-ceiling-light-6",
+      "type": "interior",
+      "asset": "assets/models/interior/Ceiling Light/Light_Ceiling2.glb",
+      "position": [
+        -15.5,
+        3.5,
+        25.5
+      ],
+      "rotation": [
+        0,
+        3.142,
+        0
+      ],
+      "scale": [
+        0.5,
+        0.5,
+        0.5
+      ],
+      "interiorBuildingId": "building-silent-2-001"
+    },
+    {
+      "id": "interior-furnished-building-silent-2-001-f2-bunk-bed-1",
+      "type": "interior",
+      "asset": "assets/models/interior/Bunk Bed/Bed_Bunk.glb",
+      "position": [
+        -13.5,
+        3.6,
+        25.5
+      ],
+      "rotation": [
+        0,
+        4.712,
+        0
+      ],
+      "scale": [
+        0.5,
+        0.5,
+        0.5
+      ],
+      "interiorBuildingId": "building-silent-2-001"
+    },
+    {
+      "id": "interior-furnished-building-silent-2-001-f2-stool-2",
+      "type": "interior",
+      "asset": "assets/models/interior/Stool/Stool.glb",
+      "position": [
+        -4.5,
+        3.6,
+        27.5
+      ],
+      "rotation": [
+        0,
+        3.142,
+        0
+      ],
+      "scale": [
+        0.5,
+        0.5,
+        0.5
+      ],
+      "interiorBuildingId": "building-silent-2-001"
+    },
+    {
+      "id": "interior-furnished-building-silent-2-001-f2-shelf-3",
+      "type": "interior",
+      "asset": "assets/models/interior/Shelf Large/Shelf_Large.glb",
+      "position": [
+        -6.5,
+        3.6,
+        27.5
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        0.5,
+        0.5,
+        0.5
+      ],
+      "interiorBuildingId": "building-silent-2-001"
+    },
+    {
+      "id": "interior-furnished-building-silent-2-001-f2-rug-4",
+      "type": "interior",
+      "asset": "assets/models/interior/Rug/Carpet_1.glb",
+      "position": [
+        -13.5,
+        3.625,
+        25.5
+      ],
+      "rotation": [
+        0,
+        3.142,
+        0
+      ],
+      "scale": [
+        0.5,
+        0.5,
+        0.5
+      ],
+      "interiorBuildingId": "building-silent-2-001"
+    },
+    {
+      "id": "interior-furnished-building-silent-2-001-f2-drawer-5",
+      "type": "interior",
+      "asset": "assets/models/interior/Drawer/Drawer_4.glb",
+      "position": [
+        -19.5,
+        3.6,
+        20.5
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        0.5,
+        0.5,
+        0.5
+      ],
+      "interiorBuildingId": "building-silent-2-001"
+    },
+    {
+      "id": "interior-furnished-building-silent-2-001-f2-ceiling-light-6",
+      "type": "interior",
+      "asset": "assets/models/interior/Light Ceiling-ToOLJDO5FI/Light_Ceiling3.glb",
+      "position": [
+        -13.5,
+        7.1,
+        25.5
+      ],
+      "rotation": [
+        0,
+        3.142,
+        0
+      ],
+      "scale": [
+        0.5,
+        0.5,
+        0.5
+      ],
+      "interiorBuildingId": "building-silent-2-001"
+    },
+    {
+      "id": "interior-furnished-building-silent-3-001-f1-couch-1",
+      "type": "interior",
+      "asset": "assets/models/interior/Couch Medium/Couch_Medium2.glb",
+      "position": [
+        18.5,
+        0,
+        -6.5
+      ],
+      "rotation": [
+        0,
+        1.571,
+        0
+      ],
+      "scale": [
+        0.5,
+        0.5,
+        0.5
+      ],
+      "interiorBuildingId": "building-silent-3-001"
+    },
+    {
+      "id": "interior-furnished-building-silent-3-001-f1-rug-2",
+      "type": "interior",
+      "asset": "assets/models/interior/Rug/Carpet_1.glb",
+      "position": [
+        18.5,
+        0.025,
+        -5.5
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        0.5,
+        0.5,
+        0.5
+      ],
+      "interiorBuildingId": "building-silent-3-001"
+    },
+    {
+      "id": "interior-furnished-building-silent-3-001-f1-table-3",
+      "type": "interior",
+      "asset": "assets/models/interior/Table Round Small/Table_RoundSmall2.glb",
+      "position": [
+        19.5,
+        0,
+        -5.5
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        0.5,
+        0.5,
+        0.5
+      ],
+      "interiorBuildingId": "building-silent-3-001"
+    },
+    {
+      "id": "interior-furnished-building-silent-3-001-f1-chair-4",
+      "type": "interior",
+      "asset": "assets/models/interior/Chair/Chair_4.glb",
+      "position": [
+        11.5,
+        0,
+        -6.5
+      ],
+      "rotation": [
+        0,
+        3.142,
+        0
+      ],
+      "scale": [
+        0.5,
+        0.5,
+        0.5
+      ],
+      "interiorBuildingId": "building-silent-3-001"
+    },
+    {
+      "id": "interior-furnished-building-silent-3-001-f1-plant-5",
+      "type": "interior",
+      "asset": "assets/models/interior/Houseplant-Kr4kr7OCCQ/Houseplant_2.glb",
+      "position": [
+        21.5,
+        0,
+        -10.5
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        0.5,
+        0.5,
+        0.5
+      ],
+      "interiorBuildingId": "building-silent-3-001"
+    },
+    {
+      "id": "interior-furnished-building-silent-3-001-f1-ceiling-light-6",
+      "type": "interior",
+      "asset": "assets/models/interior/Light Ceiling-NNlnaiDJIh/Light_Ceiling4.glb",
+      "position": [
+        18.5,
+        3,
+        -6.5
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        0.5,
+        0.5,
+        0.5
+      ],
+      "interiorBuildingId": "building-silent-3-001"
+    },
+    {
+      "id": "interior-furnished-building-silent-3-001-f2-bed-1",
+      "type": "interior",
+      "asset": "assets/models/interior/Bed King/Bed_King.glb",
+      "position": [
+        15.5,
+        3.1,
+        -6.5
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        0.5,
+        0.5,
+        0.5
+      ],
+      "interiorBuildingId": "building-silent-3-001"
+    },
+    {
+      "id": "interior-furnished-building-silent-3-001-f2-night-stand-2",
+      "type": "interior",
+      "asset": "assets/models/interior/Night Stand/NightStand_1.glb",
+      "position": [
+        16.5,
+        3.1,
+        -5.5
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        0.5,
+        0.5,
+        0.5
+      ],
+      "interiorBuildingId": "building-silent-3-001"
+    },
+    {
+      "id": "interior-furnished-building-silent-3-001-f2-drawer-3",
+      "type": "interior",
+      "asset": "assets/models/interior/Drawer/Drawer_5.glb",
+      "position": [
+        7.5,
+        3.1,
+        -6.5
+      ],
+      "rotation": [
+        0,
+        3.142,
+        0
+      ],
+      "scale": [
+        0.5,
+        0.5,
+        0.5
+      ],
+      "interiorBuildingId": "building-silent-3-001"
+    },
+    {
+      "id": "interior-furnished-building-silent-3-001-f2-rug-4",
+      "type": "interior",
+      "asset": "assets/models/interior/Rug/Carpet_1.glb",
+      "position": [
+        15.5,
+        3.125,
+        -6.5
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        0.5,
+        0.5,
+        0.5
+      ],
+      "interiorBuildingId": "building-silent-3-001"
+    },
+    {
+      "id": "interior-furnished-building-silent-3-001-f2-table-light-5",
+      "type": "interior",
+      "asset": "assets/models/interior/Lamp/Light_Floor2.glb",
+      "position": [
+        16.5,
+        3.58,
+        -5.5
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        0.5,
+        0.5,
+        0.5
+      ],
+      "interiorBuildingId": "building-silent-3-001"
+    },
+    {
+      "id": "interior-furnished-building-silent-3-001-f2-ceiling-light-6",
+      "type": "interior",
+      "asset": "assets/models/interior/Light Ceiling/Light_Ceiling1.glb",
+      "position": [
+        21.5,
+        6.1,
+        -10.5
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        0.5,
+        0.5,
+        0.5
+      ],
+      "interiorBuildingId": "building-silent-3-001"
+    },
+    {
+      "id": "interior-furnished-building-silent-3-001-f3-dining-table-1",
+      "type": "interior",
+      "asset": "assets/models/interior/Table Round Large/Table_RoundLarge.glb",
+      "position": [
+        14.5,
+        6.2,
+        -6.5
+      ],
+      "rotation": [
+        0,
+        1.571,
+        0
+      ],
+      "scale": [
+        0.5,
+        0.5,
+        0.5
+      ],
+      "interiorBuildingId": "building-silent-3-001"
+    },
+    {
+      "id": "interior-furnished-building-silent-3-001-f3-chair-a-2",
+      "type": "interior",
+      "asset": "assets/models/interior/Chair/Chair_4.glb",
+      "position": [
+        13.5,
+        6.2,
+        -6.5
+      ],
+      "rotation": [
+        0,
+        1.571,
+        0
+      ],
+      "scale": [
+        0.5,
+        0.5,
+        0.5
+      ],
+      "interiorBuildingId": "building-silent-3-001"
+    },
+    {
+      "id": "interior-furnished-building-silent-3-001-f3-chair-b-3",
+      "type": "interior",
+      "asset": "assets/models/interior/Chair/Chair_1.glb",
+      "position": [
+        15.5,
+        6.2,
+        -6.5
+      ],
+      "rotation": [
+        0,
+        -1.571,
+        0
+      ],
+      "scale": [
+        0.5,
+        0.5,
+        0.5
+      ],
+      "interiorBuildingId": "building-silent-3-001"
+    },
+    {
+      "id": "interior-furnished-building-silent-3-001-f3-fridge-4",
+      "type": "interior",
+      "asset": "assets/models/interior/Kitchen Fridge/Kitchen_Fridge.glb",
+      "position": [
+        7.5,
+        6.2,
+        -10.5
+      ],
+      "rotation": [
+        0,
+        3.142,
+        0
+      ],
+      "scale": [
+        0.5,
+        0.5,
+        0.5
+      ],
+      "interiorBuildingId": "building-silent-3-001"
+    },
+    {
+      "id": "interior-furnished-building-silent-3-001-f3-sink-5",
+      "type": "interior",
+      "asset": "assets/models/interior/Kitchen Sink/Kitchen_Sink.glb",
+      "position": [
+        21.5,
+        6.2,
+        -10.5
+      ],
+      "rotation": [
+        0,
+        3.142,
+        0
+      ],
+      "scale": [
+        0.5,
+        0.5,
+        0.5
+      ],
+      "interiorBuildingId": "building-silent-3-001"
+    },
+    {
+      "id": "interior-furnished-building-silent-3-001-f3-ceiling-light-6",
+      "type": "interior",
+      "asset": "assets/models/interior/Light Chandelier/Light_Chandelier.glb",
+      "position": [
+        14.5,
+        9.2,
+        -6.5
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        0.5,
+        0.5,
+        0.5
+      ],
+      "interiorBuildingId": "building-silent-3-001"
+    },
+    {
+      "id": "interior-furnished-building-silent-3-001-f4-meeting-table-1",
+      "type": "interior",
+      "asset": "assets/models/interior/Table Round Large/Table_RoundLarge.glb",
+      "position": [
+        18.5,
+        9.3,
+        -6.5
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        0.5,
+        0.5,
+        0.5
+      ],
+      "interiorBuildingId": "building-silent-3-001"
+    },
+    {
+      "id": "interior-furnished-building-silent-3-001-f4-chair-a-2",
+      "type": "interior",
+      "asset": "assets/models/interior/Chair/Chair_1.glb",
+      "position": [
+        17.5,
+        9.3,
+        -6.5
+      ],
+      "rotation": [
+        0,
+        1.571,
+        0
+      ],
+      "scale": [
+        0.5,
+        0.5,
+        0.5
+      ],
+      "interiorBuildingId": "building-silent-3-001"
+    },
+    {
+      "id": "interior-furnished-building-silent-3-001-f4-chair-b-3",
+      "type": "interior",
+      "asset": "assets/models/interior/Chair/Chair_4.glb",
+      "position": [
+        19.5,
+        9.3,
+        -6.5
+      ],
+      "rotation": [
+        0,
+        -1.571,
+        0
+      ],
+      "scale": [
+        0.5,
+        0.5,
+        0.5
+      ],
+      "interiorBuildingId": "building-silent-3-001"
+    },
+    {
+      "id": "interior-furnished-building-silent-3-001-f4-shelf-4",
+      "type": "interior",
+      "asset": "assets/models/interior/Shelf Large/Shelf_Large.glb",
+      "position": [
+        11.5,
+        9.3,
+        -6.5
+      ],
+      "rotation": [
+        0,
+        3.142,
+        0
+      ],
+      "scale": [
+        0.5,
+        0.5,
+        0.5
+      ],
+      "interiorBuildingId": "building-silent-3-001"
+    },
+    {
+      "id": "interior-furnished-building-silent-3-001-f4-plant-5",
+      "type": "interior",
+      "asset": "assets/models/interior/Cactus/Houseplant_3.glb",
+      "position": [
+        21.5,
+        9.3,
+        -10.5
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        0.5,
+        0.5,
+        0.5
+      ],
+      "interiorBuildingId": "building-silent-3-001"
+    },
+    {
+      "id": "interior-furnished-building-silent-3-001-f4-ceiling-light-6",
+      "type": "interior",
+      "asset": "assets/models/interior/Light Ceiling-NNlnaiDJIh/Light_Ceiling4.glb",
+      "position": [
+        18.5,
+        12.3,
+        -6.5
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        0.5,
+        0.5,
+        0.5
+      ],
+      "interiorBuildingId": "building-silent-3-001"
+    },
+    {
+      "id": "interior-furnished-building-silent-2-002-f1-dining-table-1",
+      "type": "interior",
+      "asset": "assets/models/interior/Table Round Large/Table_RoundLarge.glb",
+      "position": [
+        57.5,
+        0,
+        -25.5
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        0.5,
+        0.5,
+        0.5
+      ],
+      "interiorBuildingId": "building-silent-2-002"
+    },
+    {
+      "id": "interior-furnished-building-silent-2-002-f1-chair-a-2",
+      "type": "interior",
+      "asset": "assets/models/interior/Chair/Chair_1.glb",
+      "position": [
+        56.5,
+        0,
+        -25.5
+      ],
+      "rotation": [
+        0,
+        1.571,
+        0
+      ],
+      "scale": [
+        0.5,
+        0.5,
+        0.5
+      ],
+      "interiorBuildingId": "building-silent-2-002"
+    },
+    {
+      "id": "interior-furnished-building-silent-2-002-f1-chair-b-3",
+      "type": "interior",
+      "asset": "assets/models/interior/Chair/Chair_4.glb",
+      "position": [
+        58.5,
+        0,
+        -25.5
+      ],
+      "rotation": [
+        0,
+        -1.571,
+        0
+      ],
+      "scale": [
+        0.5,
+        0.5,
+        0.5
+      ],
+      "interiorBuildingId": "building-silent-2-002"
+    },
+    {
+      "id": "interior-furnished-building-silent-2-002-f1-fridge-4",
+      "type": "interior",
+      "asset": "assets/models/interior/Kitchen Fridge/Kitchen_Fridge.glb",
+      "position": [
+        64.5,
+        0,
+        -27.5
+      ],
+      "rotation": [
+        0,
+        3.142,
+        0
+      ],
+      "scale": [
+        0.5,
+        0.5,
+        0.5
+      ],
+      "interiorBuildingId": "building-silent-2-002"
+    },
+    {
+      "id": "interior-furnished-building-silent-2-002-f1-sink-5",
+      "type": "interior",
+      "asset": "assets/models/interior/Kitchen Sink/Kitchen_Sink.glb",
+      "position": [
+        51.5,
+        0,
+        -27.5
+      ],
+      "rotation": [
+        0,
+        3.142,
+        0
+      ],
+      "scale": [
+        0.5,
+        0.5,
+        0.5
+      ],
+      "interiorBuildingId": "building-silent-2-002"
+    },
+    {
+      "id": "interior-furnished-building-silent-2-002-f1-ceiling-light-6",
+      "type": "interior",
+      "asset": "assets/models/interior/Ceiling Light/Light_Ceiling2.glb",
+      "position": [
+        57.5,
+        3,
+        -25.5
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        0.5,
+        0.5,
+        0.5
+      ],
+      "interiorBuildingId": "building-silent-2-002"
+    },
+    {
+      "id": "interior-furnished-building-silent-2-002-f2-meeting-table-1",
+      "type": "interior",
+      "asset": "assets/models/interior/Table Round Large/Table_RoundLarge.glb",
+      "position": [
+        56.5,
+        3.1,
+        -26.5
+      ],
+      "rotation": [
+        0,
+        1.571,
+        0
+      ],
+      "scale": [
+        0.5,
+        0.5,
+        0.5
+      ],
+      "interiorBuildingId": "building-silent-2-002"
+    },
+    {
+      "id": "interior-furnished-building-silent-2-002-f2-chair-a-2",
+      "type": "interior",
+      "asset": "assets/models/interior/Chair/Chair_4.glb",
+      "position": [
+        55.5,
+        3.1,
+        -26.5
+      ],
+      "rotation": [
+        0,
+        1.571,
+        0
+      ],
+      "scale": [
+        0.5,
+        0.5,
+        0.5
+      ],
+      "interiorBuildingId": "building-silent-2-002"
+    },
+    {
+      "id": "interior-furnished-building-silent-2-002-f2-chair-b-3",
+      "type": "interior",
+      "asset": "assets/models/interior/Chair/Chair_1.glb",
+      "position": [
+        57.5,
+        3.1,
+        -26.5
+      ],
+      "rotation": [
+        0,
+        -1.571,
+        0
+      ],
+      "scale": [
+        0.5,
+        0.5,
+        0.5
+      ],
+      "interiorBuildingId": "building-silent-2-002"
+    },
+    {
+      "id": "interior-furnished-building-silent-2-002-f2-shelf-4",
+      "type": "interior",
+      "asset": "assets/models/interior/Shelf Small/Shelf_Small1.glb",
+      "position": [
+        50.5,
+        3.1,
+        -27.5
+      ],
+      "rotation": [
+        0,
+        3.142,
+        0
+      ],
+      "scale": [
+        0.5,
+        0.5,
+        0.5
+      ],
+      "interiorBuildingId": "building-silent-2-002"
+    },
+    {
+      "id": "interior-furnished-building-silent-2-002-f2-plant-5",
+      "type": "interior",
+      "asset": "assets/models/interior/Dead Houseplant/Houseplant_8.glb",
+      "position": [
+        62.5,
+        3.1,
+        -27.5
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        0.5,
+        0.5,
+        0.5
+      ],
+      "interiorBuildingId": "building-silent-2-002"
+    },
+    {
+      "id": "interior-furnished-building-silent-2-002-f2-ceiling-light-6",
+      "type": "interior",
+      "asset": "assets/models/interior/Light Ceiling-ToOLJDO5FI/Light_Ceiling3.glb",
+      "position": [
+        56.5,
+        6.1,
+        -26.5
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        0.5,
+        0.5,
+        0.5
+      ],
+      "interiorBuildingId": "building-silent-2-002"
+    },
+    {
+      "id": "interior-furnished-building-silent-2-002-f3-bathtub-1",
+      "type": "interior",
+      "asset": "assets/models/interior/Bathtub/Bathroom_Bathtub.glb",
+      "position": [
+        56.5,
+        6.2,
+        -27.5
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        0.5,
+        0.5,
+        0.5
+      ],
+      "interiorBuildingId": "building-silent-2-002"
+    },
+    {
+      "id": "interior-furnished-building-silent-2-002-f3-toilet-2",
+      "type": "interior",
+      "asset": "assets/models/interior/Toilet/Bathroom_Toilet.glb",
+      "position": [
+        49.5,
+        6.2,
+        -28.5
+      ],
+      "rotation": [
+        0,
+        3.142,
+        0
+      ],
+      "scale": [
+        0.5,
+        0.5,
+        0.5
+      ],
+      "interiorBuildingId": "building-silent-2-002"
+    },
+    {
+      "id": "interior-furnished-building-silent-2-002-f3-sink-3",
+      "type": "interior",
+      "asset": "assets/models/interior/Bathroom Sink/Bathroom_Sink.glb",
+      "position": [
+        51.5,
+        6.2,
+        -28.5
+      ],
+      "rotation": [
+        0,
+        3.142,
+        0
+      ],
+      "scale": [
+        0.5,
+        0.5,
+        0.5
+      ],
+      "interiorBuildingId": "building-silent-2-002"
+    },
+    {
+      "id": "interior-furnished-building-silent-2-002-f3-washing-machine-4",
+      "type": "interior",
+      "asset": "assets/models/interior/Washing Machine/Bathroom_WashingMachine.glb",
+      "position": [
+        61.5,
+        6.2,
+        -28.5
+      ],
+      "rotation": [
+        0,
+        3.142,
+        0
+      ],
+      "scale": [
+        0.5,
+        0.5,
+        0.5
+      ],
+      "interiorBuildingId": "building-silent-2-002"
+    },
+    {
+      "id": "interior-furnished-building-silent-2-002-f3-trashcan-5",
+      "type": "interior",
+      "asset": "assets/models/interior/Trashcan-XSwahu252t/Trashcan_Green.glb",
+      "position": [
+        63.5,
+        6.2,
+        -28.5
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        0.5,
+        0.5,
+        0.5
+      ],
+      "interiorBuildingId": "building-silent-2-002"
+    },
+    {
+      "id": "interior-furnished-building-silent-2-002-f3-ceiling-light-6",
+      "type": "interior",
+      "asset": "assets/models/interior/Light Ceiling Single/Light_CeilingSingle.glb",
+      "position": [
+        56.5,
+        9.2,
+        -27.5
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        0.5,
+        0.5,
+        0.5
+      ],
+      "interiorBuildingId": "building-silent-2-002"
+    },
+    {
+      "id": "interior-furnished-building-silent-2-003-f1-bathtub-1",
+      "type": "interior",
+      "asset": "assets/models/interior/Bathtub/Bathroom_Bathtub.glb",
+      "position": [
+        13.5,
+        0,
+        -42.5
+      ],
+      "rotation": [
+        0,
+        1.571,
+        0
+      ],
+      "scale": [
+        0.5,
+        0.5,
+        0.5
+      ],
+      "interiorBuildingId": "building-silent-2-003"
+    },
+    {
+      "id": "interior-furnished-building-silent-2-003-f1-toilet-2",
+      "type": "interior",
+      "asset": "assets/models/interior/Toilet/Bathroom_Toilet.glb",
+      "position": [
+        3.5,
+        0,
+        -45.5
+      ],
+      "rotation": [
+        0,
+        3.142,
+        0
+      ],
+      "scale": [
+        0.5,
+        0.5,
+        0.5
+      ],
+      "interiorBuildingId": "building-silent-2-003"
+    },
+    {
+      "id": "interior-furnished-building-silent-2-003-f1-sink-3",
+      "type": "interior",
+      "asset": "assets/models/interior/Bathroom Sink/Bathroom_Sink.glb",
+      "position": [
+        5.5,
+        0,
+        -45.5
+      ],
+      "rotation": [
+        0,
+        3.142,
+        0
+      ],
+      "scale": [
+        0.5,
+        0.5,
+        0.5
+      ],
+      "interiorBuildingId": "building-silent-2-003"
+    },
+    {
+      "id": "interior-furnished-building-silent-2-003-f1-washing-machine-4",
+      "type": "interior",
+      "asset": "assets/models/interior/Washing Machine/Bathroom_WashingMachine.glb",
+      "position": [
+        3.5,
+        0,
+        -37.5
+      ],
+      "rotation": [
+        0,
+        3.142,
+        0
+      ],
+      "scale": [
+        0.5,
+        0.5,
+        0.5
+      ],
+      "interiorBuildingId": "building-silent-2-003"
+    },
+    {
+      "id": "interior-furnished-building-silent-2-003-f1-trashcan-5",
+      "type": "interior",
+      "asset": "assets/models/interior/Trashcan/Trashcan_Cylindric.glb",
+      "position": [
+        5.5,
+        0,
+        -37.5
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        0.5,
+        0.5,
+        0.5
+      ],
+      "interiorBuildingId": "building-silent-2-003"
+    },
+    {
+      "id": "interior-furnished-building-silent-2-003-f1-ceiling-light-6",
+      "type": "interior",
+      "asset": "assets/models/interior/Light Ceiling-NNlnaiDJIh/Light_Ceiling4.glb",
+      "position": [
+        13.5,
+        3.25,
+        -42.5
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        0.5,
+        0.5,
+        0.5
+      ],
+      "interiorBuildingId": "building-silent-2-003"
+    },
+    {
+      "id": "interior-furnished-building-silent-2-003-f2-bunk-bed-1",
+      "type": "interior",
+      "asset": "assets/models/interior/Bunk Bed/Bed_Bunk.glb",
+      "position": [
+        11.5,
+        3.35,
+        -42.5
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        0.5,
+        0.5,
+        0.5
+      ],
+      "interiorBuildingId": "building-silent-2-003"
+    },
+    {
+      "id": "interior-furnished-building-silent-2-003-f2-stool-2",
+      "type": "interior",
+      "asset": "assets/models/interior/Stool/Stool.glb",
+      "position": [
+        18.5,
+        3.35,
+        -42.5
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        0.5,
+        0.5,
+        0.5
+      ],
+      "interiorBuildingId": "building-silent-2-003"
+    },
+    {
+      "id": "interior-furnished-building-silent-2-003-f2-shelf-3",
+      "type": "interior",
+      "asset": "assets/models/interior/Shelf Large/Shelf_Large.glb",
+      "position": [
+        20.5,
+        3.35,
+        -42.5
+      ],
+      "rotation": [
+        0,
+        3.142,
+        0
+      ],
+      "scale": [
+        0.5,
+        0.5,
+        0.5
+      ],
+      "interiorBuildingId": "building-silent-2-003"
+    },
+    {
+      "id": "interior-furnished-building-silent-2-003-f2-rug-4",
+      "type": "interior",
+      "asset": "assets/models/interior/Round Rug/Carpet_Round.glb",
+      "position": [
+        11.5,
+        3.375,
+        -42.5
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        0.5,
+        0.5,
+        0.5
+      ],
+      "interiorBuildingId": "building-silent-2-003"
+    },
+    {
+      "id": "interior-furnished-building-silent-2-003-f2-drawer-5",
+      "type": "interior",
+      "asset": "assets/models/interior/Drawer/Drawer_5.glb",
+      "position": [
+        4.5,
+        3.35,
+        -39.5
+      ],
+      "rotation": [
+        0,
+        3.142,
+        0
+      ],
+      "scale": [
+        0.5,
+        0.5,
+        0.5
+      ],
+      "interiorBuildingId": "building-silent-2-003"
+    },
+    {
+      "id": "interior-furnished-building-silent-2-003-f2-ceiling-light-6",
+      "type": "interior",
+      "asset": "assets/models/interior/Light Ceiling/Light_Ceiling1.glb",
+      "position": [
+        11.5,
+        6.6,
+        -42.5
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        0.5,
+        0.5,
+        0.5
+      ],
+      "interiorBuildingId": "building-silent-2-003"
+    },
+    {
+      "id": "interior-furnished-building-silent-3-002-f1-couch-1",
+      "type": "interior",
+      "asset": "assets/models/interior/Couch Small/Couch_Small1.glb",
+      "position": [
+        -40.5,
+        0,
+        -41.5
+      ],
+      "rotation": [
+        0,
+        3.142,
+        0
+      ],
+      "scale": [
+        0.5,
+        0.5,
+        0.5
+      ],
+      "interiorBuildingId": "building-silent-3-002"
+    },
+    {
+      "id": "interior-furnished-building-silent-3-002-f1-rug-2",
+      "type": "interior",
+      "asset": "assets/models/interior/Round Rug/Carpet_Round.glb",
+      "position": [
+        -40.5,
+        0.025,
+        -42.5
+      ],
+      "rotation": [
+        0,
+        3.142,
+        0
+      ],
+      "scale": [
+        0.5,
+        0.5,
+        0.5
+      ],
+      "interiorBuildingId": "building-silent-3-002"
+    },
+    {
+      "id": "interior-furnished-building-silent-3-002-f1-table-3",
+      "type": "interior",
+      "asset": "assets/models/interior/Table Round Small/Table_RoundSmall.glb",
+      "position": [
+        -41.5,
+        0,
+        -42.5
+      ],
+      "rotation": [
+        0,
+        3.142,
+        0
+      ],
+      "scale": [
+        0.5,
+        0.5,
+        0.5
+      ],
+      "interiorBuildingId": "building-silent-3-002"
+    },
+    {
+      "id": "interior-furnished-building-silent-3-002-f1-chair-4",
+      "type": "interior",
+      "asset": "assets/models/interior/Chair/Chair_1.glb",
+      "position": [
+        -35.5,
+        0,
+        -44.5
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        0.5,
+        0.5,
+        0.5
+      ],
+      "interiorBuildingId": "building-silent-3-002"
+    },
+    {
+      "id": "interior-furnished-building-silent-3-002-f1-plant-5",
+      "type": "interior",
+      "asset": "assets/models/interior/Houseplant/Houseplant_4.glb",
+      "position": [
+        -45.5,
+        0,
+        -44.5
+      ],
+      "rotation": [
+        0,
+        3.142,
+        0
+      ],
+      "scale": [
+        0.5,
+        0.5,
+        0.5
+      ],
+      "interiorBuildingId": "building-silent-3-002"
+    },
+    {
+      "id": "interior-furnished-building-silent-3-002-f1-ceiling-light-6",
+      "type": "interior",
+      "asset": "assets/models/interior/Ceiling Light/Light_Ceiling2.glb",
+      "position": [
+        -40.5,
+        3,
+        -41.5
+      ],
+      "rotation": [
+        0,
+        3.142,
+        0
+      ],
+      "scale": [
+        0.5,
+        0.5,
+        0.5
+      ],
+      "interiorBuildingId": "building-silent-3-002"
+    },
+    {
+      "id": "interior-furnished-building-silent-3-002-f2-bed-1",
+      "type": "interior",
+      "asset": "assets/models/interior/Bed King/Bed_King.glb",
+      "position": [
+        -36.5,
+        3.1,
+        -41.5
+      ],
+      "rotation": [
+        0,
+        4.712,
+        0
+      ],
+      "scale": [
+        0.5,
+        0.5,
+        0.5
+      ],
+      "interiorBuildingId": "building-silent-3-002"
+    },
+    {
+      "id": "interior-furnished-building-silent-3-002-f2-night-stand-2",
+      "type": "interior",
+      "asset": "assets/models/interior/Night Stand/NightStand_1.glb",
+      "position": [
+        -37.5,
+        3.1,
+        -42.5
+      ],
+      "rotation": [
+        0,
+        3.142,
+        0
+      ],
+      "scale": [
+        0.5,
+        0.5,
+        0.5
+      ],
+      "interiorBuildingId": "building-silent-3-002"
+    },
+    {
+      "id": "interior-furnished-building-silent-3-002-f2-drawer-3",
+      "type": "interior",
+      "asset": "assets/models/interior/Drawer/Drawer_1.glb",
+      "position": [
+        -37.5,
+        3.1,
+        -44.5
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        0.5,
+        0.5,
+        0.5
+      ],
+      "interiorBuildingId": "building-silent-3-002"
+    },
+    {
+      "id": "interior-furnished-building-silent-3-002-f2-rug-4",
+      "type": "interior",
+      "asset": "assets/models/interior/Round Rug/Carpet_Round.glb",
+      "position": [
+        -36.5,
+        3.125,
+        -41.5
+      ],
+      "rotation": [
+        0,
+        3.142,
+        0
+      ],
+      "scale": [
+        0.5,
+        0.5,
+        0.5
+      ],
+      "interiorBuildingId": "building-silent-3-002"
+    },
+    {
+      "id": "interior-furnished-building-silent-3-002-f2-table-light-5",
+      "type": "interior",
+      "asset": "assets/models/interior/Lamp/Light_Floor2.glb",
+      "position": [
+        -37.5,
+        3.58,
+        -42.5
+      ],
+      "rotation": [
+        0,
+        3.142,
+        0
+      ],
+      "scale": [
+        0.5,
+        0.5,
+        0.5
+      ],
+      "interiorBuildingId": "building-silent-3-002"
+    },
+    {
+      "id": "interior-furnished-building-silent-3-002-f2-ceiling-light-6",
+      "type": "interior",
+      "asset": "assets/models/interior/Light Ceiling-ToOLJDO5FI/Light_Ceiling3.glb",
+      "position": [
+        -35.5,
+        6.1,
+        -39.5
+      ],
+      "rotation": [
+        0,
+        3.142,
+        0
+      ],
+      "scale": [
+        0.5,
+        0.5,
+        0.5
+      ],
+      "interiorBuildingId": "building-silent-3-002"
+    },
+    {
+      "id": "interior-furnished-building-silent-2-004-f1-dining-table-1",
+      "type": "interior",
+      "asset": "assets/models/interior/Table Round Large/Table_RoundLarge.glb",
+      "position": [
+        21.5,
+        0,
+        -3.5
+      ],
+      "rotation": [
+        0,
+        1.571,
+        0
+      ],
+      "scale": [
+        0.5,
+        0.5,
+        0.5
+      ],
+      "interiorBuildingId": "building-silent-2-004"
+    },
+    {
+      "id": "interior-furnished-building-silent-2-004-f1-chair-a-2",
+      "type": "interior",
+      "asset": "assets/models/interior/Chair/Chair_4.glb",
+      "position": [
+        20.5,
+        0,
+        -3.5
+      ],
+      "rotation": [
+        0,
+        1.571,
+        0
+      ],
+      "scale": [
+        0.5,
+        0.5,
+        0.5
+      ],
+      "interiorBuildingId": "building-silent-2-004"
+    },
+    {
+      "id": "interior-furnished-building-silent-2-004-f1-chair-b-3",
+      "type": "interior",
+      "asset": "assets/models/interior/Chair/Chair_1.glb",
+      "position": [
+        22.5,
+        0,
+        -3.5
+      ],
+      "rotation": [
+        0,
+        -1.571,
+        0
+      ],
+      "scale": [
+        0.5,
+        0.5,
+        0.5
+      ],
+      "interiorBuildingId": "building-silent-2-004"
+    },
+    {
+      "id": "interior-furnished-building-silent-2-004-f1-fridge-4",
+      "type": "interior",
+      "asset": "assets/models/interior/Kitchen Fridge/Kitchen_Fridge.glb",
+      "position": [
+        28.5,
+        0,
+        -0.5
+      ],
+      "rotation": [
+        0,
+        3.142,
+        0
+      ],
+      "scale": [
+        0.5,
+        0.5,
+        0.5
+      ],
+      "interiorBuildingId": "building-silent-2-004"
+    },
+    {
+      "id": "interior-furnished-building-silent-2-004-f1-sink-5",
+      "type": "interior",
+      "asset": "assets/models/interior/Kitchen Sink/Kitchen_Sink.glb",
+      "position": [
+        15.5,
+        0,
+        -7.5
+      ],
+      "rotation": [
+        0,
+        3.142,
+        0
+      ],
+      "scale": [
+        0.5,
+        0.5,
+        0.5
+      ],
+      "interiorBuildingId": "building-silent-2-004"
+    },
+    {
+      "id": "interior-furnished-building-silent-2-004-f1-ceiling-light-6",
+      "type": "interior",
+      "asset": "assets/models/interior/Light Ceiling-NNlnaiDJIh/Light_Ceiling4.glb",
+      "position": [
+        21.5,
+        3.25,
+        -3.5
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        0.5,
+        0.5,
+        0.5
+      ],
+      "interiorBuildingId": "building-silent-2-004"
+    },
+    {
+      "id": "interior-furnished-building-silent-2-004-f2-meeting-table-1",
+      "type": "interior",
+      "asset": "assets/models/interior/Table Round Large/Table_RoundLarge.glb",
+      "position": [
+        22.5,
+        3.35,
+        -4.5
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        0.5,
+        0.5,
+        0.5
+      ],
+      "interiorBuildingId": "building-silent-2-004"
+    },
+    {
+      "id": "interior-furnished-building-silent-2-004-f2-chair-a-2",
+      "type": "interior",
+      "asset": "assets/models/interior/Chair/Chair_1.glb",
+      "position": [
+        21.5,
+        3.35,
+        -4.5
+      ],
+      "rotation": [
+        0,
+        1.571,
+        0
+      ],
+      "scale": [
+        0.5,
+        0.5,
+        0.5
+      ],
+      "interiorBuildingId": "building-silent-2-004"
+    },
+    {
+      "id": "interior-furnished-building-silent-2-004-f2-chair-b-3",
+      "type": "interior",
+      "asset": "assets/models/interior/Chair/Chair_4.glb",
+      "position": [
+        23.5,
+        3.35,
+        -4.5
+      ],
+      "rotation": [
+        0,
+        -1.571,
+        0
+      ],
+      "scale": [
+        0.5,
+        0.5,
+        0.5
+      ],
+      "interiorBuildingId": "building-silent-2-004"
+    },
+    {
+      "id": "interior-furnished-building-silent-2-004-f2-shelf-4",
+      "type": "interior",
+      "asset": "assets/models/interior/Shelf Small/Shelf_Small1.glb",
+      "position": [
+        28.5,
+        3.35,
+        -2.5
+      ],
+      "rotation": [
+        0,
+        3.142,
+        0
+      ],
+      "scale": [
+        0.5,
+        0.5,
+        0.5
+      ],
+      "interiorBuildingId": "building-silent-2-004"
+    },
+    {
+      "id": "interior-furnished-building-silent-2-004-f2-plant-5",
+      "type": "interior",
+      "asset": "assets/models/interior/Houseplant-dveIJ0xNpX/Houseplant_6.glb",
+      "position": [
+        17.5,
+        3.35,
+        -7.5
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        0.5,
+        0.5,
+        0.5
+      ],
+      "interiorBuildingId": "building-silent-2-004"
+    },
+    {
+      "id": "interior-furnished-building-silent-2-004-f2-ceiling-light-6",
+      "type": "interior",
+      "asset": "assets/models/interior/Light Ceiling/Light_Ceiling1.glb",
+      "position": [
+        22.5,
+        6.6,
+        -4.5
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        0.5,
+        0.5,
+        0.5
+      ],
+      "interiorBuildingId": "building-silent-2-004"
+    },
+    {
+      "id": "interior-furnished-building-silent-2-004-f3-bathtub-1",
+      "type": "interior",
+      "asset": "assets/models/interior/Bathtub/Bathroom_Bathtub.glb",
+      "position": [
+        23.5,
+        6.7,
+        -3.5
+      ],
+      "rotation": [
+        0,
+        1.571,
+        0
+      ],
+      "scale": [
+        0.5,
+        0.5,
+        0.5
+      ],
+      "interiorBuildingId": "building-silent-2-004"
+    },
+    {
+      "id": "interior-furnished-building-silent-2-004-f3-toilet-2",
+      "type": "interior",
+      "asset": "assets/models/interior/Toilet/Bathroom_Toilet.glb",
+      "position": [
+        16.5,
+        6.7,
+        -5.5
+      ],
+      "rotation": [
+        0,
+        3.142,
+        0
+      ],
+      "scale": [
+        0.5,
+        0.5,
+        0.5
+      ],
+      "interiorBuildingId": "building-silent-2-004"
+    },
+    {
+      "id": "interior-furnished-building-silent-2-004-f3-sink-3",
+      "type": "interior",
+      "asset": "assets/models/interior/Bathroom Sink/Bathroom_Sink.glb",
+      "position": [
+        18.5,
+        6.7,
+        -5.5
+      ],
+      "rotation": [
+        0,
+        3.142,
+        0
+      ],
+      "scale": [
+        0.5,
+        0.5,
+        0.5
+      ],
+      "interiorBuildingId": "building-silent-2-004"
+    },
+    {
+      "id": "interior-furnished-building-silent-2-004-f3-washing-machine-4",
+      "type": "interior",
+      "asset": "assets/models/interior/Washing Machine/Bathroom_WashingMachine.glb",
+      "position": [
+        27.5,
+        6.7,
+        -2.5
+      ],
+      "rotation": [
+        0,
+        3.142,
+        0
+      ],
+      "scale": [
+        0.5,
+        0.5,
+        0.5
+      ],
+      "interiorBuildingId": "building-silent-2-004"
+    },
+    {
+      "id": "interior-furnished-building-silent-2-004-f3-trashcan-5",
+      "type": "interior",
+      "asset": "assets/models/interior/Trashcan/Trashcan_Cylindric.glb",
+      "position": [
+        29.5,
+        6.7,
+        -2.5
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        0.5,
+        0.5,
+        0.5
+      ],
+      "interiorBuildingId": "building-silent-2-004"
+    },
+    {
+      "id": "interior-furnished-building-silent-2-004-f3-ceiling-light-6",
+      "type": "interior",
+      "asset": "assets/models/interior/Light Chandelier/Light_Chandelier.glb",
+      "position": [
+        23.5,
+        9.95,
+        -3.5
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        0.5,
+        0.5,
+        0.5
+      ],
+      "interiorBuildingId": "building-silent-2-004"
+    },
+    {
+      "id": "interior-furnished-building-silent-3-003-f1-bathtub-1",
+      "type": "interior",
+      "asset": "assets/models/interior/Bathtub/Bathroom_Bathtub.glb",
+      "position": [
+        72.5,
+        0,
+        47.5
+      ],
+      "rotation": [
+        0,
+        4.712,
+        0
+      ],
+      "scale": [
+        0.5,
+        0.5,
+        0.5
+      ],
+      "interiorBuildingId": "building-silent-3-003"
+    },
+    {
+      "id": "interior-furnished-building-silent-3-003-f1-toilet-2",
+      "type": "interior",
+      "asset": "assets/models/interior/Toilet/Bathroom_Toilet.glb",
+      "position": [
+        74.5,
+        0,
+        38.5
+      ],
+      "rotation": [
+        0,
+        1.571,
+        0
+      ],
+      "scale": [
+        0.5,
+        0.5,
+        0.5
+      ],
+      "interiorBuildingId": "building-silent-3-003"
+    },
+    {
+      "id": "interior-furnished-building-silent-3-003-f1-sink-3",
+      "type": "interior",
+      "asset": "assets/models/interior/Bathroom Sink/Bathroom_Sink.glb",
+      "position": [
+        74.5,
+        0,
+        40.5
+      ],
+      "rotation": [
+        0,
+        1.571,
+        0
+      ],
+      "scale": [
+        0.5,
+        0.5,
+        0.5
+      ],
+      "interiorBuildingId": "building-silent-3-003"
+    },
+    {
+      "id": "interior-furnished-building-silent-3-003-f1-washing-machine-4",
+      "type": "interior",
+      "asset": "assets/models/interior/Washing Machine/Bathroom_WashingMachine.glb",
+      "position": [
+        67.5,
+        0,
+        52.5
+      ],
+      "rotation": [
+        0,
+        1.571,
+        0
+      ],
+      "scale": [
+        0.5,
+        0.5,
+        0.5
+      ],
+      "interiorBuildingId": "building-silent-3-003"
+    },
+    {
+      "id": "interior-furnished-building-silent-3-003-f1-trashcan-5",
+      "type": "interior",
+      "asset": "assets/models/interior/Trashcan Large/Trashcan_Large.glb",
+      "position": [
+        67.5,
+        0,
+        54.5
+      ],
+      "rotation": [
+        0,
+        4.712,
+        0
+      ],
+      "scale": [
+        0.5,
+        0.5,
+        0.5
+      ],
+      "interiorBuildingId": "building-silent-3-003"
+    },
+    {
+      "id": "interior-furnished-building-silent-3-003-f1-ceiling-light-6",
+      "type": "interior",
+      "asset": "assets/models/interior/Ceiling Light/Light_Ceiling2.glb",
+      "position": [
+        72.5,
+        3.5,
+        47.5
+      ],
+      "rotation": [
+        0,
+        4.712,
+        0
+      ],
+      "scale": [
+        0.5,
+        0.5,
+        0.5
+      ],
+      "interiorBuildingId": "building-silent-3-003"
+    },
+    {
+      "id": "interior-furnished-building-silent-3-003-f2-bunk-bed-1",
+      "type": "interior",
+      "asset": "assets/models/interior/Bunk Bed/Bed_Bunk.glb",
+      "position": [
+        72.5,
+        3.6,
+        45.5
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        0.5,
+        0.5,
+        0.5
+      ],
+      "interiorBuildingId": "building-silent-3-003"
+    },
+    {
+      "id": "interior-furnished-building-silent-3-003-f2-stool-2",
+      "type": "interior",
+      "asset": "assets/models/interior/Stool/Stool.glb",
+      "position": [
+        74.5,
+        3.6,
+        36.5
+      ],
+      "rotation": [
+        0,
+        4.712,
+        0
+      ],
+      "scale": [
+        0.5,
+        0.5,
+        0.5
+      ],
+      "interiorBuildingId": "building-silent-3-003"
+    },
+    {
+      "id": "interior-furnished-building-silent-3-003-f2-shelf-3",
+      "type": "interior",
+      "asset": "assets/models/interior/Shelf Large/Shelf_Large.glb",
+      "position": [
+        74.5,
+        3.6,
+        38.5
+      ],
+      "rotation": [
+        0,
+        1.571,
+        0
+      ],
+      "scale": [
+        0.5,
+        0.5,
+        0.5
+      ],
+      "interiorBuildingId": "building-silent-3-003"
+    },
+    {
+      "id": "interior-furnished-building-silent-3-003-f2-rug-4",
+      "type": "interior",
+      "asset": "assets/models/interior/Rug/Carpet_1.glb",
+      "position": [
+        72.5,
+        3.625,
+        45.5
+      ],
+      "rotation": [
+        0,
+        4.712,
+        0
+      ],
+      "scale": [
+        0.5,
+        0.5,
+        0.5
+      ],
+      "interiorBuildingId": "building-silent-3-003"
+    },
+    {
+      "id": "interior-furnished-building-silent-3-003-f2-drawer-5",
+      "type": "interior",
+      "asset": "assets/models/interior/Drawer/Drawer_1.glb",
+      "position": [
+        67.5,
+        3.6,
+        51.5
+      ],
+      "rotation": [
+        0,
+        1.571,
+        0
+      ],
+      "scale": [
+        0.5,
+        0.5,
+        0.5
+      ],
+      "interiorBuildingId": "building-silent-3-003"
+    },
+    {
+      "id": "interior-furnished-building-silent-3-003-f2-ceiling-light-6",
+      "type": "interior",
+      "asset": "assets/models/interior/Light Ceiling-ToOLJDO5FI/Light_Ceiling3.glb",
+      "position": [
+        72.5,
+        7.1,
+        45.5
+      ],
+      "rotation": [
+        0,
+        4.712,
+        0
+      ],
+      "scale": [
+        0.5,
+        0.5,
+        0.5
+      ],
+      "interiorBuildingId": "building-silent-3-003"
+    },
+    {
+      "id": "interior-furnished-building-silent-2-005-f1-couch-1",
+      "type": "interior",
+      "asset": "assets/models/interior/Couch Medium/Couch_Medium2.glb",
+      "position": [
+        47.5,
+        0,
+        -5.5
+      ],
+      "rotation": [
+        0,
+        1.571,
+        0
+      ],
+      "scale": [
+        0.5,
+        0.5,
+        0.5
+      ],
+      "interiorBuildingId": "building-silent-2-005"
+    },
+    {
+      "id": "interior-furnished-building-silent-2-005-f1-rug-2",
+      "type": "interior",
+      "asset": "assets/models/interior/Rug/Carpet_1.glb",
+      "position": [
+        47.5,
+        0.025,
+        -4.5
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        0.5,
+        0.5,
+        0.5
+      ],
+      "interiorBuildingId": "building-silent-2-005"
+    },
+    {
+      "id": "interior-furnished-building-silent-2-005-f1-table-3",
+      "type": "interior",
+      "asset": "assets/models/interior/Table Round Small/Table_RoundSmall2.glb",
+      "position": [
+        48.5,
+        0,
+        -4.5
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        0.5,
+        0.5,
+        0.5
+      ],
+      "interiorBuildingId": "building-silent-2-005"
+    },
+    {
+      "id": "interior-furnished-building-silent-2-005-f1-chair-4",
+      "type": "interior",
+      "asset": "assets/models/interior/Chair/Chair_4.glb",
+      "position": [
+        40.5,
+        0,
+        -5.5
+      ],
+      "rotation": [
+        0,
+        3.142,
+        0
+      ],
+      "scale": [
+        0.5,
+        0.5,
+        0.5
+      ],
+      "interiorBuildingId": "building-silent-2-005"
+    },
+    {
+      "id": "interior-furnished-building-silent-2-005-f1-plant-5",
+      "type": "interior",
+      "asset": "assets/models/interior/Houseplant-f6GPjbEgg0/Houseplant_1.glb",
+      "position": [
+        50.5,
+        0,
+        -9.5
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        0.5,
+        0.5,
+        0.5
+      ],
+      "interiorBuildingId": "building-silent-2-005"
+    },
+    {
+      "id": "interior-furnished-building-silent-2-005-f1-ceiling-light-6",
+      "type": "interior",
+      "asset": "assets/models/interior/Light Ceiling-NNlnaiDJIh/Light_Ceiling4.glb",
+      "position": [
+        47.5,
+        3,
+        -5.5
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        0.5,
+        0.5,
+        0.5
+      ],
+      "interiorBuildingId": "building-silent-2-005"
+    },
+    {
+      "id": "interior-furnished-building-silent-2-005-f2-bed-1",
+      "type": "interior",
+      "asset": "assets/models/interior/Bed King/Bed_King.glb",
+      "position": [
+        44.5,
+        3.1,
+        -5.5
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        0.5,
+        0.5,
+        0.5
+      ],
+      "interiorBuildingId": "building-silent-2-005"
+    },
+    {
+      "id": "interior-furnished-building-silent-2-005-f2-night-stand-2",
+      "type": "interior",
+      "asset": "assets/models/interior/Night Stand/NightStand_1.glb",
+      "position": [
+        45.5,
+        3.1,
+        -4.5
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        0.5,
+        0.5,
+        0.5
+      ],
+      "interiorBuildingId": "building-silent-2-005"
+    },
+    {
+      "id": "interior-furnished-building-silent-2-005-f2-drawer-3",
+      "type": "interior",
+      "asset": "assets/models/interior/Drawer/Drawer_2.glb",
+      "position": [
+        36.5,
+        3.1,
+        -5.5
+      ],
+      "rotation": [
+        0,
+        3.142,
+        0
+      ],
+      "scale": [
+        0.5,
+        0.5,
+        0.5
+      ],
+      "interiorBuildingId": "building-silent-2-005"
+    },
+    {
+      "id": "interior-furnished-building-silent-2-005-f2-rug-4",
+      "type": "interior",
+      "asset": "assets/models/interior/Rug/Carpet_1.glb",
+      "position": [
+        44.5,
+        3.125,
+        -5.5
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        0.5,
+        0.5,
+        0.5
+      ],
+      "interiorBuildingId": "building-silent-2-005"
+    },
+    {
+      "id": "interior-furnished-building-silent-2-005-f2-table-light-5",
+      "type": "interior",
+      "asset": "assets/models/interior/Lamp/Light_Floor2.glb",
+      "position": [
+        45.5,
+        3.58,
+        -4.5
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        0.5,
+        0.5,
+        0.5
+      ],
+      "interiorBuildingId": "building-silent-2-005"
+    },
+    {
+      "id": "interior-furnished-building-silent-2-005-f2-ceiling-light-6",
+      "type": "interior",
+      "asset": "assets/models/interior/Light Ceiling/Light_Ceiling1.glb",
+      "position": [
+        50.5,
+        6.1,
+        -9.5
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        0.5,
+        0.5,
+        0.5
+      ],
+      "interiorBuildingId": "building-silent-2-005"
+    },
+    {
+      "id": "interior-furnished-building-silent-2-005-f3-dining-table-1",
+      "type": "interior",
+      "asset": "assets/models/interior/Table Round Large/Table_RoundLarge.glb",
+      "position": [
+        43.5,
+        6.2,
+        -5.5
+      ],
+      "rotation": [
+        0,
+        1.571,
+        0
+      ],
+      "scale": [
+        0.5,
+        0.5,
+        0.5
+      ],
+      "interiorBuildingId": "building-silent-2-005"
+    },
+    {
+      "id": "interior-furnished-building-silent-2-005-f3-chair-a-2",
+      "type": "interior",
+      "asset": "assets/models/interior/Chair/Chair_4.glb",
+      "position": [
+        42.5,
+        6.2,
+        -5.5
+      ],
+      "rotation": [
+        0,
+        1.571,
+        0
+      ],
+      "scale": [
+        0.5,
+        0.5,
+        0.5
+      ],
+      "interiorBuildingId": "building-silent-2-005"
+    },
+    {
+      "id": "interior-furnished-building-silent-2-005-f3-chair-b-3",
+      "type": "interior",
+      "asset": "assets/models/interior/Chair/Chair_1.glb",
+      "position": [
+        44.5,
+        6.2,
+        -5.5
+      ],
+      "rotation": [
+        0,
+        -1.571,
+        0
+      ],
+      "scale": [
+        0.5,
+        0.5,
+        0.5
+      ],
+      "interiorBuildingId": "building-silent-2-005"
+    },
+    {
+      "id": "interior-furnished-building-silent-2-005-f3-fridge-4",
+      "type": "interior",
+      "asset": "assets/models/interior/Kitchen Fridge/Kitchen_Fridge.glb",
+      "position": [
+        36.5,
+        6.2,
+        -9.5
+      ],
+      "rotation": [
+        0,
+        3.142,
+        0
+      ],
+      "scale": [
+        0.5,
+        0.5,
+        0.5
+      ],
+      "interiorBuildingId": "building-silent-2-005"
+    },
+    {
+      "id": "interior-furnished-building-silent-2-005-f3-sink-5",
+      "type": "interior",
+      "asset": "assets/models/interior/Kitchen Sink/Kitchen_Sink.glb",
+      "position": [
+        50.5,
+        6.2,
+        -9.5
+      ],
+      "rotation": [
+        0,
+        3.142,
+        0
+      ],
+      "scale": [
+        0.5,
+        0.5,
+        0.5
+      ],
+      "interiorBuildingId": "building-silent-2-005"
+    },
+    {
+      "id": "interior-furnished-building-silent-2-005-f3-ceiling-light-6",
+      "type": "interior",
+      "asset": "assets/models/interior/Light Chandelier/Light_Chandelier.glb",
+      "position": [
+        43.5,
+        9.2,
+        -5.5
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        0.5,
+        0.5,
+        0.5
+      ],
+      "interiorBuildingId": "building-silent-2-005"
+    },
+    {
+      "id": "interior-furnished-building-silent-2-005-f4-meeting-table-1",
+      "type": "interior",
+      "asset": "assets/models/interior/Table Round Large/Table_RoundLarge.glb",
+      "position": [
+        47.5,
+        9.3,
+        -5.5
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        0.5,
+        0.5,
+        0.5
+      ],
+      "interiorBuildingId": "building-silent-2-005"
+    },
+    {
+      "id": "interior-furnished-building-silent-2-005-f4-chair-a-2",
+      "type": "interior",
+      "asset": "assets/models/interior/Chair/Chair_1.glb",
+      "position": [
+        46.5,
+        9.3,
+        -5.5
+      ],
+      "rotation": [
+        0,
+        1.571,
+        0
+      ],
+      "scale": [
+        0.5,
+        0.5,
+        0.5
+      ],
+      "interiorBuildingId": "building-silent-2-005"
+    },
+    {
+      "id": "interior-furnished-building-silent-2-005-f4-chair-b-3",
+      "type": "interior",
+      "asset": "assets/models/interior/Chair/Chair_4.glb",
+      "position": [
+        48.5,
+        9.3,
+        -5.5
+      ],
+      "rotation": [
+        0,
+        -1.571,
+        0
+      ],
+      "scale": [
+        0.5,
+        0.5,
+        0.5
+      ],
+      "interiorBuildingId": "building-silent-2-005"
+    },
+    {
+      "id": "interior-furnished-building-silent-2-005-f4-shelf-4",
+      "type": "interior",
+      "asset": "assets/models/interior/Shelf Large/Shelf_Large.glb",
+      "position": [
+        40.5,
+        9.3,
+        -5.5
+      ],
+      "rotation": [
+        0,
+        3.142,
+        0
+      ],
+      "scale": [
+        0.5,
+        0.5,
+        0.5
+      ],
+      "interiorBuildingId": "building-silent-2-005"
+    },
+    {
+      "id": "interior-furnished-building-silent-2-005-f4-plant-5",
+      "type": "interior",
+      "asset": "assets/models/interior/Houseplant/Houseplant_4.glb",
+      "position": [
+        50.5,
+        9.3,
+        -9.5
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        0.5,
+        0.5,
+        0.5
+      ],
+      "interiorBuildingId": "building-silent-2-005"
+    },
+    {
+      "id": "interior-furnished-building-silent-2-005-f4-ceiling-light-6",
+      "type": "interior",
+      "asset": "assets/models/interior/Light Ceiling-NNlnaiDJIh/Light_Ceiling4.glb",
+      "position": [
+        47.5,
+        12.3,
+        -5.5
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        0.5,
+        0.5,
+        0.5
+      ],
+      "interiorBuildingId": "building-silent-2-005"
+    },
+    {
+      "id": "interior-furnished-building-silent-1-003-f1-dining-table-1",
+      "type": "interior",
+      "asset": "assets/models/interior/Table Round Large/Table_RoundLarge.glb",
+      "position": [
+        77.5,
+        0,
+        32.5
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        0.5,
+        0.5,
+        0.5
+      ],
+      "interiorBuildingId": "building-silent-1-003"
+    },
+    {
+      "id": "interior-furnished-building-silent-1-003-f1-chair-a-2",
+      "type": "interior",
+      "asset": "assets/models/interior/Chair/Chair_1.glb",
+      "position": [
+        76.5,
+        0,
+        32.5
+      ],
+      "rotation": [
+        0,
+        1.571,
+        0
+      ],
+      "scale": [
+        0.5,
+        0.5,
+        0.5
+      ],
+      "interiorBuildingId": "building-silent-1-003"
+    },
+    {
+      "id": "interior-furnished-building-silent-1-003-f1-chair-b-3",
+      "type": "interior",
+      "asset": "assets/models/interior/Chair/Chair_4.glb",
+      "position": [
+        78.5,
+        0,
+        32.5
+      ],
+      "rotation": [
+        0,
+        -1.571,
+        0
+      ],
+      "scale": [
+        0.5,
+        0.5,
+        0.5
+      ],
+      "interiorBuildingId": "building-silent-1-003"
+    },
+    {
+      "id": "interior-furnished-building-silent-1-003-f1-fridge-4",
+      "type": "interior",
+      "asset": "assets/models/interior/Kitchen Fridge/Kitchen_Fridge.glb",
+      "position": [
+        84.5,
+        0,
+        30.5
+      ],
+      "rotation": [
+        0,
+        3.142,
+        0
+      ],
+      "scale": [
+        0.5,
+        0.5,
+        0.5
+      ],
+      "interiorBuildingId": "building-silent-1-003"
+    },
+    {
+      "id": "interior-furnished-building-silent-1-003-f1-sink-5",
+      "type": "interior",
+      "asset": "assets/models/interior/Kitchen Sink/Kitchen_Sink.glb",
+      "position": [
+        71.5,
+        0,
+        30.5
+      ],
+      "rotation": [
+        0,
+        3.142,
+        0
+      ],
+      "scale": [
+        0.5,
+        0.5,
+        0.5
+      ],
+      "interiorBuildingId": "building-silent-1-003"
+    },
+    {
+      "id": "interior-furnished-building-silent-1-003-f1-ceiling-light-6",
+      "type": "interior",
+      "asset": "assets/models/interior/Ceiling Light/Light_Ceiling2.glb",
+      "position": [
+        77.5,
+        3,
+        32.5
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        0.5,
+        0.5,
+        0.5
+      ],
+      "interiorBuildingId": "building-silent-1-003"
+    },
+    {
+      "id": "interior-furnished-building-silent-1-003-f2-meeting-table-1",
+      "type": "interior",
+      "asset": "assets/models/interior/Table Round Large/Table_RoundLarge.glb",
+      "position": [
+        76.5,
+        3.1,
+        31.5
+      ],
+      "rotation": [
+        0,
+        1.571,
+        0
+      ],
+      "scale": [
+        0.5,
+        0.5,
+        0.5
+      ],
+      "interiorBuildingId": "building-silent-1-003"
+    },
+    {
+      "id": "interior-furnished-building-silent-1-003-f2-chair-a-2",
+      "type": "interior",
+      "asset": "assets/models/interior/Chair/Chair_4.glb",
+      "position": [
+        75.5,
+        3.1,
+        31.5
+      ],
+      "rotation": [
+        0,
+        1.571,
+        0
+      ],
+      "scale": [
+        0.5,
+        0.5,
+        0.5
+      ],
+      "interiorBuildingId": "building-silent-1-003"
+    },
+    {
+      "id": "interior-furnished-building-silent-1-003-f2-chair-b-3",
+      "type": "interior",
+      "asset": "assets/models/interior/Chair/Chair_1.glb",
+      "position": [
+        77.5,
+        3.1,
+        31.5
+      ],
+      "rotation": [
+        0,
+        -1.571,
+        0
+      ],
+      "scale": [
+        0.5,
+        0.5,
+        0.5
+      ],
+      "interiorBuildingId": "building-silent-1-003"
+    },
+    {
+      "id": "interior-furnished-building-silent-1-003-f2-shelf-4",
+      "type": "interior",
+      "asset": "assets/models/interior/Shelf Small/Shelf_Small1.glb",
+      "position": [
+        70.5,
+        3.1,
+        30.5
+      ],
+      "rotation": [
+        0,
+        3.142,
+        0
+      ],
+      "scale": [
+        0.5,
+        0.5,
+        0.5
+      ],
+      "interiorBuildingId": "building-silent-1-003"
+    },
+    {
+      "id": "interior-furnished-building-silent-1-003-f2-plant-5",
+      "type": "interior",
+      "asset": "assets/models/interior/Houseplant/Houseplant_7.glb",
+      "position": [
+        82.5,
+        3.1,
+        30.5
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        0.5,
+        0.5,
+        0.5
+      ],
+      "interiorBuildingId": "building-silent-1-003"
+    },
+    {
+      "id": "interior-furnished-building-silent-1-003-f2-ceiling-light-6",
+      "type": "interior",
+      "asset": "assets/models/interior/Light Ceiling-ToOLJDO5FI/Light_Ceiling3.glb",
+      "position": [
+        76.5,
+        6.1,
+        31.5
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        0.5,
+        0.5,
+        0.5
+      ],
+      "interiorBuildingId": "building-silent-1-003"
+    },
+    {
+      "id": "interior-furnished-building-silent-1-003-f3-bathtub-1",
+      "type": "interior",
+      "asset": "assets/models/interior/Bathtub/Bathroom_Bathtub.glb",
+      "position": [
+        76.5,
+        6.2,
+        30.5
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        0.5,
+        0.5,
+        0.5
+      ],
+      "interiorBuildingId": "building-silent-1-003"
+    },
+    {
+      "id": "interior-furnished-building-silent-1-003-f3-toilet-2",
+      "type": "interior",
+      "asset": "assets/models/interior/Toilet/Bathroom_Toilet.glb",
+      "position": [
+        69.5,
+        6.2,
+        29.5
+      ],
+      "rotation": [
+        0,
+        3.142,
+        0
+      ],
+      "scale": [
+        0.5,
+        0.5,
+        0.5
+      ],
+      "interiorBuildingId": "building-silent-1-003"
+    },
+    {
+      "id": "interior-furnished-building-silent-1-003-f3-sink-3",
+      "type": "interior",
+      "asset": "assets/models/interior/Bathroom Sink/Bathroom_Sink.glb",
+      "position": [
+        71.5,
+        6.2,
+        29.5
+      ],
+      "rotation": [
+        0,
+        3.142,
+        0
+      ],
+      "scale": [
+        0.5,
+        0.5,
+        0.5
+      ],
+      "interiorBuildingId": "building-silent-1-003"
+    },
+    {
+      "id": "interior-furnished-building-silent-1-003-f3-washing-machine-4",
+      "type": "interior",
+      "asset": "assets/models/interior/Washing Machine/Bathroom_WashingMachine.glb",
+      "position": [
+        81.5,
+        6.2,
+        29.5
+      ],
+      "rotation": [
+        0,
+        3.142,
+        0
+      ],
+      "scale": [
+        0.5,
+        0.5,
+        0.5
+      ],
+      "interiorBuildingId": "building-silent-1-003"
+    },
+    {
+      "id": "interior-furnished-building-silent-1-003-f3-trashcan-5",
+      "type": "interior",
+      "asset": "assets/models/interior/Trashcan Large/Trashcan_Large.glb",
+      "position": [
+        83.5,
+        6.2,
+        29.5
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        0.5,
+        0.5,
+        0.5
+      ],
+      "interiorBuildingId": "building-silent-1-003"
+    },
+    {
+      "id": "interior-furnished-building-silent-1-003-f3-ceiling-light-6",
+      "type": "interior",
+      "asset": "assets/models/interior/Light Ceiling Single/Light_CeilingSingle.glb",
+      "position": [
+        76.5,
+        9.2,
+        30.5
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        0.5,
+        0.5,
+        0.5
+      ],
+      "interiorBuildingId": "building-silent-1-003"
+    },
+    {
+      "id": "interior-furnished-building-silent-1-004-f1-bathtub-1",
+      "type": "interior",
+      "asset": "assets/models/interior/Bathtub/Bathroom_Bathtub.glb",
+      "position": [
+        56.5,
+        0,
+        -57.5
+      ],
+      "rotation": [
+        0,
+        3.142,
+        0
+      ],
+      "scale": [
+        0.5,
+        0.5,
+        0.5
+      ],
+      "interiorBuildingId": "building-silent-1-004"
+    },
+    {
+      "id": "interior-furnished-building-silent-1-004-f1-toilet-2",
+      "type": "interior",
+      "asset": "assets/models/interior/Toilet/Bathroom_Toilet.glb",
+      "position": [
+        53.5,
+        0,
+        -47.5
+      ],
+      "rotation": [
+        0,
+        4.712,
+        0
+      ],
+      "scale": [
+        0.5,
+        0.5,
+        0.5
+      ],
+      "interiorBuildingId": "building-silent-1-004"
+    },
+    {
+      "id": "interior-furnished-building-silent-1-004-f1-sink-3",
+      "type": "interior",
+      "asset": "assets/models/interior/Bathroom Sink/Bathroom_Sink.glb",
+      "position": [
+        53.5,
+        0,
+        -49.5
+      ],
+      "rotation": [
+        0,
+        4.712,
+        0
+      ],
+      "scale": [
+        0.5,
+        0.5,
+        0.5
+      ],
+      "interiorBuildingId": "building-silent-1-004"
+    },
+    {
+      "id": "interior-furnished-building-silent-1-004-f1-washing-machine-4",
+      "type": "interior",
+      "asset": "assets/models/interior/Washing Machine/Bathroom_WashingMachine.glb",
+      "position": [
+        61.5,
+        0,
+        -47.5
+      ],
+      "rotation": [
+        0,
+        4.712,
+        0
+      ],
+      "scale": [
+        0.5,
+        0.5,
+        0.5
+      ],
+      "interiorBuildingId": "building-silent-1-004"
+    },
+    {
+      "id": "interior-furnished-building-silent-1-004-f1-trashcan-5",
+      "type": "interior",
+      "asset": "assets/models/interior/Trashcan Small/Trashcan_Small1.glb",
+      "position": [
+        61.5,
+        0,
+        -49.5
+      ],
+      "rotation": [
+        0,
+        1.571,
+        0
+      ],
+      "scale": [
+        0.5,
+        0.5,
+        0.5
+      ],
+      "interiorBuildingId": "building-silent-1-004"
+    },
+    {
+      "id": "interior-furnished-building-silent-1-004-f1-ceiling-light-6",
+      "type": "interior",
+      "asset": "assets/models/interior/Light Ceiling-NNlnaiDJIh/Light_Ceiling4.glb",
+      "position": [
+        56.5,
+        3.25,
+        -57.5
+      ],
+      "rotation": [
+        0,
+        1.571,
+        0
+      ],
+      "scale": [
+        0.5,
+        0.5,
+        0.5
+      ],
+      "interiorBuildingId": "building-silent-1-004"
+    },
+    {
+      "id": "interior-furnished-building-silent-1-004-f2-bunk-bed-1",
+      "type": "interior",
+      "asset": "assets/models/interior/Bunk Bed/Bed_Bunk.glb",
+      "position": [
+        56.5,
+        3.35,
+        -55.5
+      ],
+      "rotation": [
+        0,
+        1.571,
+        0
+      ],
+      "scale": [
+        0.5,
+        0.5,
+        0.5
+      ],
+      "interiorBuildingId": "building-silent-1-004"
+    },
+    {
+      "id": "interior-furnished-building-silent-1-004-f2-stool-2",
+      "type": "interior",
+      "asset": "assets/models/interior/Stool/Stool.glb",
+      "position": [
+        56.5,
+        3.35,
+        -62.5
+      ],
+      "rotation": [
+        0,
+        1.571,
+        0
+      ],
+      "scale": [
+        0.5,
+        0.5,
+        0.5
+      ],
+      "interiorBuildingId": "building-silent-1-004"
+    },
+    {
+      "id": "interior-furnished-building-silent-1-004-f2-shelf-3",
+      "type": "interior",
+      "asset": "assets/models/interior/Shelf Large/Shelf_Large.glb",
+      "position": [
+        56.5,
+        3.35,
+        -64.5
+      ],
+      "rotation": [
+        0,
+        4.712,
+        0
+      ],
+      "scale": [
+        0.5,
+        0.5,
+        0.5
+      ],
+      "interiorBuildingId": "building-silent-1-004"
+    },
+    {
+      "id": "interior-furnished-building-silent-1-004-f2-rug-4",
+      "type": "interior",
+      "asset": "assets/models/interior/Round Rug/Carpet_Round.glb",
+      "position": [
+        56.5,
+        3.375,
+        -55.5
+      ],
+      "rotation": [
+        0,
+        1.571,
+        0
+      ],
+      "scale": [
+        0.5,
+        0.5,
+        0.5
+      ],
+      "interiorBuildingId": "building-silent-1-004"
+    },
+    {
+      "id": "interior-furnished-building-silent-1-004-f2-drawer-5",
+      "type": "interior",
+      "asset": "assets/models/interior/Drawer/Drawer_2.glb",
+      "position": [
+        59.5,
+        3.35,
+        -48.5
+      ],
+      "rotation": [
+        0,
+        4.712,
+        0
+      ],
+      "scale": [
+        0.5,
+        0.5,
+        0.5
+      ],
+      "interiorBuildingId": "building-silent-1-004"
+    },
+    {
+      "id": "interior-furnished-building-silent-1-004-f2-ceiling-light-6",
+      "type": "interior",
+      "asset": "assets/models/interior/Light Ceiling/Light_Ceiling1.glb",
+      "position": [
+        56.5,
+        6.6,
+        -55.5
+      ],
+      "rotation": [
+        0,
+        1.571,
+        0
+      ],
+      "scale": [
+        0.5,
+        0.5,
+        0.5
+      ],
+      "interiorBuildingId": "building-silent-1-004"
+    },
+    {
+      "id": "interior-furnished-building-silent-3-004-f1-couch-1",
+      "type": "interior",
+      "asset": "assets/models/interior/Couch Small/Couch_Small1.glb",
+      "position": [
+        -52.5,
+        0,
+        3.5
+      ],
+      "rotation": [
+        0,
+        4.712,
+        0
+      ],
+      "scale": [
+        0.5,
+        0.5,
+        0.5
+      ],
+      "interiorBuildingId": "building-silent-3-004"
+    },
+    {
+      "id": "interior-furnished-building-silent-3-004-f1-rug-2",
+      "type": "interior",
+      "asset": "assets/models/interior/Round Rug/Carpet_Round.glb",
+      "position": [
+        -53.5,
+        0.025,
+        3.5
+      ],
+      "rotation": [
+        0,
+        4.712,
+        0
+      ],
+      "scale": [
+        0.5,
+        0.5,
+        0.5
+      ],
+      "interiorBuildingId": "building-silent-3-004"
+    },
+    {
+      "id": "interior-furnished-building-silent-3-004-f1-table-3",
+      "type": "interior",
+      "asset": "assets/models/interior/Table Round Small/Table_RoundSmall.glb",
+      "position": [
+        -53.5,
+        0,
+        4.5
+      ],
+      "rotation": [
+        0,
+        4.712,
+        0
+      ],
+      "scale": [
+        0.5,
+        0.5,
+        0.5
+      ],
+      "interiorBuildingId": "building-silent-3-004"
+    },
+    {
+      "id": "interior-furnished-building-silent-3-004-f1-chair-4",
+      "type": "interior",
+      "asset": "assets/models/interior/Chair/Chair_1.glb",
+      "position": [
+        -55.5,
+        0,
+        -1.5
+      ],
+      "rotation": [
+        0,
+        1.571,
+        0
+      ],
+      "scale": [
+        0.5,
+        0.5,
+        0.5
+      ],
+      "interiorBuildingId": "building-silent-3-004"
+    },
+    {
+      "id": "interior-furnished-building-silent-3-004-f1-plant-5",
+      "type": "interior",
+      "asset": "assets/models/interior/Houseplant-IBLX2Jz90O/Houseplant_5.glb",
+      "position": [
+        -55.5,
+        0,
+        8.5
+      ],
+      "rotation": [
+        0,
+        4.712,
+        0
+      ],
+      "scale": [
+        0.5,
+        0.5,
+        0.5
+      ],
+      "interiorBuildingId": "building-silent-3-004"
+    },
+    {
+      "id": "interior-furnished-building-silent-3-004-f1-ceiling-light-6",
+      "type": "interior",
+      "asset": "assets/models/interior/Ceiling Light/Light_Ceiling2.glb",
+      "position": [
+        -52.5,
+        3,
+        3.5
+      ],
+      "rotation": [
+        0,
+        4.712,
+        0
+      ],
+      "scale": [
+        0.5,
+        0.5,
+        0.5
+      ],
+      "interiorBuildingId": "building-silent-3-004"
+    },
+    {
+      "id": "interior-furnished-building-silent-3-004-f2-bed-1",
+      "type": "interior",
+      "asset": "assets/models/interior/Bed King/Bed_King.glb",
+      "position": [
+        -52.5,
+        3.1,
+        -0.5
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        0.5,
+        0.5,
+        0.5
+      ],
+      "interiorBuildingId": "building-silent-3-004"
+    },
+    {
+      "id": "interior-furnished-building-silent-3-004-f2-night-stand-2",
+      "type": "interior",
+      "asset": "assets/models/interior/Night Stand/NightStand_1.glb",
+      "position": [
+        -53.5,
+        3.1,
+        0.5
+      ],
+      "rotation": [
+        0,
+        4.712,
+        0
+      ],
+      "scale": [
+        0.5,
+        0.5,
+        0.5
+      ],
+      "interiorBuildingId": "building-silent-3-004"
+    },
+    {
+      "id": "interior-furnished-building-silent-3-004-f2-drawer-3",
+      "type": "interior",
+      "asset": "assets/models/interior/Drawer/Drawer_3.glb",
+      "position": [
+        -55.5,
+        3.1,
+        0.5
+      ],
+      "rotation": [
+        0,
+        1.571,
+        0
+      ],
+      "scale": [
+        0.5,
+        0.5,
+        0.5
+      ],
+      "interiorBuildingId": "building-silent-3-004"
+    },
+    {
+      "id": "interior-furnished-building-silent-3-004-f2-rug-4",
+      "type": "interior",
+      "asset": "assets/models/interior/Round Rug/Carpet_Round.glb",
+      "position": [
+        -52.5,
+        3.125,
+        -0.5
+      ],
+      "rotation": [
+        0,
+        4.712,
+        0
+      ],
+      "scale": [
+        0.5,
+        0.5,
+        0.5
+      ],
+      "interiorBuildingId": "building-silent-3-004"
+    },
+    {
+      "id": "interior-furnished-building-silent-3-004-f2-table-light-5",
+      "type": "interior",
+      "asset": "assets/models/interior/Lamp/Light_Floor2.glb",
+      "position": [
+        -53.5,
+        3.58,
+        0.5
+      ],
+      "rotation": [
+        0,
+        4.712,
+        0
+      ],
+      "scale": [
+        0.5,
+        0.5,
+        0.5
+      ],
+      "interiorBuildingId": "building-silent-3-004"
+    },
+    {
+      "id": "interior-furnished-building-silent-3-004-f2-ceiling-light-6",
+      "type": "interior",
+      "asset": "assets/models/interior/Light Ceiling-ToOLJDO5FI/Light_Ceiling3.glb",
+      "position": [
+        -50.5,
+        6.1,
+        -1.5
+      ],
+      "rotation": [
+        0,
+        4.712,
+        0
+      ],
+      "scale": [
+        0.5,
+        0.5,
+        0.5
+      ],
+      "interiorBuildingId": "building-silent-3-004"
+    },
+    {
+      "id": "interior-furnished-building-silent-1-005-f1-dining-table-1",
+      "type": "interior",
+      "asset": "assets/models/interior/Table Round Large/Table_RoundLarge.glb",
+      "position": [
+        -52.5,
+        0,
+        48.5
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        0.5,
+        0.5,
+        0.5
+      ],
+      "interiorBuildingId": "building-silent-1-005"
+    },
+    {
+      "id": "interior-furnished-building-silent-1-005-f1-chair-a-2",
+      "type": "interior",
+      "asset": "assets/models/interior/Chair/Chair_4.glb",
+      "position": [
+        -52.5,
+        0,
+        47.5
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        0.5,
+        0.5,
+        0.5
+      ],
+      "interiorBuildingId": "building-silent-1-005"
+    },
+    {
+      "id": "interior-furnished-building-silent-1-005-f1-chair-b-3",
+      "type": "interior",
+      "asset": "assets/models/interior/Chair/Chair_1.glb",
+      "position": [
+        -52.5,
+        0,
+        49.5
+      ],
+      "rotation": [
+        0,
+        3.142,
+        0
+      ],
+      "scale": [
+        0.5,
+        0.5,
+        0.5
+      ],
+      "interiorBuildingId": "building-silent-1-005"
+    },
+    {
+      "id": "interior-furnished-building-silent-1-005-f1-fridge-4",
+      "type": "interior",
+      "asset": "assets/models/interior/Kitchen Fridge/Kitchen_Fridge.glb",
+      "position": [
+        -53.5,
+        0,
+        50.5
+      ],
+      "rotation": [
+        0,
+        1.571,
+        0
+      ],
+      "scale": [
+        0.5,
+        0.5,
+        0.5
+      ],
+      "interiorBuildingId": "building-silent-1-005"
+    },
+    {
+      "id": "interior-furnished-building-silent-1-005-f1-sink-5",
+      "type": "interior",
+      "asset": "assets/models/interior/Kitchen Sink/Kitchen_Sink.glb",
+      "position": [
+        -47.5,
+        0,
+        51.5
+      ],
+      "rotation": [
+        0,
+        1.571,
+        0
+      ],
+      "scale": [
+        0.5,
+        0.5,
+        0.5
+      ],
+      "interiorBuildingId": "building-silent-1-005"
+    },
+    {
+      "id": "interior-furnished-building-silent-1-005-f2-meeting-table-1",
+      "type": "interior",
+      "asset": "assets/models/interior/Table Round Large/Table_RoundLarge.glb",
+      "position": [
+        -48.5,
+        3.35,
+        52.5
+      ],
+      "rotation": [
+        0,
+        4.712,
+        0
+      ],
+      "scale": [
+        0.5,
+        0.5,
+        0.5
+      ],
+      "interiorBuildingId": "building-silent-1-005"
+    },
+    {
+      "id": "interior-furnished-building-silent-1-005-f2-chair-a-2",
+      "type": "interior",
+      "asset": "assets/models/interior/Chair/Chair_1.glb",
+      "position": [
+        -48.5,
+        3.35,
+        51.5
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        0.5,
+        0.5,
+        0.5
+      ],
+      "interiorBuildingId": "building-silent-1-005"
+    },
+    {
+      "id": "interior-furnished-building-silent-1-005-f2-chair-b-3",
+      "type": "interior",
+      "asset": "assets/models/interior/Chair/Chair_4.glb",
+      "position": [
+        -48.5,
+        3.35,
+        54.5
+      ],
+      "rotation": [
+        0,
+        3.142,
+        0
+      ],
+      "scale": [
+        0.5,
+        0.5,
+        0.5
+      ],
+      "interiorBuildingId": "building-silent-1-005"
+    },
+    {
+      "id": "interior-furnished-building-silent-1-005-f2-shelf-4",
+      "type": "interior",
+      "asset": "assets/models/interior/Shelf Small/Shelf_Small1.glb",
+      "position": [
+        -52.5,
+        3.35,
+        50.5
+      ],
+      "rotation": [
+        0,
+        1.571,
+        0
+      ],
+      "scale": [
+        0.5,
+        0.5,
+        0.5
+      ],
+      "interiorBuildingId": "building-silent-1-005"
+    },
+    {
+      "id": "interior-furnished-building-silent-1-005-f3-bathtub-1",
+      "type": "interior",
+      "asset": "assets/models/interior/Bathtub/Bathroom_Bathtub.glb",
+      "position": [
+        -49.5,
+        6.7,
+        53.5
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        0.5,
+        0.5,
+        0.5
+      ],
+      "interiorBuildingId": "building-silent-1-005"
+    },
+    {
+      "id": "interior-furnished-building-silent-1-005-f3-toilet-2",
+      "type": "interior",
+      "asset": "assets/models/interior/Toilet/Bathroom_Toilet.glb",
+      "position": [
+        -51.3,
+        6.7,
+        50.5
+      ],
+      "rotation": [
+        0,
+        1.571,
+        0
+      ],
+      "scale": [
+        0.5,
+        0.5,
+        0.5
+      ],
+      "interiorBuildingId": "building-silent-1-005"
+    },
+    {
+      "id": "interior-furnished-building-silent-1-005-f3-sink-3",
+      "type": "interior",
+      "asset": "assets/models/interior/Bathroom Sink/Bathroom_Sink.glb",
+      "position": [
+        -51.5,
+        6.7,
+        52.5
+      ],
+      "rotation": [
+        0,
+        1.571,
+        0
+      ],
+      "scale": [
+        0.5,
+        0.5,
+        0.5
+      ],
+      "interiorBuildingId": "building-silent-1-005"
+    },
+    {
+      "id": "interior-furnished-building-silent-1-005-f3-washing-machine-4",
+      "type": "interior",
+      "asset": "assets/models/interior/Washing Machine/Bathroom_WashingMachine.glb",
+      "position": [
+        -54.7,
+        6.7,
+        49.5
+      ],
+      "rotation": [
+        0,
+        1.571,
+        0
+      ],
+      "scale": [
+        0.5,
+        0.5,
+        0.5
+      ],
+      "interiorBuildingId": "building-silent-1-005"
+    },
+    {
+      "id": "interior-furnished-building-silent-3-005-f1-bathtub-1",
+      "type": "interior",
+      "asset": "assets/models/interior/Bathtub/Bathroom_Bathtub.glb",
+      "position": [
+        53.5,
+        0,
+        52.5
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        0.5,
+        0.5,
+        0.5
+      ],
+      "interiorBuildingId": "building-silent-3-005"
+    },
+    {
+      "id": "interior-furnished-building-silent-3-005-f1-toilet-2",
+      "type": "interior",
+      "asset": "assets/models/interior/Toilet/Bathroom_Toilet.glb",
+      "position": [
+        44.5,
+        0,
+        50.5
+      ],
+      "rotation": [
+        0,
+        3.142,
+        0
+      ],
+      "scale": [
+        0.5,
+        0.5,
+        0.5
+      ],
+      "interiorBuildingId": "building-silent-3-005"
+    },
+    {
+      "id": "interior-furnished-building-silent-3-005-f1-sink-3",
+      "type": "interior",
+      "asset": "assets/models/interior/Bathroom Sink/Bathroom_Sink.glb",
+      "position": [
+        46.5,
+        0,
+        50.5
+      ],
+      "rotation": [
+        0,
+        3.142,
+        0
+      ],
+      "scale": [
+        0.5,
+        0.5,
+        0.5
+      ],
+      "interiorBuildingId": "building-silent-3-005"
+    },
+    {
+      "id": "interior-furnished-building-silent-3-005-f1-washing-machine-4",
+      "type": "interior",
+      "asset": "assets/models/interior/Washing Machine/Bathroom_WashingMachine.glb",
+      "position": [
+        58.5,
+        0,
+        57.5
+      ],
+      "rotation": [
+        0,
+        3.142,
+        0
+      ],
+      "scale": [
+        0.5,
+        0.5,
+        0.5
+      ],
+      "interiorBuildingId": "building-silent-3-005"
+    },
+    {
+      "id": "interior-furnished-building-silent-3-005-f1-trashcan-5",
+      "type": "interior",
+      "asset": "assets/models/interior/Trashcan Small/Trashcan_Small2.glb",
+      "position": [
+        60.5,
+        0,
+        57.5
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        0.5,
+        0.5,
+        0.5
+      ],
+      "interiorBuildingId": "building-silent-3-005"
+    },
+    {
+      "id": "interior-furnished-building-silent-3-005-f1-ceiling-light-6",
+      "type": "interior",
+      "asset": "assets/models/interior/Ceiling Light/Light_Ceiling2.glb",
+      "position": [
+        53.5,
+        3.5,
+        52.5
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        0.5,
+        0.5,
+        0.5
+      ],
+      "interiorBuildingId": "building-silent-3-005"
+    },
+    {
+      "id": "interior-furnished-building-silent-3-005-f2-bunk-bed-1",
+      "type": "interior",
+      "asset": "assets/models/interior/Bunk Bed/Bed_Bunk.glb",
+      "position": [
+        51.5,
+        3.6,
+        52.5
+      ],
+      "rotation": [
+        0,
+        1.571,
+        0
+      ],
+      "scale": [
+        0.5,
+        0.5,
+        0.5
+      ],
+      "interiorBuildingId": "building-silent-3-005"
+    },
+    {
+      "id": "interior-furnished-building-silent-3-005-f2-stool-2",
+      "type": "interior",
+      "asset": "assets/models/interior/Stool/Stool.glb",
+      "position": [
+        42.5,
+        3.6,
+        50.5
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        0.5,
+        0.5,
+        0.5
+      ],
+      "interiorBuildingId": "building-silent-3-005"
+    },
+    {
+      "id": "interior-furnished-building-silent-3-005-f2-shelf-3",
+      "type": "interior",
+      "asset": "assets/models/interior/Shelf Large/Shelf_Large.glb",
+      "position": [
+        44.5,
+        3.6,
+        50.5
+      ],
+      "rotation": [
+        0,
+        3.142,
+        0
+      ],
+      "scale": [
+        0.5,
+        0.5,
+        0.5
+      ],
+      "interiorBuildingId": "building-silent-3-005"
+    },
+    {
+      "id": "interior-furnished-building-silent-3-005-f2-rug-4",
+      "type": "interior",
+      "asset": "assets/models/interior/Rug/Carpet_1.glb",
+      "position": [
+        51.5,
+        3.625,
+        52.5
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        0.5,
+        0.5,
+        0.5
+      ],
+      "interiorBuildingId": "building-silent-3-005"
+    },
+    {
+      "id": "interior-furnished-building-silent-3-005-f2-drawer-5",
+      "type": "interior",
+      "asset": "assets/models/interior/Drawer/Drawer_3.glb",
+      "position": [
+        57.5,
+        3.6,
+        57.5
+      ],
+      "rotation": [
+        0,
+        3.142,
+        0
+      ],
+      "scale": [
+        0.5,
+        0.5,
+        0.5
+      ],
+      "interiorBuildingId": "building-silent-3-005"
+    },
+    {
+      "id": "interior-furnished-building-silent-3-005-f2-ceiling-light-6",
+      "type": "interior",
+      "asset": "assets/models/interior/Light Ceiling-ToOLJDO5FI/Light_Ceiling3.glb",
+      "position": [
+        51.5,
+        7.1,
+        52.5
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        0.5,
+        0.5,
+        0.5
+      ],
+      "interiorBuildingId": "building-silent-3-005"
+    },
+    {
+      "id": "street-livedin-west-avenue-001",
+      "type": "street",
+      "asset": "assets/models/street/Car/NormalCar1.glb",
+      "position": [
+        -37.8,
+        0.115,
+        -20
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ]
+    },
+    {
+      "id": "street-livedin-west-avenue-002",
+      "type": "street",
+      "asset": "assets/models/street/Car/NormalCar2.glb",
+      "position": [
+        -42.2,
+        0.149,
+        -7
+      ],
+      "rotation": [
+        0,
+        3.142,
+        0
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ]
+    },
+    {
+      "id": "street-livedin-west-avenue-003",
+      "type": "street",
+      "asset": "assets/models/street/Van/1387 Van.glb",
+      "position": [
+        -37.8,
+        0.121,
+        5
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        0.05,
+        0.05,
+        0.05
+      ]
+    },
+    {
+      "id": "street-livedin-west-avenue-004",
+      "type": "street",
+      "asset": "assets/models/street/SUV/SUV.glb",
+      "position": [
+        -42.2,
+        0.139,
+        20
+      ],
+      "rotation": [
+        0,
+        3.142,
+        0
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ]
+    },
+    {
+      "id": "street-livedin-west-avenue-005",
+      "type": "street",
+      "asset": "assets/models/street/Sports Car/SportsCar2.glb",
+      "position": [
+        -37.8,
+        0.137,
+        30
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ]
+    },
+    {
+      "id": "street-livedin-west-avenue-006",
+      "type": "street",
+      "asset": "assets/models/street/Tree/tree01.glb",
+      "position": [
+        -32.5,
+        0.321,
+        -34.2
+      ],
+      "rotation": [
+        0,
+        0.35,
+        0
+      ],
+      "scale": [
+        0.0115,
+        0.0115,
+        0.0115
+      ]
+    },
+    {
+      "id": "street-livedin-west-avenue-007",
+      "type": "street",
+      "asset": "assets/models/street/Tree/tree01.glb",
+      "position": [
+        -35.6,
+        0.321,
+        11
+      ],
+      "rotation": [
+        0,
+        2.1,
+        0
+      ],
+      "scale": [
+        0.0115,
+        0.0115,
+        0.0115
+      ]
+    },
+    {
+      "id": "street-livedin-west-avenue-008",
+      "type": "street",
+      "asset": "assets/models/street/Tree/tree01.glb",
+      "position": [
+        -44.4,
+        0.321,
+        25
+      ],
+      "rotation": [
+        0,
+        4.2,
+        0
+      ],
+      "scale": [
+        0.0115,
+        0.0115,
+        0.0115
+      ]
+    },
+    {
+      "id": "street-livedin-west-avenue-009",
+      "type": "street",
+      "asset": "assets/models/street/Bench/model.glb",
+      "position": [
+        -35.7,
+        0.86,
+        -11.3
+      ],
+      "rotation": [
+        0,
+        1.571,
+        0
+      ],
+      "scale": [
+        0.62,
+        0.62,
+        0.62
+      ]
+    },
+    {
+      "id": "street-livedin-west-avenue-010",
+      "type": "street",
+      "asset": "assets/models/street/Trash Can/TrashCan_02.glb",
+      "position": [
+        -35.7,
+        0.79,
+        -14
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        0.25,
+        0.25,
+        0.25
+      ]
+    },
+    {
+      "id": "street-livedin-west-avenue-011",
+      "type": "street",
+      "asset": "assets/models/street/Fire hydrant/Fire Hydrant.glb",
+      "position": [
+        -44.2,
+        0.321,
+        13
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        0.0045,
+        0.0045,
+        0.0045
+      ]
+    },
+    {
+      "id": "street-livedin-west-avenue-012",
+      "type": "street",
+      "asset": "assets/models/street/Stop sign/1358 Stop Sign.glb",
+      "position": [
+        -44.2,
+        0.321,
+        33.5
+      ],
+      "rotation": [
+        0,
+        1.571,
+        0
+      ],
+      "scale": [
+        0.013,
+        0.013,
+        0.013
+      ]
+    },
+    {
+      "id": "street-livedin-west-avenue-013",
+      "type": "street",
+      "asset": "assets/models/street/Mailbox/Mailbox.glb",
+      "position": [
+        -35.8,
+        0.362,
+        21
+      ],
+      "rotation": [
+        0,
+        3.142,
+        0
+      ],
+      "scale": [
+        2.8,
+        2.8,
+        2.8
+      ]
+    },
+    {
+      "id": "street-livedin-west-avenue-014",
+      "type": "street",
+      "asset": "assets/models/street/Bicycle/Bike.glb",
+      "position": [
+        -44.2,
+        0.322,
+        3
+      ],
+      "rotation": [
+        0,
+        1.571,
+        0
+      ],
+      "scale": [
+        0.5,
+        0.5,
+        0.5
+      ]
+    },
+    {
+      "id": "street-livedin-west-avenue-015",
+      "type": "street",
+      "asset": "assets/models/street/Manhole Cover/ManholeCover.glb",
+      "position": [
+        -41.4,
+        0.121,
+        16.5
+      ],
+      "rotation": [
+        0,
+        0.2,
+        0
+      ],
+      "scale": [
+        1.2,
+        1.2,
+        1.2
+      ]
+    },
+    {
+      "id": "street-livedin-south-service-016",
+      "type": "street",
+      "asset": "assets/models/street/Pickup Truck/Vehicle_Pickup.glb",
+      "position": [
+        -27,
+        0.126,
+        -27.8
+      ],
+      "rotation": [
+        0,
+        1.571,
+        0
+      ],
+      "scale": [
+        0.9,
+        0.9,
+        0.9
+      ]
+    },
+    {
+      "id": "street-livedin-south-service-017",
+      "type": "street",
+      "asset": "assets/models/street/Police Car/Cop.glb",
+      "position": [
+        -17,
+        0.137,
+        -32.2
+      ],
+      "rotation": [
+        0,
+        -1.571,
+        0
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ]
+    },
+    {
+      "id": "street-livedin-south-service-018",
+      "type": "street",
+      "asset": "assets/models/street/Car/NormalCar2.glb",
+      "position": [
+        -7,
+        0.149,
+        -27.8
+      ],
+      "rotation": [
+        0,
+        1.571,
+        0
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ]
+    },
+    {
+      "id": "street-livedin-south-service-019",
+      "type": "street",
+      "asset": "assets/models/street/Dumpster/TrashContainer.glb",
+      "position": [
+        -32.3,
+        -0.068,
+        -24
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        0.8,
+        0.8,
+        0.8
+      ]
+    },
+    {
+      "id": "street-livedin-south-service-020",
+      "type": "street",
+      "asset": "assets/models/street/trah bag grey/model.glb",
+      "position": [
+        -33.8,
+        0.208,
+        -23.6
+      ],
+      "rotation": [
+        0,
+        0.4,
+        0
+      ],
+      "scale": [
+        1.5,
+        1.5,
+        1.5
+      ]
+    },
+    {
+      "id": "street-livedin-south-service-021",
+      "type": "street",
+      "asset": "assets/models/street/Box/box_A.glb",
+      "position": [
+        -31,
+        -0.1,
+        -23.8
+      ],
+      "rotation": [
+        0,
+        0.2,
+        0
+      ],
+      "scale": [
+        2.5,
+        2.5,
+        2.5
+      ]
+    },
+    {
+      "id": "street-livedin-south-service-022",
+      "type": "street",
+      "asset": "assets/models/street/Debris Papers/Debris_Papers_2.glb",
+      "position": [
+        -32.5,
+        -0.101,
+        -22.2
+      ],
+      "rotation": [
+        0,
+        -0.3,
+        0
+      ],
+      "scale": [
+        0.6,
+        0.6,
+        0.6
+      ]
+    },
+    {
+      "id": "street-livedin-south-service-023",
+      "type": "street",
+      "asset": "assets/models/street/Trash Can/TrashCan_02.glb",
+      "position": [
+        -29,
+        0.369,
+        -24
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        0.25,
+        0.25,
+        0.25
+      ]
+    },
+    {
+      "id": "street-livedin-south-service-024",
+      "type": "street",
+      "asset": "assets/models/street/Cone/Cone.glb",
+      "position": [
+        -30,
+        0.337,
+        -25.8
+      ],
+      "rotation": [
+        0,
+        0.1,
+        0
+      ],
+      "scale": [
+        0.7,
+        0.7,
+        0.7
+      ]
+    },
+    {
+      "id": "street-livedin-south-service-025",
+      "type": "street",
+      "asset": "assets/models/street/Power Box/PowerBox.glb",
+      "position": [
+        -25,
+        0.322,
+        -25.8
+      ],
+      "rotation": [
+        0,
+        3.142,
+        0
+      ],
+      "scale": [
+        1.3,
+        1.3,
+        1.3
+      ]
+    },
+    {
+      "id": "street-livedin-south-roadworks-026",
+      "type": "street",
+      "asset": "assets/models/street/Sports Car/SportsCar2.glb",
+      "position": [
+        24,
+        0.137,
+        -27.8
+      ],
+      "rotation": [
+        0,
+        1.571,
+        0
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ]
+    },
+    {
+      "id": "street-livedin-south-roadworks-027",
+      "type": "street",
+      "asset": "assets/models/street/Car/NormalCar1.glb",
+      "position": [
+        31,
+        0.115,
+        -32.2
+      ],
+      "rotation": [
+        0,
+        -1.571,
+        0
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ]
+    },
+    {
+      "id": "street-livedin-south-roadworks-028",
+      "type": "street",
+      "asset": "assets/models/street/SUV/SUV.glb",
+      "position": [
+        43,
+        0.139,
+        -32.2
+      ],
+      "rotation": [
+        0,
+        -1.571,
+        0
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ]
+    },
+    {
+      "id": "street-livedin-south-roadworks-029",
+      "type": "street",
+      "asset": "assets/models/street/Manhole Cover/ManholeCover.glb",
+      "position": [
+        18,
+        0.121,
+        -31
+      ],
+      "rotation": [
+        0,
+        0.4,
+        0
+      ],
+      "scale": [
+        1.2,
+        1.2,
+        1.2
+      ]
+    },
+    {
+      "id": "street-livedin-south-roadworks-030",
+      "type": "street",
+      "asset": "assets/models/street/Cone/Cone.glb",
+      "position": [
+        16.5,
+        0.137,
+        -31
+      ],
+      "rotation": [
+        0,
+        0.1,
+        0
+      ],
+      "scale": [
+        0.7,
+        0.7,
+        0.7
+      ]
+    },
+    {
+      "id": "street-livedin-south-roadworks-031",
+      "type": "street",
+      "asset": "assets/models/street/Cone/Cone.glb",
+      "position": [
+        18,
+        0.137,
+        -32.5
+      ],
+      "rotation": [
+        0,
+        -0.2,
+        0
+      ],
+      "scale": [
+        0.7,
+        0.7,
+        0.7
+      ]
+    },
+    {
+      "id": "street-livedin-south-roadworks-032",
+      "type": "street",
+      "asset": "assets/models/street/Cone/Cone.glb",
+      "position": [
+        19.5,
+        0.137,
+        -31
+      ],
+      "rotation": [
+        0,
+        0.25,
+        0
+      ],
+      "scale": [
+        0.7,
+        0.7,
+        0.7
+      ]
+    },
+    {
+      "id": "street-livedin-south-roadworks-033",
+      "type": "street",
+      "asset": "assets/models/street/Tree/tree01.glb",
+      "position": [
+        25,
+        -0.1,
+        -36
+      ],
+      "rotation": [
+        0,
+        1.4,
+        0
+      ],
+      "scale": [
+        0.0115,
+        0.0115,
+        0.0115
+      ]
+    },
+    {
+      "id": "street-livedin-south-roadworks-034",
+      "type": "street",
+      "asset": "assets/models/street/Mailbox/Mailbox.glb",
+      "position": [
+        40,
+        0.362,
+        -34.2
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        2.8,
+        2.8,
+        2.8
+      ]
+    },
+    {
+      "id": "street-livedin-south-roadworks-035",
+      "type": "street",
+      "asset": "assets/models/street/Fire hydrant/Fire Hydrant.glb",
+      "position": [
+        31,
+        0.321,
+        -25.8
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        0.0045,
+        0.0045,
+        0.0045
+      ]
+    },
+    {
+      "id": "street-livedin-south-roadworks-036",
+      "type": "street",
+      "asset": "assets/models/street/Stop sign/1358 Stop Sign.glb",
+      "position": [
+        4,
+        0.321,
+        -25.8
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        0.013,
+        0.013,
+        0.013
+      ]
+    },
+    {
+      "id": "street-livedin-south-roadworks-037",
+      "type": "street",
+      "asset": "assets/models/street/Bicycle/Bike.glb",
+      "position": [
+        52.5,
+        0.322,
+        -25.8
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        0.5,
+        0.5,
+        0.5
+      ]
+    },
+    {
+      "id": "street-livedin-south-roadworks-038",
+      "type": "street",
+      "asset": "assets/models/street/Trash Can/TrashCan_02.glb",
+      "position": [
+        35,
+        0.79,
+        -34.2
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        0.25,
+        0.25,
+        0.25
+      ]
+    },
+    {
+      "id": "street-livedin-east-boulevard-039",
+      "type": "street",
+      "asset": "assets/models/street/Car/NormalCar1.glb",
+      "position": [
+        21,
+        0.115,
+        7.8
+      ],
+      "rotation": [
+        0,
+        1.571,
+        0
+      ],
+      "scale": [
+        1,
+        1,
+        1
+      ]
+    },
+    {
+      "id": "street-livedin-east-boulevard-040",
+      "type": "street",
+      "asset": "assets/models/street/Sports Car-Gzj704DXdr/Vehicle_Sports.glb",
+      "position": [
+        29,
+        0.13,
+        12.2
+      ],
+      "rotation": [
+        0,
+        -1.571,
+        0
+      ],
+      "scale": [
+        0.8,
+        0.8,
+        0.8
+      ]
+    },
+    {
+      "id": "street-livedin-east-boulevard-041",
+      "type": "street",
+      "asset": "assets/models/street/Motorcycle/1388 Motorcycle.glb",
+      "position": [
+        34.5,
+        0.121,
+        7.8
+      ],
+      "rotation": [
+        0,
+        1.571,
+        0
+      ],
+      "scale": [
+        0.017,
+        0.017,
+        0.017
+      ]
+    },
+    {
+      "id": "street-livedin-transit-stop-042",
+      "type": "street",
+      "asset": "assets/models/street/Bus/1376 Bus.glb",
+      "position": [
+        43,
+        0.121,
+        11.8
+      ],
+      "rotation": [
+        0,
+        1.571,
+        0
+      ],
+      "scale": [
+        0.065,
+        0.065,
+        0.065
+      ]
+    },
+    {
+      "id": "street-livedin-transit-stop-043",
+      "type": "street",
+      "asset": "assets/models/street/Bus Stop/BusStop.glb",
+      "position": [
+        42,
+        1.882,
+        16.5
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        0.1,
+        0.1,
+        0.1
+      ]
+    },
+    {
+      "id": "street-livedin-transit-stop-044",
+      "type": "street",
+      "asset": "assets/models/street/Bus stop sign/bussy.glb",
+      "position": [
+        47,
+        0.353,
+        14.2
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        0.12,
+        0.12,
+        0.12
+      ]
+    },
+    {
+      "id": "street-livedin-transit-stop-045",
+      "type": "street",
+      "asset": "assets/models/street/Bench/model.glb",
+      "position": [
+        36,
+        0.589,
+        16
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        0.62,
+        0.62,
+        0.62
+      ]
+    },
+    {
+      "id": "street-livedin-transit-stop-046",
+      "type": "street",
+      "asset": "assets/models/street/Trash Can/TrashCan_02.glb",
+      "position": [
+        38.2,
+        0.519,
+        16
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        0.25,
+        0.25,
+        0.25
+      ]
+    },
+    {
+      "id": "street-livedin-transit-stop-047",
+      "type": "street",
+      "asset": "assets/models/street/Bicycle/Bike.glb",
+      "position": [
+        50,
+        0.051,
+        15.7
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        0.5,
+        0.5,
+        0.5
+      ]
+    },
+    {
+      "id": "street-livedin-transit-stop-048",
+      "type": "street",
+      "asset": "assets/models/street/Animated Woman/Formal.glb",
+      "position": [
+        45,
+        0.049,
+        16.4
+      ],
+      "rotation": [
+        0,
+        3.142,
+        0
+      ],
+      "scale": [
+        0.98,
+        0.98,
+        0.98
+      ]
+    },
+    {
+      "id": "street-livedin-transit-stop-049",
+      "type": "street",
+      "asset": "assets/models/street/Animated Woman/Casual.glb",
+      "position": [
+        36.5,
+        0.058,
+        17.5
+      ],
+      "rotation": [
+        0,
+        2.8,
+        0
+      ],
+      "scale": [
+        0.98,
+        0.98,
+        0.98
+      ]
+    },
+    {
+      "id": "street-livedin-transit-stop-050",
+      "type": "street",
+      "asset": "assets/models/street/Tree/tree01.glb",
+      "position": [
+        31.2,
+        -0.064,
+        17.5
+      ],
+      "rotation": [
+        0,
+        0.7,
+        0
+      ],
+      "scale": [
+        0.0115,
+        0.0115,
+        0.0115
+      ]
+    },
+    {
+      "id": "street-livedin-boulevard-commercial-051",
+      "type": "street",
+      "asset": "assets/models/street/ATM/ATM.glb",
+      "position": [
+        22,
+        0.322,
+        4.2
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        3.2,
+        3.2,
+        3.2
+      ]
+    },
+    {
+      "id": "street-livedin-boulevard-commercial-052",
+      "type": "street",
+      "asset": "assets/models/street/Planter & Bushes/PlanterAndBushes.glb",
+      "position": [
+        20.2,
+        0.399,
+        4.2
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        0.75,
+        0.75,
+        0.75
+      ]
+    },
+    {
+      "id": "street-livedin-boulevard-commercial-053",
+      "type": "street",
+      "asset": "assets/models/street/Planter & Bushes/PlanterAndBushes.glb",
+      "position": [
+        23.8,
+        0.399,
+        4.2
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        0.75,
+        0.75,
+        0.75
+      ]
+    },
+    {
+      "id": "street-livedin-boulevard-commercial-054",
+      "type": "street",
+      "asset": "assets/models/street/Bench/model.glb",
+      "position": [
+        28,
+        0.86,
+        4.2
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        0.62,
+        0.62,
+        0.62
+      ]
+    },
+    {
+      "id": "street-livedin-boulevard-commercial-055",
+      "type": "street",
+      "asset": "assets/models/street/Trash Can/TrashCan_02.glb",
+      "position": [
+        30.3,
+        0.79,
+        4.2
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        0.25,
+        0.25,
+        0.25
+      ]
+    },
+    {
+      "id": "street-livedin-boulevard-commercial-056",
+      "type": "street",
+      "asset": "assets/models/street/Mailbox/Mailbox.glb",
+      "position": [
+        33,
+        0.362,
+        4.2
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        2.8,
+        2.8,
+        2.8
+      ]
+    },
+    {
+      "id": "street-livedin-boulevard-commercial-057",
+      "type": "street",
+      "asset": "assets/models/street/Tree/tree01.glb",
+      "position": [
+        20,
+        -0.1,
+        17.5
+      ],
+      "rotation": [
+        0,
+        2.8,
+        0
+      ],
+      "scale": [
+        0.0115,
+        0.0115,
+        0.0115
+      ]
+    },
+    {
+      "id": "street-livedin-boulevard-commercial-058",
+      "type": "street",
+      "asset": "assets/models/street/Fire hydrant/Fire Hydrant.glb",
+      "position": [
+        25,
+        0.321,
+        14.2
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        0.0045,
+        0.0045,
+        0.0045
+      ]
+    },
+    {
+      "id": "street-livedin-boulevard-commercial-059",
+      "type": "street",
+      "asset": "assets/models/street/Manhole Cover/ManholeCover.glb",
+      "position": [
+        25,
+        0.121,
+        10.8
+      ],
+      "rotation": [
+        0,
+        0.1,
+        0
+      ],
+      "scale": [
+        1.2,
+        1.2,
+        1.2
+      ]
+    },
+    {
+      "id": "street-livedin-boulevard-commercial-060",
+      "type": "street",
+      "asset": "assets/models/street/Stop sign/1358 Stop Sign.glb",
+      "position": [
+        16.2,
+        0.321,
+        14.2
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        0.013,
+        0.013,
+        0.013
+      ]
+    },
+    {
+      "id": "street-livedin-southeast-plaza-061",
+      "type": "street",
+      "asset": "assets/models/street/Tree/tree01.glb",
+      "position": [
+        32.5,
+        -0.1,
+        -10.5
+      ],
+      "rotation": [
+        0,
+        0.4,
+        0
+      ],
+      "scale": [
+        0.0115,
+        0.0115,
+        0.0115
+      ]
+    },
+    {
+      "id": "street-livedin-southeast-plaza-062",
+      "type": "street",
+      "asset": "assets/models/street/Tree/tree01.glb",
+      "position": [
+        50,
+        0.05,
+        -14
+      ],
+      "rotation": [
+        0,
+        2.2,
+        0
+      ],
+      "scale": [
+        0.0115,
+        0.0115,
+        0.0115
+      ]
+    },
+    {
+      "id": "street-livedin-southeast-plaza-063",
+      "type": "street",
+      "asset": "assets/models/street/Bench/model.glb",
+      "position": [
+        46,
+        0.469,
+        -12.25
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        0.62,
+        0.62,
+        0.62
+      ]
+    },
+    {
+      "id": "street-livedin-southeast-plaza-064",
+      "type": "street",
+      "asset": "assets/models/street/Planter & Bushes/PlanterAndBushes.glb",
+      "position": [
+        42,
+        -0.022,
+        -12
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        0.75,
+        0.75,
+        0.75
+      ]
+    },
+    {
+      "id": "street-livedin-southeast-plaza-065",
+      "type": "street",
+      "asset": "assets/models/street/Planter & Bushes/PlanterAndBushes.glb",
+      "position": [
+        47,
+        0.038,
+        -11
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        0.75,
+        0.75,
+        0.75
+      ]
+    },
+    {
+      "id": "street-livedin-southeast-plaza-066",
+      "type": "street",
+      "asset": "assets/models/street/Flower Pot/FlowerPot4.glb",
+      "position": [
+        39.5,
+        0.366,
+        -11.5
+      ],
+      "rotation": [
+        0,
+        0.2,
+        0
+      ],
+      "scale": [
+        0.45,
+        0.45,
+        0.45
+      ]
+    },
+    {
+      "id": "street-livedin-southeast-plaza-067",
+      "type": "street",
+      "asset": "assets/models/street/Flower Pot/FlowerPot7.glb",
+      "position": [
+        48.75,
+        0.62,
+        -11.5
+      ],
+      "rotation": [
+        0,
+        -0.4,
+        0
+      ],
+      "scale": [
+        0.45,
+        0.45,
+        0.45
+      ]
+    },
+    {
+      "id": "street-livedin-southeast-plaza-068",
+      "type": "street",
+      "asset": "assets/models/street/Trash Can/TrashCan_02.glb",
+      "position": [
+        44.5,
+        0.369,
+        -11.5
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        0.25,
+        0.25,
+        0.25
+      ]
+    },
+    {
+      "id": "street-livedin-southeast-plaza-069",
+      "type": "street",
+      "asset": "assets/models/street/Bicycle/Bike.glb",
+      "position": [
+        45,
+        -0.099,
+        -8
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        0.5,
+        0.5,
+        0.5
+      ]
+    },
+    {
+      "id": "street-livedin-southeast-plaza-070",
+      "type": "street",
+      "asset": "assets/models/street/Mailbox/Mailbox.glb",
+      "position": [
+        52.5,
+        0.091,
+        -8
+      ],
+      "rotation": [
+        0,
+        1.571,
+        0
+      ],
+      "scale": [
+        2.8,
+        2.8,
+        2.8
+      ]
+    },
+    {
+      "id": "street-livedin-southeast-plaza-071",
+      "type": "street",
+      "asset": "assets/models/street/Adventurer/Adventurer.glb",
+      "position": [
+        40,
+        -0.099,
+        -8
+      ],
+      "rotation": [
+        0,
+        1.2,
+        0
+      ],
+      "scale": [
+        0.97,
+        0.97,
+        0.97
+      ]
+    },
+    {
+      "id": "street-livedin-southeast-plaza-072",
+      "type": "street",
+      "asset": "assets/models/street/Power Box/PowerBox.glb",
+      "position": [
+        54,
+        0.051,
+        -14
+      ],
+      "rotation": [
+        0,
+        1.571,
+        0
+      ],
+      "scale": [
+        1.3,
+        1.3,
+        1.3
+      ]
+    },
+    {
+      "id": "street-livedin-northwest-park-073",
+      "type": "street",
+      "asset": "assets/models/street/Tree/tree01.glb",
+      "position": [
+        -31,
+        0.05,
+        20
+      ],
+      "rotation": [
+        0,
+        0.4,
+        0
+      ],
+      "scale": [
+        0.0115,
+        0.0115,
+        0.0115
+      ]
+    },
+    {
+      "id": "street-livedin-northwest-park-074",
+      "type": "street",
+      "asset": "assets/models/street/Tree/tree01.glb",
+      "position": [
+        -22,
+        0.05,
+        30
+      ],
+      "rotation": [
+        0,
+        2.2,
+        0
+      ],
+      "scale": [
+        0.0115,
+        0.0115,
+        0.0115
+      ]
+    },
+    {
+      "id": "street-livedin-northwest-park-075",
+      "type": "street",
+      "asset": "assets/models/street/Tree/tree01.glb",
+      "position": [
+        -13,
+        0.05,
+        20
+      ],
+      "rotation": [
+        0,
+        4.1,
+        0
+      ],
+      "scale": [
+        0.0115,
+        0.0115,
+        0.0115
+      ]
+    },
+    {
+      "id": "street-livedin-northwest-park-076",
+      "type": "street",
+      "asset": "assets/models/street/Bench/model.glb",
+      "position": [
+        -26,
+        0.589,
+        25
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        0.62,
+        0.62,
+        0.62
+      ]
+    },
+    {
+      "id": "street-livedin-northwest-park-077",
+      "type": "street",
+      "asset": "assets/models/street/Bench/model.glb",
+      "position": [
+        -14,
+        0.589,
+        29.75
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        0.62,
+        0.62,
+        0.62
+      ]
+    },
+    {
+      "id": "street-livedin-northwest-park-078",
+      "type": "street",
+      "asset": "assets/models/street/Planter & Bushes/PlanterAndBushes.glb",
+      "position": [
+        -26,
+        0.128,
+        20
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        0.75,
+        0.75,
+        0.75
+      ]
+    },
+    {
+      "id": "street-livedin-northwest-park-079",
+      "type": "street",
+      "asset": "assets/models/street/Planter & Bushes/PlanterAndBushes.glb",
+      "position": [
+        -17.5,
+        0.128,
+        20
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        0.75,
+        0.75,
+        0.75
+      ]
+    },
+    {
+      "id": "street-livedin-northwest-park-080",
+      "type": "street",
+      "asset": "assets/models/street/Trash Can/TrashCan_02.glb",
+      "position": [
+        -26,
+        0.519,
+        29
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        0.25,
+        0.25,
+        0.25
+      ]
+    },
+    {
+      "id": "street-livedin-northwest-park-081",
+      "type": "street",
+      "asset": "assets/models/street/Bicycle/Bike.glb",
+      "position": [
+        -16,
+        0.051,
+        31
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        0.5,
+        0.5,
+        0.5
+      ]
+    },
+    {
+      "id": "street-livedin-northwest-park-082",
+      "type": "street",
+      "asset": "assets/models/street/Fire hydrant/Fire Hydrant.glb",
+      "position": [
+        -33,
+        0.05,
+        29
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        0.0045,
+        0.0045,
+        0.0045
+      ]
+    },
+    {
+      "id": "street-livedin-northwest-park-083",
+      "type": "street",
+      "asset": "assets/models/street/Man/Male_Casual.glb",
+      "position": [
+        -26.25,
+        0.049,
+        23.25
+      ],
+      "rotation": [
+        0,
+        2.4,
+        0
+      ],
+      "scale": [
+        0.37,
+        0.37,
+        0.37
+      ]
+    },
+    {
+      "id": "street-livedin-northwest-park-084",
+      "type": "street",
+      "asset": "assets/models/street/Mailbox/Mailbox.glb",
+      "position": [
+        -12,
+        0.091,
+        29.5
+      ],
+      "rotation": [
+        0,
+        1.571,
+        0
+      ],
+      "scale": [
+        2.8,
+        2.8,
+        2.8
       ]
     }
   ]

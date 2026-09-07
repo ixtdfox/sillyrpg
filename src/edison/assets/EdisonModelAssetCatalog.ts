@@ -17,6 +17,7 @@ export interface EdisonModelAssetOption {
   readonly tags: readonly string[];
   readonly connectedPresetId?: string;
   readonly gridSize?: number;
+  readonly defaultScale?: number;
 }
 
 export interface EdisonModelCategoryOption {
@@ -42,7 +43,8 @@ export class EdisonModelAssetCatalog {
         objectType: resolveObjectType(category),
         filename: asset.filename,
         extension: asset.extension,
-        tags: [...asset.tags]
+        tags: [...asset.tags],
+        defaultScale: category === "interior" ? 0.5 : 1
       };
     });
 
@@ -57,6 +59,8 @@ export class EdisonModelAssetCatalog {
 
     return [
       { id: "buildings", label: "Buildings", count: counts.get("buildings") ?? 0 },
+      { id: "street", label: "Street", count: counts.get("street") ?? 0 },
+      { id: "interior", label: "Interior", count: counts.get("interior") ?? 0 },
       { id: "terrain", label: "Terrain", count: counts.get("terrain") ?? 0 },
       { id: "connected", label: "Connected Objects", count: counts.get("connected") ?? 0 }
     ];
@@ -66,6 +70,10 @@ export class EdisonModelAssetCatalog {
 function resolveObjectType(category: string): string {
   if (category === "buildings") {
     return "building";
+  }
+
+  if (category === "street" || category === "interior") {
+    return category;
   }
 
   if (category === "unknown") {

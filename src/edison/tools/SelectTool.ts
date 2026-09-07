@@ -12,7 +12,14 @@ export function createSelectTool(): EdisonTool {
         return false;
       }
 
-      const objectId = context.viewport.pickObjectId(nativeEvent.clientX, nativeEvent.clientY);
+      const objectId = context.interiorEdit.isActive()
+        ? context.viewport.pickObjectId(
+            nativeEvent.clientX,
+            nativeEvent.clientY,
+            (candidateId) => context.interiorEdit.canEditObject(context.scene.getObject(candidateId))
+          )
+        : context.viewport.pickObjectId(nativeEvent.clientX, nativeEvent.clientY);
+
       if (objectId) {
         context.selection.selectSceneObject(objectId);
       } else {

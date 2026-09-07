@@ -106,6 +106,25 @@ export class SceneShadowRegistry {
     this.synchronize();
   }
 
+  /** Replaces one owner namespace without disturbing batches registered by other systems. */
+  public replaceBatchesForOwnerPrefix(ownerIdPrefix: string, batches: readonly ShadowMeshBatch[]): void {
+    this.clearKnownReceivers();
+    for (const ownerId of this.batchesByOwnerId.keys()) {
+      if (ownerId.startsWith(ownerIdPrefix)) {
+        this.batchesByOwnerId.delete(ownerId);
+      }
+    }
+    for (const batch of batches) {
+      this.batchesByOwnerId.set(batch.ownerId, {
+        ownerId: batch.ownerId,
+        source: batch.source,
+        meshes: [...batch.meshes]
+      });
+    }
+
+    this.synchronize();
+  }
+
   /** Удаляет владельца из registry и очищает receiver-флаги на его meshes. */
   public unregisterOwner(ownerId: string): void {
     const batch = this.batchesByOwnerId.get(ownerId);

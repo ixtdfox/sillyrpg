@@ -5,6 +5,7 @@ import type { EdisonPluginContext } from "../../plugins/EdisonPlugin";
 
 export class InspectorPanel {
   public render(host: HTMLElement, context: EdisonPluginContext): void {
+    this.renderInteriorEditControls(host, context);
     const selection = context.selection.getSelection();
     if (!selection) {
       this.renderEmpty(host, "Nothing selected");
@@ -44,6 +45,74 @@ export class InspectorPanel {
     this.renderVectorFields(host, "Scale", object.scale, (vector) => {
       context.transforms.updateObjectTransform(object.id, { scale: vector });
     });
+
+    if (object.type === "building" && context.interiorEdit.getActiveBuildingId() !== object.id) {
+      this.renderEnterInteriorEditButton(host, object, context);
+    }
+  }
+
+  private renderInteriorEditControls(host: HTMLElement, context: EdisonPluginContext): void {
+    const state = context.interiorEdit.getState();
+    if (!state) {
+      return;
+    }
+
+    const card = document.createElement("div");
+    card.className = "edison-card edison-interior-edit-card";
+
+    const title = document.createElement("div");
+    title.className = "edison-card-title";
+    title.textContent = "Interior Edit";
+    const subtitle = document.createElement("div");
+    subtitle.className = "edison-muted";
+    subtitle.textContent = `Building: ${state.activeBuildingId}`;
+
+    const floorRow = document.createElement("div");
+    floorRow.className = "edison-floor-button-row";
+    for (const floor of state.floors) {
+      const button = document.createElement("button");
+      button.type = "button";
+      button.className = `edison-button${floor.storyIndex === state.activeStoryIndex ? " is-active" : ""}`;
+      button.textContent = floor.label;
+      button.addEventListener("click", () => {
+        context.interiorEdit.selectStory(floor.storyIndex);
+      });
+      floorRow.appendChild(button);
+    }
+
+    const exitButton = document.createElement("button");
+    exitButton.type = "button";
+    exitButton.className = "edison-button";
+    exitButton.textContent = "Exit Interior";
+    exitButton.addEventListener("click", () => context.interiorEdit.exit());
+
+    card.append(title, subtitle, floorRow, exitButton);
+    host.appendChild(card);
+  }
+
+  private renderEnterInteriorEditButton(host: HTMLElement, object: SceneObjectDescriptor, context: EdisonPluginContext): void {
+    const title = document.createElement("div");
+    title.className = "edison-section-title";
+    title.textContent = "Interior";
+
+    const card = document.createElement("div");
+    card.className = "edison-card";
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = "edison-button";
+    button.textContent = "Edit Interior";
+    button.addEventListener("click", () => {
+      const floors = context.viewport.getInteriorEditFloors(object.id);
+      if (floors.length === 0) {
+        context.events.emit("edison.message", { text: "Selected building has no editable floor metadata." });
+        return;
+      }
+
+      context.interiorEdit.enterBuilding(object.id, floors);
+      context.events.emit("edison.message", { text: `Interior edit mode: ${object.id}.` });
+    });
+    card.appendChild(button);
+    host.append(title, card);
   }
 
   private renderTerrain(host: HTMLElement, context: EdisonPluginContext): void {

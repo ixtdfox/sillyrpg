@@ -52,6 +52,7 @@ export class EdisonUi {
       context.placement.onDidChange(() => this.renderNonViewportPanels()),
       context.events.on("edison.connectedObjects.changed", () => this.renderNonViewportPanels()),
       context.events.on("edison.terrainSnap.changed", () => this.renderNonViewportPanels()),
+      context.events.on("edison.interiorEdit.changed", () => this.renderNonViewportPanels()),
       context.events.on<{ text: string }>("edison.message", (payload) => {
         this.statusBar.setMessage(payload.text);
         this.renderStatus();

@@ -1,7 +1,8 @@
-import { CascadedShadowGenerator, MeshBuilder, NullEngine, Scene } from "@babylonjs/core";
+import { CascadedShadowGenerator, MeshBuilder, NullEngine, Scene, TransformNode } from "@babylonjs/core";
 import { SceneLightingController } from "../../../src/core/lighting/SceneLightingController";
 import { SceneShadowRegistry } from "../../../src/core/lighting/SceneShadowRegistry";
 import type { SceneLightingDescriptor } from "../../../src/core/lighting/LightingTypes";
+import { RUNTIME_FRUSTUM_CULLED_METADATA_KEY } from "../../../src/core/scene/visibility/SceneObjectVisibilityController";
 
 function assert(condition: boolean, message: string): void {
   if (!condition) {
@@ -144,6 +145,56 @@ function testSynchronizationFollowsEnabledLodCaster(): void {
   engine.dispose();
 }
 
+function testSynchronizationRetainsRuntimeFrustumCulledCaster(): void {
+  const engine = new NullEngine();
+  const scene = new Scene(engine);
+  const lightingController = new SceneLightingController(scene);
+  const registry = new SceneShadowRegistry(lightingController);
+  const root = new TransformNode("culled-prop-root", scene);
+  const caster = MeshBuilder.CreateBox("culled-prop", { size: 1 }, scene);
+  caster.parent = root;
+  root.metadata = { [RUNTIME_FRUSTUM_CULLED_METADATA_KEY]: true };
+  root.setEnabled(false);
+
+  registry.setLighting(createLighting(true));
+  registry.registerBatch({ ownerId: "district:0,0:sceneObjects", source: "sceneObject", meshes: [caster] });
+
+  const renderList = lightingController.getRig()?.getShadowGenerator()?.getShadowMap()?.renderList ?? [];
+  assert(renderList.includes(caster), "Expected frustum-culled prop to remain registered for shadows when re-enabled.");
+
+  registry.dispose();
+  scene.dispose();
+  engine.dispose();
+}
+
+function testOwnerPrefixReplacementRemovesMissingDistrictBatches(): void {
+  const engine = new NullEngine();
+  const scene = new Scene(engine);
+  const lightingController = new SceneLightingController(scene);
+  const registry = new SceneShadowRegistry(lightingController);
+  const staleDistrictMesh = MeshBuilder.CreateBox("stale-district", { size: 1 }, scene);
+  const currentDistrictMesh = MeshBuilder.CreateBox("current-district", { size: 1 }, scene);
+  const character = MeshBuilder.CreateBox("character", { size: 1 }, scene);
+
+  registry.setLighting(createLighting(true));
+  registry.registerBatches([
+    { ownerId: "district:0,0:sceneObjects", source: "sceneObject", meshes: [staleDistrictMesh] },
+    { ownerId: "entity:character", source: "character", meshes: [character] }
+  ]);
+  registry.replaceBatchesForOwnerPrefix("district:", [
+    { ownerId: "district:1,0:sceneObjects", source: "sceneObject", meshes: [currentDistrictMesh] }
+  ]);
+
+  const renderList = lightingController.getRig()?.getShadowGenerator()?.getShadowMap()?.renderList ?? [];
+  assert(!renderList.includes(staleDistrictMesh), "Expected stale district caster to be removed.");
+  assert(renderList.includes(currentDistrictMesh), "Expected current district caster to be registered.");
+  assert(renderList.includes(character), "Expected non-district caster to be preserved.");
+
+  registry.dispose();
+  scene.dispose();
+  engine.dispose();
+}
+
 function testSharedInstanceReceiverStateUsesAnyEligibleInstance(): void {
   const engine = new NullEngine();
   const scene = new Scene(engine);
@@ -245,6 +296,8 @@ function run(): void {
   testRegistryClearsReceiversWhenShadowsDisabled();
   testDiagnosticsReportsBatchCasterAndReceiverCounts();
   testSynchronizationFollowsEnabledLodCaster();
+  testSynchronizationRetainsRuntimeFrustumCulledCaster();
+  testOwnerPrefixReplacementRemovesMissingDistrictBatches();
   testSharedInstanceReceiverStateUsesAnyEligibleInstance();
   testDiagnosticsGroupsActualBuildingCastersByLodRole();
   testSynchronizationRefreshesFrozenCsmCasterBounds();
