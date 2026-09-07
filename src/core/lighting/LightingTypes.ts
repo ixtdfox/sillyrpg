@@ -57,6 +57,12 @@ export interface ShadowLightingDescriptor {
   readonly enabled?: boolean;
   readonly generator?: ShadowGeneratorKind;
   readonly mapSize?: number;
+  /** Number of cascades for CSM; lower values reduce shadow-pass cost. */
+  readonly cascadeCount?: number;
+  /** Maximum camera-space distance at which CSM shadows are rendered. */
+  readonly shadowMaxZ?: number;
+  /** Safe only when the complete caster set has static bounds. */
+  readonly freezeShadowCastersBoundingInfo?: boolean;
   readonly darkness?: number;
   readonly filter?: ShadowFilterMode;
   readonly useBlurExponentialShadowMap?: boolean;
@@ -71,4 +77,6 @@ export interface ShadowLightingDescriptor {
   readonly includeCharacters?: boolean;
   readonly includeSceneObjects?: boolean;
   readonly includeTerrain?: boolean;
+  /** Use authored building shadow proxies instead of detailed meshes when available. */
+  readonly preferBuildingShadowProxies?: boolean;
 }

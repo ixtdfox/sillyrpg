@@ -72,7 +72,7 @@ export class LightingRig {
       return;
     }
 
-    const shadowCasterMeshes = this.shadowGenerator.getShadowMap()?.renderList ?? [];
+    const shadowCasterMeshes = [...(this.shadowGenerator.getShadowMap()?.renderList ?? [])];
     for (const mesh of shadowCasterMeshes) {
       this.shadowGenerator.removeShadowCaster(mesh, false);
     }
@@ -95,6 +95,19 @@ export class LightingRig {
     for (const mesh of meshes) {
       this.registerShadowCaster(mesh);
     }
+  }
+
+  /** Recomputes frozen CSM bounds after the registry changes the caster render list. */
+  public refreshShadowCasterBounds(): void {
+    if (
+      !(this.shadowGenerator instanceof CascadedShadowGenerator) ||
+      !this.shadowGenerator.freezeShadowCastersBoundingInfo
+    ) {
+      return;
+    }
+
+    this.shadowGenerator.freezeShadowCastersBoundingInfo = false;
+    this.shadowGenerator.freezeShadowCastersBoundingInfo = true;
   }
 
   /** Освобождает все Babylon-ресурсы, которыми владеет rig. */

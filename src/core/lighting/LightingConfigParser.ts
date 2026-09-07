@@ -144,6 +144,12 @@ export class LightingConfigParser {
     const enabled = this.fields.optionalBoolean(record.enabled, `${sourceLabel}.enabled must be a boolean if provided.`);
     const generator = this.fields.optionalEnum(record.generator, SHADOW_GENERATOR_KINDS, `${sourceLabel}.generator`);
     const mapSize = this.fields.optionalFiniteInteger(record.mapSize, `${sourceLabel}.mapSize must be a finite integer if provided.`);
+    const cascadeCount = this.fields.optionalFiniteInteger(record.cascadeCount, `${sourceLabel}.cascadeCount must be a finite integer if provided.`);
+    const shadowMaxZ = this.fields.optionalFiniteNumber(record.shadowMaxZ, `${sourceLabel}.shadowMaxZ must be a finite number if provided.`);
+    const freezeShadowCastersBoundingInfo = this.fields.optionalBoolean(
+      record.freezeShadowCastersBoundingInfo,
+      `${sourceLabel}.freezeShadowCastersBoundingInfo must be a boolean if provided.`
+    );
     const darkness = this.fields.optionalFiniteNumber(record.darkness, `${sourceLabel}.darkness must be a finite number if provided.`);
     const parsedFilter = this.fields.optionalEnum(record.filter, SHADOW_FILTER_MODES, `${sourceLabel}.filter`);
     const useBlurExponentialShadowMap = this.fields.optionalBoolean(
@@ -164,6 +170,10 @@ export class LightingConfigParser {
     const includeCharacters = this.fields.optionalBoolean(record.includeCharacters, `${sourceLabel}.includeCharacters must be a boolean if provided.`);
     const includeSceneObjects = this.fields.optionalBoolean(record.includeSceneObjects, `${sourceLabel}.includeSceneObjects must be a boolean if provided.`);
     const includeTerrain = this.fields.optionalBoolean(record.includeTerrain, `${sourceLabel}.includeTerrain must be a boolean if provided.`);
+    const preferBuildingShadowProxies = this.fields.optionalBoolean(
+      record.preferBuildingShadowProxies,
+      `${sourceLabel}.preferBuildingShadowProxies must be a boolean if provided.`
+    );
     const filter =
       parsedFilter ??
       this.legacyShadowFilterAdapter.toFilterMode(usePercentageCloserFiltering, useBlurExponentialShadowMap);
@@ -172,6 +182,9 @@ export class LightingConfigParser {
       ...(enabled !== undefined ? { enabled } : {}),
       ...(generator !== undefined ? { generator } : {}),
       ...(mapSize !== undefined ? { mapSize } : {}),
+      ...(cascadeCount !== undefined ? { cascadeCount } : {}),
+      ...(shadowMaxZ !== undefined ? { shadowMaxZ } : {}),
+      ...(freezeShadowCastersBoundingInfo !== undefined ? { freezeShadowCastersBoundingInfo } : {}),
       ...(darkness !== undefined ? { darkness } : {}),
       ...(filter !== undefined ? { filter } : {}),
       ...(useBlurExponentialShadowMap !== undefined ? { useBlurExponentialShadowMap } : {}),
@@ -185,7 +198,8 @@ export class LightingConfigParser {
       ...(receiverMode !== undefined ? { receiverMode } : {}),
       ...(includeCharacters !== undefined ? { includeCharacters } : {}),
       ...(includeSceneObjects !== undefined ? { includeSceneObjects } : {}),
-      ...(includeTerrain !== undefined ? { includeTerrain } : {})
+      ...(includeTerrain !== undefined ? { includeTerrain } : {}),
+      ...(preferBuildingShadowProxies !== undefined ? { preferBuildingShadowProxies } : {})
     };
   }
 

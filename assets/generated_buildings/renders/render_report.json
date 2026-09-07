@@ -1,0 +1,135 @@
+{
+  "ok": true,
+  "renders": [
+    {
+      "path": "/home/tony/pets/sillyrpg/assets/generated_buildings/renders/showcase_overview_lod0.png",
+      "lod": 0,
+      "collection": null,
+      "bbox_size": [
+        82.75,
+        52.06,
+        13.5
+      ]
+    },
+    {
+      "path": "/home/tony/pets/sillyrpg/assets/generated_buildings/renders/Showcase_01_Villa_lod0.png",
+      "lod": 0,
+      "collection": "Showcase_01_Villa",
+      "bbox_size": [
+        13.75,
+        8.75,
+        7.3
+      ]
+    },
+    {
+      "path": "/home/tony/pets/sillyrpg/assets/generated_buildings/renders/Showcase_01_Villa_lod1_exterior.png",
+      "lod": 1,
+      "collection": "Showcase_01_Villa",
+      "bbox_size": [
+        13.5,
+        8.5,
+        6.25
+      ]
+    },
+    {
+      "path": "/home/tony/pets/sillyrpg/assets/generated_buildings/renders/Showcase_02_L_Courtyard_lod0.png",
+      "lod": 0,
+      "collection": "Showcase_02_L_Courtyard",
+      "bbox_size": [
+        16.75,
+        12.905,
+        11.15
+      ]
+    },
+    {
+      "path": "/home/tony/pets/sillyrpg/assets/generated_buildings/renders/Showcase_02_L_Courtyard_lod1_exterior.png",
+      "lod": 1,
+      "collection": "Showcase_02_L_Courtyard",
+      "bbox_size": [
+        16.5,
+        10.5,
+        10.1
+      ]
+    },
+    {
+      "path": "/home/tony/pets/sillyrpg/assets/generated_buildings/renders/Showcase_03_U_Courtyard_lod0.png",
+      "lod": 0,
+      "collection": "Showcase_03_U_Courtyard",
+      "bbox_size": [
+        19.75,
+        12.905,
+        8.3
+      ]
+    },
+    {
+      "path": "/home/tony/pets/sillyrpg/assets/generated_buildings/renders/Showcase_03_U_Courtyard_lod1_exterior.png",
+      "lod": 1,
+      "collection": "Showcase_03_U_Courtyard",
+      "bbox_size": [
+        19.5,
+        10.5,
+        7.25
+      ]
+    },
+    {
+      "path": "/home/tony/pets/sillyrpg/assets/generated_buildings/renders/Showcase_04_H_Office_lod0.png",
+      "lod": 0,
+      "collection": "Showcase_04_H_Office",
+      "bbox_size": [
+        17.75,
+        10.75,
+        13.5
+      ]
+    },
+    {
+      "path": "/home/tony/pets/sillyrpg/assets/generated_buildings/renders/Showcase_04_H_Office_lod1_exterior.png",
+      "lod": 1,
+      "collection": "Showcase_04_H_Office",
+      "bbox_size": [
+        17.5,
+        10.5,
+        12.45
+      ]
+    },
+    {
+      "path": "/home/tony/pets/sillyrpg/assets/generated_buildings/renders/Showcase_05_T_Townhouse_lod0.png",
+      "lod": 0,
+      "collection": "Showcase_05_T_Townhouse",
+      "bbox_size": [
+        17.75,
+        10.75,
+        10.4
+      ]
+    },
+    {
+      "path": "/home/tony/pets/sillyrpg/assets/generated_buildings/renders/Showcase_05_T_Townhouse_lod1_exterior.png",
+      "lod": 1,
+      "collection": "Showcase_05_T_Townhouse",
+      "bbox_size": [
+        17.5,
+        10.5,
+        9.35
+      ]
+    },
+    {
+      "path": "/home/tony/pets/sillyrpg/assets/generated_buildings/renders/Showcase_06_Courdoner_Estate_lod0.png",
+      "lod": 0,
+      "collection": "Showcase_06_Courdoner_Estate",
+      "bbox_size": [
+        18.75,
+        13.905,
+        7.8
+      ]
+    },
+    {
+      "path": "/home/tony/pets/sillyrpg/assets/generated_buildings/renders/Showcase_06_Courdoner_Estate_lod1_exterior.png",
+      "lod": 1,
+      "collection": "Showcase_06_Courdoner_Estate",
+      "bbox_size": [
+        18.5,
+        11.5,
+        6.75
+      ]
+    }
+  ]
+}

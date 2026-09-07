@@ -25,6 +25,7 @@ import { SceneShadowRegistry } from "../../lighting/SceneShadowRegistry";
 import type { TerrainLodAnchor } from "../../world/terrain/lod/TerrainQuadtreeLodTypes";
 import { RuntimePerformancePanelUi } from "./performance/RuntimePerformancePanelUi";
 import { RuntimePerformanceSampler } from "./performance/RuntimePerformanceSampler";
+import { mapLoadingProgress, type LoadingProgressReporter } from "../../game/LoadingProgress";
 
 /**
  * Implements the in-game scene that loads a default world location district.
@@ -45,6 +46,9 @@ export class InGameScene implements Scene {
   /** Character factory used to create runtime characters. */
   private readonly characterFactory: CharacterFactory;
 
+  /** Reports real scene construction stages to the app-level loading overlay. */
+  private readonly reportLoadingProgress: LoadingProgressReporter | undefined;
+
   /**
    * Creates a new in-game scene controller.
    *
@@ -52,12 +56,18 @@ export class InGameScene implements Scene {
    * @param langManager - Shared localization manager.
    * @param entityManager - Shared ECS entity registry.
    */
-  public constructor(engine: Engine, langManager: LangManager, entityManager: EntityManager) {
+  public constructor(
+    engine: Engine,
+    langManager: LangManager,
+    entityManager: EntityManager,
+    reportLoadingProgress?: LoadingProgressReporter
+  ) {
     this.engine = engine;
     this.langManager = langManager;
     this.entityManager = entityManager;
     this.locationManager = new LocationManager(this.langManager);
     this.characterFactory = new CharacterFactory(new EntityPrefabFactory());
+    this.reportLoadingProgress = reportLoadingProgress;
   }
 
   /**
@@ -70,7 +80,9 @@ export class InGameScene implements Scene {
     const lightingController = new SceneLightingController(scene);
     const shadowRegistry = new SceneShadowRegistry(lightingController);
 
+    this.reportLoadingProgress?.({ progress: 0.07, message: "Loading location index" });
     await this.locationManager.loadLocations();
+    this.reportLoadingProgress?.({ progress: 0.12, message: "Selecting starting district" });
     const defaultLocation = this.locationManager.createDefaultLocation();
     const [defaultDistrict] = defaultLocation.getDistricts();
 
@@ -78,12 +90,19 @@ export class InGameScene implements Scene {
       throw new Error("Default location has no districts.");
     }
 
-    const districtScene = await this.locationManager.createDistrictScene(scene, defaultDistrict);
+    const districtScene = await this.locationManager.createDistrictScene(
+      scene,
+      defaultDistrict,
+      mapLoadingProgress(this.reportLoadingProgress, 0.14, 0.82)
+    );
     // The initial chunk owns scene-wide lighting for now; streaming chunks do not auto-change it.
+    this.reportLoadingProgress?.({ progress: 0.84, message: "Configuring light and shadows" });
     shadowRegistry.setLighting(districtScene.lightingDescriptor);
     shadowRegistry.registerBatches(this.locationManager.getShadowMeshBatches());
 
+    this.reportLoadingProgress?.({ progress: 0.88, message: "Preparing player" });
     const playerCharacter = await this.characterFactory.createPlayer(new Vector3(-8, 0, -8));
+    this.reportLoadingProgress?.({ progress: 0.91, message: "Preparing inhabitants" });
     const golemCharacter = await this.characterFactory.createGolem(new Vector3(8, 0, 8), new Vector3(0, -Math.PI * 0.75, 0));
 
     this.entityManager.addEntity(playerCharacter);
@@ -99,6 +118,7 @@ export class InGameScene implements Scene {
     hostileToGolem.hate = 100;
     playerRelations.relationships[golemCharacter.getId()] = hostileToGolem;
 
+    this.reportLoadingProgress?.({ progress: 0.94, message: "Building navigation grid" });
     const gridRuntime = new RectGridRuntime(scene, undefined, this.locationManager.getActiveDistrictMeshes());
     const locationTriggerSystem = new LocationTriggerSystem(
       scene,
@@ -175,6 +195,13 @@ export class InGameScene implements Scene {
       shadowRegistry
     });
     performancePanel = new RuntimePerformancePanelUi(inGameTopPanelUi.getTexture(), performanceSampler);
+    this.exposeRuntimePerformanceDebug(
+      scene,
+      performanceSampler,
+      performancePanel,
+      this.locationManager,
+      shadowRegistry,
+    );
     terrainLodTuningPanel = new TerrainLodTuningPanelUi(
       inGameTopPanelUi.getTexture(),
       this.locationManager.getTerrainLodRuntimeTuning(),
@@ -246,6 +273,7 @@ export class InGameScene implements Scene {
       }
     });
 
+    this.reportLoadingProgress?.({ progress: 0.96, message: "Finalizing game scene" });
     return scene;
   }
 
@@ -370,5 +398,42 @@ export class InGameScene implements Scene {
       position: camera.globalPosition?.clone() ?? camera.position.clone(),
       source: "camera-fallback"
     };
+  }
+
+  private exposeRuntimePerformanceDebug(
+    scene: BabylonScene,
+    performanceSampler: RuntimePerformanceSampler,
+    performancePanel: RuntimePerformancePanelUi,
+    locationManager: LocationManager,
+    shadowRegistry: SceneShadowRegistry,
+  ): void {
+    if (!new URLSearchParams(window.location.search).has("runtimePerf")) {
+      return;
+    }
+
+    const debugGlobal = globalThis as typeof globalThis & {
+      __SILLYRPG_RUNTIME_DEBUG__?: {
+        scene: BabylonScene;
+        engine: Engine;
+        performanceSampler: RuntimePerformanceSampler;
+        performancePanel: RuntimePerformancePanelUi;
+        locationManager: LocationManager;
+        shadowRegistry: SceneShadowRegistry;
+      };
+    };
+    const handle = {
+      scene,
+      engine: this.engine,
+      performanceSampler,
+      performancePanel,
+      locationManager,
+      shadowRegistry,
+    };
+    debugGlobal.__SILLYRPG_RUNTIME_DEBUG__ = handle;
+    scene.onDisposeObservable.addOnce(() => {
+      if (debugGlobal.__SILLYRPG_RUNTIME_DEBUG__?.scene === scene) {
+        delete debugGlobal.__SILLYRPG_RUNTIME_DEBUG__;
+      }
+    });
   }
 }

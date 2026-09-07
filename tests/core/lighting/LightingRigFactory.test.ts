@@ -114,12 +114,43 @@ function testCreatesCascadedShadowGeneratorByDefault(): void {
 
   const generator = rig.getShadowGenerator();
   assert(generator !== null, "Expected shadow generator by default.");
-  if (CascadedShadowGenerator.IsSupported) {
-    assert(generator instanceof CascadedShadowGenerator, "Expected cascaded shadow generator when CSM is supported.");
+  if (generator instanceof CascadedShadowGenerator) {
+    assert(generator.numCascades === 2, "Expected optimized default cascade count.");
+    assert(generator.shadowMaxZ === 80, "Expected optimized default shadow distance.");
   } else {
+    assert(!CascadedShadowGenerator.IsSupported, "Expected cascaded shadow generator when CSM is supported.");
     assert(generator instanceof ShadowGenerator, "Expected standard shadow generator fallback when CSM is unsupported.");
     assert(!(generator instanceof CascadedShadowGenerator), "Expected non-cascaded fallback when CSM is unsupported.");
   }
+  rig.dispose();
+  disposeScene(engine, scene);
+}
+
+function testConfiguresCascadedShadowTuning(): void {
+  if (!CascadedShadowGenerator.IsSupported) {
+    return;
+  }
+
+  const { engine, scene } = createScene();
+  const rig = new LightingRigFactory().create(scene, {
+    ambient: { enabled: false },
+    sun: { enabled: true },
+    shadows: {
+      enabled: true,
+      cascadeCount: 3,
+      shadowMaxZ: 120,
+      freezeShadowCastersBoundingInfo: true
+    }
+  });
+  const generator = rig.getShadowGenerator();
+
+  if (!(generator instanceof CascadedShadowGenerator)) {
+    throw new Error("Expected CSM for CSM tuning test.");
+  }
+
+  assert(generator.numCascades === 3, "Expected configured cascade count.");
+  assert(generator.shadowMaxZ === 120, "Expected configured shadow max distance.");
+  assert(generator.freezeShadowCastersBoundingInfo === true, "Expected configured frozen caster bounds.");
   rig.dispose();
   disposeScene(engine, scene);
 }
@@ -206,6 +237,7 @@ function run(): void {
   testCreatesShadowGeneratorWhenSunEnabled();
   testCreatesStandardShadowGeneratorWhenRequested();
   testCreatesCascadedShadowGeneratorByDefault();
+  testConfiguresCascadedShadowTuning();
   testSkipsShadowGeneratorWhenSunDisabled();
   testShadowFilterModeKeepsBabylonFlagsExclusive();
   testCascadedShadowGeneratorAvoidsUnsupportedFilterLogs();

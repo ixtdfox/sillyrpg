@@ -1,4 +1,4 @@
-import { MeshBuilder, NullEngine, Scene, type AbstractMesh } from "@babylonjs/core";
+import { MeshBuilder, NullEngine, Scene, StandardMaterial, type AbstractMesh } from "@babylonjs/core";
 import { RuntimePerformanceSampler } from "../../../src/core/scene/in-game/performance/RuntimePerformanceSampler";
 
 function assert(condition: boolean, message: string): void {
@@ -117,6 +117,48 @@ function testSamplerClassifiesBucketsAndSkipsDisposedMeshes(): void {
   engine.dispose();
 }
 
+function testSamplerReportsDrawGroupsMaterialsPickabilityAndBuildingLod(): void {
+  const engine = new NullEngine();
+  const scene = new Scene(engine);
+  const material = new StandardMaterial("shared-building-material", scene);
+  const lod0 = MeshBuilder.CreateBox("LOD0_Full", { size: 1 }, scene);
+  const lod0Instance = lod0.createInstance("LOD0_Full:instance");
+  for (const mesh of [lod0, lod0Instance]) {
+    mesh.material = material;
+    mesh.metadata = {
+      sceneObjectType: "building",
+      buildingVisibilityInstanceId: "building-a",
+      game_visibility: true,
+      game_visibility_role: "wall_halo",
+      game_lod_level: 0,
+      game_lod_role: "full"
+    };
+  }
+  installActiveMeshes(scene, [lod0, lod0Instance]);
+
+  const sampler = new RuntimePerformanceSampler({
+    engine,
+    scene,
+    locationManager: createLocationManagerStub(),
+    gridRuntime: createGridRuntimeStub(),
+    shadowRegistry: createShadowRegistryStub()
+  });
+  const snapshot = sampler.sample(0);
+
+  assert(snapshot.scene.renderableMeshCount === 2, "Expected both geometry-bearing meshes to be renderable meshes.");
+  assert(snapshot.scene.pickableMeshCount === 2, "Expected both enabled pickable meshes in diagnostics.");
+  assert(snapshot.scene.thinInstanceBatchMeshCount === 0, "Expected ordinary instances not to count as thin-instance batches.");
+  assert(snapshot.scene.thinInstanceCount === 0, "Expected no thin instances in the ordinary-instance test.");
+  assert(snapshot.scene.uniqueEnabledRenderMaterialCount === 1, "Expected one shared enabled render material.");
+  assert(snapshot.scene.buildingLod.lod0.total === 2, "Expected two LOD0 building meshes.");
+  assert(snapshot.scene.buildingLod.lod0.active === 2, "Expected two active LOD0 building meshes.");
+  assert(snapshot.geometry.approximateDrawGroupCount === 1, "Expected instances sharing geometry and material in one draw group.");
+  assert(snapshot.geometry.drawGroups[0]?.instanceCount === 2, "Expected draw group to report two instances.");
+
+  scene.dispose();
+  engine.dispose();
+}
+
 function createLocationManagerStub() {
   return {
     getTerrainLodDiagnostics: () => ({
@@ -206,6 +248,7 @@ function createShadowRegistryStub() {
       hasGenerator: false,
       casterCount: 0,
       receiverCount: 0,
+      buildingRoles: [],
       batches: []
     })
   } as unknown as ConstructorParameters<typeof RuntimePerformanceSampler>[0]["shadowRegistry"];
@@ -214,6 +257,7 @@ function createShadowRegistryStub() {
 function run(): void {
   testSamplerSplitsRenderedAllocatedAndHiddenTerrainGeometry();
   testSamplerClassifiesBucketsAndSkipsDisposedMeshes();
+  testSamplerReportsDrawGroupsMaterialsPickabilityAndBuildingLod();
 }
 
 run();

@@ -706,7 +706,7 @@ export class BuildingNavigationRegistry {
       };
       proxy.material = material;
       proxy.isPickable = true;
-      proxy.visibility = this.showStairNavigationDebug ? 0.35 : 0.01;
+      proxy.visibility = this.showStairNavigationDebug ? 0.35 : 0;
       this.pickProxyMeshes.push(proxy);
     }
   }
@@ -847,7 +847,7 @@ export class BuildingNavigationRegistry {
         continue;
       }
 
-      proxy.visibility = this.showStairNavigationDebug ? 0.35 : 0.01;
+      proxy.visibility = this.showStairNavigationDebug ? 0.35 : 0;
     }
   }
 

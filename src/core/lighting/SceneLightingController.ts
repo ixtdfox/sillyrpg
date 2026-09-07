@@ -1,4 +1,4 @@
-import { Color3, Color4, type AbstractMesh, type Scene as BabylonScene } from "@babylonjs/core";
+import { Color3, Color4, InstancedMesh, type AbstractMesh, type Scene as BabylonScene } from "@babylonjs/core";
 import { LightingRig } from "./LightingRig";
 import { LightingRigFactory } from "./LightingRigFactory";
 import type { SceneLightingDescriptor, ShadowGeneratorKind } from "./LightingTypes";
@@ -58,13 +58,19 @@ export class SceneLightingController {
   /** Безопасно переключает `receiveShadows`, не трогая уже disposed mesh. */
   public setShadowReceiver(mesh: AbstractMesh, receive: boolean): void {
     if (!mesh.isDisposed()) {
-      mesh.receiveShadows = receive;
+      const receiverMesh = mesh instanceof InstancedMesh ? mesh.sourceMesh : mesh;
+      receiverMesh.receiveShadows = receive;
     }
   }
 
   /** Batch-метод для внешних интеграций, которым не нужен registry. */
   public registerShadowCasters(meshes: readonly AbstractMesh[]): void {
     this.rig?.registerShadowCasters(meshes);
+  }
+
+  /** Refreshes frozen CSM caster bounds after a render-list update. */
+  public refreshShadowCasterBounds(): void {
+    this.rig?.refreshShadowCasterBounds();
   }
 
   /**

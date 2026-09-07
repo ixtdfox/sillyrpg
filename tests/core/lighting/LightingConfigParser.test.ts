@@ -46,6 +46,9 @@ function testValidOverrideMergesWithPreset(): void {
         enabled: true,
         generator: "standard",
         filter: "blurEsm",
+        cascadeCount: 3,
+        shadowMaxZ: 120,
+        freezeShadowCastersBoundingInfo: true,
         usePercentageCloserFiltering: true,
         bias: 0.0001,
         normalBias: 0.03,
@@ -55,7 +58,8 @@ function testValidOverrideMergesWithPreset(): void {
         receiverMode: "all",
         includeCharacters: false,
         includeSceneObjects: true,
-        includeTerrain: true
+        includeTerrain: true,
+        preferBuildingShadowProxies: true
       }
     },
     "valid lighting"
@@ -69,8 +73,12 @@ function testValidOverrideMergesWithPreset(): void {
   assert(descriptor.sun?.intensity === 1.05, "Expected disabled sun descriptor to keep preset intensity.");
   assert(descriptor.shadows?.generator === "standard", "Expected shadow generator override.");
   assert(descriptor.shadows?.filter === "blurEsm", "Expected explicit shadow filter override.");
+  assert(descriptor.shadows?.cascadeCount === 3, "Expected CSM cascade count override.");
+  assert(descriptor.shadows?.shadowMaxZ === 120, "Expected shadow max distance override.");
+  assert(descriptor.shadows?.freezeShadowCastersBoundingInfo === true, "Expected CSM bounds freeze override.");
   assert(descriptor.shadows?.receiverMode === "all", "Expected shadow receiver mode override.");
   assert(descriptor.shadows?.includeCharacters === false, "Expected character include override.");
+  assert(descriptor.shadows?.preferBuildingShadowProxies === true, "Expected building shadow proxy preference override.");
 }
 
 function testLegacyShadowFilterFlagsMapToFilterMode(): void {

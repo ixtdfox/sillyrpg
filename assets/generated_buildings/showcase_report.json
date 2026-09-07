@@ -1,0 +1,542 @@
+{
+  "addon_root": "/home/tony/pets/sillyrpg-extras/procedural_floorplan_ru_v2",
+  "blender_version": "4.0.2",
+  "atlas_paths": {
+    "house_manifest": "/home/tony/pets/sillyrpg/assets/house_atlas.json",
+    "house_image": "/home/tony/pets/sillyrpg/assets/house_atlas.png",
+    "decal_manifest": "/home/tony/pets/sillyrpg/assets/decal_atlas_v2.json",
+    "decal_image": "/home/tony/pets/sillyrpg/assets/a_decal_atlas_texture_image_consists_of_18_separat.png"
+  },
+  "buildings": [
+    {
+      "id": "Showcase_01_Villa",
+      "shape": "rectangle",
+      "stories": 2,
+      "seed": 1101,
+      "object_count": 55,
+      "generated_mesh_count": 40,
+      "render_mesh_count": 27,
+      "inside_volume_count": 2,
+      "decal_count": 1,
+      "lod": {
+        "full_meshes": 25,
+        "exterior_meshes": 1,
+        "shadow_proxy_meshes": 1,
+        "variants_removed": 0,
+        "warnings": []
+      },
+      "lod_validation": {
+        "ok": true,
+        "warnings": [],
+        "full_meshes": 25,
+        "exterior_meshes": 1,
+        "shadow_proxy_meshes": 1
+      },
+      "lod_level_counts": {
+        "0": 25,
+        "1_exterior": 1,
+        "1_shadow_proxy": 1
+      },
+      "navigation_metadata": 1,
+      "materials": [
+        "Atlas_floor_bands_Opaque",
+        "Atlas_floors_Opaque",
+        "Atlas_glass_Alpha",
+        "Atlas_inside_doors_Opaque",
+        "Atlas_outside_doors_Opaque",
+        "Atlas_railings_Opaque",
+        "Atlas_roof_borders_Opaque",
+        "Atlas_roofs_Opaque",
+        "Atlas_stair_landings_Opaque",
+        "Atlas_stairs_Opaque",
+        "Atlas_walls_Opaque",
+        "DecalMaterial",
+        "NAV_Role_FloorEntry_Green",
+        "NAV_Role_FloorExit_Blue",
+        "NAV_Role_Landing_Yellow",
+        "NAV_Role_RunEnd_Orange",
+        "NAV_Role_RunMid_Grey",
+        "NAV_Role_RunStart_White"
+      ],
+      "material_pointers": [
+        123546558640136,
+        123546558641672,
+        123546558643208,
+        123546558644744,
+        123546558646280,
+        123546558647816,
+        123546699720584,
+        123546699723272,
+        123546699724808,
+        123546699726344,
+        123546699727880,
+        123546699729416,
+        123546737439240,
+        123546737440392,
+        123546737441544,
+        123546737442696,
+        123546737443848,
+        123546737445000
+      ],
+      "bbox_size": [
+        13.75,
+        8.75,
+        7.3
+      ],
+      "export": {
+        "path": "/home/tony/pets/sillyrpg/assets/generated_buildings/Showcase_01_Villa.glb",
+        "bytes": 3650072
+      }
+    },
+    {
+      "id": "Showcase_02_L_Courtyard",
+      "shape": "l_shape",
+      "stories": 3,
+      "seed": 2202,
+      "object_count": 105,
+      "generated_mesh_count": 79,
+      "render_mesh_count": 56,
+      "inside_volume_count": 3,
+      "decal_count": 1,
+      "lod": {
+        "full_meshes": 54,
+        "exterior_meshes": 1,
+        "shadow_proxy_meshes": 1,
+        "variants_removed": 0,
+        "warnings": []
+      },
+      "lod_validation": {
+        "ok": true,
+        "warnings": [],
+        "full_meshes": 54,
+        "exterior_meshes": 1,
+        "shadow_proxy_meshes": 1
+      },
+      "lod_level_counts": {
+        "0": 54,
+        "1_exterior": 1,
+        "1_shadow_proxy": 1
+      },
+      "navigation_metadata": 1,
+      "materials": [
+        "Atlas_floor_bands_Opaque",
+        "Atlas_floors_Opaque",
+        "Atlas_glass_Alpha",
+        "Atlas_inside_doors_Opaque",
+        "Atlas_outside_doors_Opaque",
+        "Atlas_railings_Opaque",
+        "Atlas_roof_borders_Opaque",
+        "Atlas_roofs_Opaque",
+        "Atlas_stair_landings_Opaque",
+        "Atlas_stairs_Opaque",
+        "Atlas_walls_Opaque",
+        "DecalMaterial",
+        "NAV_Role_FloorEntry_Green",
+        "NAV_Role_FloorExit_Blue",
+        "NAV_Role_Landing_Yellow",
+        "NAV_Role_RunEnd_Orange",
+        "NAV_Role_RunMid_Grey",
+        "NAV_Role_RunStart_White"
+      ],
+      "material_pointers": [
+        123546558640136,
+        123546558641672,
+        123546558643208,
+        123546558644744,
+        123546558646280,
+        123546558647816,
+        123546699720584,
+        123546699723272,
+        123546699724808,
+        123546699726344,
+        123546699727880,
+        123546699729416,
+        123546737439240,
+        123546737440392,
+        123546737441544,
+        123546737442696,
+        123546737443848,
+        123546737445000
+      ],
+      "bbox_size": [
+        16.75,
+        12.905,
+        11.15
+      ],
+      "export": {
+        "path": "/home/tony/pets/sillyrpg/assets/generated_buildings/Showcase_02_L_Courtyard.glb",
+        "bytes": 4237612
+      }
+    },
+    {
+      "id": "Showcase_03_U_Courtyard",
+      "shape": "u_shape",
+      "stories": 2,
+      "seed": 3303,
+      "object_count": 66,
+      "generated_mesh_count": 49,
+      "render_mesh_count": 36,
+      "inside_volume_count": 2,
+      "decal_count": 1,
+      "lod": {
+        "full_meshes": 34,
+        "exterior_meshes": 1,
+        "shadow_proxy_meshes": 1,
+        "variants_removed": 0,
+        "warnings": []
+      },
+      "lod_validation": {
+        "ok": true,
+        "warnings": [],
+        "full_meshes": 34,
+        "exterior_meshes": 1,
+        "shadow_proxy_meshes": 1
+      },
+      "lod_level_counts": {
+        "0": 34,
+        "1_exterior": 1,
+        "1_shadow_proxy": 1
+      },
+      "navigation_metadata": 1,
+      "materials": [
+        "Atlas_floor_bands_Opaque",
+        "Atlas_floors_Opaque",
+        "Atlas_glass_Alpha",
+        "Atlas_inside_doors_Opaque",
+        "Atlas_outside_doors_Opaque",
+        "Atlas_railings_Opaque",
+        "Atlas_roof_borders_Opaque",
+        "Atlas_roofs_Opaque",
+        "Atlas_stair_landings_Opaque",
+        "Atlas_stairs_Opaque",
+        "Atlas_walls_Opaque",
+        "DecalMaterial",
+        "NAV_Role_FloorEntry_Green",
+        "NAV_Role_FloorExit_Blue",
+        "NAV_Role_Landing_Yellow",
+        "NAV_Role_RunEnd_Orange",
+        "NAV_Role_RunMid_Grey",
+        "NAV_Role_RunStart_White"
+      ],
+      "material_pointers": [
+        123546558640136,
+        123546558641672,
+        123546558643208,
+        123546558644744,
+        123546558646280,
+        123546558647816,
+        123546699720584,
+        123546699723272,
+        123546699724808,
+        123546699726344,
+        123546699727880,
+        123546699729416,
+        123546737439240,
+        123546737440392,
+        123546737441544,
+        123546737442696,
+        123546737443848,
+        123546737445000
+      ],
+      "bbox_size": [
+        19.75,
+        12.905,
+        8.3
+      ],
+      "export": {
+        "path": "/home/tony/pets/sillyrpg/assets/generated_buildings/Showcase_03_U_Courtyard.glb",
+        "bytes": 4045836
+      }
+    },
+    {
+      "id": "Showcase_04_H_Office",
+      "shape": "h_shape",
+      "stories": 4,
+      "seed": 4404,
+      "object_count": 101,
+      "generated_mesh_count": 67,
+      "render_mesh_count": 52,
+      "inside_volume_count": 4,
+      "decal_count": 1,
+      "lod": {
+        "full_meshes": 50,
+        "exterior_meshes": 1,
+        "shadow_proxy_meshes": 1,
+        "variants_removed": 0,
+        "warnings": []
+      },
+      "lod_validation": {
+        "ok": true,
+        "warnings": [],
+        "full_meshes": 50,
+        "exterior_meshes": 1,
+        "shadow_proxy_meshes": 1
+      },
+      "lod_level_counts": {
+        "0": 50,
+        "1_exterior": 1,
+        "1_shadow_proxy": 1
+      },
+      "navigation_metadata": 1,
+      "materials": [
+        "Atlas_floor_bands_Opaque",
+        "Atlas_floors_Opaque",
+        "Atlas_glass_Alpha",
+        "Atlas_inside_doors_Opaque",
+        "Atlas_outside_doors_Opaque",
+        "Atlas_railings_Opaque",
+        "Atlas_roof_borders_Opaque",
+        "Atlas_roofs_Opaque",
+        "Atlas_stair_landings_Opaque",
+        "Atlas_stairs_Opaque",
+        "Atlas_walls_Opaque",
+        "DecalMaterial",
+        "NAV_Role_FloorEntry_Green",
+        "NAV_Role_FloorExit_Blue",
+        "NAV_Role_Landing_Yellow",
+        "NAV_Role_RunEnd_Orange",
+        "NAV_Role_RunMid_Grey",
+        "NAV_Role_RunStart_White"
+      ],
+      "material_pointers": [
+        123546558640136,
+        123546558641672,
+        123546558643208,
+        123546558644744,
+        123546558646280,
+        123546558647816,
+        123546699720584,
+        123546699723272,
+        123546699724808,
+        123546699726344,
+        123546699727880,
+        123546699729416,
+        123546737439240,
+        123546737440392,
+        123546737441544,
+        123546737442696,
+        123546737443848,
+        123546737445000
+      ],
+      "bbox_size": [
+        17.75,
+        10.75,
+        13.5
+      ],
+      "export": {
+        "path": "/home/tony/pets/sillyrpg/assets/generated_buildings/Showcase_04_H_Office.glb",
+        "bytes": 4541272
+      }
+    },
+    {
+      "id": "Showcase_05_T_Townhouse",
+      "shape": "t_shape",
+      "stories": 3,
+      "seed": 5505,
+      "object_count": 70,
+      "generated_mesh_count": 53,
+      "render_mesh_count": 39,
+      "inside_volume_count": 3,
+      "decal_count": 1,
+      "lod": {
+        "full_meshes": 37,
+        "exterior_meshes": 1,
+        "shadow_proxy_meshes": 1,
+        "variants_removed": 0,
+        "warnings": []
+      },
+      "lod_validation": {
+        "ok": true,
+        "warnings": [],
+        "full_meshes": 37,
+        "exterior_meshes": 1,
+        "shadow_proxy_meshes": 1
+      },
+      "lod_level_counts": {
+        "0": 37,
+        "1_exterior": 1,
+        "1_shadow_proxy": 1
+      },
+      "navigation_metadata": 1,
+      "materials": [
+        "Atlas_floor_bands_Opaque",
+        "Atlas_floors_Opaque",
+        "Atlas_glass_Alpha",
+        "Atlas_inside_doors_Opaque",
+        "Atlas_outside_doors_Opaque",
+        "Atlas_railings_Opaque",
+        "Atlas_roof_borders_Opaque",
+        "Atlas_roofs_Opaque",
+        "Atlas_stair_landings_Opaque",
+        "Atlas_stairs_Opaque",
+        "Atlas_walls_Opaque",
+        "DecalMaterial",
+        "NAV_Role_FloorEntry_Green",
+        "NAV_Role_FloorExit_Blue",
+        "NAV_Role_Landing_Yellow",
+        "NAV_Role_RunEnd_Orange",
+        "NAV_Role_RunMid_Grey",
+        "NAV_Role_RunStart_White"
+      ],
+      "material_pointers": [
+        123546558640136,
+        123546558641672,
+        123546558643208,
+        123546558644744,
+        123546558646280,
+        123546558647816,
+        123546699720584,
+        123546699723272,
+        123546699724808,
+        123546699726344,
+        123546699727880,
+        123546699729416,
+        123546737439240,
+        123546737440392,
+        123546737441544,
+        123546737442696,
+        123546737443848,
+        123546737445000
+      ],
+      "bbox_size": [
+        17.75,
+        10.75,
+        10.4
+      ],
+      "export": {
+        "path": "/home/tony/pets/sillyrpg/assets/generated_buildings/Showcase_05_T_Townhouse.glb",
+        "bytes": 4061676
+      }
+    },
+    {
+      "id": "Showcase_06_Courdoner_Estate",
+      "shape": "courdoner",
+      "stories": 2,
+      "seed": 6606,
+      "object_count": 74,
+      "generated_mesh_count": 53,
+      "render_mesh_count": 40,
+      "inside_volume_count": 2,
+      "decal_count": 1,
+      "lod": {
+        "full_meshes": 38,
+        "exterior_meshes": 1,
+        "shadow_proxy_meshes": 1,
+        "variants_removed": 0,
+        "warnings": []
+      },
+      "lod_validation": {
+        "ok": true,
+        "warnings": [],
+        "full_meshes": 38,
+        "exterior_meshes": 1,
+        "shadow_proxy_meshes": 1
+      },
+      "lod_level_counts": {
+        "0": 38,
+        "1_exterior": 1,
+        "1_shadow_proxy": 1
+      },
+      "navigation_metadata": 1,
+      "materials": [
+        "Atlas_floor_bands_Opaque",
+        "Atlas_floors_Opaque",
+        "Atlas_glass_Alpha",
+        "Atlas_inside_doors_Opaque",
+        "Atlas_outside_doors_Opaque",
+        "Atlas_railings_Opaque",
+        "Atlas_roof_borders_Opaque",
+        "Atlas_roofs_Opaque",
+        "Atlas_stair_landings_Opaque",
+        "Atlas_stairs_Opaque",
+        "Atlas_walls_Opaque",
+        "DecalMaterial",
+        "NAV_Role_FloorEntry_Green",
+        "NAV_Role_FloorExit_Blue",
+        "NAV_Role_Landing_Yellow",
+        "NAV_Role_RunEnd_Orange",
+        "NAV_Role_RunMid_Grey",
+        "NAV_Role_RunStart_White"
+      ],
+      "material_pointers": [
+        123546558640136,
+        123546558641672,
+        123546558643208,
+        123546558644744,
+        123546558646280,
+        123546558647816,
+        123546699720584,
+        123546699723272,
+        123546699724808,
+        123546699726344,
+        123546699727880,
+        123546699729416,
+        123546737439240,
+        123546737440392,
+        123546737441544,
+        123546737442696,
+        123546737443848,
+        123546737445000
+      ],
+      "bbox_size": [
+        18.75,
+        13.905,
+        7.8
+      ],
+      "export": {
+        "path": "/home/tony/pets/sillyrpg/assets/generated_buildings/Showcase_06_Courdoner_Estate.glb",
+        "bytes": 4091420
+      }
+    }
+  ],
+  "shared_materials": {
+    "Atlas_floor_bands_Opaque": {
+      "users": 10,
+      "pointer": 123546558643208
+    },
+    "Atlas_floors_Opaque": {
+      "users": 16,
+      "pointer": 123546699723272
+    },
+    "Atlas_glass_Alpha": {
+      "users": 22,
+      "pointer": 123546699729416
+    },
+    "Atlas_inside_doors_Opaque": {
+      "users": 92,
+      "pointer": 123546699727880
+    },
+    "Atlas_outside_doors_Opaque": {
+      "users": 10,
+      "pointer": 123546699726344
+    },
+    "Atlas_railings_Opaque": {
+      "users": 20,
+      "pointer": 123546558647816
+    },
+    "Atlas_roof_borders_Opaque": {
+      "users": 12,
+      "pointer": 123546558644744
+    },
+    "Atlas_roofs_Opaque": {
+      "users": 12,
+      "pointer": 123546558646280
+    },
+    "Atlas_stair_landings_Opaque": {
+      "users": 11,
+      "pointer": 123546558641672
+    },
+    "Atlas_stairs_Opaque": {
+      "users": 7,
+      "pointer": 123546558640136
+    },
+    "Atlas_walls_Opaque": {
+      "users": 32,
+      "pointer": 123546699724808
+    },
+    "DecalMaterial": {
+      "users": 6,
+      "pointer": 123546699720584
+    }
+  }
+}

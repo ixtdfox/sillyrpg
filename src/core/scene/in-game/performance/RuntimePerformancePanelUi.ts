@@ -33,7 +33,7 @@ export class RuntimePerformancePanelUi {
 
     this.root = new Rectangle("runtime-performance-panel");
     this.root.width = "640px";
-    this.root.height = "560px";
+    this.root.height = "620px";
     this.root.thickness = 1;
     this.root.cornerRadius = 6;
     this.root.color = "#4B5563";
@@ -130,11 +130,15 @@ export class RuntimePerformancePanelUi {
       "PERF",
       `FPS: ${snapshot.frame.engineFps.toFixed(1)}   frame: ${this.formatMs(snapshot.frame.frameMs)}   avg: ${this.formatMs(snapshot.frame.averageFrameMs)} (${this.formatRange(snapshot.frame.minFrameMs, snapshot.frame.maxFrameMs, "ms")})`,
       `FPS cap: ${snapshot.frame.fpsCapDiagnostic ?? "not detected"}   render size: ${snapshot.frame.renderWidth}x${snapshot.frame.renderHeight}   hw scale: ${this.formatCompactFloat(snapshot.frame.hardwareScalingLevel)}`,
-      `Draw calls: ${this.formatNullableNumber(snapshot.instrumentation.drawCalls)}   active meshes: ${snapshot.scene.activeMeshCount} / meshes: ${snapshot.scene.meshCount}   lines: ${snapshot.scene.lineMeshCount}`,
-      `Rendered: Verts ${this.formatNumber(snapshot.geometry.renderedVertexCount)}   Tris ${this.formatNumber(snapshot.geometry.renderedTriangleCount)}   Materials: ${snapshot.scene.materialCount}   Textures: ${snapshot.scene.textureCount}`,
+      `Draw calls: ${this.formatNullableNumber(snapshot.instrumentation.drawCalls)}   approx groups: ${snapshot.geometry.approximateDrawGroupCount}   active meshes: ${snapshot.scene.activeMeshCount}`,
+      `Meshes: total ${snapshot.scene.meshCount}   renderable ${snapshot.scene.renderableMeshCount}   enabled ${snapshot.scene.enabledMeshCount}   visible ${snapshot.scene.visibleMeshCount}   pickable ${snapshot.scene.pickableMeshCount}   lines ${snapshot.scene.lineMeshCount}`,
+      `Thin instances: batches ${snapshot.scene.thinInstanceBatchMeshCount}   instances ${snapshot.scene.thinInstanceCount}`,
+      `Rendered: Verts ${this.formatNumber(snapshot.geometry.renderedVertexCount)}   Tris ${this.formatNumber(snapshot.geometry.renderedTriangleCount)}   Materials: ${snapshot.scene.materialCount} / enabled unique ${snapshot.scene.uniqueEnabledRenderMaterialCount}   Textures: ${snapshot.scene.textureCount}`,
       `Allocated: Verts ${this.formatNumber(snapshot.geometry.allocatedVertexCount)}   Tris ${this.formatNumber(snapshot.geometry.allocatedTriangleCount)}   Hidden/Pick terrain: Verts ${this.formatNumber(snapshot.geometry.hiddenPickOnlyTerrainVertexCount)}   Tris ${this.formatNumber(snapshot.geometry.hiddenPickOnlyTerrainTriangleCount)}`,
       `Render: scene ${this.formatMs(snapshot.instrumentation.frameMs)}   draw ${this.formatMs(snapshot.instrumentation.renderMs)}   active eval ${this.formatMs(snapshot.instrumentation.activeMeshesEvaluationMs)}   targets ${this.formatMs(snapshot.instrumentation.renderTargetsRenderMs)}`,
       `Buckets: ${this.formatGeometryBuckets(snapshot)}`,
+      `Draw groups: ${this.formatDrawGroups(snapshot)}`,
+      `Building LOD total/enabled/render/active: ${this.formatBuildingLod(snapshot)}`,
       "",
       "TERRAIN LOD",
       `source: ${this.formatTerrainSource(snapshot)}   source quads: ${this.formatNumber(snapshot.terrainLod.sourceQuadCount)}`,
@@ -155,6 +159,7 @@ export class RuntimePerformancePanelUi {
       "SHADOWS",
       `enabled: ${this.formatYesNo(snapshot.shadows.enabled)}   type: ${snapshot.shadows.generatorKind}   generator: ${this.formatYesNo(snapshot.shadows.hasGenerator)}`,
       `casters: ${snapshot.shadows.casterCount}   receivers: ${snapshot.shadows.receiverCount}   top: ${this.formatShadowBatches(snapshot)}`,
+      `building caster roles: ${this.formatShadowBuildingRoles(snapshot)}`,
       "",
       "STREAM / DEBUG",
       `chunks: ${snapshot.streaming.loadedChunkCount}   terrain meshes: ${snapshot.streaming.activeTerrainMeshCount}   object meshes: ${snapshot.streaming.activeSceneObjectMeshCount}`,
@@ -211,6 +216,40 @@ export class RuntimePerformancePanelUi {
         `${bucket.bucket} ${this.formatNumber(bucket.renderedTriangleCount)}/${this.formatNumber(bucket.allocatedTriangleCount)}t`
       )
       .join("  ");
+  }
+
+  private formatDrawGroups(snapshot: RuntimePerformanceSnapshot): string {
+    if (snapshot.geometry.drawGroups.length === 0) {
+      return "n/a";
+    }
+
+    return snapshot.geometry.drawGroups
+      .slice(0, 4)
+      .map((group) => `${this.formatMeshLabel(group.geometry)}:${group.material}:${group.lodRole} ${group.meshCount}/${group.instanceCount}`)
+      .join("  ");
+  }
+
+  private formatMeshLabel(name: string): string {
+    const leafName = name.split(":").pop() ?? name;
+    return leafName.length > 24 ? `${leafName.slice(0, 21)}...` : leafName;
+  }
+
+  private formatBuildingLod(snapshot: RuntimePerformanceSnapshot): string {
+    const format = (bucket: RuntimePerformanceSnapshot["scene"]["buildingLod"]["lod0"]) =>
+      `${bucket.total}/${bucket.enabled}/${bucket.renderable}/${bucket.active}`;
+    return `L0 ${format(snapshot.scene.buildingLod.lod0)}   L1 ${format(snapshot.scene.buildingLod.lod1)}   proxy ${format(snapshot.scene.buildingLod.shadowProxy)}`;
+  }
+
+  private formatShadowBuildingRoles(snapshot: RuntimePerformanceSnapshot): string {
+    if (snapshot.shadows.buildingRoles.length === 0) {
+      return "n/a";
+    }
+
+    return snapshot.shadows.buildingRoles
+      .filter((role) => role.casterMeshes > 0)
+      .slice(0, 4)
+      .map((role) => `${role.buildingId}:${role.lodRole}:${role.casterMeshes}`)
+      .join("  ") || "none";
   }
 
   private formatMap(map: ReadonlyMap<number, number>): string {

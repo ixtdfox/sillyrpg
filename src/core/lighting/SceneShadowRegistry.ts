@@ -1,7 +1,8 @@
-import type { AbstractMesh } from "@babylonjs/core";
+import { InstancedMesh, type AbstractMesh } from "@babylonjs/core";
 import type { SceneLightingController } from "./SceneLightingController";
 import { ShadowMeshPolicy, type ShadowMeshSource } from "./ShadowMeshPolicy";
 import type { SceneLightingDescriptor } from "./LightingTypes";
+import { parseBuildingVisibilityMesh } from "../scene/visibility/BuildingVisibilityMetadata";
 
 export type { ShadowMeshSource } from "./ShadowMeshPolicy";
 
@@ -19,6 +20,14 @@ export interface ShadowDiagnostics {
   readonly generatorKind: "standard" | "cascaded" | "none";
   readonly casterCount: number;
   readonly receiverCount: number;
+  readonly buildingRoles: readonly {
+    readonly buildingId: string;
+    readonly visibilityRole: string;
+    readonly lodRole: string;
+    readonly totalMeshes: number;
+    readonly casterMeshes: number;
+    readonly receiverMeshes: number;
+  }[];
   readonly batches: readonly {
     readonly ownerId: string;
     readonly source: ShadowMeshSource;
@@ -39,6 +48,7 @@ export interface ShadowDiagnostics {
 export class SceneShadowRegistry {
   private lighting: SceneLightingDescriptor | null = null;
   private readonly batchesByOwnerId = new Map<string, ShadowMeshBatch>();
+  private readonly casterMeshIds = new Set<number>();
   private readonly receiverMeshIds = new Set<number>();
 
   public constructor(
@@ -120,6 +130,7 @@ export class SceneShadowRegistry {
     let casterCount = 0;
     let receiverCount = 0;
     const batches: Array<ShadowDiagnostics["batches"][number]> = [];
+    const buildingRoles = new Map<string, ShadowBuildingRoleAccumulator>();
 
     for (const batch of this.batchesByOwnerId.values()) {
       const context = lighting && enabled ? { lighting, source: batch.source } : null;
@@ -128,8 +139,8 @@ export class SceneShadowRegistry {
       let skippedMeshes = 0;
 
       for (const mesh of batch.meshes) {
-        const canCast = context ? this.policy.canCast(mesh, context) : false;
-        const canReceive = context ? this.policy.canReceive(mesh, context) : false;
+        const canCast = context ? this.casterMeshIds.has(mesh.uniqueId) : false;
+        const canReceive = context ? this.receiverMeshIds.has(mesh.uniqueId) : false;
         if (canCast) {
           casterMeshes += 1;
         }
@@ -139,6 +150,7 @@ export class SceneShadowRegistry {
         if (!canCast && !canReceive) {
           skippedMeshes += 1;
         }
+        this.addBuildingRoleDiagnostics(buildingRoles, mesh, canCast, canReceive);
       }
 
       casterCount += casterMeshes;
@@ -159,6 +171,10 @@ export class SceneShadowRegistry {
       generatorKind: this.lightingController.getShadowGeneratorKind(),
       casterCount,
       receiverCount,
+      buildingRoles: [...buildingRoles.values()].sort((left, right) => {
+        const buildingOrder = left.buildingId.localeCompare(right.buildingId);
+        return buildingOrder !== 0 ? buildingOrder : left.lodRole.localeCompare(right.lodRole);
+      }),
       batches
     };
   }
@@ -171,6 +187,7 @@ export class SceneShadowRegistry {
    */
   public synchronize(): void {
     this.lightingController.clearShadowCasters();
+    this.casterMeshIds.clear();
     this.clearKnownReceivers();
 
     const lighting = this.lighting;
@@ -178,26 +195,41 @@ export class SceneShadowRegistry {
       return;
     }
 
+    const sharedReceiverStates = new Map<AbstractMesh, boolean>();
     for (const batch of this.batchesByOwnerId.values()) {
       const context = { lighting, source: batch.source };
       for (const mesh of batch.meshes) {
         if (this.policy.canCast(mesh, context)) {
           this.lightingController.addShadowCaster(mesh);
+          this.casterMeshIds.add(mesh.uniqueId);
         }
 
-        if (this.policy.canReceive(mesh, context)) {
-          this.lightingController.setShadowReceiver(mesh, true);
+        const canReceive = this.policy.canReceive(mesh, context);
+        if (canReceive) {
           this.receiverMeshIds.add(mesh.uniqueId);
+        }
+
+        if (mesh instanceof InstancedMesh) {
+          sharedReceiverStates.set(
+            mesh.sourceMesh,
+            (sharedReceiverStates.get(mesh.sourceMesh) ?? false) || canReceive
+          );
         } else if (!mesh.isDisposed()) {
-          this.lightingController.setShadowReceiver(mesh, false);
+          this.lightingController.setShadowReceiver(mesh, canReceive);
         }
       }
     }
+    for (const [sourceMesh, receive] of sharedReceiverStates) {
+      this.lightingController.setShadowReceiver(sourceMesh, receive);
+    }
+
+    this.lightingController.refreshShadowCasterBounds();
   }
 
   /** Очищает runtime shadow state и забывает все batches, не уничтожая сам controller. */
   public dispose(): void {
     this.lightingController.clearShadowCasters();
+    this.casterMeshIds.clear();
     this.clearKnownReceivers();
     this.batchesByOwnerId.clear();
     this.lighting = null;
@@ -215,4 +247,50 @@ export class SceneShadowRegistry {
 
     this.receiverMeshIds.clear();
   }
+
+  private addBuildingRoleDiagnostics(
+    groups: Map<string, ShadowBuildingRoleAccumulator>,
+    mesh: AbstractMesh,
+    isCaster: boolean,
+    isReceiver: boolean
+  ): void {
+    const building = parseBuildingVisibilityMesh(mesh);
+    if (!building) {
+      return;
+    }
+
+    const rawMetadata = building.rawMetadata;
+    if (rawMetadata?.sceneObjectType !== "building" && rawMetadata?.buildingVisibilityInstanceId === undefined) {
+      return;
+    }
+
+    const visibilityRole = building.role;
+    const lodRole = building.lodRole ?? "none";
+    const key = `${building.buildingId}|${visibilityRole}|${lodRole}`;
+    let group = groups.get(key);
+    if (!group) {
+      group = {
+        buildingId: building.buildingId,
+        visibilityRole,
+        lodRole,
+        totalMeshes: 0,
+        casterMeshes: 0,
+        receiverMeshes: 0
+      };
+      groups.set(key, group);
+    }
+
+    group.totalMeshes += 1;
+    group.casterMeshes += isCaster ? 1 : 0;
+    group.receiverMeshes += isReceiver ? 1 : 0;
+  }
+}
+
+interface ShadowBuildingRoleAccumulator {
+  buildingId: string;
+  visibilityRole: string;
+  lodRole: string;
+  totalMeshes: number;
+  casterMeshes: number;
+  receiverMeshes: number;
 }

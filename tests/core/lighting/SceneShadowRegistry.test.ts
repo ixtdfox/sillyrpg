@@ -1,4 +1,4 @@
-import { MeshBuilder, NullEngine, Scene } from "@babylonjs/core";
+import { CascadedShadowGenerator, MeshBuilder, NullEngine, Scene } from "@babylonjs/core";
 import { SceneLightingController } from "../../../src/core/lighting/SceneLightingController";
 import { SceneShadowRegistry } from "../../../src/core/lighting/SceneShadowRegistry";
 import type { SceneLightingDescriptor } from "../../../src/core/lighting/LightingTypes";
@@ -107,10 +107,147 @@ function testDiagnosticsReportsBatchCasterAndReceiverCounts(): void {
   engine.dispose();
 }
 
+function testSynchronizationFollowsEnabledLodCaster(): void {
+  const engine = new NullEngine();
+  const scene = new Scene(engine);
+  const lightingController = new SceneLightingController(scene);
+  const registry = new SceneShadowRegistry(lightingController);
+  const lod0 = MeshBuilder.CreateBox("LOD0_Full", { size: 1 }, scene);
+  const lod1 = MeshBuilder.CreateBox("LOD1_Exterior", { size: 1 }, scene);
+  const alwaysEnabled = MeshBuilder.CreateBox("AlwaysEnabled", { size: 1 }, scene);
+  lod0.metadata = { shadowRole: "caster" };
+  lod1.metadata = { shadowRole: "caster" };
+  alwaysEnabled.metadata = { shadowRole: "caster" };
+  lod0.setEnabled(false);
+
+  registry.setLighting(createLighting(true));
+  registry.registerBatch({ ownerId: "building", source: "sceneObject", meshes: [lod0, lod1, alwaysEnabled] });
+
+  let renderList = lightingController.getRig()?.getShadowGenerator()?.getShadowMap()?.renderList ?? [];
+  assert(!renderList.includes(lod0), "Expected disabled LOD0 not to cast shadows.");
+  assert(renderList.includes(lod1), "Expected enabled LOD1 to cast shadows.");
+  assert(renderList.includes(alwaysEnabled), "Expected the additional enabled mesh to cast shadows.");
+
+  lod0.setEnabled(true);
+  lod1.setEnabled(false);
+  registry.synchronize();
+  renderList = lightingController.getRig()?.getShadowGenerator()?.getShadowMap()?.renderList ?? [];
+  assert(renderList.includes(lod0), "Expected enabled LOD0 to cast shadows after synchronization.");
+  assert(!renderList.includes(lod1), "Expected disabled LOD1 not to cast shadows after synchronization.");
+  assert(
+    renderList.filter((mesh) => mesh === alwaysEnabled).length === 1,
+    "Expected synchronization to retain exactly one entry for every continuously enabled caster."
+  );
+
+  registry.dispose();
+  scene.dispose();
+  engine.dispose();
+}
+
+function testSharedInstanceReceiverStateUsesAnyEligibleInstance(): void {
+  const engine = new NullEngine();
+  const scene = new Scene(engine);
+  const lightingController = new SceneLightingController(scene);
+  const registry = new SceneShadowRegistry(lightingController);
+  const source = MeshBuilder.CreateBox("shared-building-source", { size: 1 }, scene);
+  const visibleInstance = source.createInstance("visible-building-instance");
+  const culledInstance = source.createInstance("culled-building-instance");
+  culledInstance.setEnabled(false);
+  const lighting = createLighting(true);
+
+  registry.setLighting({
+    ...lighting,
+    shadows: { ...lighting.shadows!, receiverMode: "all" }
+  });
+  registry.registerBatch({
+    ownerId: "shared-buildings",
+    source: "sceneObject",
+    meshes: [visibleInstance, culledInstance]
+  });
+
+  assert(source.receiveShadows === true, "Expected an eligible instance to enable receiving on its shared source mesh.");
+  assert(visibleInstance.receiveShadows === true, "Expected the visible instance to observe shared receiver state.");
+  assert(registry.getDiagnostics().receiverCount === 1, "Expected diagnostics to count only the eligible receiver instance.");
+
+  registry.dispose();
+  scene.dispose();
+  engine.dispose();
+}
+
+function testDiagnosticsGroupsActualBuildingCastersByLodRole(): void {
+  const engine = new NullEngine();
+  const scene = new Scene(engine);
+  const lightingController = new SceneLightingController(scene);
+  const registry = new SceneShadowRegistry(lightingController);
+  const proxy = MeshBuilder.CreateBox("Shadow_Proxy", { size: 1 }, scene);
+  proxy.metadata = {
+    sceneObjectType: "building",
+    buildingVisibilityInstanceId: "villa-a",
+    game_visibility: true,
+    game_visibility_role: "ignore",
+    game_lod_level: 2,
+    game_lod_role: "shadow_proxy"
+  };
+
+  registry.setLighting(createLighting(true));
+  registry.registerBatch({ ownerId: "building", source: "sceneObject", meshes: [proxy] });
+
+  const role = registry.getDiagnostics().buildingRoles[0];
+  assert(role?.buildingId === "villa-a", "Expected building id in shadow role diagnostics.");
+  assert(role?.lodRole === "shadow_proxy", "Expected shadow proxy role in diagnostics.");
+  assert(role?.casterMeshes === 1, "Expected diagnostics to count the synchronized proxy caster.");
+
+  registry.dispose();
+  scene.dispose();
+  engine.dispose();
+}
+
+function testSynchronizationRefreshesFrozenCsmCasterBounds(): void {
+  if (!CascadedShadowGenerator.IsSupported) {
+    return;
+  }
+
+  const engine = new NullEngine();
+  const scene = new Scene(engine);
+  const lightingController = new SceneLightingController(scene);
+  const registry = new SceneShadowRegistry(lightingController);
+  const caster = MeshBuilder.CreateBox("frozen-bounds-caster", { size: 2 }, scene);
+  caster.position.x = 12;
+  caster.computeWorldMatrix(true);
+
+  registry.setLighting({
+    ...createLighting(true),
+    shadows: {
+      ...createLighting(true).shadows!,
+      generator: "cascaded",
+      freezeShadowCastersBoundingInfo: true
+    }
+  });
+  registry.registerBatch({ ownerId: "caster", source: "sceneObject", meshes: [caster] });
+
+  const generator = lightingController.getRig()?.getShadowGenerator();
+  if (!(generator instanceof CascadedShadowGenerator)) {
+    throw new Error("Expected cascaded shadow generator.");
+  }
+  assert(
+    generator.shadowCastersBoundingInfo.boundingBox.minimumWorld.x <= 11 &&
+      generator.shadowCastersBoundingInfo.boundingBox.maximumWorld.x >= 13,
+    "Expected frozen CSM bounds to include casters registered after lighting setup."
+  );
+
+  registry.dispose();
+  scene.dispose();
+  engine.dispose();
+}
+
 function run(): void {
   testRegistryRegistersCastersAndReceiversByPolicy();
   testRegistryClearsReceiversWhenShadowsDisabled();
   testDiagnosticsReportsBatchCasterAndReceiverCounts();
+  testSynchronizationFollowsEnabledLodCaster();
+  testSharedInstanceReceiverStateUsesAnyEligibleInstance();
+  testDiagnosticsGroupsActualBuildingCastersByLodRole();
+  testSynchronizationRefreshesFrozenCsmCasterBounds();
 }
 
 run();

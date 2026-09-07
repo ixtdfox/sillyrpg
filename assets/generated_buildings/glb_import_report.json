@@ -1,0 +1,711 @@
+{
+  "glb_count": 6,
+  "files": [
+    {
+      "path": "/home/tony/pets/sillyrpg/assets/generated_buildings/Showcase_01_Villa.glb",
+      "bytes": 3650072,
+      "object_count": 32,
+      "mesh_count": 29,
+      "asset_root_position": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "asset_root_matrix": [
+        [
+          1.0,
+          0.0,
+          0.0,
+          0.0
+        ],
+        [
+          0.0,
+          1.0,
+          0.0,
+          0.0
+        ],
+        [
+          0.0,
+          0.0,
+          1.0,
+          0.0
+        ],
+        [
+          0.0,
+          0.0,
+          0.0,
+          1.0
+        ]
+      ],
+      "asset_origin_issues": [],
+      "lod_mesh_count": 27,
+      "lod_levels": [
+        0,
+        1
+      ],
+      "lod_roles": [
+        "exterior",
+        "full",
+        "shadow_proxy"
+      ],
+      "navigation_metadata_count": 1,
+      "stair_ids": [
+        "Showcase_01_Villa:0_1_001"
+      ],
+      "hidden_navigation_objects": [],
+      "navigation_materials": [],
+      "external_stair_mesh_count": 0,
+      "external_stair_metadata_issues": [],
+      "exterior_lod_mesh_count": 1,
+      "exterior_lod_reports": [
+        {
+          "building_id": "Showcase_01_Villa",
+          "mesh": "LOD1_Showcase_01_Villa_Exterior",
+          "source_parts": [
+            "door",
+            "outer_wall",
+            "roof",
+            "window"
+          ],
+          "triangle_count": 1526,
+          "triangle_ratio_to_lod0": 0.2656,
+          "material_slots": 1,
+          "material": "Atlas_glass_Alpha",
+          "has_atlas_uv": true,
+          "bounds_coverage": [
+            1.0,
+            1.0,
+            1.0
+          ]
+        }
+      ],
+      "exterior_lod_issues": [],
+      "full_lod_triangle_count": 5746,
+      "shadow_proxy_triangle_count": 1262,
+      "shadow_proxy_triangle_ratio_to_lod0": 0.2196,
+      "shadow_proxy_reports": [
+        {
+          "building_id": "Showcase_01_Villa",
+          "mesh": "ShadowProxy_Showcase_01_Villa",
+          "source_parts": [
+            "outer_wall",
+            "roof"
+          ],
+          "triangle_count": 1262,
+          "triangle_ratio_to_lod0": 0.2196,
+          "bounds_coverage": [
+            1.0,
+            1.0,
+            1.0
+          ]
+        }
+      ],
+      "shadow_proxy_issues": [],
+      "materials": [
+        "Atlas_floor_bands_Opaque",
+        "Atlas_floors_Opaque",
+        "Atlas_glass_Alpha",
+        "Atlas_inside_doors_Opaque",
+        "Atlas_outside_doors_Opaque",
+        "Atlas_railings_Opaque",
+        "Atlas_roof_borders_Opaque",
+        "Atlas_roofs_Opaque",
+        "Atlas_stair_landings_Opaque",
+        "Atlas_stairs_Opaque",
+        "Atlas_walls_Opaque",
+        "DecalMaterial"
+      ],
+      "ok": true
+    },
+    {
+      "path": "/home/tony/pets/sillyrpg/assets/generated_buildings/Showcase_02_L_Courtyard.glb",
+      "bytes": 4237612,
+      "object_count": 62,
+      "mesh_count": 58,
+      "asset_root_position": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "asset_root_matrix": [
+        [
+          1.0,
+          0.0,
+          0.0,
+          0.0
+        ],
+        [
+          0.0,
+          1.0,
+          0.0,
+          0.0
+        ],
+        [
+          0.0,
+          0.0,
+          1.0,
+          0.0
+        ],
+        [
+          0.0,
+          0.0,
+          0.0,
+          1.0
+        ]
+      ],
+      "asset_origin_issues": [],
+      "lod_mesh_count": 56,
+      "lod_levels": [
+        0,
+        1
+      ],
+      "lod_roles": [
+        "exterior",
+        "full",
+        "shadow_proxy"
+      ],
+      "navigation_metadata_count": 1,
+      "stair_ids": [
+        "Showcase_02_L_Courtyard:0_1_001",
+        "Showcase_02_L_Courtyard:1_2_002"
+      ],
+      "hidden_navigation_objects": [],
+      "navigation_materials": [],
+      "external_stair_mesh_count": 10,
+      "external_stair_metadata_issues": [],
+      "exterior_lod_mesh_count": 1,
+      "exterior_lod_reports": [
+        {
+          "building_id": "Showcase_02_L_Courtyard",
+          "mesh": "LOD1_Showcase_02_L_Courtyard_Exterior",
+          "source_parts": [
+            "door",
+            "outer_wall",
+            "roof",
+            "terrace",
+            "window"
+          ],
+          "triangle_count": 2650,
+          "triangle_ratio_to_lod0": 0.2294,
+          "material_slots": 1,
+          "material": "Atlas_glass_Alpha",
+          "has_atlas_uv": true,
+          "bounds_coverage": [
+            1.0,
+            1.0,
+            1.0
+          ]
+        }
+      ],
+      "exterior_lod_issues": [],
+      "full_lod_triangle_count": 11552,
+      "shadow_proxy_triangle_count": 2158,
+      "shadow_proxy_triangle_ratio_to_lod0": 0.1868,
+      "shadow_proxy_reports": [
+        {
+          "building_id": "Showcase_02_L_Courtyard",
+          "mesh": "ShadowProxy_Showcase_02_L_Courtyard",
+          "source_parts": [
+            "outer_wall",
+            "roof",
+            "terrace"
+          ],
+          "triangle_count": 2158,
+          "triangle_ratio_to_lod0": 0.1868,
+          "bounds_coverage": [
+            1.0,
+            1.0,
+            1.0
+          ]
+        }
+      ],
+      "shadow_proxy_issues": [],
+      "materials": [
+        "Atlas_floor_bands_Opaque",
+        "Atlas_floors_Opaque",
+        "Atlas_glass_Alpha",
+        "Atlas_inside_doors_Opaque",
+        "Atlas_outside_doors_Opaque",
+        "Atlas_railings_Opaque",
+        "Atlas_roof_borders_Opaque",
+        "Atlas_roofs_Opaque",
+        "Atlas_stair_landings_Opaque",
+        "Atlas_stairs_Opaque",
+        "Atlas_walls_Opaque",
+        "DecalMaterial"
+      ],
+      "ok": true
+    },
+    {
+      "path": "/home/tony/pets/sillyrpg/assets/generated_buildings/Showcase_03_U_Courtyard.glb",
+      "bytes": 4045836,
+      "object_count": 41,
+      "mesh_count": 38,
+      "asset_root_position": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "asset_root_matrix": [
+        [
+          1.0,
+          0.0,
+          0.0,
+          0.0
+        ],
+        [
+          0.0,
+          1.0,
+          0.0,
+          0.0
+        ],
+        [
+          0.0,
+          0.0,
+          1.0,
+          0.0
+        ],
+        [
+          0.0,
+          0.0,
+          0.0,
+          1.0
+        ]
+      ],
+      "asset_origin_issues": [],
+      "lod_mesh_count": 36,
+      "lod_levels": [
+        0,
+        1
+      ],
+      "lod_roles": [
+        "exterior",
+        "full",
+        "shadow_proxy"
+      ],
+      "navigation_metadata_count": 1,
+      "stair_ids": [
+        "Showcase_03_U_Courtyard:0_1_001"
+      ],
+      "hidden_navigation_objects": [],
+      "navigation_materials": [],
+      "external_stair_mesh_count": 5,
+      "external_stair_metadata_issues": [],
+      "exterior_lod_mesh_count": 1,
+      "exterior_lod_reports": [
+        {
+          "building_id": "Showcase_03_U_Courtyard",
+          "mesh": "LOD1_Showcase_03_U_Courtyard_Exterior",
+          "source_parts": [
+            "door",
+            "outer_wall",
+            "roof",
+            "terrace",
+            "window"
+          ],
+          "triangle_count": 2352,
+          "triangle_ratio_to_lod0": 0.2383,
+          "material_slots": 1,
+          "material": "Atlas_glass_Alpha",
+          "has_atlas_uv": true,
+          "bounds_coverage": [
+            1.0,
+            1.0,
+            1.0
+          ]
+        }
+      ],
+      "exterior_lod_issues": [],
+      "full_lod_triangle_count": 9870,
+      "shadow_proxy_triangle_count": 1980,
+      "shadow_proxy_triangle_ratio_to_lod0": 0.2006,
+      "shadow_proxy_reports": [
+        {
+          "building_id": "Showcase_03_U_Courtyard",
+          "mesh": "ShadowProxy_Showcase_03_U_Courtyard",
+          "source_parts": [
+            "outer_wall",
+            "roof",
+            "terrace"
+          ],
+          "triangle_count": 1980,
+          "triangle_ratio_to_lod0": 0.2006,
+          "bounds_coverage": [
+            1.0,
+            1.0,
+            1.0
+          ]
+        }
+      ],
+      "shadow_proxy_issues": [],
+      "materials": [
+        "Atlas_floor_bands_Opaque",
+        "Atlas_floors_Opaque",
+        "Atlas_glass_Alpha",
+        "Atlas_inside_doors_Opaque",
+        "Atlas_outside_doors_Opaque",
+        "Atlas_railings_Opaque",
+        "Atlas_roof_borders_Opaque",
+        "Atlas_roofs_Opaque",
+        "Atlas_stair_landings_Opaque",
+        "Atlas_stairs_Opaque",
+        "Atlas_walls_Opaque",
+        "DecalMaterial"
+      ],
+      "ok": true
+    },
+    {
+      "path": "/home/tony/pets/sillyrpg/assets/generated_buildings/Showcase_04_H_Office.glb",
+      "bytes": 4541272,
+      "object_count": 59,
+      "mesh_count": 54,
+      "asset_root_position": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "asset_root_matrix": [
+        [
+          1.0,
+          0.0,
+          0.0,
+          0.0
+        ],
+        [
+          0.0,
+          1.0,
+          0.0,
+          0.0
+        ],
+        [
+          0.0,
+          0.0,
+          1.0,
+          0.0
+        ],
+        [
+          0.0,
+          0.0,
+          0.0,
+          1.0
+        ]
+      ],
+      "asset_origin_issues": [],
+      "lod_mesh_count": 52,
+      "lod_levels": [
+        0,
+        1
+      ],
+      "lod_roles": [
+        "exterior",
+        "full",
+        "shadow_proxy"
+      ],
+      "navigation_metadata_count": 1,
+      "stair_ids": [
+        "Showcase_04_H_Office:0_1_001"
+      ],
+      "hidden_navigation_objects": [],
+      "navigation_materials": [],
+      "external_stair_mesh_count": 0,
+      "external_stair_metadata_issues": [],
+      "exterior_lod_mesh_count": 1,
+      "exterior_lod_reports": [
+        {
+          "building_id": "Showcase_04_H_Office",
+          "mesh": "LOD1_Showcase_04_H_Office_Exterior",
+          "source_parts": [
+            "door",
+            "outer_wall",
+            "roof",
+            "window"
+          ],
+          "triangle_count": 4510,
+          "triangle_ratio_to_lod0": 0.332,
+          "material_slots": 1,
+          "material": "Atlas_glass_Alpha",
+          "has_atlas_uv": true,
+          "bounds_coverage": [
+            1.0,
+            1.0,
+            1.0
+          ]
+        }
+      ],
+      "exterior_lod_issues": [],
+      "full_lod_triangle_count": 13586,
+      "shadow_proxy_triangle_count": 3622,
+      "shadow_proxy_triangle_ratio_to_lod0": 0.2666,
+      "shadow_proxy_reports": [
+        {
+          "building_id": "Showcase_04_H_Office",
+          "mesh": "ShadowProxy_Showcase_04_H_Office",
+          "source_parts": [
+            "outer_wall",
+            "roof"
+          ],
+          "triangle_count": 3622,
+          "triangle_ratio_to_lod0": 0.2666,
+          "bounds_coverage": [
+            1.0,
+            1.0,
+            1.0
+          ]
+        }
+      ],
+      "shadow_proxy_issues": [],
+      "materials": [
+        "Atlas_floor_bands_Opaque",
+        "Atlas_floors_Opaque",
+        "Atlas_glass_Alpha",
+        "Atlas_inside_doors_Opaque",
+        "Atlas_outside_doors_Opaque",
+        "Atlas_railings_Opaque",
+        "Atlas_roof_borders_Opaque",
+        "Atlas_roofs_Opaque",
+        "Atlas_stair_landings_Opaque",
+        "Atlas_stairs_Opaque",
+        "Atlas_walls_Opaque",
+        "DecalMaterial"
+      ],
+      "ok": true
+    },
+    {
+      "path": "/home/tony/pets/sillyrpg/assets/generated_buildings/Showcase_05_T_Townhouse.glb",
+      "bytes": 4061676,
+      "object_count": 45,
+      "mesh_count": 41,
+      "asset_root_position": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "asset_root_matrix": [
+        [
+          1.0,
+          0.0,
+          0.0,
+          0.0
+        ],
+        [
+          0.0,
+          1.0,
+          0.0,
+          0.0
+        ],
+        [
+          0.0,
+          0.0,
+          1.0,
+          0.0
+        ],
+        [
+          0.0,
+          0.0,
+          0.0,
+          1.0
+        ]
+      ],
+      "asset_origin_issues": [],
+      "lod_mesh_count": 39,
+      "lod_levels": [
+        0,
+        1
+      ],
+      "lod_roles": [
+        "exterior",
+        "full",
+        "shadow_proxy"
+      ],
+      "navigation_metadata_count": 1,
+      "stair_ids": [
+        "Showcase_05_T_Townhouse:0_1_001"
+      ],
+      "hidden_navigation_objects": [],
+      "navigation_materials": [],
+      "external_stair_mesh_count": 0,
+      "external_stair_metadata_issues": [],
+      "exterior_lod_mesh_count": 1,
+      "exterior_lod_reports": [
+        {
+          "building_id": "Showcase_05_T_Townhouse",
+          "mesh": "LOD1_Showcase_05_T_Townhouse_Exterior",
+          "source_parts": [
+            "door",
+            "outer_wall",
+            "roof",
+            "terrace",
+            "window"
+          ],
+          "triangle_count": 2678,
+          "triangle_ratio_to_lod0": 0.2834,
+          "material_slots": 1,
+          "material": "Atlas_glass_Alpha",
+          "has_atlas_uv": true,
+          "bounds_coverage": [
+            1.0,
+            1.0,
+            1.0
+          ]
+        }
+      ],
+      "exterior_lod_issues": [],
+      "full_lod_triangle_count": 9448,
+      "shadow_proxy_triangle_count": 2174,
+      "shadow_proxy_triangle_ratio_to_lod0": 0.2301,
+      "shadow_proxy_reports": [
+        {
+          "building_id": "Showcase_05_T_Townhouse",
+          "mesh": "ShadowProxy_Showcase_05_T_Townhouse",
+          "source_parts": [
+            "outer_wall",
+            "roof",
+            "terrace"
+          ],
+          "triangle_count": 2174,
+          "triangle_ratio_to_lod0": 0.2301,
+          "bounds_coverage": [
+            1.0,
+            1.0,
+            1.0
+          ]
+        }
+      ],
+      "shadow_proxy_issues": [],
+      "materials": [
+        "Atlas_floor_bands_Opaque",
+        "Atlas_floors_Opaque",
+        "Atlas_glass_Alpha",
+        "Atlas_inside_doors_Opaque",
+        "Atlas_outside_doors_Opaque",
+        "Atlas_railings_Opaque",
+        "Atlas_roof_borders_Opaque",
+        "Atlas_roofs_Opaque",
+        "Atlas_stair_landings_Opaque",
+        "Atlas_stairs_Opaque",
+        "Atlas_walls_Opaque",
+        "DecalMaterial"
+      ],
+      "ok": true
+    },
+    {
+      "path": "/home/tony/pets/sillyrpg/assets/generated_buildings/Showcase_06_Courdoner_Estate.glb",
+      "bytes": 4091420,
+      "object_count": 45,
+      "mesh_count": 42,
+      "asset_root_position": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "asset_root_matrix": [
+        [
+          1.0,
+          0.0,
+          0.0,
+          0.0
+        ],
+        [
+          0.0,
+          1.0,
+          0.0,
+          0.0
+        ],
+        [
+          0.0,
+          0.0,
+          1.0,
+          0.0
+        ],
+        [
+          0.0,
+          0.0,
+          0.0,
+          1.0
+        ]
+      ],
+      "asset_origin_issues": [],
+      "lod_mesh_count": 40,
+      "lod_levels": [
+        0,
+        1
+      ],
+      "lod_roles": [
+        "exterior",
+        "full",
+        "shadow_proxy"
+      ],
+      "navigation_metadata_count": 1,
+      "stair_ids": [
+        "Showcase_06_Courdoner_Estate:0_1_001"
+      ],
+      "hidden_navigation_objects": [],
+      "navigation_materials": [],
+      "external_stair_mesh_count": 5,
+      "external_stair_metadata_issues": [],
+      "exterior_lod_mesh_count": 1,
+      "exterior_lod_reports": [
+        {
+          "building_id": "Showcase_06_Courdoner_Estate",
+          "mesh": "LOD1_Showcase_06_Courdoner_Estate_Exterior",
+          "source_parts": [
+            "door",
+            "outer_wall",
+            "roof",
+            "terrace",
+            "window"
+          ],
+          "triangle_count": 2362,
+          "triangle_ratio_to_lod0": 0.2302,
+          "material_slots": 1,
+          "material": "Atlas_glass_Alpha",
+          "has_atlas_uv": true,
+          "bounds_coverage": [
+            1.0,
+            1.0,
+            1.0
+          ]
+        }
+      ],
+      "exterior_lod_issues": [],
+      "full_lod_triangle_count": 10260,
+      "shadow_proxy_triangle_count": 1954,
+      "shadow_proxy_triangle_ratio_to_lod0": 0.1904,
+      "shadow_proxy_reports": [
+        {
+          "building_id": "Showcase_06_Courdoner_Estate",
+          "mesh": "ShadowProxy_Showcase_06_Courdoner_Estate",
+          "source_parts": [
+            "outer_wall",
+            "roof",
+            "terrace"
+          ],
+          "triangle_count": 1954,
+          "triangle_ratio_to_lod0": 0.1904,
+          "bounds_coverage": [
+            1.0,
+            1.0,
+            1.0
+          ]
+        }
+      ],
+      "shadow_proxy_issues": [],
+      "materials": [
+        "Atlas_floor_bands_Opaque",
+        "Atlas_floors_Opaque",
+        "Atlas_glass_Alpha",
+        "Atlas_inside_doors_Opaque",
+        "Atlas_outside_doors_Opaque",
+        "Atlas_railings_Opaque",
+        "Atlas_roof_borders_Opaque",
+        "Atlas_roofs_Opaque",
+        "Atlas_stair_landings_Opaque",
+        "Atlas_stairs_Opaque",
+        "Atlas_walls_Opaque",
+        "DecalMaterial"
+      ],
+      "ok": true
+    }
+  ],
+  "ok": true
+}

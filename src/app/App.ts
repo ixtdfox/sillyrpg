@@ -4,6 +4,7 @@ import { GameState } from "../core/game/GameState";
 import { LangManager } from "../core/lang/LangManager";
 import { EditorScene } from "../editor";
 import { EdisonScene } from "../edison";
+import { GameLoadingOverlay } from "./GameLoadingOverlay";
 
 /**
  * Bootstraps Babylon runtime for SillyRPG.
@@ -23,6 +24,9 @@ export class App {
   /** Central game flow manager. */
   private readonly gameManager: GameManager;
 
+  /** DOM overlay kept alive while Babylon scenes are replaced. */
+  private readonly loadingOverlay: GameLoadingOverlay;
+
   /**
    * Creates the application bootstrapper.
    *
@@ -37,12 +41,13 @@ export class App {
     this.canvas = element;
     this.engine = new Engine(this.canvas, true);
     this.langManager = new LangManager();
+    this.loadingOverlay = new GameLoadingOverlay(document.body);
     this.gameManager = new GameManager(this.engine, this.canvas, this.langManager, {
       [GameState.EDITOR]: ({ engine, canvas, langManager, requestStateChange }) =>
         new EditorScene(engine, canvas, langManager, () => requestStateChange(GameState.MAIN_MENU)),
       [GameState.EDISON]: ({ engine, canvas, langManager, requestStateChange }) =>
         new EdisonScene(engine, canvas, langManager, () => requestStateChange(GameState.MAIN_MENU))
-    });
+    }, this.loadingOverlay);
   }
 
   /**

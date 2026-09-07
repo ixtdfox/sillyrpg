@@ -16,14 +16,33 @@ export interface RuntimePerformanceFrameMetrics {
 
 export interface RuntimePerformanceSceneMetrics {
   readonly meshCount: number;
+  readonly renderableMeshCount: number;
   readonly enabledMeshCount: number;
   readonly visibleMeshCount: number;
+  readonly pickableMeshCount: number;
   readonly activeMeshCount: number;
+  readonly thinInstanceBatchMeshCount: number;
+  readonly thinInstanceCount: number;
   readonly lineMeshCount: number;
   readonly materialCount: number;
+  readonly uniqueEnabledRenderMaterialCount: number;
   readonly textureCount: number;
   readonly lightCount: number;
   readonly cameraCount: number;
+  readonly buildingLod: RuntimePerformanceBuildingLodMetrics;
+}
+
+export interface RuntimePerformanceBuildingMeshCount {
+  readonly total: number;
+  readonly enabled: number;
+  readonly renderable: number;
+  readonly active: number;
+}
+
+export interface RuntimePerformanceBuildingLodMetrics {
+  readonly lod0: RuntimePerformanceBuildingMeshCount;
+  readonly lod1: RuntimePerformanceBuildingMeshCount;
+  readonly shadowProxy: RuntimePerformanceBuildingMeshCount;
 }
 
 export interface RuntimePerformanceGeometryMetrics {
@@ -36,9 +55,20 @@ export interface RuntimePerformanceGeometryMetrics {
   readonly hiddenPickOnlyTerrainVertexCount: number;
   readonly hiddenPickOnlyTerrainTriangleCount: number;
   readonly buckets: readonly RuntimePerformanceGeometryBucketMetrics[];
+  readonly approximateDrawGroupCount: number;
+  readonly drawGroups: readonly RuntimePerformanceDrawGroupMetrics[];
   readonly cullingFlagWarningMeshCount: number;
   readonly cullingFlagWarningTriangleCount: number;
   readonly cullingFlagWarningMeshNames: readonly string[];
+}
+
+export interface RuntimePerformanceDrawGroupMetrics {
+  readonly material: string;
+  readonly geometry: string;
+  readonly visibilityRole: string;
+  readonly lodRole: string;
+  readonly meshCount: number;
+  readonly instanceCount: number;
 }
 
 export interface RuntimePerformanceGeometryBucketMetrics {

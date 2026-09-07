@@ -1,13 +1,17 @@
 import {
+  AbstractMesh,
+  BoundingBox,
   Color3,
   MeshBuilder,
   SceneLoader,
   StandardMaterial,
   TransformNode,
+  type AssetContainer,
   Vector3,
-  type AbstractMesh,
   type AnimationGroup,
   type IParticleSystem,
+  type ISceneLoaderProgressEvent,
+  type Node,
   type Scene,
   type Skeleton
 } from "@babylonjs/core";
@@ -21,6 +25,10 @@ import { TerrainMaterialBuilder } from "../terrain/TerrainMaterialBuilder";
 import { TerrainMeshBuilder } from "../terrain/TerrainMeshBuilder";
 import { TerrainQuadtreeLodController } from "../terrain/lod/TerrainQuadtreeLodController";
 import { TerrainQuadtreeLodDescriptorResolver } from "../terrain/lod/TerrainQuadtreeLodTypes";
+import { BuildingAssetMaterialPool } from "./BuildingAssetMaterialPool";
+import { RuntimeSceneObjectPreparer } from "./RuntimeSceneObjectPreparer";
+import { ConnectedObjectInstanceBatcher } from "./ConnectedObjectInstanceBatcher";
+import type { LoadingProgressReporter } from "../../game/LoadingProgress";
 import { loadSceneDescriptor } from "./SceneDescriptorLoader";
 import type {
   SceneDescriptor,
@@ -38,6 +46,9 @@ export interface SceneContentImportOptions {
   readonly descriptorPath?: string;
   readonly descriptor?: SceneDescriptor;
   readonly generatedTerrainLodEnabled?: boolean;
+  readonly runtimeStaticPreparationEnabled?: boolean;
+  readonly runtimeConnectedObjectBatchingEnabled?: boolean;
+  readonly onProgress?: LoadingProgressReporter;
 }
 
 export interface ImportedSceneAssetNodes {
@@ -55,6 +66,7 @@ export interface ImportedSceneObjectContent extends ImportedSceneAssetNodes {
   readonly type: string;
   readonly root: TransformNode;
   readonly descriptor: SceneObjectDescriptor;
+  readonly cullingBounds: BoundingBox | null;
 }
 
 export interface ImportedSceneTerrainContent extends ImportedSceneAssetNodes {
@@ -90,8 +102,16 @@ const RUNTIME_TERRAIN_HEIGHT_FIELD_SERIALIZER = new TerrainHeightFieldSerializer
 const RUNTIME_TERRAIN_MATERIAL_BUILDER = new TerrainMaterialBuilder();
 const RUNTIME_TERRAIN_MESH_BUILDER = new TerrainMeshBuilder();
 const RUNTIME_TERRAIN_LOD_DESCRIPTOR_RESOLVER = new TerrainQuadtreeLodDescriptorResolver();
+const SCENE_ASSET_CONTAINER_CACHES = new WeakMap<Scene, SceneAssetContainerCache>();
+const CACHED_SCENE_ASSET_INSTANCE_MESHES = new WeakSet<AbstractMesh>();
+
+interface SceneAssetContainerCache {
+  readonly containersByAssetPath: Map<string, Promise<AssetContainer | null>>;
+  readonly buildingMaterialPool: BuildingAssetMaterialPool;
+}
 
 export async function importSceneContent(options: SceneContentImportOptions): Promise<ImportedSceneContent> {
+  options.onProgress?.({ progress: 0, message: "Reading scene descriptor" });
   const descriptorPath = options.descriptorPath;
   const descriptorUrl = descriptorPath ? normalizeAssetPath(descriptorPath) : undefined;
   const descriptor =
@@ -100,28 +120,72 @@ export async function importSceneContent(options: SceneContentImportOptions): Pr
   if (!descriptor) {
     throw new Error(`Scene '${options.sceneId}' is missing a descriptor.`);
   }
+  options.onProgress?.({ progress: 0.08, message: "Scene descriptor ready" });
 
   const aggregate = createAggregate();
   let importedTerrain: ImportedSceneTerrainContent | null = null;
 
   if (descriptor.terrain) {
+    options.onProgress?.({ progress: 0.1, message: "Preparing terrain" });
     importedTerrain = await importSceneTerrainContent(options.scene, descriptor.terrain, options.root, options.rootNamePrefix, {
-      generatedTerrainLodEnabled: options.generatedTerrainLodEnabled ?? true
+      generatedTerrainLodEnabled: options.generatedTerrainLodEnabled ?? true,
+      onAssetProgress: (progress) => {
+        options.onProgress?.({ progress: 0.1 + progress * 0.1, message: "Loading terrain asset" });
+      }
     });
     appendAggregate(aggregate, importedTerrain);
   }
+  options.onProgress?.({ progress: 0.2, message: "Terrain ready" });
 
   const sceneObjects: ImportedSceneObjectContent[] = [];
-  for (const objectDescriptor of descriptor.objects) {
+  const runtimeSceneObjectPreparer = options.runtimeStaticPreparationEnabled
+    ? new RuntimeSceneObjectPreparer()
+    : null;
+  const runtimeAssetCacheEnabled = options.runtimeStaticPreparationEnabled === true ||
+    options.runtimeConnectedObjectBatchingEnabled === true;
+  const objectProgressStart = 0.2;
+  const objectProgressEnd = 0.9;
+  const objectProgressSpan = descriptor.objects.length > 0
+    ? (objectProgressEnd - objectProgressStart) / descriptor.objects.length
+    : 0;
+  for (const [objectIndex, objectDescriptor] of descriptor.objects.entries()) {
+    const objectNumber = objectIndex + 1;
+    const objectStart = objectProgressStart + objectProgressSpan * objectIndex;
+    const objectMessage = `Loading scene object ${objectNumber} / ${descriptor.objects.length}`;
+    options.onProgress?.({ progress: objectStart, message: objectMessage });
     const importedObject = await importSceneObjectContent(
       options.scene,
       objectDescriptor,
       options.root,
-      options.rootNamePrefix
+      options.rootNamePrefix,
+      runtimeAssetCacheEnabled,
+      (assetProgress) => {
+        options.onProgress?.({
+          progress: objectStart + objectProgressSpan * assetProgress,
+          message: objectMessage
+        });
+      }
     );
-    sceneObjects.push(importedObject);
-    appendAggregate(aggregate, importedObject);
+    const preparation = runtimeSceneObjectPreparer?.prepare(importedObject);
+    sceneObjects.push(preparation && preparation.frozenNodeCount === 0
+      ? { ...importedObject, cullingBounds: null }
+      : importedObject);
+    options.onProgress?.({
+      progress: objectStart + objectProgressSpan,
+      message: `Scene object ${objectNumber} / ${descriptor.objects.length} ready`
+    });
   }
+  options.onProgress?.({ progress: objectProgressEnd, message: "Optimizing scene objects" });
+  const preparedSceneObjects = options.runtimeConnectedObjectBatchingEnabled
+    ? new ConnectedObjectInstanceBatcher({
+        disposeImportedMesh: disposeImportedSceneMesh,
+        markSharedResourceMesh: markImportedSceneMeshAsSharedResource
+      }).batch(options.root, sceneObjects).sceneObjects
+    : sceneObjects;
+  for (const sceneObject of preparedSceneObjects) {
+    appendAggregate(aggregate, sceneObject);
+  }
+  options.onProgress?.({ progress: 1, message: "Scene content ready" });
 
   return {
     root: options.root,
@@ -132,7 +196,7 @@ export async function importSceneContent(options: SceneContentImportOptions): Pr
     skeletons: aggregate.skeletons,
     animationGroups: aggregate.animationGroups,
     particleSystems: aggregate.particleSystems,
-    sceneObjects,
+    sceneObjects: preparedSceneObjects,
     terrainContent: importedTerrain,
     terrainRoot: importedTerrain?.root,
     terrainMeshes: importedTerrain?.terrainSurfaceMeshes ?? [],
@@ -153,7 +217,10 @@ export async function importSceneTerrainContent(
   descriptor: SceneTerrainDescriptor,
   parent: TransformNode,
   rootNamePrefix: string,
-  options: { readonly generatedTerrainLodEnabled?: boolean } = {}
+  options: {
+    readonly generatedTerrainLodEnabled?: boolean;
+    readonly onAssetProgress?: (progress: number) => void;
+  } = {}
 ): Promise<ImportedSceneTerrainContent> {
   const terrainRoot = new TransformNode(`${rootNamePrefix}-terrain-root:${descriptor.id}`, scene);
   terrainRoot.setParent(parent, false);
@@ -198,7 +265,7 @@ export async function importSceneTerrainContent(
     );
   }
 
-  const imported = await importSceneAsset(scene, descriptor.model, terrainRoot);
+  const imported = await importSceneAsset(scene, descriptor.model, terrainRoot, false, false, options.onAssetProgress);
   for (const mesh of imported.renderableMeshes) {
     mesh.isPickable = true;
   }
@@ -334,12 +401,14 @@ export async function importSceneObjectContent(
   scene: Scene,
   descriptor: SceneObjectDescriptor,
   parent: TransformNode,
-  rootNamePrefix: string
+  rootNamePrefix: string,
+  useAssetContainerCache = false,
+  onAssetProgress?: (progress: number) => void
 ): Promise<ImportedSceneObjectContent> {
   const runtimeObjectMetadata = {
     sceneObjectId: descriptor.id,
     sceneObjectType: descriptor.type,
-    buildingVisibilityInstanceId: descriptor.id
+    ...(descriptor.type === "building" ? { buildingVisibilityInstanceId: descriptor.id } : {})
   };
   const objectRoot = new TransformNode(`${rootNamePrefix}-scene-object-root:${descriptor.id}`, scene);
   objectRoot.setParent(parent, false);
@@ -349,7 +418,18 @@ export async function importSceneObjectContent(
     ...runtimeObjectMetadata
   };
 
-  const imported = await importSceneAsset(scene, descriptor.asset, objectRoot);
+  const imported = await importSceneAsset(
+    scene,
+    descriptor.asset,
+    objectRoot,
+    useAssetContainerCache && (
+      descriptor.type === "building" ||
+      (descriptor.type === "connected-object" && descriptor.connected !== undefined)
+    ),
+    descriptor.type === "building",
+    onAssetProgress
+  );
+  const cullingBounds = resolveRenderableBounds(imported.renderableMeshes);
 
   for (const transformNode of imported.transformNodes) {
     transformNode.metadata = {
@@ -373,6 +453,9 @@ export async function importSceneObjectContent(
     type: descriptor.type,
     root: objectRoot,
     descriptor,
+    cullingBounds: cullingBounds
+      ? new BoundingBox(cullingBounds.min, cullingBounds.max)
+      : null,
     ...imported
   };
 }
@@ -428,9 +511,34 @@ function appendAggregate(
   aggregate.particleSystems.push(...imported.particleSystems);
 }
 
-async function importSceneAsset(scene: Scene, assetPath: string, parent: TransformNode): Promise<ImportedAssetNodesInternal> {
+async function importSceneAsset(
+  scene: Scene,
+  assetPath: string,
+  parent: TransformNode,
+  useAssetContainerCache = false,
+  shareBuildingMaterials = false,
+  onAssetProgress?: (progress: number) => void
+): Promise<ImportedAssetNodesInternal> {
+  if (useAssetContainerCache) {
+    const container = await getCachedSceneAssetContainer(
+      scene,
+      assetPath,
+      shareBuildingMaterials,
+      onAssetProgress
+    );
+    if (container) {
+      return instantiateCachedSceneAsset(container, parent);
+    }
+  }
+
   const { rootUrl, fileName } = resolveSceneAssetPath(assetPath);
-  const importResult = await SceneLoader.ImportMeshAsync(undefined, rootUrl, fileName, scene);
+  const importResult = await SceneLoader.ImportMeshAsync(
+    undefined,
+    rootUrl,
+    fileName,
+    scene,
+    (event) => reportAssetProgress(onAssetProgress, event)
+  );
 
   adoptImportedSceneNodes(parent, importResult.transformNodes, importResult.meshes);
 
@@ -463,6 +571,189 @@ async function importSceneAsset(scene: Scene, assetPath: string, parent: Transfo
   };
 }
 
+async function getCachedSceneAssetContainer(
+  scene: Scene,
+  assetPath: string,
+  shareBuildingMaterials: boolean,
+  onAssetProgress?: (progress: number) => void
+): Promise<AssetContainer | null> {
+  let cache = SCENE_ASSET_CONTAINER_CACHES.get(scene);
+  if (!cache) {
+    cache = {
+      containersByAssetPath: new Map(),
+      buildingMaterialPool: new BuildingAssetMaterialPool()
+    };
+    SCENE_ASSET_CONTAINER_CACHES.set(scene, cache);
+    scene.onDisposeObservable.addOnce(() => {
+      for (const containerPromise of cache!.containersByAssetPath.values()) {
+        void containerPromise.then(
+          (container) => container?.dispose(),
+          () => undefined
+        );
+      }
+      cache!.containersByAssetPath.clear();
+      SCENE_ASSET_CONTAINER_CACHES.delete(scene);
+    });
+  }
+
+  const cacheKey = normalizeAssetPath(assetPath);
+  const cachedContainer = cache.containersByAssetPath.get(cacheKey);
+  if (cachedContainer) {
+    const container = await cachedContainer;
+    if (container && shareBuildingMaterials) {
+      cache.buildingMaterialPool.canonicalize(container);
+    }
+    return container;
+  }
+
+  const { rootUrl, fileName } = resolveSceneAssetPath(assetPath);
+  let containerPromise: Promise<AssetContainer | null>;
+  containerPromise = SceneLoader.LoadAssetContainerAsync(
+    rootUrl,
+    fileName,
+    scene,
+    (event) => reportAssetProgress(onAssetProgress, event)
+  )
+    .then((container) => {
+      if (!isStaticReusableAssetContainer(container)) {
+        container.dispose();
+        return null;
+      }
+
+      if (shareBuildingMaterials) {
+        cache?.buildingMaterialPool.canonicalize(container);
+      }
+
+      return container;
+    })
+    .catch((error: unknown) => {
+      if (cache?.containersByAssetPath.get(cacheKey) === containerPromise) {
+        cache.containersByAssetPath.delete(cacheKey);
+      }
+      throw error;
+    });
+  cache.containersByAssetPath.set(cacheKey, containerPromise);
+  return containerPromise;
+}
+
+function reportAssetProgress(
+  reporter: ((progress: number) => void) | undefined,
+  event: ISceneLoaderProgressEvent
+): void {
+  if (!reporter || !event.lengthComputable || event.total <= 0) {
+    return;
+  }
+
+  reporter(Math.max(0, Math.min(1, event.loaded / event.total)));
+}
+
+function isStaticReusableAssetContainer(container: AssetContainer): boolean {
+  return (
+    container.meshes.length > 0 &&
+    container.cameras.length === 0 &&
+    container.lights.length === 0 &&
+    container.skeletons.length === 0 &&
+    container.animationGroups.length === 0 &&
+    container.particleSystems.length === 0
+  );
+}
+
+export function instantiateCachedSceneAsset(
+  container: AssetContainer,
+  parent: TransformNode
+): ImportedAssetNodesInternal {
+  const entries = container.instantiateModelsToScene(
+    (sourceName) => `${parent.name}:${sourceName}`,
+    false,
+    { doNotInstantiate: false }
+  );
+  for (const rootNode of entries.rootNodes) {
+    rootNode.parent = parent;
+  }
+  const sourceMetadataByName = new Map<string, Record<string, unknown>>();
+  for (const sourceNode of [...container.transformNodes, ...container.meshes]) {
+    const metadata = asRecord(sourceNode.metadata);
+    if (Object.keys(metadata).length > 0) {
+      sourceMetadataByName.set(sourceNode.name, metadata);
+    }
+  }
+  const nodes: Node[] = [];
+  const seenNodeIds = new Set<number>();
+
+  for (const rootNode of entries.rootNodes) {
+    for (const node of [rootNode, ...rootNode.getDescendants(false)]) {
+      if (seenNodeIds.has(node.uniqueId)) {
+        continue;
+      }
+
+      seenNodeIds.add(node.uniqueId);
+      nodes.push(node);
+    }
+  }
+
+  const meshes: AbstractMesh[] = [];
+  const renderableMeshes: AbstractMesh[] = [];
+  const helperMeshes: AbstractMesh[] = [];
+  const transformNodes: TransformNode[] = [];
+
+  for (const node of nodes) {
+    copyCachedNodeMetadata(node, parent, sourceMetadataByName);
+
+    if (node instanceof TransformNode && !(node instanceof AbstractMesh)) {
+      transformNodes.push(node);
+    }
+
+    if (!(node instanceof AbstractMesh)) {
+      continue;
+    }
+
+    CACHED_SCENE_ASSET_INSTANCE_MESHES.add(node);
+
+    const sourceMesh = (node as AbstractMesh & { readonly sourceMesh?: AbstractMesh }).sourceMesh;
+    if (sourceMesh) {
+      node.metadata = {
+        ...asRecord(sourceMesh.metadata),
+        ...asRecord(node.metadata)
+      };
+    }
+
+    meshes.push(node);
+    if (isMetadataHelperMesh(node)) {
+      node.metadata = {
+        ...(node.metadata as Record<string, unknown> | undefined),
+        gameHelper: true
+      };
+      node.isVisible = false;
+      node.isPickable = false;
+      helperMeshes.push(node);
+    } else {
+      renderableMeshes.push(node);
+    }
+  }
+
+  return {
+    meshes,
+    renderableMeshes,
+    helperMeshes,
+    transformNodes,
+    skeletons: entries.skeletons,
+    animationGroups: entries.animationGroups,
+    particleSystems: []
+  };
+}
+
+/** Disposes an imported mesh without destroying resources owned by a cached asset container. */
+export function disposeImportedSceneMesh(mesh: AbstractMesh): void {
+  if (!mesh.isDisposed()) {
+    mesh.dispose(false, !CACHED_SCENE_ASSET_INSTANCE_MESHES.has(mesh));
+  }
+}
+
+/** Marks a derived mesh as sharing resources owned by an asset container. */
+export function markImportedSceneMeshAsSharedResource(mesh: AbstractMesh): void {
+  CACHED_SCENE_ASSET_INSTANCE_MESHES.add(mesh);
+}
+
 export function adoptImportedSceneNodes(
   parent: TransformNode,
   transformNodes: readonly TransformNode[],
@@ -489,7 +780,10 @@ function isMetadataHelperMesh(mesh: AbstractMesh): boolean {
   const name = mesh.name.toLowerCase();
   const id = mesh.id.toLowerCase();
   const metadata = (mesh.metadata ?? {}) as Record<string, unknown>;
+  const gltfMetadata = asRecord(metadata.gltf);
+  const gltfExtras = asRecord(gltfMetadata.extras);
   const rawMetadata = (metadata.rawMetadata ?? {}) as Record<string, unknown>;
+  const metadataSources = [metadata, gltfExtras, rawMetadata];
 
   if (name.includes("metadata") || id.includes("metadata")) {
     return true;
@@ -503,14 +797,50 @@ function isMetadataHelperMesh(mesh: AbstractMesh): boolean {
     return true;
   }
 
-  if (
-    rawMetadata.game_helper === true ||
-    rawMetadata.metadata_carrier === true
-  ) {
+  if (metadataSources.some((source) =>
+    source.gameHelper === true ||
+    source.game_helper === true ||
+    source.isMetadata === true ||
+    source.metadata_carrier === true ||
+    source.navigation_metadata === true
+  )) {
+    return true;
+  }
+
+  if (metadataSources.some((source) =>
+    source.hide_in_game === true ||
+    source.game_hidden_at_runtime === true ||
+    String(source.nav_kind ?? "").startsWith("stair_") ||
+    source.nav_debug_kind === "stair_path_preview"
+  )) {
     return true;
   }
 
   return mesh.getTotalVertices() <= 0;
+}
+
+function copyCachedNodeMetadata(
+  node: Node,
+  parent: TransformNode,
+  sourceMetadataByName: ReadonlyMap<string, Record<string, unknown>>
+): void {
+  const prefix = `${parent.name}:`;
+  const sourceName = node.name.startsWith(prefix) ? node.name.slice(prefix.length) : node.name;
+  const sourceMetadata = sourceMetadataByName.get(sourceName);
+  if (!sourceMetadata) {
+    return;
+  }
+
+  node.metadata = {
+    ...sourceMetadata,
+    ...asRecord(node.metadata)
+  };
+}
+
+function asRecord(value: unknown): Record<string, unknown> {
+  return value && typeof value === "object" && !Array.isArray(value)
+    ? (value as Record<string, unknown>)
+    : {};
 }
 
 function toVector3(value: SceneVector3Tuple | undefined, fallback: SceneVector3Tuple): Vector3 {
@@ -575,6 +905,7 @@ function resolveRenderableBounds(meshes: readonly AbstractMesh[]): { min: Vector
   let maxZ = Number.NEGATIVE_INFINITY;
 
   for (const mesh of meshes) {
+    mesh.computeWorldMatrix(true);
     const bounds = mesh.getBoundingInfo().boundingBox;
     minX = Math.min(minX, bounds.minimumWorld.x);
     minY = Math.min(minY, bounds.minimumWorld.y);

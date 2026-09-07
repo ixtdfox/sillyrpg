@@ -1,4 +1,4 @@
-import type { AbstractMesh } from "@babylonjs/core";
+import type { AbstractMesh, Node } from "@babylonjs/core";
 import type {
   SceneLightingDescriptor,
   ShadowCasterMode,
@@ -30,13 +30,51 @@ interface ShadowMetadataDecision {
 export class ShadowMetadataReader {
   /** Возвращает shadow overrides, объединяя runtime metadata и raw imported metadata. */
   public read(mesh: AbstractMesh): ShadowMetadataDecision {
-    const metadata = this.asRecord(mesh.metadata);
+    let caster: boolean | undefined;
+    let receiver: boolean | undefined;
+    let node: Node | null = mesh;
+
+    while (node) {
+      const nodeDecision = this.readNodeMetadata(node);
+      caster ??= nodeDecision.caster ?? this.roleAllowsCasting(nodeDecision.role);
+      receiver ??= nodeDecision.receiver ?? this.roleAllowsReceiving(nodeDecision.role);
+      node = node.parent;
+    }
+
+    return { caster, receiver };
+  }
+
+  private readNodeMetadata(node: Node): ShadowMetadataDecision {
+    const metadata = this.asRecord(node.metadata);
+    const gltfMetadata = this.asRecord(metadata.gltf);
+    const gltfExtras = this.asRecord(gltfMetadata.extras);
     const rawMetadata = this.asRecord(metadata.rawMetadata);
 
     return {
-      caster: this.readOptionalBoolean(metadata.shadowCaster) ?? this.readOptionalBoolean(rawMetadata.shadow_caster),
-      receiver: this.readOptionalBoolean(metadata.shadowReceiver) ?? this.readOptionalBoolean(rawMetadata.shadow_receiver),
-      role: this.readShadowRole(metadata.shadowRole) ?? this.readShadowRole(rawMetadata.shadow_role)
+      caster:
+        this.readOptionalBoolean(metadata.shadowCaster) ??
+        this.readOptionalBoolean(metadata.gameShadowCaster) ??
+        this.readOptionalBoolean(metadata.game_shadow_caster) ??
+        this.readOptionalBoolean(gltfExtras.game_shadow_caster) ??
+        this.readOptionalBoolean(gltfExtras.shadow_caster) ??
+        this.readOptionalBoolean(rawMetadata.shadow_caster) ??
+        this.readOptionalBoolean(rawMetadata.game_shadow_caster),
+      receiver:
+        this.readOptionalBoolean(metadata.shadowReceiver) ??
+        this.readOptionalBoolean(metadata.gameShadowReceiver) ??
+        this.readOptionalBoolean(metadata.game_shadow_receiver) ??
+        this.readOptionalBoolean(gltfExtras.game_shadow_receiver) ??
+        this.readOptionalBoolean(gltfExtras.shadow_receiver) ??
+        this.readOptionalBoolean(rawMetadata.shadow_receiver) ??
+        this.readOptionalBoolean(rawMetadata.game_shadow_receiver),
+      role:
+        this.readShadowRole(metadata.shadowRole) ??
+        this.readShadowRole(metadata.gameShadowRole) ??
+        this.readShadowRole(metadata.game_shadow_role) ??
+        this.readShadowRole(gltfExtras.game_shadow_role) ??
+        this.readShadowRole(gltfExtras.shadow_role) ??
+        this.readShadowRole(rawMetadata.shadow_role) ??
+        this.readShadowRole(rawMetadata.game_shadow_role)
     };
   }
 
@@ -45,22 +83,25 @@ export class ShadowMetadataReader {
     const name = mesh.name.toLowerCase();
     const id = mesh.id.toLowerCase();
     const metadata = this.asRecord(mesh.metadata);
+    const gltfMetadata = this.asRecord(metadata.gltf);
+    const gltfExtras = this.asRecord(gltfMetadata.extras);
     const rawMetadata = this.asRecord(metadata.rawMetadata);
+    const metadataSources = [metadata, gltfExtras, rawMetadata];
 
     if (name.includes("metadata") || id.includes("metadata")) {
       return true;
     }
 
-    if (name.includes("navigationmetadata") || id.includes("navigationmetadata")) {
-      return true;
-    }
-
-    return (
-      metadata.gameHelper === true ||
-      metadata.isMetadata === true ||
-      rawMetadata.game_helper === true ||
-      rawMetadata.metadata_carrier === true ||
-      rawMetadata.navigation_metadata === true
+    return metadataSources.some((source) =>
+      source.gameHelper === true ||
+      source.game_helper === true ||
+      source.isMetadata === true ||
+      source.metadata_carrier === true ||
+      source.navigation_metadata === true ||
+      source.hide_in_game === true ||
+      source.game_hidden_at_runtime === true ||
+      String(source.nav_kind ?? "").startsWith("stair_") ||
+      source.nav_debug_kind === "stair_path_preview"
     );
   }
 
@@ -78,6 +119,14 @@ export class ShadowMetadataReader {
     }
 
     return value;
+  }
+
+  private roleAllowsCasting(role: ShadowRole | undefined): boolean | undefined {
+    return role === undefined ? undefined : role === "caster" || role === "both";
+  }
+
+  private roleAllowsReceiving(role: ShadowRole | undefined): boolean | undefined {
+    return role === undefined ? undefined : role === "receiver" || role === "both";
   }
 }
 
@@ -104,6 +153,10 @@ export class ShadowMeshPolicy {
 
     if (metadata.caster === true || metadata.role === "caster" || metadata.role === "both") {
       return true;
+    }
+
+    if (metadata.role === "receiver") {
+      return false;
     }
 
     const shadows = context.lighting.shadows;
@@ -140,6 +193,10 @@ export class ShadowMeshPolicy {
 
     if (metadata.receiver === true || metadata.role === "receiver" || metadata.role === "both") {
       return true;
+    }
+
+    if (metadata.role === "caster") {
+      return false;
     }
 
     const receiverMode: ShadowReceiverMode = context.lighting.shadows?.receiverMode ?? "terrainOnly";

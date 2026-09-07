@@ -2,11 +2,15 @@ import type { AbstractMesh, Engine, Scene } from "@babylonjs/core";
 import { EngineInstrumentation, SceneInstrumentation } from "@babylonjs/core/Instrumentation";
 import type { RectGridRuntime } from "../../../grid/RectGridRuntime";
 import type { SceneShadowRegistry } from "../../../lighting/SceneShadowRegistry";
+import { parseBuildingVisibilityMesh } from "../../visibility/BuildingVisibilityMetadata";
 import type { LocationManager } from "../../../world/location/LocationManager";
 import {
   RUNTIME_PERFORMANCE_WARNING_THRESHOLDS,
   type RuntimePerformanceGeometryMetrics,
   type RuntimePerformanceGeometryBucketMetrics,
+  type RuntimePerformanceBuildingLodMetrics,
+  type RuntimePerformanceBuildingMeshCount,
+  type RuntimePerformanceDrawGroupMetrics,
   type RuntimePerformanceInstrumentationMetrics,
   type RuntimePerformanceSceneMetrics,
   type RuntimePerformanceSnapshot,
@@ -65,6 +69,8 @@ export class RuntimePerformanceSampler {
       hiddenPickOnlyTerrainVertexCount: 0,
       hiddenPickOnlyTerrainTriangleCount: 0,
       buckets: [],
+      approximateDrawGroupCount: 0,
+      drawGroups: [],
       cullingFlagWarningMeshCount: 0,
       cullingFlagWarningTriangleCount: 0,
       cullingFlagWarningMeshNames: []
@@ -182,8 +188,12 @@ export class RuntimePerformanceSampler {
   private sampleSceneMetrics(shouldSampleGeometry: boolean): RuntimePerformanceSceneMetrics {
     const activeMeshes = this.scene.getActiveMeshes();
     const activeMeshSet = this.createActiveMeshSet(activeMeshes);
+    let renderableMeshCount = 0;
     let enabledMeshCount = 0;
     let visibleMeshCount = 0;
+    let pickableMeshCount = 0;
+    let thinInstanceBatchMeshCount = 0;
+    let thinInstanceCount = 0;
     let lineMeshCount = 0;
     let renderedVertexCount = 0;
     let renderedTriangleCount = 0;
@@ -192,6 +202,9 @@ export class RuntimePerformanceSampler {
     let hiddenPickOnlyTerrainVertexCount = 0;
     let hiddenPickOnlyTerrainTriangleCount = 0;
     const bucketAccumulators = new Map<string, RuntimePerformanceGeometryBucketAccumulator>();
+    const drawGroupAccumulators = new Map<string, RuntimePerformanceDrawGroupAccumulator>();
+    const enabledRenderMaterialIds = new Set<number>();
+    const buildingLod = this.createEmptyBuildingLodMetrics();
     let cullingFlagWarningMeshCount = 0;
     let cullingFlagWarningTriangleCount = 0;
     const cullingFlagWarningMeshNames: string[] = [];
@@ -205,18 +218,37 @@ export class RuntimePerformanceSampler {
         lineMeshCount += 1;
       }
 
+      const meshVertexCount = mesh.getTotalVertices();
+      const hasRenderableGeometry = meshVertexCount > 0;
       const isEnabled = mesh.isEnabled();
-      const isRenderableByFlags = isEnabled && mesh.isVisible && mesh.visibility > 0;
+      const isVisibleByFlags = isEnabled && mesh.isVisible && mesh.visibility > 0;
+      const isRenderableByFlags = hasRenderableGeometry && isVisibleByFlags && this.isVisibleToActiveCamera(mesh);
       const isRenderedGeometry = isRenderableByFlags && activeMeshSet.has(mesh);
+      const meshThinInstanceCount = (mesh as AbstractMesh & { readonly thinInstanceCount?: number }).thinInstanceCount ?? 0;
+      if (meshThinInstanceCount > 0) {
+        thinInstanceBatchMeshCount += 1;
+        thinInstanceCount += meshThinInstanceCount;
+      }
+      if (hasRenderableGeometry) {
+        renderableMeshCount += 1;
+      }
       if (isEnabled) {
         enabledMeshCount += 1;
       }
-      if (isRenderableByFlags) {
+      if (isVisibleByFlags) {
         visibleMeshCount += 1;
       }
+      if (hasRenderableGeometry && isEnabled && mesh.isPickable) {
+        pickableMeshCount += 1;
+      }
+      if (isRenderableByFlags) {
+        for (const material of this.getEffectiveMaterials(mesh)) {
+          enabledRenderMaterialIds.add(material.uniqueId);
+        }
+      }
+      this.addBuildingLodMesh(buildingLod, mesh, isEnabled, isRenderableByFlags, isRenderedGeometry);
 
       if (shouldSampleGeometry) {
-        const meshVertexCount = mesh.getTotalVertices();
         const meshTriangleCount = Math.floor(mesh.getTotalIndices() / 3);
         allocatedVertexCount += meshVertexCount;
         allocatedTriangleCount += meshTriangleCount;
@@ -228,11 +260,13 @@ export class RuntimePerformanceSampler {
           isRenderableByFlags,
           isRenderedGeometry,
           meshVertexCount,
-          meshTriangleCount
+          meshTriangleCount,
+          Math.max(1, meshThinInstanceCount)
         );
         if (isRenderedGeometry) {
-          renderedVertexCount += meshVertexCount;
-          renderedTriangleCount += meshTriangleCount;
+          renderedVertexCount += meshVertexCount * Math.max(1, meshThinInstanceCount);
+          renderedTriangleCount += meshTriangleCount * Math.max(1, meshThinInstanceCount);
+          this.addMeshToDrawGroups(drawGroupAccumulators, mesh);
         } else if (this.isHiddenPickOnlyTerrain(mesh)) {
           hiddenPickOnlyTerrainVertexCount += meshVertexCount;
           hiddenPickOnlyTerrainTriangleCount += meshTriangleCount;
@@ -258,6 +292,8 @@ export class RuntimePerformanceSampler {
         hiddenPickOnlyTerrainVertexCount,
         hiddenPickOnlyTerrainTriangleCount,
         buckets: this.createSortedBuckets(bucketAccumulators),
+        approximateDrawGroupCount: drawGroupAccumulators.size,
+        drawGroups: this.createSortedDrawGroups(drawGroupAccumulators),
         cullingFlagWarningMeshCount,
         cullingFlagWarningTriangleCount,
         cullingFlagWarningMeshNames
@@ -266,14 +302,20 @@ export class RuntimePerformanceSampler {
 
     return {
       meshCount: this.scene.meshes.length,
+      renderableMeshCount,
       enabledMeshCount,
       visibleMeshCount,
+      pickableMeshCount,
       activeMeshCount: activeMeshes.length,
+      thinInstanceBatchMeshCount,
+      thinInstanceCount,
       lineMeshCount,
       materialCount: this.scene.materials.length,
+      uniqueEnabledRenderMaterialCount: enabledRenderMaterialIds.size,
       textureCount: this.scene.textures.length,
       lightCount: this.scene.lights.length,
-      cameraCount: this.scene.cameras.length
+      cameraCount: this.scene.cameras.length,
+      buildingLod
     };
   }
 
@@ -415,7 +457,8 @@ export class RuntimePerformanceSampler {
     isRenderableByFlags: boolean,
     isRenderedGeometry: boolean,
     vertexCount: number,
-    triangleCount: number
+    triangleCount: number,
+    renderInstanceCount: number
   ): void {
     let accumulator = buckets.get(bucket);
     if (!accumulator) {
@@ -438,8 +481,8 @@ export class RuntimePerformanceSampler {
     accumulator.allocatedVertexCount += vertexCount;
     accumulator.allocatedTriangleCount += triangleCount;
     if (isRenderedGeometry) {
-      accumulator.renderedVertexCount += vertexCount;
-      accumulator.renderedTriangleCount += triangleCount;
+      accumulator.renderedVertexCount += vertexCount * renderInstanceCount;
+      accumulator.renderedTriangleCount += triangleCount * renderInstanceCount;
     }
   }
 
@@ -465,6 +508,122 @@ export class RuntimePerformanceSampler {
         return left.bucket.localeCompare(right.bucket);
       })
       .map((bucket) => ({ ...bucket }));
+  }
+
+  private addMeshToDrawGroups(
+    groups: Map<string, RuntimePerformanceDrawGroupAccumulator>,
+    mesh: AbstractMesh
+  ): void {
+    const sourceMesh = (mesh as AbstractMesh & { readonly sourceMesh?: AbstractMesh }).sourceMesh ?? mesh;
+    const geometry = (sourceMesh as AbstractMesh & { readonly geometry?: { readonly uniqueId?: number; readonly id?: string } }).geometry;
+    const geometryId = geometry?.uniqueId ?? geometry?.id ?? sourceMesh.uniqueId;
+    const building = parseBuildingVisibilityMesh(mesh);
+    const visibilityRole = building?.role ?? "none";
+    const lodRole = building?.lodRole ?? "none";
+    const materials = this.getEffectiveMaterials(mesh);
+    const drawMaterials = materials.length > 0
+      ? materials.map((material) => ({ id: `${material.uniqueId}`, name: material.name || material.getClassName() }))
+      : [{ id: "none", name: "none" }];
+    const thinInstanceCount = (mesh as AbstractMesh & { readonly thinInstanceCount?: number }).thinInstanceCount ?? 0;
+    const instanceCount = Math.max(1, thinInstanceCount);
+
+    for (const material of drawMaterials) {
+      const key = `${material.id}|${geometryId}|${visibilityRole}|${lodRole}`;
+      let accumulator = groups.get(key);
+      if (!accumulator) {
+        accumulator = {
+          material: material.name,
+          geometry: sourceMesh.name,
+          visibilityRole,
+          lodRole,
+          meshCount: 0,
+          instanceCount: 0
+        };
+        groups.set(key, accumulator);
+      }
+
+      accumulator.meshCount += 1;
+      accumulator.instanceCount += instanceCount;
+    }
+  }
+
+  private createSortedDrawGroups(
+    groups: ReadonlyMap<string, RuntimePerformanceDrawGroupAccumulator>
+  ): readonly RuntimePerformanceDrawGroupMetrics[] {
+    return [...groups.values()]
+      .sort((left, right) => {
+        if (right.instanceCount !== left.instanceCount) {
+          return right.instanceCount - left.instanceCount;
+        }
+        return left.geometry.localeCompare(right.geometry);
+      })
+      .map((group) => ({ ...group }));
+  }
+
+  private getEffectiveMaterials(mesh: AbstractMesh) {
+    const materials = new Map<number, NonNullable<AbstractMesh["material"]>>();
+    for (const subMesh of mesh.subMeshes ?? []) {
+      const material = subMesh.getMaterial();
+      if (material) {
+        materials.set(material.uniqueId, material);
+      }
+    }
+    if (materials.size === 0 && mesh.material) {
+      materials.set(mesh.material.uniqueId, mesh.material);
+    }
+    return [...materials.values()];
+  }
+
+  private isVisibleToActiveCamera(mesh: AbstractMesh): boolean {
+    const camera = this.scene.activeCamera;
+    return !camera || (mesh.layerMask & camera.layerMask) !== 0;
+  }
+
+  private createEmptyBuildingLodMetrics(): RuntimePerformanceBuildingLodMetrics {
+    return {
+      lod0: this.createEmptyBuildingMeshCount(),
+      lod1: this.createEmptyBuildingMeshCount(),
+      shadowProxy: this.createEmptyBuildingMeshCount()
+    };
+  }
+
+  private createEmptyBuildingMeshCount(): RuntimePerformanceBuildingMeshCountAccumulator {
+    return { total: 0, enabled: 0, renderable: 0, active: 0 };
+  }
+
+  private addBuildingLodMesh(
+    metrics: RuntimePerformanceBuildingLodMetrics,
+    mesh: AbstractMesh,
+    isEnabled: boolean,
+    isRenderable: boolean,
+    isActive: boolean
+  ): void {
+    const building = parseBuildingVisibilityMesh(mesh);
+    const rawMetadata = building?.rawMetadata;
+    if (
+      !building ||
+      (rawMetadata?.sceneObjectType !== "building" && rawMetadata?.buildingVisibilityInstanceId === undefined)
+    ) {
+      return;
+    }
+
+    let bucket: RuntimePerformanceBuildingMeshCount | null = null;
+    if (building.lodRole === "shadow_proxy") {
+      bucket = metrics.shadowProxy;
+    } else if (building.lodLevel === 0) {
+      bucket = metrics.lod0;
+    } else if (building.lodLevel === 1) {
+      bucket = metrics.lod1;
+    }
+    if (!bucket) {
+      return;
+    }
+
+    const mutableBucket = bucket as RuntimePerformanceBuildingMeshCountAccumulator;
+    mutableBucket.total += 1;
+    mutableBucket.enabled += isEnabled ? 1 : 0;
+    mutableBucket.renderable += isRenderable ? 1 : 0;
+    mutableBucket.active += isActive ? 1 : 0;
   }
 
   private classifyMeshBucket(mesh: AbstractMesh): string {
@@ -556,4 +715,20 @@ interface RuntimePerformanceGeometryBucketAccumulator {
   renderedTriangleCount: number;
   allocatedVertexCount: number;
   allocatedTriangleCount: number;
+}
+
+interface RuntimePerformanceDrawGroupAccumulator {
+  material: string;
+  geometry: string;
+  visibilityRole: string;
+  lodRole: string;
+  meshCount: number;
+  instanceCount: number;
+}
+
+interface RuntimePerformanceBuildingMeshCountAccumulator {
+  total: number;
+  enabled: number;
+  renderable: number;
+  active: number;
 }

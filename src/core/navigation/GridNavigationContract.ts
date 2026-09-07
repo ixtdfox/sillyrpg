@@ -137,6 +137,7 @@ export class GridNavigationContractService {
     entry.sourceNode.computeWorldMatrix(true);
     const worldMatrix = entry.sourceNode.getWorldMatrix();
     const sourceName = entry.sourceNode.name || "(unnamed)";
+    const instanceId = this.resolveSceneObjectInstanceId(entry.sourceNode);
     const storyYByStory = new Map(entry.contract.stories.map((story) => [story.storyIndex, story.storyY]));
     const mappedStories = entry.contract.stories.map((story) => {
       const mappedStoryY = this.mapStoryY(entry.contract, story.storyY, worldMatrix);
@@ -157,7 +158,7 @@ export class GridNavigationContractService {
         isOpen: edge.isOpen
       }));
       const mappedStairs = story.stairs.map((stair) => ({
-        id: stair.id,
+        id: instanceId ? `${instanceId}:${stair.id}` : stair.id,
         kind: stair.kind,
         cost: stair.cost,
         bidirectional: stair.bidirectional,
@@ -211,6 +212,23 @@ export class GridNavigationContractService {
       stories: mappedStories,
       mappingSourceNodeName: sourceName
     };
+  }
+
+  private resolveSceneObjectInstanceId(sourceNode: Node): string | null {
+    let node: Node | null = sourceNode;
+    while (node) {
+      const metadata = node.metadata && typeof node.metadata === "object"
+        ? node.metadata as Record<string, unknown>
+        : {};
+      const instanceId = this.normalizeString(metadata.buildingVisibilityInstanceId)
+        ?? this.normalizeString(metadata.sceneObjectId);
+      if (instanceId) {
+        return instanceId;
+      }
+      node = node.parent;
+    }
+
+    return null;
   }
 
   private mapCellToRuntime(

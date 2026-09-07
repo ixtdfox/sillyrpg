@@ -34,12 +34,18 @@ import { CombatAttackTargetingService } from "../entity/systems/combat/CombatAtt
 import { BasicCombatAiService } from "../entity/systems/combat/BasicCombatAiService";
 import { CombatMovementPreviewSystem } from "../entity/systems/combat/CombatMovementPreviewSystem";
 import { CombatHoverHighlightSystem } from "../entity/systems/combat/CombatHoverHighlightSystem";
+import type {
+  LoadingProgressPresenter,
+  LoadingProgressReporter,
+  LoadingProgressUpdate
+} from "./LoadingProgress";
 
 export interface GameSceneFactoryDeps {
   readonly engine: Engine;
   readonly canvas: HTMLCanvasElement;
   readonly langManager: LangManager;
   readonly requestStateChange: (state: GameState) => void;
+  readonly reportLoadingProgress: LoadingProgressReporter;
 }
 
 export type GameSceneFactory = (deps: GameSceneFactoryDeps) => Scene;
@@ -121,6 +127,8 @@ export class GameManager {
   private currentBabylonScene: BabylonScene | null;
   /** Optional scene factories owned by composition layer instead of core. */
   private readonly externalSceneFactories: Partial<Record<GameState, GameSceneFactory>>;
+  /** App-level loading UI that survives Babylon scene disposal. */
+  private readonly loadingPresenter: LoadingProgressPresenter | null;
 
   /**
    * Creates a new game manager with explicit runtime dependencies.
@@ -134,6 +142,7 @@ export class GameManager {
     canvas: HTMLCanvasElement,
     langManager: LangManager,
     externalSceneFactories: Partial<Record<GameState, GameSceneFactory>> = {},
+    loadingPresenter: LoadingProgressPresenter | null = null,
   ) {
     this.engine = engine;
     this.canvas = canvas;
@@ -261,6 +270,7 @@ export class GameManager {
     this.currentSceneController = null;
     this.currentBabylonScene = null;
     this.externalSceneFactories = externalSceneFactories;
+    this.loadingPresenter = loadingPresenter;
   }
 
   /**
@@ -278,7 +288,7 @@ export class GameManager {
    * @param deltaSeconds - Frame delta time in seconds.
    */
   public update(deltaSeconds: number): void {
-    if (this.currentState !== GameState.IN_GAME) {
+    if (this.currentState !== GameState.IN_GAME || !this.currentBabylonScene) {
       return;
     }
 
@@ -318,28 +328,44 @@ export class GameManager {
    * @returns Promise that resolves when scene creation is complete.
    */
   private async loadSceneForState(state: GameState): Promise<void> {
-    this.currentBabylonScene?.dispose();
+    const loadingLabel = this.getLoadingLabel(state);
+    this.loadingPresenter?.begin(`Preparing ${loadingLabel}`);
 
-    this.currentSceneController = this.buildSceneController(state);
-    this.currentBabylonScene = await this.currentSceneController.createScene();
-    this.turnBasedCombatState.endCombat();
-    this.combatInputController.reset();
-    const gameplayScene = state === GameState.IN_GAME ? this.currentBabylonScene : null;
-    this.characterSpawnerSystem.setScene(gameplayScene);
-    this.basicCombatAiService.setScene(gameplayScene);
-    this.localPlayerInputSystem.setScene(gameplayScene);
-    this.movementSystem.setScene(gameplayScene);
-    this.groundAttachmentSystem.setScene(gameplayScene);
-    this.patrolSystem.setScene(gameplayScene);
-    this.visionDetectionSystem.setScene(gameplayScene);
-    this.perceptionDebugOverlaySystem.setScene(gameplayScene);
-    this.hoveredCombatTargetSystem.setScene(gameplayScene);
-    this.combatMovementPreviewSystem.setScene(gameplayScene);
-    this.combatHoverHighlightSystem.setScene(gameplayScene);
-    this.combatHudSystem.setScene(gameplayScene);
-    this.combatBannerSystem.setScene(gameplayScene);
-    this.localPlayerSystem.setScene(gameplayScene);
-    this.buildingVisibilitySystem.setScene(gameplayScene);
+    try {
+      this.loadingPresenter?.report({ progress: 0.03, message: `Opening ${loadingLabel}` });
+      this.currentBabylonScene?.dispose();
+      this.currentBabylonScene = null;
+
+      const sceneController = this.buildSceneController(state);
+      const babylonScene = await sceneController.createScene();
+      this.loadingPresenter?.report({ progress: 0.97, message: "Connecting game systems" });
+
+      this.currentSceneController = sceneController;
+      this.currentBabylonScene = babylonScene;
+      this.turnBasedCombatState.endCombat();
+      this.combatInputController.reset();
+      const gameplayScene = state === GameState.IN_GAME ? babylonScene : null;
+      this.characterSpawnerSystem.setScene(gameplayScene);
+      this.basicCombatAiService.setScene(gameplayScene);
+      this.localPlayerInputSystem.setScene(gameplayScene);
+      this.movementSystem.setScene(gameplayScene);
+      this.groundAttachmentSystem.setScene(gameplayScene);
+      this.patrolSystem.setScene(gameplayScene);
+      this.visionDetectionSystem.setScene(gameplayScene);
+      this.perceptionDebugOverlaySystem.setScene(gameplayScene);
+      this.hoveredCombatTargetSystem.setScene(gameplayScene);
+      this.combatMovementPreviewSystem.setScene(gameplayScene);
+      this.combatHoverHighlightSystem.setScene(gameplayScene);
+      this.combatHudSystem.setScene(gameplayScene);
+      this.combatBannerSystem.setScene(gameplayScene);
+      this.localPlayerSystem.setScene(gameplayScene);
+      this.buildingVisibilitySystem.setScene(gameplayScene);
+      this.loadingPresenter?.complete(state === GameState.IN_GAME ? "District ready" : "Ready");
+    } catch (error: unknown) {
+      const detail = error instanceof Error ? error.message : "Unknown loading error";
+      this.loadingPresenter?.fail(`Could not load ${loadingLabel}: ${detail}`);
+      throw error;
+    }
   }
 
   /**
@@ -356,8 +382,9 @@ export class GameManager {
         canvas: this.canvas,
         langManager: this.langManager,
         requestStateChange: (nextState) => {
-          void this.setState(nextState);
-        }
+          this.requestStateChange(nextState);
+        },
+        reportLoadingProgress: (update) => this.reportLoadingProgress(update)
       });
     }
 
@@ -368,7 +395,7 @@ export class GameManager {
           this.canvas,
           this.langManager,
           (nextState) => {
-            void this.setState(nextState);
+            this.requestStateChange(nextState);
           },
         );
       case GameState.IN_GAME:
@@ -376,6 +403,7 @@ export class GameManager {
           this.engine,
           this.langManager,
           this.entityManager,
+          (update) => this.reportLoadingProgress(update),
         );
       case GameState.SETTINGS:
         return new MainMenuScene(
@@ -383,7 +411,7 @@ export class GameManager {
           this.canvas,
           this.langManager,
           (nextState) => {
-            void this.setState(nextState);
+            this.requestStateChange(nextState);
           },
         );
       default:
@@ -392,9 +420,32 @@ export class GameManager {
           this.canvas,
           this.langManager,
           (nextState) => {
-            void this.setState(nextState);
+            this.requestStateChange(nextState);
           },
         );
+    }
+  }
+
+  private requestStateChange(state: GameState): void {
+    void this.setState(state).catch((error: unknown) => {
+      console.error(`[GameManager] Failed to switch to state '${state}'.`, error);
+    });
+  }
+
+  private reportLoadingProgress(update: LoadingProgressUpdate): void {
+    this.loadingPresenter?.report(update);
+  }
+
+  private getLoadingLabel(state: GameState): string {
+    switch (state) {
+      case GameState.IN_GAME:
+        return "game world";
+      case GameState.EDITOR:
+        return "scene editor";
+      case GameState.EDISON:
+        return "Edison";
+      default:
+        return "main menu";
     }
   }
 }

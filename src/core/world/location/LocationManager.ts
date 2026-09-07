@@ -26,9 +26,14 @@ import type {
 import type { District } from "./district/District";
 import type { DistrictModelData, DistrictSceneData } from "./district/DistrictModelData";
 import { GameDistrict } from "./district/GameDistrict";
-import { importSceneContent } from "../scene/SceneContentLoader";
+import {
+  disposeImportedSceneMesh,
+  importSceneContent,
+  type ImportedSceneObjectContent
+} from "../scene/SceneContentLoader";
 import type { SceneLightingDescriptor } from "../../lighting/LightingTypes";
 import type { ShadowMeshBatch } from "../../lighting/SceneShadowRegistry";
+import { selectSceneObjectShadowMeshes } from "../../lighting/BuildingShadowMeshSelector";
 import type { TerrainQuadtreeLodController } from "../terrain/lod/TerrainQuadtreeLodController";
 import {
   DEFAULT_TERRAIN_QUADTREE_LOD,
@@ -37,6 +42,7 @@ import {
   type TerrainLodAnchor,
   type TerrainQuadtreeLodDebugMode
 } from "../terrain/lod/TerrainQuadtreeLodTypes";
+import { mapLoadingProgress, type LoadingProgressReporter } from "../../game/LoadingProgress";
 
 interface LoadedDistrictSceneContent {
   readonly sceneId: string;
@@ -47,6 +53,7 @@ interface LoadedDistrictSceneContent {
   readonly terrainMeshes: AbstractMesh[];
   readonly terrainLodControllers: TerrainQuadtreeLodController[];
   readonly sceneObjectMeshes: AbstractMesh[];
+  readonly sceneObjects: ImportedSceneObjectContent[];
   readonly transformNodes: TransformNode[];
   readonly skeletons: Skeleton[];
   readonly animationGroups: AnimationGroup[];
@@ -156,6 +163,14 @@ export class LocationManager {
   /** Currently loaded district scene chunks keyed by chunk-space coord. */
   private readonly activeDistrictScenes: Map<string, LoadedDistrictSceneContent>;
 
+  /** Cached flattened district views; invalidated only when chunks change. */
+  private activeDistrictMeshesCache: readonly AbstractMesh[] | null;
+  private activeDistrictTerrainMeshesCache: readonly AbstractMesh[] | null;
+  private activeDistrictSceneObjectMeshesCache: readonly AbstractMesh[] | null;
+  private activeDistrictSceneObjectsCache: readonly ImportedSceneObjectContent[] | null;
+  private activeDistrictNodesCache: readonly Node[] | null;
+  private shadowMeshBatchesCache: readonly ShadowMeshBatch[] | null;
+
   /** Global lighting descriptor from the district initial chunk. */
   private activeLightingDescriptor: SceneLightingDescriptor | null;
   private terrainLodDebugEnabled: boolean;
@@ -172,6 +187,12 @@ export class LocationManager {
     this.locations = [];
     this.activeDistrict = null;
     this.activeDistrictScenes = new Map();
+    this.activeDistrictMeshesCache = null;
+    this.activeDistrictTerrainMeshesCache = null;
+    this.activeDistrictSceneObjectMeshesCache = null;
+    this.activeDistrictSceneObjectsCache = null;
+    this.activeDistrictNodesCache = null;
+    this.shadowMeshBatchesCache = null;
     this.activeLightingDescriptor = null;
     this.terrainLodDebugEnabled = false;
     this.terrainPolygonWireDebugEnabled = false;
@@ -242,23 +263,35 @@ export class LocationManager {
    * @param district - District runtime instance.
    * @returns Promise that resolves when district visuals and camera are ready.
    */
-  public async createDistrictScene(scene: BabylonScene, district: District): Promise<DistrictSceneInitializationResult> {
+  public async createDistrictScene(
+    scene: BabylonScene,
+    district: District,
+    onProgress?: LoadingProgressReporter
+  ): Promise<DistrictSceneInitializationResult> {
     this.activeDistrict = district;
     this.disposeActiveDistrictScenes();
     const initialScene = district.getInitialScene();
-    await this.loadDistrictSceneChunk(scene, district, initialScene.coord);
+    onProgress?.({ progress: 0.02, message: `Opening ${district.getTitle()}` });
+    await this.loadDistrictSceneChunk(
+      scene,
+      district,
+      initialScene.coord,
+      mapLoadingProgress(onProgress, 0.04, 0.92)
+    );
     const initialContent = this.activeDistrictScenes.get(this.createCoordKey(initialScene.coord));
     if (!initialContent) {
       throw new Error(`District '${district.getId()}' initial scene '${initialScene.id}' failed to load.`);
     }
     this.activeLightingDescriptor = initialContent.lightingDescriptor;
 
+    onProgress?.({ progress: 0.95, message: "Positioning district camera" });
     const target = this.resolveActiveDistrictCenter();
     const camera = new ArcRotateCamera("in-game-camera", -Math.PI / 4, Math.PI / 3, 30, target, scene);
     camera.lowerRadiusLimit = 5;
     camera.upperRadiusLimit = 120;
     camera.attachControl(true);
     scene.activeCamera = camera;
+    onProgress?.({ progress: 1, message: `${district.getTitle()} loaded` });
 
     return {
       lightingDescriptor: initialContent.lightingDescriptor
@@ -286,7 +319,12 @@ export class LocationManager {
    * @param coord - Chunk-space X/Z coordinate.
    * @returns True when chunk is loaded or already present, false when missing from data.
    */
-  public async loadDistrictSceneChunk(scene: BabylonScene, district: District, coord: DistrictSceneCoord): Promise<boolean> {
+  public async loadDistrictSceneChunk(
+    scene: BabylonScene,
+    district: District,
+    coord: DistrictSceneCoord,
+    onProgress?: LoadingProgressReporter
+  ): Promise<boolean> {
     const sceneData = district.getSceneByCoord(coord);
     if (!sceneData) {
       return false;
@@ -298,11 +336,19 @@ export class LocationManager {
     }
 
     console.info(`[DistrictStreaming] chunkLoad start coord=${coordKey} descriptor=${sceneData.scene}`);
-    const content = await this.importDistrictSceneChunk(scene, district.getModelData(), sceneData);
+    onProgress?.({ progress: 0.02, message: `Loading district sector ${coordKey}` });
+    const content = await this.importDistrictSceneChunk(
+      scene,
+      district.getModelData(),
+      sceneData,
+      mapLoadingProgress(onProgress, 0.04, 0.96)
+    );
     this.activeDistrictScenes.set(coordKey, content);
     console.info(
       `[DistrictStreaming] chunkLoad complete coord=${coordKey} descriptor=${content.descriptorPath ?? "none"} terrain=${content.terrainModelPath ?? "none"} objects=${content.objectCount} meshes=${content.meshes.length}`
     );
+    this.invalidateActiveDistrictCaches();
+    onProgress?.({ progress: 1, message: `District sector ${coordKey} ready` });
     return true;
   }
 
@@ -320,6 +366,7 @@ export class LocationManager {
 
     this.disposeLoadedDistrictScene(content);
     this.activeDistrictScenes.delete(coordKey);
+    this.invalidateActiveDistrictCaches();
   }
 
   /**
@@ -337,21 +384,49 @@ export class LocationManager {
    * @returns Active district meshes across all loaded chunks.
    */
   public getActiveDistrictMeshes(): readonly AbstractMesh[] {
-    return Array.from(this.activeDistrictScenes.values())
-      .flatMap((content) => content.meshes)
-      .filter((mesh) => !isTerrainVisualOnlyMesh(mesh));
+    if (!this.activeDistrictMeshesCache) {
+      this.activeDistrictMeshesCache = Array.from(this.activeDistrictScenes.values())
+        .flatMap((content) => content.meshes)
+        .filter((mesh) => !isTerrainVisualOnlyMesh(mesh));
+    }
+
+    return this.activeDistrictMeshesCache;
   }
 
   public getActiveDistrictTerrainMeshes(): readonly AbstractMesh[] {
-    return Array.from(this.activeDistrictScenes.values()).flatMap((content) => content.terrainMeshes);
+    if (!this.activeDistrictTerrainMeshesCache) {
+      this.activeDistrictTerrainMeshesCache = Array.from(this.activeDistrictScenes.values())
+        .flatMap((content) => content.terrainMeshes);
+    }
+
+    return this.activeDistrictTerrainMeshesCache;
   }
 
   public getActiveDistrictSceneObjectMeshes(): readonly AbstractMesh[] {
-    return Array.from(this.activeDistrictScenes.values()).flatMap((content) => content.sceneObjectMeshes);
+    if (!this.activeDistrictSceneObjectMeshesCache) {
+      this.activeDistrictSceneObjectMeshesCache = Array.from(this.activeDistrictScenes.values())
+        .flatMap((content) => content.sceneObjectMeshes);
+    }
+
+    return this.activeDistrictSceneObjectMeshesCache;
+  }
+
+  public getActiveDistrictSceneObjects(): readonly ImportedSceneObjectContent[] {
+    if (!this.activeDistrictSceneObjectsCache) {
+      this.activeDistrictSceneObjectsCache = Array.from(this.activeDistrictScenes.values())
+        .flatMap((content) => content.sceneObjects);
+    }
+
+    return this.activeDistrictSceneObjectsCache;
   }
 
   public getShadowMeshBatches(): readonly ShadowMeshBatch[] {
-    return Array.from(this.activeDistrictScenes.values()).flatMap((content) => this.createShadowMeshBatches(content));
+    if (!this.shadowMeshBatchesCache) {
+      this.shadowMeshBatchesCache = Array.from(this.activeDistrictScenes.values())
+        .flatMap((content) => this.createShadowMeshBatches(content));
+    }
+
+    return this.shadowMeshBatchesCache;
   }
 
   public getShadowMeshBatchesForCoord(coord: DistrictSceneCoord): readonly ShadowMeshBatch[] {
@@ -377,11 +452,15 @@ export class LocationManager {
    * @returns Active district nodes including chunk roots, meshes and transform nodes.
    */
   public getActiveDistrictNodes(): readonly Node[] {
-    return Array.from(this.activeDistrictScenes.values()).flatMap((content) => [
-      content.root,
-      ...content.meshes.filter((mesh) => !isTerrainVisualOnlyMesh(mesh)),
-      ...content.transformNodes
-    ]);
+    if (!this.activeDistrictNodesCache) {
+      this.activeDistrictNodesCache = Array.from(this.activeDistrictScenes.values()).flatMap((content) => [
+        content.root,
+        ...content.meshes.filter((mesh) => !isTerrainVisualOnlyMesh(mesh)),
+        ...content.transformNodes
+      ]);
+    }
+
+    return this.activeDistrictNodesCache;
   }
 
   public updateTerrainLodControllers(deltaSeconds: number, anchor: TerrainLodAnchor): void {
@@ -1006,7 +1085,18 @@ export class LocationManager {
     }
 
     this.activeDistrictScenes.clear();
+    this.invalidateActiveDistrictCaches();
     this.activeLightingDescriptor = null;
+  }
+
+  /** Drops flattened views after a district chunk is loaded or unloaded. */
+  private invalidateActiveDistrictCaches(): void {
+    this.activeDistrictMeshesCache = null;
+    this.activeDistrictTerrainMeshesCache = null;
+    this.activeDistrictSceneObjectMeshesCache = null;
+    this.activeDistrictSceneObjectsCache = null;
+    this.activeDistrictNodesCache = null;
+    this.shadowMeshBatchesCache = null;
   }
 
   private disposeLoadedDistrictScene(content: LoadedDistrictSceneContent): void {
@@ -1026,6 +1116,10 @@ export class LocationManager {
       skeleton.dispose();
     }
 
+    for (const mesh of content.meshes) {
+      disposeImportedSceneMesh(mesh);
+    }
+
     if (!content.root.isDisposed()) {
       content.root.dispose(false);
     }
@@ -1035,18 +1129,13 @@ export class LocationManager {
         transformNode.dispose(false);
       }
     }
-
-    for (const mesh of content.meshes) {
-      if (!mesh.isDisposed()) {
-        mesh.dispose(false, true);
-      }
-    }
   }
 
   private async importDistrictSceneChunk(
     scene: BabylonScene,
     districtModelData: DistrictModelData,
-    sceneData: DistrictSceneData
+    sceneData: DistrictSceneData,
+    onProgress?: LoadingProgressReporter
   ): Promise<LoadedDistrictSceneContent> {
     const root = new TransformNode(`district-scene-root:${sceneData.id}`, scene);
     root.position.x = sceneData.coord[0] * districtModelData.chunkSize.x;
@@ -1058,7 +1147,10 @@ export class LocationManager {
       root,
       rootNamePrefix: "district",
       descriptorPath: sceneData.scene,
-      generatedTerrainLodEnabled: true
+      generatedTerrainLodEnabled: true,
+      runtimeStaticPreparationEnabled: true,
+      runtimeConnectedObjectBatchingEnabled: true,
+      onProgress
     });
     for (const controller of importedContent.terrainLodControllers) {
       controller.setDebugEnabled(this.terrainLodDebugEnabled);
@@ -1077,6 +1169,7 @@ export class LocationManager {
       terrainMeshes: [...importedContent.terrainMeshes],
       terrainLodControllers: [...importedContent.terrainLodControllers],
       sceneObjectMeshes: importedContent.sceneObjects.flatMap((object) => object.renderableMeshes),
+      sceneObjects: [...importedContent.sceneObjects],
       transformNodes: [...importedContent.transformNodes],
       skeletons: [...importedContent.skeletons],
       animationGroups: [...importedContent.animationGroups],
@@ -1101,11 +1194,15 @@ export class LocationManager {
       });
     }
 
-    if (content.sceneObjectMeshes.length > 0) {
+    const sceneObjectMeshes = selectSceneObjectShadowMeshes(
+      content.sceneObjects,
+      (this.activeLightingDescriptor ?? content.lightingDescriptor).shadows?.preferBuildingShadowProxies === true
+    );
+    if (sceneObjectMeshes.length > 0) {
       batches.push({
         ownerId: `district:${coordKey}:sceneObjects`,
         source: "sceneObject",
-        meshes: content.sceneObjectMeshes
+        meshes: sceneObjectMeshes
       });
     }
 

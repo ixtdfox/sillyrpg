@@ -16,6 +16,8 @@ const SUN_LIGHT_NAME = "global-sun-light";
 const DEFAULT_AMBIENT_DIRECTION: LightingVector3Tuple = [0, 1, 0];
 const DEFAULT_SUN_DIRECTION: LightingVector3Tuple = [-0.55, -1.0, -0.35];
 const DEFAULT_SUN_POSITION: LightingVector3Tuple = [60, 90, 40];
+const DEFAULT_CASCADE_COUNT = 2;
+const DEFAULT_SHADOW_MAX_Z = 80;
 
 /**
  * Factory Method для создания `LightingRig` из доменного descriptor'а.
@@ -99,6 +101,9 @@ export class LightingRigFactory {
     generator.depthScale = this.clampNumber(shadows.depthScale, 60, 1, 1000);
 
     if (generator instanceof CascadedShadowGenerator) {
+      generator.numCascades = this.toCascadeCount(shadows.cascadeCount);
+      generator.shadowMaxZ = this.clampNumber(shadows.shadowMaxZ, DEFAULT_SHADOW_MAX_Z, 1, 1000);
+      generator.freezeShadowCastersBoundingInfo = shadows.freezeShadowCastersBoundingInfo ?? false;
       generator.lambda = this.clampNumber(shadows.lambda, 0.65, 0, 1);
     }
   }
@@ -181,7 +186,18 @@ export class LightingRigFactory {
 
   /** Ограничивает размер shadow map практичным диапазоном качества/памяти. */
   private toShadowMapSize(value: number | undefined): number {
-    const parsed = this.clampNumber(value, 2048, 512, 4096);
+    const parsed = this.clampNumber(value, 1024, 512, 4096);
+    return Math.round(parsed);
+  }
+
+  /** Ограничивает число CSM каскадов поддерживаемым Babylon диапазоном. */
+  private toCascadeCount(value: number | undefined): number {
+    const parsed = this.clampNumber(
+      value,
+      DEFAULT_CASCADE_COUNT,
+      CascadedShadowGenerator.MIN_CASCADES_COUNT,
+      CascadedShadowGenerator.MAX_CASCADES_COUNT
+    );
     return Math.round(parsed);
   }
 

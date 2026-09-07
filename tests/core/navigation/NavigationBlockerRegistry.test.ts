@@ -4,6 +4,7 @@ import { StairEndpointCellRepairService } from "../../../src/core/grid/RectGridR
 import { RectGrid } from "../../../src/core/grid/RectGrid";
 import { NavigationGraph } from "../../../src/core/navigation/NavigationGraph";
 import { MultiFloorPathfinder } from "../../../src/core/navigation/MultiFloorPathfinder";
+import { GridNavigationContractService } from "../../../src/core/navigation/GridNavigationContract";
 import {
   NavigationBlockerRegistry,
   NavigationEdgeKeyFactory,
@@ -220,6 +221,8 @@ const cleanValidationRepairs = new StairEndpointCellRepairService().validateAndR
 assertEqual(cleanValidationRepairs, 0);
 assertEqual(cleanValidationCalls.length, 0);
 
+testContractStairIdsAreScopedBySceneObjectInstance();
+
 console.log("NavigationBlockerRegistry geometry tests passed");
 
 function assertEqual<T>(actual: T, expected: T): void {
@@ -249,4 +252,66 @@ function buildRegistryFromContract(contract: Record<string, unknown>): Navigatio
   scene.dispose();
   engine.dispose();
   return registry;
+}
+
+function testContractStairIdsAreScopedBySceneObjectInstance(): void {
+  const engine = new NullEngine();
+  const scene = new Scene(engine);
+  const contract = {
+    contract: "sillyrpg.grid_navigation.v3",
+    grid_type: "rect",
+    tile_size_m: 1,
+    origin: { x: 0, z: 0 },
+    coordinate_mapping: "blender_xy_to_game_xz",
+    stories: [
+      {
+        story_index: 0,
+        story_y_m: 0,
+        walkable_cells: [{ x: 0, z: 0 }],
+        blocked_cells: [],
+        blocked_edges: [],
+        door_edges: [],
+        stairs: [
+          {
+            id: "BuildingA:0_1_000",
+            from: { story_index: 0, cell: { x: 0, z: 0 } },
+            to: { story_index: 1, cell: { x: 0, z: 0 } },
+            traversal_path_world: [
+              { x: 0.5, y: 0, z: 0.5 },
+              { x: 0.5, y: 3, z: 0.5 }
+            ]
+          }
+        ]
+      },
+      {
+        story_index: 1,
+        story_y_m: 3,
+        walkable_cells: [{ x: 0, z: 0 }],
+        blocked_cells: [],
+        blocked_edges: [],
+        door_edges: [],
+        stairs: []
+      }
+    ]
+  };
+
+  for (const instanceId of ["building-a-001", "building-a-002"]) {
+    const root = new TransformNode(`root-${instanceId}`, scene);
+    root.metadata = { sceneObjectId: instanceId, buildingVisibilityInstanceId: instanceId };
+    const metadataNode = new TransformNode(`metadata-${instanceId}`, scene);
+    metadataNode.metadata = { game_navigation_json: JSON.stringify(contract) };
+    metadataNode.parent = root;
+  }
+
+  const grid = new RectGrid(Vector3.Zero(), 1, { minX: -1, maxX: 1, minZ: -1, maxZ: 1 });
+  const stairIds = GridNavigationContractService.getShared()
+    .mapToRuntime(scene, grid)
+    .flatMap((mappedContract) => mappedContract.stories.flatMap((story) => story.stairs.map((stair) => stair.id)))
+    .sort();
+
+  assertEqual(stairIds.length, 2);
+  assertEqual(stairIds[0], "building-a-001:BuildingA:0_1_000");
+  assertEqual(stairIds[1], "building-a-002:BuildingA:0_1_000");
+  scene.dispose();
+  engine.dispose();
 }

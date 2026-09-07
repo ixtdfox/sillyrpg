@@ -9,7 +9,10 @@ import type {
 const SAFE_OUTDOOR_SHADOWS: ShadowLightingDescriptor = {
   enabled: true,
   generator: "cascaded",
-  mapSize: 2048,
+  mapSize: 1024,
+  cascadeCount: 2,
+  shadowMaxZ: 80,
+  freezeShadowCastersBoundingInfo: false,
   darkness: 0.45,
   filter: "pcf",
   usePercentageCloserFiltering: true,

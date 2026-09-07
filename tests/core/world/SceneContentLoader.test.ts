@@ -1,5 +1,21 @@
-import { MeshBuilder, NullEngine, Scene, TransformNode, Vector3 } from "@babylonjs/core";
-import { adoptImportedSceneNodes, importSceneTerrainContent } from "../../../src/core/world/scene/SceneContentLoader";
+import {
+  AssetContainer,
+  MeshBuilder,
+  NullEngine,
+  PBRMaterial,
+  Scene,
+  TransformNode,
+  Vector3
+} from "@babylonjs/core";
+import {
+  adoptImportedSceneNodes,
+  disposeImportedSceneMesh,
+  importSceneContent,
+  importSceneTerrainContent,
+  instantiateCachedSceneAsset
+} from "../../../src/core/world/scene/SceneContentLoader";
+import { RuntimeSceneObjectPreparer } from "../../../src/core/world/scene/RuntimeSceneObjectPreparer";
+import type { SceneDescriptor, SceneObjectDescriptor } from "../../../src/core/world/scene/SceneDescriptor";
 
 function assert(condition: boolean, message: string): void {
   if (!condition) {
@@ -48,8 +64,236 @@ function testAdoptImportedSceneNodesPreservesLocalImportedTransforms(): void {
   engine.dispose();
 }
 
+function testCachedInstancesDoNotDisposeSharedMaterials(): void {
+  const engine = new NullEngine();
+  const scene = new Scene(engine);
+  const container = new AssetContainer(scene);
+  const source = MeshBuilder.CreateBox("cached-source", { size: 1 }, scene);
+  const material = new PBRMaterial("cached-material", scene);
+  source.material = material;
+  container.meshes.push(source);
+  container.materials.push(material);
+  container.removeAllFromScene();
+
+  const first = instantiateCachedSceneAsset(container, new TransformNode("first-parent", scene));
+  const second = instantiateCachedSceneAsset(container, new TransformNode("second-parent", scene));
+  const firstMesh = first.meshes[0];
+  const secondMesh = second.meshes[0];
+
+  assert(firstMesh !== undefined && secondMesh !== undefined, "Expected two cached mesh instances.");
+  assert(firstMesh.material === material && secondMesh.material === material, "Expected cached instances to share their source material.");
+  disposeImportedSceneMesh(firstMesh);
+  assert(scene.materials.includes(material), "Disposing one cached instance must preserve its container-owned material.");
+  assert(secondMesh.material === material, "The surviving cached instance must retain the shared material.");
+
+  scene.dispose();
+  engine.dispose();
+}
+
+function testUncachedMeshesDisposeOwnedMaterials(): void {
+  const engine = new NullEngine();
+  const scene = new Scene(engine);
+  const mesh = MeshBuilder.CreateBox("uncached-mesh", { size: 1 }, scene);
+  const material = new PBRMaterial("uncached-material", scene);
+  mesh.material = material;
+
+  disposeImportedSceneMesh(mesh);
+
+  assert(!scene.materials.includes(material), "Disposing an uncached mesh must release its owned material.");
+
+  scene.dispose();
+  engine.dispose();
+}
+
+function testRuntimeBuildingPreparationKeepsNavigationPickableAndFreezesStaticTransforms(): void {
+  const engine = new NullEngine();
+  const scene = new Scene(engine);
+  const root = new TransformNode("building-root", scene);
+  root.position.x = 5;
+  const floor = MeshBuilder.CreateBox("Story0_Floor", { size: 1 }, scene);
+  const stair = MeshBuilder.CreateBox("Stair_Story0_to_Story1", { size: 1 }, scene);
+  const wall = MeshBuilder.CreateBox("Story0_OuterWall", { size: 1 }, scene);
+  const railing = MeshBuilder.CreateBox("Story0_Terrace_Railing", { size: 1 }, scene);
+  for (const mesh of [floor, stair, wall, railing]) {
+    mesh.parent = root;
+    mesh.isPickable = true;
+    mesh.metadata = {
+      sceneObjectType: "building",
+      buildingVisibilityInstanceId: "building-a"
+    };
+  }
+  stair.metadata = {
+    ...(stair.metadata as Record<string, unknown>),
+    game_part: "stair",
+    stair_kind: "internal"
+  };
+  railing.metadata = {
+    ...(railing.metadata as Record<string, unknown>),
+    part: "floor"
+  };
+
+  const descriptor: SceneObjectDescriptor = {
+    id: "building-a",
+    type: "building",
+    asset: "/assets/models/buildings/test.glb",
+    position: [0, 0, 0],
+    rotation: [0, 0, 0],
+    scale: [1, 1, 1]
+  };
+  const content = {
+    objectId: descriptor.id,
+    type: descriptor.type,
+    root,
+    descriptor,
+    cullingBounds: null,
+    meshes: [floor, stair, wall, railing],
+    renderableMeshes: [floor, stair, wall, railing],
+    helperMeshes: [],
+    transformNodes: [],
+    skeletons: [],
+    animationGroups: [],
+    particleSystems: []
+  };
+
+  const result = new RuntimeSceneObjectPreparer().prepare(content);
+
+  assert(result.prepared, "Expected building content to be prepared for runtime.");
+  assert(floor.isPickable, "Expected floor navigation surface to remain pickable.");
+  assert(stair.isPickable, "Expected stair navigation surface to remain pickable.");
+  assert(!wall.isPickable, "Expected non-navigation wall geometry not to remain pickable.");
+  assert(!railing.isPickable, "Expected terrace railings not to remain pickable through legacy story metadata.");
+  assert(root.isWorldMatrixFrozen, "Expected static building root world matrix to be frozen.");
+  assert(floor.isWorldMatrixFrozen && stair.isWorldMatrixFrozen && wall.isWorldMatrixFrozen && railing.isWorldMatrixFrozen, "Expected static building meshes to be frozen.");
+
+  scene.dispose();
+  engine.dispose();
+}
+
+function testRuntimePreparationDoesNotChangeEditorStyleNonBuildingContent(): void {
+  const engine = new NullEngine();
+  const scene = new Scene(engine);
+  const root = new TransformNode("connected-root", scene);
+  const mesh = MeshBuilder.CreateBox("connected-mesh", { size: 1 }, scene);
+  mesh.parent = root;
+  mesh.isPickable = true;
+  const descriptor: SceneObjectDescriptor = {
+    id: "connected-a",
+    type: "connected-object",
+    asset: "/assets/models/roads/road_straight.glb",
+    position: [0, 0, 0],
+    rotation: [0, 0, 0],
+    scale: [1, 1, 1]
+  };
+  const content = {
+    objectId: descriptor.id,
+    type: descriptor.type,
+    root,
+    descriptor,
+    cullingBounds: null,
+    meshes: [mesh],
+    renderableMeshes: [mesh],
+    helperMeshes: [],
+    transformNodes: [],
+    skeletons: [],
+    animationGroups: [],
+    particleSystems: []
+  };
+
+  const result = new RuntimeSceneObjectPreparer().prepare(content);
+
+  assert(!result.prepared, "Expected non-building content to stay on its existing import path.");
+  assert(mesh.isPickable, "Expected non-building pickability to remain unchanged.");
+  assert(!mesh.isWorldMatrixFrozen, "Expected non-building transforms not to be frozen by building preparation.");
+
+  scene.dispose();
+  engine.dispose();
+}
+
+function testRuntimePreparationDoesNotFreezeInteractiveBuildingTransforms(): void {
+  const engine = new NullEngine();
+  const scene = new Scene(engine);
+  const root = new TransformNode("interactive-building-root", scene);
+  const door = MeshBuilder.CreateBox("Story0_Door", { size: 1 }, scene);
+  door.parent = root;
+  door.metadata = { game_interactable: true };
+  const descriptor: SceneObjectDescriptor = {
+    id: "interactive-building",
+    type: "building",
+    asset: "/assets/models/buildings/interactive.glb",
+    position: [0, 0, 0],
+    rotation: [0, 0, 0],
+    scale: [1, 1, 1]
+  };
+  const content = {
+    objectId: descriptor.id,
+    type: descriptor.type,
+    root,
+    descriptor,
+    cullingBounds: null,
+    meshes: [door],
+    renderableMeshes: [door],
+    helperMeshes: [],
+    transformNodes: [],
+    skeletons: [],
+    animationGroups: [],
+    particleSystems: []
+  };
+
+  const result = new RuntimeSceneObjectPreparer().prepare(content);
+
+  assert(result.prepared && result.frozenNodeCount === 0, "Expected interactive building content to stay transformable.");
+  assert(door.isPickable, "Expected interactive building geometry to remain pickable.");
+  assert(!root.isWorldMatrixFrozen && !door.isWorldMatrixFrozen, "Expected interactive building transforms not to be frozen.");
+
+  scene.dispose();
+  engine.dispose();
+}
+
+async function testSceneContentReportsMonotonicLoadingProgress(): Promise<void> {
+  const engine = new NullEngine();
+  const scene = new Scene(engine);
+  const root = new TransformNode("scene-root", scene);
+  const descriptor: SceneDescriptor = {
+    schemaVersion: 2,
+    id: "progress-scene",
+    terrain: {
+      id: "progress-terrain",
+      kind: "plane",
+      size: [16, 16]
+    },
+    objects: []
+  };
+  const reports: Array<{ progress: number; message: string }> = [];
+
+  await importSceneContent({
+    scene,
+    sceneId: descriptor.id,
+    root,
+    rootNamePrefix: "progress-test",
+    descriptor,
+    onProgress: (report) => reports.push(report)
+  });
+
+  assert(reports[0]?.progress === 0, "Expected scene progress to start at zero.");
+  assert(reports.at(-1)?.progress === 1, "Expected scene progress to finish at one.");
+  assert(reports.some((report) => report.message === "Preparing terrain"), "Expected terrain loading stage to be reported.");
+  assert(
+    reports.every((report, index) => index === 0 || report.progress >= reports[index - 1]!.progress),
+    "Expected scene loading progress to remain monotonic."
+  );
+
+  scene.dispose();
+  engine.dispose();
+}
+
 async function run(): Promise<void> {
   testAdoptImportedSceneNodesPreservesLocalImportedTransforms();
+  testCachedInstancesDoNotDisposeSharedMaterials();
+  testUncachedMeshesDisposeOwnedMaterials();
+  testRuntimeBuildingPreparationKeepsNavigationPickableAndFreezesStaticTransforms();
+  testRuntimePreparationDoesNotChangeEditorStyleNonBuildingContent();
+  testRuntimePreparationDoesNotFreezeInteractiveBuildingTransforms();
+  await testSceneContentReportsMonotonicLoadingProgress();
   await testGeneratedTerrainWithLodUsesPickSurfaceInsteadOfFullCanonicalMesh();
   await testGeneratedTerrainWithBakedHeightMapImportsInCoreRuntime();
   await testGeneratedTerrainWithoutBakedHeightMapIsRejectedByCoreRuntimeImport();
