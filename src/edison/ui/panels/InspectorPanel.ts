@@ -86,7 +86,26 @@ export class InspectorPanel {
     exitButton.textContent = "Exit Interior";
     exitButton.addEventListener("click", () => context.interiorEdit.exit());
 
-    card.append(title, subtitle, floorRow, exitButton);
+    const magicFillButton = document.createElement("button");
+    magicFillButton.type = "button";
+    magicFillButton.className = "edison-button edison-button-primary";
+    magicFillButton.textContent = "Magic fill";
+    magicFillButton.addEventListener("click", () => {
+      magicFillButton.disabled = true;
+      void context.interiorMagicFill.fillActiveBuilding()
+        .catch((error) => {
+          context.events.emit("edison.message", { text: error instanceof Error ? error.message : String(error) });
+        })
+        .finally(() => {
+          magicFillButton.disabled = false;
+        });
+    });
+
+    const actionRow = document.createElement("div");
+    actionRow.className = "edison-interior-action-row";
+    actionRow.append(magicFillButton, exitButton);
+
+    card.append(title, subtitle, floorRow, actionRow);
     host.appendChild(card);
   }
 

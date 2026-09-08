@@ -11,6 +11,7 @@ import { EdisonConnectedObjectService } from "./core/EdisonConnectedObjectServic
 import type { EdisonPluginContext } from "./core/EdisonContext";
 import { EdisonEventBus } from "./core/EdisonEventBus";
 import { EdisonInteriorEditService } from "./core/EdisonInteriorEditService";
+import { EdisonInteriorMagicFillService } from "./core/EdisonInteriorMagicFillService";
 import { EdisonObjectRegistry } from "./core/EdisonObjectRegistry";
 import { EdisonPlacementService, type EdisonPlacementAsset } from "./core/EdisonPlacementService";
 import { EdisonPersistenceService } from "./core/EdisonPersistenceService";
@@ -44,6 +45,7 @@ export class EdisonRuntime {
   private readonly terrainSnap: EdisonTerrainSnapService;
   private readonly transforms: EdisonTransformService;
   private readonly connectedObjects: EdisonConnectedObjectService;
+  private readonly interiorMagicFill: EdisonInteriorMagicFillService;
   private readonly pluginManager: EdisonPluginManager;
   private readonly zipInstaller = new EdisonPluginZipInstaller();
   private readonly context: EdisonPluginContext;
@@ -190,6 +192,14 @@ export class EdisonRuntime {
       this.events,
       this.terrainSnap
     );
+    this.interiorMagicFill = new EdisonInteriorMagicFillService(
+      this.interiorEdit,
+      this.sceneDocuments,
+      this.objects,
+      this.selection,
+      this.viewport,
+      this.events
+    );
     this.disposers.push(
       this.placement.onDidChange((asset) => {
         this.applyToolCursor();
@@ -202,6 +212,7 @@ export class EdisonRuntime {
       commands: this.commands,
       connectedObjects: this.connectedObjects,
       interiorEdit: this.interiorEdit,
+      interiorMagicFill: this.interiorMagicFill,
       toolbar: this.toolbar,
       panels: this.panels,
       tools: this.tools,
@@ -553,10 +564,10 @@ export class EdisonRuntime {
     return this.viewport.pickGroundPoint(clientX, clientY);
   }
 
-  private createPlacementDescriptorOptions(objectType: string): { readonly interiorBuildingId?: string } {
-    const activeBuildingId = this.interiorEdit.getActiveBuildingId();
-    return activeBuildingId && objectType === "interior"
-      ? { interiorBuildingId: activeBuildingId }
+  private createPlacementDescriptorOptions(objectType: string): { readonly interiorBuildingId?: string; readonly interiorStoryIndex?: number } {
+    const state = this.interiorEdit.getState();
+    return state && objectType === "interior"
+      ? { interiorBuildingId: state.activeBuildingId, interiorStoryIndex: state.activeStoryIndex }
       : {};
   }
 

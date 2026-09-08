@@ -10,8 +10,10 @@ import {
 } from "@babylonjs/core";
 import { Entity } from "../../../src/core/entity/Entity";
 import { EntityManager } from "../../../src/core/entity/EntityManager";
+import { GridPositionComponent } from "../../../src/core/entity/components/GridPositionComponent";
 import { LocalPlayerComponent } from "../../../src/core/entity/components/LocalPlayerComponent";
 import { TransformComponent } from "../../../src/core/entity/components/TransformComponent";
+import { GridCell } from "../../../src/core/grid/GridCell";
 import { BuildingVisibilitySystem } from "../../../src/core/entity/systems/BuildingVisibilitySystem";
 import {
   applyCutawayHiddenMeshState,
@@ -295,6 +297,40 @@ function createInsideVolume(
   return volume;
 }
 
+function createInteriorSceneObject(
+  scene: Scene,
+  id: string,
+  buildingId: string,
+  storyIndex: number,
+) {
+  const root = new TransformNode(`${id}-root`, scene);
+  const mesh = MeshBuilder.CreateBox(`${id}-mesh`, { size: 1 }, scene);
+  mesh.parent = root;
+  return {
+    objectId: id,
+    type: "interior",
+    root,
+    descriptor: {
+      id,
+      type: "interior",
+      asset: "assets/models/interior/Chair/Chair_1.glb",
+      interiorBuildingId: buildingId,
+      interiorStoryIndex: storyIndex,
+      position: [0, storyIndex * 3.1, 0] as const,
+      rotation: [0, 0, 0] as const,
+      scale: [1, 1, 1] as const,
+    },
+    cullingBounds: null,
+    meshes: [mesh],
+    renderableMeshes: [mesh],
+    helperMeshes: [],
+    transformNodes: [],
+    skeletons: [],
+    animationGroups: [],
+    particleSystems: [],
+  };
+}
+
 function createUpperStoryMetadata(buildingId: string): Record<string, unknown> {
   return {
     sceneObjectId: buildingId,
@@ -401,6 +437,48 @@ function testHaloMaterialIsInstalledOnInstancedMeshSource(): void {
   engine.dispose();
 }
 
+function testInteriorSceneObjectsOnlyShowOnCurrentPlayerStory(): void {
+  const engine = new NullEngine();
+  const scene = new Scene(engine);
+  const insideVolume = createInsideVolume(scene, "building-a", Vector3.Zero());
+  const story0Object = createInteriorSceneObject(scene, "interior-story-0", "building-a", 0);
+  const story1Object = createInteriorSceneObject(scene, "interior-story-1", "building-a", 1);
+  const locationManager = {
+    getActiveDistrictMeshes: () => [],
+    getActiveDistrictNodes: () => [insideVolume],
+    getActiveDistrictSceneObjects: () => [story0Object, story1Object],
+  };
+  scene.metadata = {
+    inGameRuntimeContext: {
+      locationManager,
+      shadowRegistry: { synchronize: () => undefined },
+    },
+  };
+  const player = new Entity("player");
+  player.addComponent(LocalPlayerComponent, new LocalPlayerComponent());
+  player.addComponent(TransformComponent, new TransformComponent(new Vector3(1, 0.5, -1)));
+  const gridPosition = new GridPositionComponent(new GridCell(1, -1), 0);
+  player.addComponent(GridPositionComponent, gridPosition);
+  const entityManager = new EntityManager();
+  entityManager.addEntity(player);
+
+  const system = new BuildingVisibilitySystem(entityManager);
+  system.setScene(scene);
+  system.update(1 / 60);
+
+  assert(story0Object.root.isEnabled(), "Expected same-story interior furniture to stay visible.");
+  assert(!story1Object.root.isEnabled(), "Expected upper-story interior furniture to be hidden.");
+
+  gridPosition.currentStoryIndex = 1;
+  system.update(1 / 60);
+
+  assert(!story0Object.root.isEnabled(), "Expected lower-story interior furniture to hide after changing floors.");
+  assert(story1Object.root.isEnabled(), "Expected current-story interior furniture to become visible after changing floors.");
+
+  scene.dispose();
+  engine.dispose();
+}
+
 function run(): void {
   testCutawayHideKeepsMeshRenderableButNotPickable();
   testCutawayRestoreRestoresOriginalStateIncludingPicking();
@@ -409,6 +487,7 @@ function run(): void {
   testLeavesOffscreenSceneObjectRootsEnabledForStableShadows();
   testOverlappingInsideVolumesHideUpperStoriesFromEveryBuilding();
   testHaloMaterialIsInstalledOnInstancedMeshSource();
+  testInteriorSceneObjectsOnlyShowOnCurrentPlayerStory();
 }
 
 run();

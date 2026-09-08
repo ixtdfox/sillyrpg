@@ -10,6 +10,7 @@ interface TrackedSceneObject {
 const UPDATE_INTERVAL_SECONDS = 0.1;
 const CULLABLE_OBJECT_TYPES = new Set(["street", "interior"]);
 export const RUNTIME_FRUSTUM_CULLED_METADATA_KEY = "runtimeFrustumCulled";
+export const RUNTIME_INTERIOR_STORY_CULLED_METADATA_KEY = "runtimeInteriorStoryCulled";
 
 /** Broad-phase frustum culling for static decorative scene objects. */
 export class SceneObjectVisibilityController {
@@ -50,7 +51,9 @@ export class SceneObjectVisibilityController {
 
       const isInFrustum = BoundingBox.IsInFrustum([...cullingBounds.vectorsWorld], frustumPlanes);
       this.setRuntimeFrustumCulled(tracked.root, tracked.initiallyEnabled && !isInFrustum);
-      tracked.root.setEnabled(tracked.initiallyEnabled && isInFrustum);
+      tracked.root.setEnabled(
+        tracked.initiallyEnabled && isInFrustum && !isRuntimeInteriorStoryCulled(tracked.root)
+      );
     }
   }
 
@@ -84,7 +87,7 @@ export class SceneObjectVisibilityController {
       this.trackedObjects.set(content.root.uniqueId, {
         content,
         root: content.root,
-        initiallyEnabled: content.root.isEnabled(false),
+        initiallyEnabled: isRuntimeInteriorStoryCulled(content.root) || content.root.isEnabled(false),
       });
     }
 
@@ -111,7 +114,7 @@ export class SceneObjectVisibilityController {
   private restore(tracked: TrackedSceneObject): void {
     if (!tracked.root.isDisposed()) {
       this.setRuntimeFrustumCulled(tracked.root, false);
-      tracked.root.setEnabled(tracked.initiallyEnabled);
+      tracked.root.setEnabled(tracked.initiallyEnabled && !isRuntimeInteriorStoryCulled(tracked.root));
     }
   }
 
@@ -126,4 +129,9 @@ export class SceneObjectVisibilityController {
     }
     root.metadata = metadata;
   }
+}
+
+function isRuntimeInteriorStoryCulled(root: TransformNode): boolean {
+  const metadata = root.metadata as Record<string, unknown> | null | undefined;
+  return metadata?.[RUNTIME_INTERIOR_STORY_CULLED_METADATA_KEY] === true;
 }

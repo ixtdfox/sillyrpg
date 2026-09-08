@@ -8022,10 +8022,12 @@
       "id": "interior-furnished-building-silent-1-001-f1-couch-1",
       "type": "interior",
       "asset": "assets/models/interior/Couch Small/Couch_Small1.glb",
+      "interiorBuildingId": "building-silent-1-001",
+      "interiorStoryIndex": 0,
       "position": [
-        -10.5,
+        -25.5,
         0,
-        -17.5
+        -16.5
       ],
       "rotation": [
         0,
@@ -8036,15 +8038,16 @@
         0.5,
         0.5,
         0.5
-      ],
-      "interiorBuildingId": "building-silent-1-001"
+      ]
     },
     {
       "id": "interior-furnished-building-silent-1-001-f1-rug-2",
       "type": "interior",
       "asset": "assets/models/interior/Round Rug/Carpet_Round.glb",
+      "interiorBuildingId": "building-silent-1-001",
+      "interiorStoryIndex": 0,
       "position": [
-        -10.5,
+        -24.5,
         0.025,
         -16.5
       ],
@@ -8057,17 +8060,18 @@
         0.5,
         0.5,
         0.5
-      ],
-      "interiorBuildingId": "building-silent-1-001"
+      ]
     },
     {
       "id": "interior-furnished-building-silent-1-001-f1-table-3",
       "type": "interior",
       "asset": "assets/models/interior/Table Round Small/Table_RoundSmall.glb",
+      "interiorBuildingId": "building-silent-1-001",
+      "interiorStoryIndex": 0,
       "position": [
-        -9.5,
+        -24.5,
         0,
-        -16.5
+        -14.5
       ],
       "rotation": [
         0,
@@ -8078,15 +8082,16 @@
         0.5,
         0.5,
         0.5
-      ],
-      "interiorBuildingId": "building-silent-1-001"
+      ]
     },
     {
       "id": "interior-furnished-building-silent-1-001-f1-chair-4",
       "type": "interior",
       "asset": "assets/models/interior/Chair/Chair_1.glb",
+      "interiorBuildingId": "building-silent-1-001",
+      "interiorStoryIndex": 0,
       "position": [
-        -15.5,
+        -18.5,
         0,
         -14.5
       ],
@@ -8099,15 +8104,16 @@
         0.5,
         0.5,
         0.5
-      ],
-      "interiorBuildingId": "building-silent-1-001"
+      ]
     },
     {
       "id": "interior-furnished-building-silent-1-001-f1-plant-5",
       "type": "interior",
       "asset": "assets/models/interior/Cactus/Houseplant_3.glb",
+      "interiorBuildingId": "building-silent-1-001",
+      "interiorStoryIndex": 0,
       "position": [
-        -5.5,
+        -28.5,
         0,
         -14.5
       ],
@@ -8120,17 +8126,18 @@
         0.5,
         0.5,
         0.5
-      ],
-      "interiorBuildingId": "building-silent-1-001"
+      ]
     },
     {
       "id": "interior-furnished-building-silent-1-001-f1-ceiling-light-6",
       "type": "interior",
       "asset": "assets/models/interior/Ceiling Light/Light_Ceiling2.glb",
+      "interiorBuildingId": "building-silent-1-001",
+      "interiorStoryIndex": 0,
       "position": [
-        -10.5,
+        -23.5,
         3,
-        -17.5
+        -18.5
       ],
       "rotation": [
         0,
@@ -8141,17 +8148,18 @@
         0.5,
         0.5,
         0.5
-      ],
-      "interiorBuildingId": "building-silent-1-001"
+      ]
     },
     {
       "id": "interior-furnished-building-silent-1-001-f2-bed-1",
       "type": "interior",
       "asset": "assets/models/interior/Bed King/Bed_King.glb",
+      "interiorBuildingId": "building-silent-1-001",
+      "interiorStoryIndex": 1,
       "position": [
-        -14.5,
+        -19.5,
         3.1,
-        -17.5
+        -18.5
       ],
       "rotation": [
         0,
@@ -8162,15 +8170,16 @@
         0.5,
         0.5,
         0.5
-      ],
-      "interiorBuildingId": "building-silent-1-001"
+      ]
     },
     {
       "id": "interior-furnished-building-silent-1-001-f2-night-stand-2",
       "type": "interior",
       "asset": "assets/models/interior/Night Stand/NightStand_1.glb",
+      "interiorBuildingId": "building-silent-1-001",
+      "interiorStoryIndex": 1,
       "position": [
-        -13.5,
+        -20.5,
         3.1,
         -16.5
       ],
@@ -8183,17 +8192,18 @@
         0.5,
         0.5,
         0.5
-      ],
-      "interiorBuildingId": "building-silent-1-001"
+      ]
     },
     {
       "id": "interior-furnished-building-silent-1-001-f2-drawer-3",
       "type": "interior",
       "asset": "assets/models/interior/Drawer/Drawer_4.glb",
+      "interiorBuildingId": "building-silent-1-001",
+      "interiorStoryIndex": 1,
       "position": [
-        -13.5,
+        -20.5,
         3.1,
-        -14.5
+        -13.5
       ],
       "rotation": [
         0,
@@ -8204,15 +8214,16 @@
         0.5,
         0.5,
         0.5
-      ],
-      "interiorBuildingId": "building-silent-1-001"
+      ]
     },
     {
       "id": "interior-furnished-building-silent-1-001-f2-rug-4",
       "type": "interior",
       "asset": "assets/models/interior/Round Rug/Carpet_Round.glb",
+      "interiorBuildingId": "building-silent-1-001",
+      "interiorStoryIndex": 1,
       "position": [
-        -14.5,
+        -19.5,
         3.125,
         -17.5
       ],
@@ -8225,17 +8236,18 @@
         0.5,
         0.5,
         0.5
-      ],
-      "interiorBuildingId": "building-silent-1-001"
+      ]
     },
     {
       "id": "interior-furnished-building-silent-1-001-f2-table-light-5",
       "type": "interior",
       "asset": "assets/models/interior/Lamp/Light_Floor2.glb",
+      "interiorBuildingId": "building-silent-1-001",
+      "interiorStoryIndex": 1,
       "position": [
-        -13.5,
+        -20.5,
         3.58,
-        -16.5
+        -17.5
       ],
       "rotation": [
         0,
@@ -8246,15 +8258,16 @@
         0.5,
         0.5,
         0.5
-      ],
-      "interiorBuildingId": "building-silent-1-001"
+      ]
     },
     {
       "id": "interior-furnished-building-silent-1-001-f2-ceiling-light-6",
       "type": "interior",
       "asset": "assets/models/interior/Light Ceiling-ToOLJDO5FI/Light_Ceiling3.glb",
+      "interiorBuildingId": "building-silent-1-001",
+      "interiorStoryIndex": 1,
       "position": [
-        -15.5,
+        -18.5,
         6.1,
         -19.5
       ],
@@ -8267,15 +8280,16 @@
         0.5,
         0.5,
         0.5
-      ],
-      "interiorBuildingId": "building-silent-1-001"
+      ]
     },
     {
       "id": "interior-furnished-building-silent-1-002-f1-dining-table-1",
       "type": "interior",
       "asset": "assets/models/interior/Table Round Large/Table_RoundLarge.glb",
+      "interiorBuildingId": "building-silent-1-002",
+      "interiorStoryIndex": 0,
       "position": [
-        40.5,
+        29.5,
         0,
         -17.5
       ],
@@ -8288,17 +8302,18 @@
         0.5,
         0.5,
         0.5
-      ],
-      "interiorBuildingId": "building-silent-1-002"
+      ]
     },
     {
       "id": "interior-furnished-building-silent-1-002-f1-chair-a-2",
       "type": "interior",
       "asset": "assets/models/interior/Chair/Chair_4.glb",
+      "interiorBuildingId": "building-silent-1-002",
+      "interiorStoryIndex": 0,
       "position": [
-        39.5,
+        26.5,
         0,
-        -17.5
+        -18.5
       ],
       "rotation": [
         0,
@@ -8309,15 +8324,16 @@
         0.5,
         0.5,
         0.5
-      ],
-      "interiorBuildingId": "building-silent-1-002"
+      ]
     },
     {
       "id": "interior-furnished-building-silent-1-002-f1-chair-b-3",
       "type": "interior",
       "asset": "assets/models/interior/Chair/Chair_1.glb",
+      "interiorBuildingId": "building-silent-1-002",
+      "interiorStoryIndex": 0,
       "position": [
-        41.5,
+        24.5,
         0,
         -17.5
       ],
@@ -8330,17 +8346,18 @@
         0.5,
         0.5,
         0.5
-      ],
-      "interiorBuildingId": "building-silent-1-002"
+      ]
     },
     {
       "id": "interior-furnished-building-silent-1-002-f1-fridge-4",
       "type": "interior",
       "asset": "assets/models/interior/Kitchen Fridge/Kitchen_Fridge.glb",
+      "interiorBuildingId": "building-silent-1-002",
+      "interiorStoryIndex": 0,
       "position": [
-        47.5,
+        18.5,
         0,
-        -14.5
+        -13.5
       ],
       "rotation": [
         0,
@@ -8351,15 +8368,16 @@
         0.5,
         0.5,
         0.5
-      ],
-      "interiorBuildingId": "building-silent-1-002"
+      ]
     },
     {
       "id": "interior-furnished-building-silent-1-002-f1-sink-5",
       "type": "interior",
       "asset": "assets/models/interior/Kitchen Sink/Kitchen_Sink.glb",
+      "interiorBuildingId": "building-silent-1-002",
+      "interiorStoryIndex": 0,
       "position": [
-        34.5,
+        32.5,
         0,
         -21.5
       ],
@@ -8372,15 +8390,16 @@
         0.5,
         0.5,
         0.5
-      ],
-      "interiorBuildingId": "building-silent-1-002"
+      ]
     },
     {
       "id": "interior-furnished-building-silent-1-002-f1-ceiling-light-6",
       "type": "interior",
       "asset": "assets/models/interior/Light Ceiling-NNlnaiDJIh/Light_Ceiling4.glb",
+      "interiorBuildingId": "building-silent-1-002",
+      "interiorStoryIndex": 0,
       "position": [
-        40.5,
+        25.5,
         3.25,
         -17.5
       ],
@@ -8393,17 +8412,18 @@
         0.5,
         0.5,
         0.5
-      ],
-      "interiorBuildingId": "building-silent-1-002"
+      ]
     },
     {
       "id": "interior-furnished-building-silent-1-002-f2-meeting-table-1",
       "type": "interior",
       "asset": "assets/models/interior/Table Round Large/Table_RoundLarge.glb",
+      "interiorBuildingId": "building-silent-1-002",
+      "interiorStoryIndex": 1,
       "position": [
-        41.5,
+        24.5,
         3.35,
-        -18.5
+        -16.5
       ],
       "rotation": [
         0,
@@ -8414,15 +8434,16 @@
         0.5,
         0.5,
         0.5
-      ],
-      "interiorBuildingId": "building-silent-1-002"
+      ]
     },
     {
       "id": "interior-furnished-building-silent-1-002-f2-chair-a-2",
       "type": "interior",
       "asset": "assets/models/interior/Chair/Chair_1.glb",
+      "interiorBuildingId": "building-silent-1-002",
+      "interiorStoryIndex": 1,
       "position": [
-        40.5,
+        25.5,
         3.35,
         -18.5
       ],
@@ -8435,15 +8456,16 @@
         0.5,
         0.5,
         0.5
-      ],
-      "interiorBuildingId": "building-silent-1-002"
+      ]
     },
     {
       "id": "interior-furnished-building-silent-1-002-f2-chair-b-3",
       "type": "interior",
       "asset": "assets/models/interior/Chair/Chair_4.glb",
+      "interiorBuildingId": "building-silent-1-002",
+      "interiorStoryIndex": 1,
       "position": [
-        42.5,
+        23.5,
         3.35,
         -18.5
       ],
@@ -8456,15 +8478,16 @@
         0.5,
         0.5,
         0.5
-      ],
-      "interiorBuildingId": "building-silent-1-002"
+      ]
     },
     {
       "id": "interior-furnished-building-silent-1-002-f2-shelf-4",
       "type": "interior",
       "asset": "assets/models/interior/Shelf Small/Shelf_Small1.glb",
+      "interiorBuildingId": "building-silent-1-002",
+      "interiorStoryIndex": 1,
       "position": [
-        47.5,
+        18.5,
         3.35,
         -16.5
       ],
@@ -8477,15 +8500,16 @@
         0.5,
         0.5,
         0.5
-      ],
-      "interiorBuildingId": "building-silent-1-002"
+      ]
     },
     {
       "id": "interior-furnished-building-silent-1-002-f2-plant-5",
       "type": "interior",
       "asset": "assets/models/interior/Houseplant-IBLX2Jz90O/Houseplant_5.glb",
+      "interiorBuildingId": "building-silent-1-002",
+      "interiorStoryIndex": 1,
       "position": [
-        36.5,
+        29.5,
         3.35,
         -21.5
       ],
@@ -8498,17 +8522,18 @@
         0.5,
         0.5,
         0.5
-      ],
-      "interiorBuildingId": "building-silent-1-002"
+      ]
     },
     {
       "id": "interior-furnished-building-silent-1-002-f2-ceiling-light-6",
       "type": "interior",
       "asset": "assets/models/interior/Light Ceiling/Light_Ceiling1.glb",
+      "interiorBuildingId": "building-silent-1-002",
+      "interiorStoryIndex": 1,
       "position": [
-        41.5,
+        24.5,
         6.6,
-        -18.5
+        -17.5
       ],
       "rotation": [
         0,
@@ -8519,17 +8544,18 @@
         0.5,
         0.5,
         0.5
-      ],
-      "interiorBuildingId": "building-silent-1-002"
+      ]
     },
     {
       "id": "interior-furnished-building-silent-1-002-f3-bathtub-1",
       "type": "interior",
       "asset": "assets/models/interior/Bathtub/Bathroom_Bathtub.glb",
+      "interiorBuildingId": "building-silent-1-002",
+      "interiorStoryIndex": 2,
       "position": [
-        42.5,
+        22.5,
         6.7,
-        -17.5
+        -19.5
       ],
       "rotation": [
         0,
@@ -8540,15 +8566,16 @@
         0.5,
         0.5,
         0.5
-      ],
-      "interiorBuildingId": "building-silent-1-002"
+      ]
     },
     {
       "id": "interior-furnished-building-silent-1-002-f3-toilet-2",
       "type": "interior",
       "asset": "assets/models/interior/Toilet/Bathroom_Toilet.glb",
+      "interiorBuildingId": "building-silent-1-002",
+      "interiorStoryIndex": 2,
       "position": [
-        35.5,
+        30.5,
         6.7,
         -19.5
       ],
@@ -8561,17 +8588,18 @@
         0.5,
         0.5,
         0.5
-      ],
-      "interiorBuildingId": "building-silent-1-002"
+      ]
     },
     {
       "id": "interior-furnished-building-silent-1-002-f3-sink-3",
       "type": "interior",
       "asset": "assets/models/interior/Bathroom Sink/Bathroom_Sink.glb",
+      "interiorBuildingId": "building-silent-1-002",
+      "interiorStoryIndex": 2,
       "position": [
-        37.5,
+        29.5,
         6.7,
-        -19.5
+        -20.5
       ],
       "rotation": [
         0,
@@ -8582,15 +8610,16 @@
         0.5,
         0.5,
         0.5
-      ],
-      "interiorBuildingId": "building-silent-1-002"
+      ]
     },
     {
       "id": "interior-furnished-building-silent-1-002-f3-washing-machine-4",
       "type": "interior",
       "asset": "assets/models/interior/Washing Machine/Bathroom_WashingMachine.glb",
+      "interiorBuildingId": "building-silent-1-002",
+      "interiorStoryIndex": 2,
       "position": [
-        46.5,
+        18.5,
         6.7,
         -16.5
       ],
@@ -8603,15 +8632,16 @@
         0.5,
         0.5,
         0.5
-      ],
-      "interiorBuildingId": "building-silent-1-002"
+      ]
     },
     {
       "id": "interior-furnished-building-silent-1-002-f3-trashcan-5",
       "type": "interior",
       "asset": "assets/models/interior/Trashcan Small/Trashcan_Small2.glb",
+      "interiorBuildingId": "building-silent-1-002",
+      "interiorStoryIndex": 2,
       "position": [
-        48.5,
+        17.5,
         6.7,
         -16.5
       ],
@@ -8624,15 +8654,16 @@
         0.5,
         0.5,
         0.5
-      ],
-      "interiorBuildingId": "building-silent-1-002"
+      ]
     },
     {
       "id": "interior-furnished-building-silent-1-002-f3-ceiling-light-6",
       "type": "interior",
       "asset": "assets/models/interior/Light Chandelier/Light_Chandelier.glb",
+      "interiorBuildingId": "building-silent-1-002",
+      "interiorStoryIndex": 2,
       "position": [
-        42.5,
+        23.5,
         9.95,
         -17.5
       ],
@@ -8645,17 +8676,18 @@
         0.5,
         0.5,
         0.5
-      ],
-      "interiorBuildingId": "building-silent-1-002"
+      ]
     },
     {
       "id": "interior-furnished-building-silent-2-001-f1-bathtub-1",
       "type": "interior",
       "asset": "assets/models/interior/Bathtub/Bathroom_Bathtub.glb",
+      "interiorBuildingId": "building-silent-2-001",
+      "interiorStoryIndex": 0,
       "position": [
-        -15.5,
+        3.5,
         0,
-        25.5
+        24.5
       ],
       "rotation": [
         0,
@@ -8666,15 +8698,16 @@
         0.5,
         0.5,
         0.5
-      ],
-      "interiorBuildingId": "building-silent-2-001"
+      ]
     },
     {
       "id": "interior-furnished-building-silent-2-001-f1-toilet-2",
       "type": "interior",
       "asset": "assets/models/interior/Toilet/Bathroom_Toilet.glb",
+      "interiorBuildingId": "building-silent-2-001",
+      "interiorStoryIndex": 0,
       "position": [
-        -6.5,
+        -5.5,
         0,
         27.5
       ],
@@ -8687,17 +8720,18 @@
         0.5,
         0.5,
         0.5
-      ],
-      "interiorBuildingId": "building-silent-2-001"
+      ]
     },
     {
       "id": "interior-furnished-building-silent-2-001-f1-sink-3",
       "type": "interior",
       "asset": "assets/models/interior/Bathroom Sink/Bathroom_Sink.glb",
+      "interiorBuildingId": "building-silent-2-001",
+      "interiorStoryIndex": 0,
       "position": [
-        -8.5,
+        -4.5,
         0,
-        27.5
+        28.5
       ],
       "rotation": [
         0,
@@ -8708,17 +8742,18 @@
         0.5,
         0.5,
         0.5
-      ],
-      "interiorBuildingId": "building-silent-2-001"
+      ]
     },
     {
       "id": "interior-furnished-building-silent-2-001-f1-washing-machine-4",
       "type": "interior",
       "asset": "assets/models/interior/Washing Machine/Bathroom_WashingMachine.glb",
+      "interiorBuildingId": "building-silent-2-001",
+      "interiorStoryIndex": 0,
       "position": [
-        -20.5,
+        8.5,
         0,
-        20.5
+        19.5
       ],
       "rotation": [
         0,
@@ -8729,15 +8764,16 @@
         0.5,
         0.5,
         0.5
-      ],
-      "interiorBuildingId": "building-silent-2-001"
+      ]
     },
     {
       "id": "interior-furnished-building-silent-2-001-f1-trashcan-5",
       "type": "interior",
       "asset": "assets/models/interior/Trashcan-XSwahu252t/Trashcan_Green.glb",
+      "interiorBuildingId": "building-silent-2-001",
+      "interiorStoryIndex": 0,
       "position": [
-        -22.5,
+        10.5,
         0,
         20.5
       ],
@@ -8750,15 +8786,16 @@
         0.5,
         0.5,
         0.5
-      ],
-      "interiorBuildingId": "building-silent-2-001"
+      ]
     },
     {
       "id": "interior-furnished-building-silent-2-001-f1-ceiling-light-6",
       "type": "interior",
       "asset": "assets/models/interior/Ceiling Light/Light_Ceiling2.glb",
+      "interiorBuildingId": "building-silent-2-001",
+      "interiorStoryIndex": 0,
       "position": [
-        -15.5,
+        3.5,
         3.5,
         25.5
       ],
@@ -8771,17 +8808,18 @@
         0.5,
         0.5,
         0.5
-      ],
-      "interiorBuildingId": "building-silent-2-001"
+      ]
     },
     {
       "id": "interior-furnished-building-silent-2-001-f2-bunk-bed-1",
       "type": "interior",
       "asset": "assets/models/interior/Bunk Bed/Bed_Bunk.glb",
+      "interiorBuildingId": "building-silent-2-001",
+      "interiorStoryIndex": 1,
       "position": [
-        -13.5,
+        1.5,
         3.6,
-        25.5
+        24.5
       ],
       "rotation": [
         0,
@@ -8792,15 +8830,16 @@
         0.5,
         0.5,
         0.5
-      ],
-      "interiorBuildingId": "building-silent-2-001"
+      ]
     },
     {
       "id": "interior-furnished-building-silent-2-001-f2-stool-2",
       "type": "interior",
       "asset": "assets/models/interior/Stool/Stool.glb",
+      "interiorBuildingId": "building-silent-2-001",
+      "interiorStoryIndex": 1,
       "position": [
-        -4.5,
+        -7.5,
         3.6,
         27.5
       ],
@@ -8813,17 +8852,18 @@
         0.5,
         0.5,
         0.5
-      ],
-      "interiorBuildingId": "building-silent-2-001"
+      ]
     },
     {
       "id": "interior-furnished-building-silent-2-001-f2-shelf-3",
       "type": "interior",
       "asset": "assets/models/interior/Shelf Large/Shelf_Large.glb",
+      "interiorBuildingId": "building-silent-2-001",
+      "interiorStoryIndex": 1,
       "position": [
         -6.5,
         3.6,
-        27.5
+        28.5
       ],
       "rotation": [
         0,
@@ -8834,15 +8874,16 @@
         0.5,
         0.5,
         0.5
-      ],
-      "interiorBuildingId": "building-silent-2-001"
+      ]
     },
     {
       "id": "interior-furnished-building-silent-2-001-f2-rug-4",
       "type": "interior",
       "asset": "assets/models/interior/Rug/Carpet_1.glb",
+      "interiorBuildingId": "building-silent-2-001",
+      "interiorStoryIndex": 1,
       "position": [
-        -13.5,
+        1.5,
         3.625,
         25.5
       ],
@@ -8855,17 +8896,18 @@
         0.5,
         0.5,
         0.5
-      ],
-      "interiorBuildingId": "building-silent-2-001"
+      ]
     },
     {
       "id": "interior-furnished-building-silent-2-001-f2-drawer-5",
       "type": "interior",
       "asset": "assets/models/interior/Drawer/Drawer_4.glb",
+      "interiorBuildingId": "building-silent-2-001",
+      "interiorStoryIndex": 1,
       "position": [
-        -19.5,
+        7.5,
         3.6,
-        20.5
+        19.5
       ],
       "rotation": [
         0,
@@ -8876,17 +8918,18 @@
         0.5,
         0.5,
         0.5
-      ],
-      "interiorBuildingId": "building-silent-2-001"
+      ]
     },
     {
       "id": "interior-furnished-building-silent-2-001-f2-ceiling-light-6",
       "type": "interior",
       "asset": "assets/models/interior/Light Ceiling-ToOLJDO5FI/Light_Ceiling3.glb",
+      "interiorBuildingId": "building-silent-2-001",
+      "interiorStoryIndex": 1,
       "position": [
-        -13.5,
+        1.5,
         7.1,
-        25.5
+        26.5
       ],
       "rotation": [
         0,
@@ -8897,15 +8940,16 @@
         0.5,
         0.5,
         0.5
-      ],
-      "interiorBuildingId": "building-silent-2-001"
+      ]
     },
     {
       "id": "interior-furnished-building-silent-3-001-f1-couch-1",
       "type": "interior",
       "asset": "assets/models/interior/Couch Medium/Couch_Medium2.glb",
+      "interiorBuildingId": "building-silent-3-001",
+      "interiorStoryIndex": 0,
       "position": [
-        18.5,
+        -4.5,
         0,
         -6.5
       ],
@@ -8918,15 +8962,16 @@
         0.5,
         0.5,
         0.5
-      ],
-      "interiorBuildingId": "building-silent-3-001"
+      ]
     },
     {
       "id": "interior-furnished-building-silent-3-001-f1-rug-2",
       "type": "interior",
       "asset": "assets/models/interior/Rug/Carpet_1.glb",
+      "interiorBuildingId": "building-silent-3-001",
+      "interiorStoryIndex": 0,
       "position": [
-        18.5,
+        -6.5,
         0.025,
         -5.5
       ],
@@ -8939,15 +8984,16 @@
         0.5,
         0.5,
         0.5
-      ],
-      "interiorBuildingId": "building-silent-3-001"
+      ]
     },
     {
       "id": "interior-furnished-building-silent-3-001-f1-table-3",
       "type": "interior",
       "asset": "assets/models/interior/Table Round Small/Table_RoundSmall2.glb",
+      "interiorBuildingId": "building-silent-3-001",
+      "interiorStoryIndex": 0,
       "position": [
-        19.5,
+        -4.5,
         0,
         -5.5
       ],
@@ -8960,15 +9006,16 @@
         0.5,
         0.5,
         0.5
-      ],
-      "interiorBuildingId": "building-silent-3-001"
+      ]
     },
     {
       "id": "interior-furnished-building-silent-3-001-f1-chair-4",
       "type": "interior",
       "asset": "assets/models/interior/Chair/Chair_4.glb",
+      "interiorBuildingId": "building-silent-3-001",
+      "interiorStoryIndex": 0,
       "position": [
-        11.5,
+        0.5,
         0,
         -6.5
       ],
@@ -8981,15 +9028,16 @@
         0.5,
         0.5,
         0.5
-      ],
-      "interiorBuildingId": "building-silent-3-001"
+      ]
     },
     {
       "id": "interior-furnished-building-silent-3-001-f1-plant-5",
       "type": "interior",
       "asset": "assets/models/interior/Houseplant-Kr4kr7OCCQ/Houseplant_2.glb",
+      "interiorBuildingId": "building-silent-3-001",
+      "interiorStoryIndex": 0,
       "position": [
-        21.5,
+        -9.5,
         0,
         -10.5
       ],
@@ -9002,15 +9050,16 @@
         0.5,
         0.5,
         0.5
-      ],
-      "interiorBuildingId": "building-silent-3-001"
+      ]
     },
     {
       "id": "interior-furnished-building-silent-3-001-f1-ceiling-light-6",
       "type": "interior",
       "asset": "assets/models/interior/Light Ceiling-NNlnaiDJIh/Light_Ceiling4.glb",
+      "interiorBuildingId": "building-silent-3-001",
+      "interiorStoryIndex": 0,
       "position": [
-        18.5,
+        -5.5,
         3,
         -6.5
       ],
@@ -9023,17 +9072,18 @@
         0.5,
         0.5,
         0.5
-      ],
-      "interiorBuildingId": "building-silent-3-001"
+      ]
     },
     {
       "id": "interior-furnished-building-silent-3-001-f2-bed-1",
       "type": "interior",
       "asset": "assets/models/interior/Bed King/Bed_King.glb",
+      "interiorBuildingId": "building-silent-3-001",
+      "interiorStoryIndex": 1,
       "position": [
-        15.5,
+        -7.5,
         3.1,
-        -6.5
+        -10.5
       ],
       "rotation": [
         0,
@@ -9044,15 +9094,16 @@
         0.5,
         0.5,
         0.5
-      ],
-      "interiorBuildingId": "building-silent-3-001"
+      ]
     },
     {
       "id": "interior-furnished-building-silent-3-001-f2-night-stand-2",
       "type": "interior",
       "asset": "assets/models/interior/Night Stand/NightStand_1.glb",
+      "interiorBuildingId": "building-silent-3-001",
+      "interiorStoryIndex": 1,
       "position": [
-        16.5,
+        -4.5,
         3.1,
         -5.5
       ],
@@ -9065,17 +9116,18 @@
         0.5,
         0.5,
         0.5
-      ],
-      "interiorBuildingId": "building-silent-3-001"
+      ]
     },
     {
       "id": "interior-furnished-building-silent-3-001-f2-drawer-3",
       "type": "interior",
       "asset": "assets/models/interior/Drawer/Drawer_5.glb",
+      "interiorBuildingId": "building-silent-3-001",
+      "interiorStoryIndex": 1,
       "position": [
-        7.5,
+        2.5,
         3.1,
-        -6.5
+        -3.5
       ],
       "rotation": [
         0,
@@ -9086,15 +9138,16 @@
         0.5,
         0.5,
         0.5
-      ],
-      "interiorBuildingId": "building-silent-3-001"
+      ]
     },
     {
       "id": "interior-furnished-building-silent-3-001-f2-rug-4",
       "type": "interior",
       "asset": "assets/models/interior/Rug/Carpet_1.glb",
+      "interiorBuildingId": "building-silent-3-001",
+      "interiorStoryIndex": 1,
       "position": [
-        15.5,
+        -3.5,
         3.125,
         -6.5
       ],
@@ -9107,16 +9160,171 @@
         0.5,
         0.5,
         0.5
-      ],
-      "interiorBuildingId": "building-silent-3-001"
+      ]
     },
     {
       "id": "interior-furnished-building-silent-3-001-f2-table-light-5",
       "type": "interior",
       "asset": "assets/models/interior/Lamp/Light_Floor2.glb",
+      "interiorBuildingId": "building-silent-3-001",
+      "interiorStoryIndex": 1,
       "position": [
-        16.5,
+        -4.5,
         3.58,
+        -6.5
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        0.5,
+        0.5,
+        0.5
+      ]
+    },
+    {
+      "id": "interior-furnished-building-silent-3-001-f2-ceiling-light-6",
+      "type": "interior",
+      "asset": "assets/models/interior/Light Ceiling/Light_Ceiling1.glb",
+      "interiorBuildingId": "building-silent-3-001",
+      "interiorStoryIndex": 1,
+      "position": [
+        -9.5,
+        6.1,
+        -10.5
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        0.5,
+        0.5,
+        0.5
+      ]
+    },
+    {
+      "id": "interior-furnished-building-silent-3-001-f3-dining-table-1",
+      "type": "interior",
+      "asset": "assets/models/interior/Table Round Large/Table_RoundLarge.glb",
+      "interiorBuildingId": "building-silent-3-001",
+      "interiorStoryIndex": 2,
+      "position": [
+        -4.5,
+        6.2,
+        -6.5
+      ],
+      "rotation": [
+        0,
+        1.571,
+        0
+      ],
+      "scale": [
+        0.5,
+        0.5,
+        0.5
+      ]
+    },
+    {
+      "id": "interior-furnished-building-silent-3-001-f3-chair-a-2",
+      "type": "interior",
+      "asset": "assets/models/interior/Chair/Chair_4.glb",
+      "interiorBuildingId": "building-silent-3-001",
+      "interiorStoryIndex": 2,
+      "position": [
+        -0.5,
+        6.2,
+        -6.5
+      ],
+      "rotation": [
+        0,
+        1.571,
+        0
+      ],
+      "scale": [
+        0.5,
+        0.5,
+        0.5
+      ]
+    },
+    {
+      "id": "interior-furnished-building-silent-3-001-f3-chair-b-3",
+      "type": "interior",
+      "asset": "assets/models/interior/Chair/Chair_1.glb",
+      "interiorBuildingId": "building-silent-3-001",
+      "interiorStoryIndex": 2,
+      "position": [
+        -3.5,
+        6.2,
+        -6.5
+      ],
+      "rotation": [
+        0,
+        -1.571,
+        0
+      ],
+      "scale": [
+        0.5,
+        0.5,
+        0.5
+      ]
+    },
+    {
+      "id": "interior-furnished-building-silent-3-001-f3-fridge-4",
+      "type": "interior",
+      "asset": "assets/models/interior/Kitchen Fridge/Kitchen_Fridge.glb",
+      "interiorBuildingId": "building-silent-3-001",
+      "interiorStoryIndex": 2,
+      "position": [
+        4.5,
+        6.2,
+        -10.5
+      ],
+      "rotation": [
+        0,
+        3.142,
+        0
+      ],
+      "scale": [
+        0.5,
+        0.5,
+        0.5
+      ]
+    },
+    {
+      "id": "interior-furnished-building-silent-3-001-f3-sink-5",
+      "type": "interior",
+      "asset": "assets/models/interior/Kitchen Sink/Kitchen_Sink.glb",
+      "interiorBuildingId": "building-silent-3-001",
+      "interiorStoryIndex": 2,
+      "position": [
+        -9.5,
+        6.2,
+        -11.5
+      ],
+      "rotation": [
+        0,
+        3.142,
+        0
+      ],
+      "scale": [
+        0.5,
+        0.5,
+        0.5
+      ]
+    },
+    {
+      "id": "interior-furnished-building-silent-3-001-f3-ceiling-light-6",
+      "type": "interior",
+      "asset": "assets/models/interior/Light Chandelier/Light_Chandelier.glb",
+      "interiorBuildingId": "building-silent-3-001",
+      "interiorStoryIndex": 2,
+      "position": [
+        -2.5,
+        9.2,
         -5.5
       ],
       "rotation": [
@@ -9128,162 +9336,16 @@
         0.5,
         0.5,
         0.5
-      ],
-      "interiorBuildingId": "building-silent-3-001"
-    },
-    {
-      "id": "interior-furnished-building-silent-3-001-f2-ceiling-light-6",
-      "type": "interior",
-      "asset": "assets/models/interior/Light Ceiling/Light_Ceiling1.glb",
-      "position": [
-        21.5,
-        6.1,
-        -10.5
-      ],
-      "rotation": [
-        0,
-        0,
-        0
-      ],
-      "scale": [
-        0.5,
-        0.5,
-        0.5
-      ],
-      "interiorBuildingId": "building-silent-3-001"
-    },
-    {
-      "id": "interior-furnished-building-silent-3-001-f3-dining-table-1",
-      "type": "interior",
-      "asset": "assets/models/interior/Table Round Large/Table_RoundLarge.glb",
-      "position": [
-        14.5,
-        6.2,
-        -6.5
-      ],
-      "rotation": [
-        0,
-        1.571,
-        0
-      ],
-      "scale": [
-        0.5,
-        0.5,
-        0.5
-      ],
-      "interiorBuildingId": "building-silent-3-001"
-    },
-    {
-      "id": "interior-furnished-building-silent-3-001-f3-chair-a-2",
-      "type": "interior",
-      "asset": "assets/models/interior/Chair/Chair_4.glb",
-      "position": [
-        13.5,
-        6.2,
-        -6.5
-      ],
-      "rotation": [
-        0,
-        1.571,
-        0
-      ],
-      "scale": [
-        0.5,
-        0.5,
-        0.5
-      ],
-      "interiorBuildingId": "building-silent-3-001"
-    },
-    {
-      "id": "interior-furnished-building-silent-3-001-f3-chair-b-3",
-      "type": "interior",
-      "asset": "assets/models/interior/Chair/Chair_1.glb",
-      "position": [
-        15.5,
-        6.2,
-        -6.5
-      ],
-      "rotation": [
-        0,
-        -1.571,
-        0
-      ],
-      "scale": [
-        0.5,
-        0.5,
-        0.5
-      ],
-      "interiorBuildingId": "building-silent-3-001"
-    },
-    {
-      "id": "interior-furnished-building-silent-3-001-f3-fridge-4",
-      "type": "interior",
-      "asset": "assets/models/interior/Kitchen Fridge/Kitchen_Fridge.glb",
-      "position": [
-        7.5,
-        6.2,
-        -10.5
-      ],
-      "rotation": [
-        0,
-        3.142,
-        0
-      ],
-      "scale": [
-        0.5,
-        0.5,
-        0.5
-      ],
-      "interiorBuildingId": "building-silent-3-001"
-    },
-    {
-      "id": "interior-furnished-building-silent-3-001-f3-sink-5",
-      "type": "interior",
-      "asset": "assets/models/interior/Kitchen Sink/Kitchen_Sink.glb",
-      "position": [
-        21.5,
-        6.2,
-        -10.5
-      ],
-      "rotation": [
-        0,
-        3.142,
-        0
-      ],
-      "scale": [
-        0.5,
-        0.5,
-        0.5
-      ],
-      "interiorBuildingId": "building-silent-3-001"
-    },
-    {
-      "id": "interior-furnished-building-silent-3-001-f3-ceiling-light-6",
-      "type": "interior",
-      "asset": "assets/models/interior/Light Chandelier/Light_Chandelier.glb",
-      "position": [
-        14.5,
-        9.2,
-        -6.5
-      ],
-      "rotation": [
-        0,
-        0,
-        0
-      ],
-      "scale": [
-        0.5,
-        0.5,
-        0.5
-      ],
-      "interiorBuildingId": "building-silent-3-001"
+      ]
     },
     {
       "id": "interior-furnished-building-silent-3-001-f4-meeting-table-1",
       "type": "interior",
       "asset": "assets/models/interior/Table Round Large/Table_RoundLarge.glb",
+      "interiorBuildingId": "building-silent-3-001",
+      "interiorStoryIndex": 3,
       "position": [
-        18.5,
+        -10.5,
         9.3,
         -6.5
       ],
@@ -9296,15 +9358,16 @@
         0.5,
         0.5,
         0.5
-      ],
-      "interiorBuildingId": "building-silent-3-001"
+      ]
     },
     {
       "id": "interior-furnished-building-silent-3-001-f4-chair-a-2",
       "type": "interior",
       "asset": "assets/models/interior/Chair/Chair_1.glb",
+      "interiorBuildingId": "building-silent-3-001",
+      "interiorStoryIndex": 3,
       "position": [
-        17.5,
+        -5.5,
         9.3,
         -6.5
       ],
@@ -9317,15 +9380,16 @@
         0.5,
         0.5,
         0.5
-      ],
-      "interiorBuildingId": "building-silent-3-001"
+      ]
     },
     {
       "id": "interior-furnished-building-silent-3-001-f4-chair-b-3",
       "type": "interior",
       "asset": "assets/models/interior/Chair/Chair_4.glb",
+      "interiorBuildingId": "building-silent-3-001",
+      "interiorStoryIndex": 3,
       "position": [
-        19.5,
+        -8.5,
         9.3,
         -6.5
       ],
@@ -9338,15 +9402,16 @@
         0.5,
         0.5,
         0.5
-      ],
-      "interiorBuildingId": "building-silent-3-001"
+      ]
     },
     {
       "id": "interior-furnished-building-silent-3-001-f4-shelf-4",
       "type": "interior",
       "asset": "assets/models/interior/Shelf Large/Shelf_Large.glb",
+      "interiorBuildingId": "building-silent-3-001",
+      "interiorStoryIndex": 3,
       "position": [
-        11.5,
+        0.5,
         9.3,
         -6.5
       ],
@@ -9359,15 +9424,16 @@
         0.5,
         0.5,
         0.5
-      ],
-      "interiorBuildingId": "building-silent-3-001"
+      ]
     },
     {
       "id": "interior-furnished-building-silent-3-001-f4-plant-5",
       "type": "interior",
       "asset": "assets/models/interior/Cactus/Houseplant_3.glb",
+      "interiorBuildingId": "building-silent-3-001",
+      "interiorStoryIndex": 3,
       "position": [
-        21.5,
+        -9.5,
         9.3,
         -10.5
       ],
@@ -9380,17 +9446,18 @@
         0.5,
         0.5,
         0.5
-      ],
-      "interiorBuildingId": "building-silent-3-001"
+      ]
     },
     {
       "id": "interior-furnished-building-silent-3-001-f4-ceiling-light-6",
       "type": "interior",
       "asset": "assets/models/interior/Light Ceiling-NNlnaiDJIh/Light_Ceiling4.glb",
+      "interiorBuildingId": "building-silent-3-001",
+      "interiorStoryIndex": 3,
       "position": [
-        18.5,
+        -6.5,
         12.3,
-        -6.5
+        -5.5
       ],
       "rotation": [
         0,
@@ -9401,17 +9468,18 @@
         0.5,
         0.5,
         0.5
-      ],
-      "interiorBuildingId": "building-silent-3-001"
+      ]
     },
     {
       "id": "interior-furnished-building-silent-2-002-f1-dining-table-1",
       "type": "interior",
       "asset": "assets/models/interior/Table Round Large/Table_RoundLarge.glb",
+      "interiorBuildingId": "building-silent-2-002",
+      "interiorStoryIndex": 0,
       "position": [
-        57.5,
+        44.5,
         0,
-        -25.5
+        -23.5
       ],
       "rotation": [
         0,
@@ -9422,15 +9490,16 @@
         0.5,
         0.5,
         0.5
-      ],
-      "interiorBuildingId": "building-silent-2-002"
+      ]
     },
     {
       "id": "interior-furnished-building-silent-2-002-f1-chair-a-2",
       "type": "interior",
       "asset": "assets/models/interior/Chair/Chair_1.glb",
+      "interiorBuildingId": "building-silent-2-002",
+      "interiorStoryIndex": 0,
       "position": [
-        56.5,
+        43.5,
         0,
         -25.5
       ],
@@ -9443,15 +9512,16 @@
         0.5,
         0.5,
         0.5
-      ],
-      "interiorBuildingId": "building-silent-2-002"
+      ]
     },
     {
       "id": "interior-furnished-building-silent-2-002-f1-chair-b-3",
       "type": "interior",
       "asset": "assets/models/interior/Chair/Chair_4.glb",
+      "interiorBuildingId": "building-silent-2-002",
+      "interiorStoryIndex": 0,
       "position": [
-        58.5,
+        41.5,
         0,
         -25.5
       ],
@@ -9464,15 +9534,16 @@
         0.5,
         0.5,
         0.5
-      ],
-      "interiorBuildingId": "building-silent-2-002"
+      ]
     },
     {
       "id": "interior-furnished-building-silent-2-002-f1-fridge-4",
       "type": "interior",
       "asset": "assets/models/interior/Kitchen Fridge/Kitchen_Fridge.glb",
+      "interiorBuildingId": "building-silent-2-002",
+      "interiorStoryIndex": 0,
       "position": [
-        64.5,
+        34.5,
         0,
         -27.5
       ],
@@ -9485,15 +9556,16 @@
         0.5,
         0.5,
         0.5
-      ],
-      "interiorBuildingId": "building-silent-2-002"
+      ]
     },
     {
       "id": "interior-furnished-building-silent-2-002-f1-sink-5",
       "type": "interior",
       "asset": "assets/models/interior/Kitchen Sink/Kitchen_Sink.glb",
+      "interiorBuildingId": "building-silent-2-002",
+      "interiorStoryIndex": 0,
       "position": [
-        51.5,
+        48.5,
         0,
         -27.5
       ],
@@ -9506,17 +9578,18 @@
         0.5,
         0.5,
         0.5
-      ],
-      "interiorBuildingId": "building-silent-2-002"
+      ]
     },
     {
       "id": "interior-furnished-building-silent-2-002-f1-ceiling-light-6",
       "type": "interior",
       "asset": "assets/models/interior/Ceiling Light/Light_Ceiling2.glb",
+      "interiorBuildingId": "building-silent-2-002",
+      "interiorStoryIndex": 0,
       "position": [
-        57.5,
+        42.5,
         3,
-        -25.5
+        -26.5
       ],
       "rotation": [
         0,
@@ -9527,17 +9600,18 @@
         0.5,
         0.5,
         0.5
-      ],
-      "interiorBuildingId": "building-silent-2-002"
+      ]
     },
     {
       "id": "interior-furnished-building-silent-2-002-f2-meeting-table-1",
       "type": "interior",
       "asset": "assets/models/interior/Table Round Large/Table_RoundLarge.glb",
+      "interiorBuildingId": "building-silent-2-002",
+      "interiorStoryIndex": 1,
       "position": [
-        56.5,
+        43.5,
         3.1,
-        -26.5
+        -28.5
       ],
       "rotation": [
         0,
@@ -9548,15 +9622,16 @@
         0.5,
         0.5,
         0.5
-      ],
-      "interiorBuildingId": "building-silent-2-002"
+      ]
     },
     {
       "id": "interior-furnished-building-silent-2-002-f2-chair-a-2",
       "type": "interior",
       "asset": "assets/models/interior/Chair/Chair_4.glb",
+      "interiorBuildingId": "building-silent-2-002",
+      "interiorStoryIndex": 1,
       "position": [
-        55.5,
+        44.5,
         3.1,
         -26.5
       ],
@@ -9569,15 +9644,16 @@
         0.5,
         0.5,
         0.5
-      ],
-      "interiorBuildingId": "building-silent-2-002"
+      ]
     },
     {
       "id": "interior-furnished-building-silent-2-002-f2-chair-b-3",
       "type": "interior",
       "asset": "assets/models/interior/Chair/Chair_1.glb",
+      "interiorBuildingId": "building-silent-2-002",
+      "interiorStoryIndex": 1,
       "position": [
-        57.5,
+        42.5,
         3.1,
         -26.5
       ],
@@ -9590,15 +9666,16 @@
         0.5,
         0.5,
         0.5
-      ],
-      "interiorBuildingId": "building-silent-2-002"
+      ]
     },
     {
       "id": "interior-furnished-building-silent-2-002-f2-shelf-4",
       "type": "interior",
       "asset": "assets/models/interior/Shelf Small/Shelf_Small1.glb",
+      "interiorBuildingId": "building-silent-2-002",
+      "interiorStoryIndex": 1,
       "position": [
-        50.5,
+        49.5,
         3.1,
         -27.5
       ],
@@ -9611,15 +9688,16 @@
         0.5,
         0.5,
         0.5
-      ],
-      "interiorBuildingId": "building-silent-2-002"
+      ]
     },
     {
       "id": "interior-furnished-building-silent-2-002-f2-plant-5",
       "type": "interior",
       "asset": "assets/models/interior/Dead Houseplant/Houseplant_8.glb",
+      "interiorBuildingId": "building-silent-2-002",
+      "interiorStoryIndex": 1,
       "position": [
-        62.5,
+        37.5,
         3.1,
         -27.5
       ],
@@ -9632,17 +9710,18 @@
         0.5,
         0.5,
         0.5
-      ],
-      "interiorBuildingId": "building-silent-2-002"
+      ]
     },
     {
       "id": "interior-furnished-building-silent-2-002-f2-ceiling-light-6",
       "type": "interior",
       "asset": "assets/models/interior/Light Ceiling-ToOLJDO5FI/Light_Ceiling3.glb",
+      "interiorBuildingId": "building-silent-2-002",
+      "interiorStoryIndex": 1,
       "position": [
-        56.5,
+        43.5,
         6.1,
-        -26.5
+        -27.5
       ],
       "rotation": [
         0,
@@ -9653,15 +9732,16 @@
         0.5,
         0.5,
         0.5
-      ],
-      "interiorBuildingId": "building-silent-2-002"
+      ]
     },
     {
       "id": "interior-furnished-building-silent-2-002-f3-bathtub-1",
       "type": "interior",
       "asset": "assets/models/interior/Bathtub/Bathroom_Bathtub.glb",
+      "interiorBuildingId": "building-silent-2-002",
+      "interiorStoryIndex": 2,
       "position": [
-        56.5,
+        43.5,
         6.2,
         -27.5
       ],
@@ -9674,13 +9754,36 @@
         0.5,
         0.5,
         0.5
-      ],
-      "interiorBuildingId": "building-silent-2-002"
+      ]
     },
     {
       "id": "interior-furnished-building-silent-2-002-f3-toilet-2",
       "type": "interior",
       "asset": "assets/models/interior/Toilet/Bathroom_Toilet.glb",
+      "interiorBuildingId": "building-silent-2-002",
+      "interiorStoryIndex": 2,
+      "position": [
+        50.5,
+        6.2,
+        -28.5
+      ],
+      "rotation": [
+        0,
+        3.142,
+        0
+      ],
+      "scale": [
+        0.5,
+        0.5,
+        0.5
+      ]
+    },
+    {
+      "id": "interior-furnished-building-silent-2-002-f3-sink-3",
+      "type": "interior",
+      "asset": "assets/models/interior/Bathroom Sink/Bathroom_Sink.glb",
+      "interiorBuildingId": "building-silent-2-002",
+      "interiorStoryIndex": 2,
       "position": [
         49.5,
         6.2,
@@ -9695,36 +9798,16 @@
         0.5,
         0.5,
         0.5
-      ],
-      "interiorBuildingId": "building-silent-2-002"
-    },
-    {
-      "id": "interior-furnished-building-silent-2-002-f3-sink-3",
-      "type": "interior",
-      "asset": "assets/models/interior/Bathroom Sink/Bathroom_Sink.glb",
-      "position": [
-        51.5,
-        6.2,
-        -28.5
-      ],
-      "rotation": [
-        0,
-        3.142,
-        0
-      ],
-      "scale": [
-        0.5,
-        0.5,
-        0.5
-      ],
-      "interiorBuildingId": "building-silent-2-002"
+      ]
     },
     {
       "id": "interior-furnished-building-silent-2-002-f3-washing-machine-4",
       "type": "interior",
       "asset": "assets/models/interior/Washing Machine/Bathroom_WashingMachine.glb",
+      "interiorBuildingId": "building-silent-2-002",
+      "interiorStoryIndex": 2,
       "position": [
-        61.5,
+        38.5,
         6.2,
         -28.5
       ],
@@ -9737,15 +9820,16 @@
         0.5,
         0.5,
         0.5
-      ],
-      "interiorBuildingId": "building-silent-2-002"
+      ]
     },
     {
       "id": "interior-furnished-building-silent-2-002-f3-trashcan-5",
       "type": "interior",
       "asset": "assets/models/interior/Trashcan-XSwahu252t/Trashcan_Green.glb",
+      "interiorBuildingId": "building-silent-2-002",
+      "interiorStoryIndex": 2,
       "position": [
-        63.5,
+        36.5,
         6.2,
         -28.5
       ],
@@ -9758,15 +9842,16 @@
         0.5,
         0.5,
         0.5
-      ],
-      "interiorBuildingId": "building-silent-2-002"
+      ]
     },
     {
       "id": "interior-furnished-building-silent-2-002-f3-ceiling-light-6",
       "type": "interior",
       "asset": "assets/models/interior/Light Ceiling Single/Light_CeilingSingle.glb",
+      "interiorBuildingId": "building-silent-2-002",
+      "interiorStoryIndex": 2,
       "position": [
-        56.5,
+        44.5,
         9.2,
         -27.5
       ],
@@ -9779,17 +9864,18 @@
         0.5,
         0.5,
         0.5
-      ],
-      "interiorBuildingId": "building-silent-2-002"
+      ]
     },
     {
       "id": "interior-furnished-building-silent-2-003-f1-bathtub-1",
       "type": "interior",
       "asset": "assets/models/interior/Bathtub/Bathroom_Bathtub.glb",
+      "interiorBuildingId": "building-silent-2-003",
+      "interiorStoryIndex": 0,
       "position": [
-        13.5,
+        -7.5,
         0,
-        -42.5
+        -41.5
       ],
       "rotation": [
         0,
@@ -9800,15 +9886,16 @@
         0.5,
         0.5,
         0.5
-      ],
-      "interiorBuildingId": "building-silent-2-003"
+      ]
     },
     {
       "id": "interior-furnished-building-silent-2-003-f1-toilet-2",
       "type": "interior",
       "asset": "assets/models/interior/Toilet/Bathroom_Toilet.glb",
+      "interiorBuildingId": "building-silent-2-003",
+      "interiorStoryIndex": 0,
       "position": [
-        3.5,
+        2.5,
         0,
         -45.5
       ],
@@ -9821,17 +9908,18 @@
         0.5,
         0.5,
         0.5
-      ],
-      "interiorBuildingId": "building-silent-2-003"
+      ]
     },
     {
       "id": "interior-furnished-building-silent-2-003-f1-sink-3",
       "type": "interior",
       "asset": "assets/models/interior/Bathroom Sink/Bathroom_Sink.glb",
+      "interiorBuildingId": "building-silent-2-003",
+      "interiorStoryIndex": 0,
       "position": [
-        5.5,
+        1.5,
         0,
-        -45.5
+        -46.5
       ],
       "rotation": [
         0,
@@ -9842,17 +9930,18 @@
         0.5,
         0.5,
         0.5
-      ],
-      "interiorBuildingId": "building-silent-2-003"
+      ]
     },
     {
       "id": "interior-furnished-building-silent-2-003-f1-washing-machine-4",
       "type": "interior",
       "asset": "assets/models/interior/Washing Machine/Bathroom_WashingMachine.glb",
+      "interiorBuildingId": "building-silent-2-003",
+      "interiorStoryIndex": 0,
       "position": [
-        3.5,
+        1.5,
         0,
-        -37.5
+        -36.5
       ],
       "rotation": [
         0,
@@ -9863,15 +9952,16 @@
         0.5,
         0.5,
         0.5
-      ],
-      "interiorBuildingId": "building-silent-2-003"
+      ]
     },
     {
       "id": "interior-furnished-building-silent-2-003-f1-trashcan-5",
       "type": "interior",
       "asset": "assets/models/interior/Trashcan/Trashcan_Cylindric.glb",
+      "interiorBuildingId": "building-silent-2-003",
+      "interiorStoryIndex": 0,
       "position": [
-        5.5,
+        0.5,
         0,
         -37.5
       ],
@@ -9884,15 +9974,16 @@
         0.5,
         0.5,
         0.5
-      ],
-      "interiorBuildingId": "building-silent-2-003"
+      ]
     },
     {
       "id": "interior-furnished-building-silent-2-003-f1-ceiling-light-6",
       "type": "interior",
       "asset": "assets/models/interior/Light Ceiling-NNlnaiDJIh/Light_Ceiling4.glb",
+      "interiorBuildingId": "building-silent-2-003",
+      "interiorStoryIndex": 0,
       "position": [
-        13.5,
+        -7.5,
         3.25,
         -42.5
       ],
@@ -9905,17 +9996,18 @@
         0.5,
         0.5,
         0.5
-      ],
-      "interiorBuildingId": "building-silent-2-003"
+      ]
     },
     {
       "id": "interior-furnished-building-silent-2-003-f2-bunk-bed-1",
       "type": "interior",
       "asset": "assets/models/interior/Bunk Bed/Bed_Bunk.glb",
+      "interiorBuildingId": "building-silent-2-003",
+      "interiorStoryIndex": 1,
       "position": [
-        11.5,
+        -4.5,
         3.35,
-        -42.5
+        -44.5
       ],
       "rotation": [
         0,
@@ -9926,15 +10018,16 @@
         0.5,
         0.5,
         0.5
-      ],
-      "interiorBuildingId": "building-silent-2-003"
+      ]
     },
     {
       "id": "interior-furnished-building-silent-2-003-f2-stool-2",
       "type": "interior",
       "asset": "assets/models/interior/Stool/Stool.glb",
+      "interiorBuildingId": "building-silent-2-003",
+      "interiorStoryIndex": 1,
       "position": [
-        18.5,
+        -12.5,
         3.35,
         -42.5
       ],
@@ -9947,17 +10040,18 @@
         0.5,
         0.5,
         0.5
-      ],
-      "interiorBuildingId": "building-silent-2-003"
+      ]
     },
     {
       "id": "interior-furnished-building-silent-2-003-f2-shelf-3",
       "type": "interior",
       "asset": "assets/models/interior/Shelf Large/Shelf_Large.glb",
+      "interiorBuildingId": "building-silent-2-003",
+      "interiorStoryIndex": 1,
       "position": [
-        20.5,
+        -14.5,
         3.35,
-        -42.5
+        -43.5
       ],
       "rotation": [
         0,
@@ -9968,17 +10062,18 @@
         0.5,
         0.5,
         0.5
-      ],
-      "interiorBuildingId": "building-silent-2-003"
+      ]
     },
     {
       "id": "interior-furnished-building-silent-2-003-f2-rug-4",
       "type": "interior",
       "asset": "assets/models/interior/Round Rug/Carpet_Round.glb",
+      "interiorBuildingId": "building-silent-2-003",
+      "interiorStoryIndex": 1,
       "position": [
-        11.5,
+        -5.5,
         3.375,
-        -42.5
+        -41.5
       ],
       "rotation": [
         0,
@@ -9989,15 +10084,16 @@
         0.5,
         0.5,
         0.5
-      ],
-      "interiorBuildingId": "building-silent-2-003"
+      ]
     },
     {
       "id": "interior-furnished-building-silent-2-003-f2-drawer-5",
       "type": "interior",
       "asset": "assets/models/interior/Drawer/Drawer_5.glb",
+      "interiorBuildingId": "building-silent-2-003",
+      "interiorStoryIndex": 1,
       "position": [
-        4.5,
+        1.5,
         3.35,
         -39.5
       ],
@@ -10010,15 +10106,16 @@
         0.5,
         0.5,
         0.5
-      ],
-      "interiorBuildingId": "building-silent-2-003"
+      ]
     },
     {
       "id": "interior-furnished-building-silent-2-003-f2-ceiling-light-6",
       "type": "interior",
       "asset": "assets/models/interior/Light Ceiling/Light_Ceiling1.glb",
+      "interiorBuildingId": "building-silent-2-003",
+      "interiorStoryIndex": 1,
       "position": [
-        11.5,
+        -4.5,
         6.6,
         -42.5
       ],
@@ -10031,17 +10128,18 @@
         0.5,
         0.5,
         0.5
-      ],
-      "interiorBuildingId": "building-silent-2-003"
+      ]
     },
     {
       "id": "interior-furnished-building-silent-3-002-f1-couch-1",
       "type": "interior",
       "asset": "assets/models/interior/Couch Small/Couch_Small1.glb",
+      "interiorBuildingId": "building-silent-3-002",
+      "interiorStoryIndex": 0,
       "position": [
-        -40.5,
+        -25.5,
         0,
-        -41.5
+        -42.5
       ],
       "rotation": [
         0,
@@ -10052,15 +10150,16 @@
         0.5,
         0.5,
         0.5
-      ],
-      "interiorBuildingId": "building-silent-3-002"
+      ]
     },
     {
       "id": "interior-furnished-building-silent-3-002-f1-rug-2",
       "type": "interior",
       "asset": "assets/models/interior/Round Rug/Carpet_Round.glb",
+      "interiorBuildingId": "building-silent-3-002",
+      "interiorStoryIndex": 0,
       "position": [
-        -40.5,
+        -26.5,
         0.025,
         -42.5
       ],
@@ -10073,17 +10172,18 @@
         0.5,
         0.5,
         0.5
-      ],
-      "interiorBuildingId": "building-silent-3-002"
+      ]
     },
     {
       "id": "interior-furnished-building-silent-3-002-f1-table-3",
       "type": "interior",
       "asset": "assets/models/interior/Table Round Small/Table_RoundSmall.glb",
+      "interiorBuildingId": "building-silent-3-002",
+      "interiorStoryIndex": 0,
       "position": [
-        -41.5,
+        -26.5,
         0,
-        -42.5
+        -44.5
       ],
       "rotation": [
         0,
@@ -10094,15 +10194,16 @@
         0.5,
         0.5,
         0.5
-      ],
-      "interiorBuildingId": "building-silent-3-002"
+      ]
     },
     {
       "id": "interior-furnished-building-silent-3-002-f1-chair-4",
       "type": "interior",
       "asset": "assets/models/interior/Chair/Chair_1.glb",
+      "interiorBuildingId": "building-silent-3-002",
+      "interiorStoryIndex": 0,
       "position": [
-        -35.5,
+        -32.5,
         0,
         -44.5
       ],
@@ -10115,15 +10216,16 @@
         0.5,
         0.5,
         0.5
-      ],
-      "interiorBuildingId": "building-silent-3-002"
+      ]
     },
     {
       "id": "interior-furnished-building-silent-3-002-f1-plant-5",
       "type": "interior",
       "asset": "assets/models/interior/Houseplant/Houseplant_4.glb",
+      "interiorBuildingId": "building-silent-3-002",
+      "interiorStoryIndex": 0,
       "position": [
-        -45.5,
+        -22.5,
         0,
         -44.5
       ],
@@ -10136,17 +10238,18 @@
         0.5,
         0.5,
         0.5
-      ],
-      "interiorBuildingId": "building-silent-3-002"
+      ]
     },
     {
       "id": "interior-furnished-building-silent-3-002-f1-ceiling-light-6",
       "type": "interior",
       "asset": "assets/models/interior/Ceiling Light/Light_Ceiling2.glb",
+      "interiorBuildingId": "building-silent-3-002",
+      "interiorStoryIndex": 0,
       "position": [
-        -40.5,
+        -27.5,
         3,
-        -41.5
+        -40.5
       ],
       "rotation": [
         0,
@@ -10157,17 +10260,18 @@
         0.5,
         0.5,
         0.5
-      ],
-      "interiorBuildingId": "building-silent-3-002"
+      ]
     },
     {
       "id": "interior-furnished-building-silent-3-002-f2-bed-1",
       "type": "interior",
       "asset": "assets/models/interior/Bed King/Bed_King.glb",
+      "interiorBuildingId": "building-silent-3-002",
+      "interiorStoryIndex": 1,
       "position": [
-        -36.5,
+        -31.5,
         3.1,
-        -41.5
+        -40.5
       ],
       "rotation": [
         0,
@@ -10178,15 +10282,16 @@
         0.5,
         0.5,
         0.5
-      ],
-      "interiorBuildingId": "building-silent-3-002"
+      ]
     },
     {
       "id": "interior-furnished-building-silent-3-002-f2-night-stand-2",
       "type": "interior",
       "asset": "assets/models/interior/Night Stand/NightStand_1.glb",
+      "interiorBuildingId": "building-silent-3-002",
+      "interiorStoryIndex": 1,
       "position": [
-        -37.5,
+        -30.5,
         3.1,
         -42.5
       ],
@@ -10199,17 +10304,18 @@
         0.5,
         0.5,
         0.5
-      ],
-      "interiorBuildingId": "building-silent-3-002"
+      ]
     },
     {
       "id": "interior-furnished-building-silent-3-002-f2-drawer-3",
       "type": "interior",
       "asset": "assets/models/interior/Drawer/Drawer_1.glb",
+      "interiorBuildingId": "building-silent-3-002",
+      "interiorStoryIndex": 1,
       "position": [
-        -37.5,
+        -30.5,
         3.1,
-        -44.5
+        -45.5
       ],
       "rotation": [
         0,
@@ -10220,15 +10326,16 @@
         0.5,
         0.5,
         0.5
-      ],
-      "interiorBuildingId": "building-silent-3-002"
+      ]
     },
     {
       "id": "interior-furnished-building-silent-3-002-f2-rug-4",
       "type": "interior",
       "asset": "assets/models/interior/Round Rug/Carpet_Round.glb",
+      "interiorBuildingId": "building-silent-3-002",
+      "interiorStoryIndex": 1,
       "position": [
-        -36.5,
+        -31.5,
         3.125,
         -41.5
       ],
@@ -10241,17 +10348,18 @@
         0.5,
         0.5,
         0.5
-      ],
-      "interiorBuildingId": "building-silent-3-002"
+      ]
     },
     {
       "id": "interior-furnished-building-silent-3-002-f2-table-light-5",
       "type": "interior",
       "asset": "assets/models/interior/Lamp/Light_Floor2.glb",
+      "interiorBuildingId": "building-silent-3-002",
+      "interiorStoryIndex": 1,
       "position": [
-        -37.5,
+        -30.5,
         3.58,
-        -42.5
+        -41.5
       ],
       "rotation": [
         0,
@@ -10262,15 +10370,16 @@
         0.5,
         0.5,
         0.5
-      ],
-      "interiorBuildingId": "building-silent-3-002"
+      ]
     },
     {
       "id": "interior-furnished-building-silent-3-002-f2-ceiling-light-6",
       "type": "interior",
       "asset": "assets/models/interior/Light Ceiling-ToOLJDO5FI/Light_Ceiling3.glb",
+      "interiorBuildingId": "building-silent-3-002",
+      "interiorStoryIndex": 1,
       "position": [
-        -35.5,
+        -32.5,
         6.1,
         -39.5
       ],
@@ -10283,15 +10392,16 @@
         0.5,
         0.5,
         0.5
-      ],
-      "interiorBuildingId": "building-silent-3-002"
+      ]
     },
     {
       "id": "interior-furnished-building-silent-2-004-f1-dining-table-1",
       "type": "interior",
       "asset": "assets/models/interior/Table Round Large/Table_RoundLarge.glb",
+      "interiorBuildingId": "building-silent-2-004",
+      "interiorStoryIndex": 0,
       "position": [
-        21.5,
+        10.5,
         0,
         -3.5
       ],
@@ -10304,17 +10414,18 @@
         0.5,
         0.5,
         0.5
-      ],
-      "interiorBuildingId": "building-silent-2-004"
+      ]
     },
     {
       "id": "interior-furnished-building-silent-2-004-f1-chair-a-2",
       "type": "interior",
       "asset": "assets/models/interior/Chair/Chair_4.glb",
+      "interiorBuildingId": "building-silent-2-004",
+      "interiorStoryIndex": 0,
       "position": [
-        20.5,
+        7.5,
         0,
-        -3.5
+        -4.5
       ],
       "rotation": [
         0,
@@ -10325,15 +10436,16 @@
         0.5,
         0.5,
         0.5
-      ],
-      "interiorBuildingId": "building-silent-2-004"
+      ]
     },
     {
       "id": "interior-furnished-building-silent-2-004-f1-chair-b-3",
       "type": "interior",
       "asset": "assets/models/interior/Chair/Chair_1.glb",
+      "interiorBuildingId": "building-silent-2-004",
+      "interiorStoryIndex": 0,
       "position": [
-        22.5,
+        5.5,
         0,
         -3.5
       ],
@@ -10346,17 +10458,18 @@
         0.5,
         0.5,
         0.5
-      ],
-      "interiorBuildingId": "building-silent-2-004"
+      ]
     },
     {
       "id": "interior-furnished-building-silent-2-004-f1-fridge-4",
       "type": "interior",
       "asset": "assets/models/interior/Kitchen Fridge/Kitchen_Fridge.glb",
+      "interiorBuildingId": "building-silent-2-004",
+      "interiorStoryIndex": 0,
       "position": [
-        28.5,
+        -0.5,
         0,
-        -0.5
+        0.5
       ],
       "rotation": [
         0,
@@ -10367,15 +10480,16 @@
         0.5,
         0.5,
         0.5
-      ],
-      "interiorBuildingId": "building-silent-2-004"
+      ]
     },
     {
       "id": "interior-furnished-building-silent-2-004-f1-sink-5",
       "type": "interior",
       "asset": "assets/models/interior/Kitchen Sink/Kitchen_Sink.glb",
+      "interiorBuildingId": "building-silent-2-004",
+      "interiorStoryIndex": 0,
       "position": [
-        15.5,
+        13.5,
         0,
         -7.5
       ],
@@ -10388,15 +10502,16 @@
         0.5,
         0.5,
         0.5
-      ],
-      "interiorBuildingId": "building-silent-2-004"
+      ]
     },
     {
       "id": "interior-furnished-building-silent-2-004-f1-ceiling-light-6",
       "type": "interior",
       "asset": "assets/models/interior/Light Ceiling-NNlnaiDJIh/Light_Ceiling4.glb",
+      "interiorBuildingId": "building-silent-2-004",
+      "interiorStoryIndex": 0,
       "position": [
-        21.5,
+        6.5,
         3.25,
         -3.5
       ],
@@ -10409,17 +10524,18 @@
         0.5,
         0.5,
         0.5
-      ],
-      "interiorBuildingId": "building-silent-2-004"
+      ]
     },
     {
       "id": "interior-furnished-building-silent-2-004-f2-meeting-table-1",
       "type": "interior",
       "asset": "assets/models/interior/Table Round Large/Table_RoundLarge.glb",
+      "interiorBuildingId": "building-silent-2-004",
+      "interiorStoryIndex": 1,
       "position": [
-        22.5,
+        5.5,
         3.35,
-        -4.5
+        -2.5
       ],
       "rotation": [
         0,
@@ -10430,15 +10546,16 @@
         0.5,
         0.5,
         0.5
-      ],
-      "interiorBuildingId": "building-silent-2-004"
+      ]
     },
     {
       "id": "interior-furnished-building-silent-2-004-f2-chair-a-2",
       "type": "interior",
       "asset": "assets/models/interior/Chair/Chair_1.glb",
+      "interiorBuildingId": "building-silent-2-004",
+      "interiorStoryIndex": 1,
       "position": [
-        21.5,
+        6.5,
         3.35,
         -4.5
       ],
@@ -10451,15 +10568,16 @@
         0.5,
         0.5,
         0.5
-      ],
-      "interiorBuildingId": "building-silent-2-004"
+      ]
     },
     {
       "id": "interior-furnished-building-silent-2-004-f2-chair-b-3",
       "type": "interior",
       "asset": "assets/models/interior/Chair/Chair_4.glb",
+      "interiorBuildingId": "building-silent-2-004",
+      "interiorStoryIndex": 1,
       "position": [
-        23.5,
+        4.5,
         3.35,
         -4.5
       ],
@@ -10472,15 +10590,16 @@
         0.5,
         0.5,
         0.5
-      ],
-      "interiorBuildingId": "building-silent-2-004"
+      ]
     },
     {
       "id": "interior-furnished-building-silent-2-004-f2-shelf-4",
       "type": "interior",
       "asset": "assets/models/interior/Shelf Small/Shelf_Small1.glb",
+      "interiorBuildingId": "building-silent-2-004",
+      "interiorStoryIndex": 1,
       "position": [
-        28.5,
+        -0.5,
         3.35,
         -2.5
       ],
@@ -10493,15 +10612,16 @@
         0.5,
         0.5,
         0.5
-      ],
-      "interiorBuildingId": "building-silent-2-004"
+      ]
     },
     {
       "id": "interior-furnished-building-silent-2-004-f2-plant-5",
       "type": "interior",
       "asset": "assets/models/interior/Houseplant-dveIJ0xNpX/Houseplant_6.glb",
+      "interiorBuildingId": "building-silent-2-004",
+      "interiorStoryIndex": 1,
       "position": [
-        17.5,
+        10.5,
         3.35,
         -7.5
       ],
@@ -10514,17 +10634,18 @@
         0.5,
         0.5,
         0.5
-      ],
-      "interiorBuildingId": "building-silent-2-004"
+      ]
     },
     {
       "id": "interior-furnished-building-silent-2-004-f2-ceiling-light-6",
       "type": "interior",
       "asset": "assets/models/interior/Light Ceiling/Light_Ceiling1.glb",
+      "interiorBuildingId": "building-silent-2-004",
+      "interiorStoryIndex": 1,
       "position": [
-        22.5,
+        5.5,
         6.6,
-        -4.5
+        -3.5
       ],
       "rotation": [
         0,
@@ -10535,17 +10656,18 @@
         0.5,
         0.5,
         0.5
-      ],
-      "interiorBuildingId": "building-silent-2-004"
+      ]
     },
     {
       "id": "interior-furnished-building-silent-2-004-f3-bathtub-1",
       "type": "interior",
       "asset": "assets/models/interior/Bathtub/Bathroom_Bathtub.glb",
+      "interiorBuildingId": "building-silent-2-004",
+      "interiorStoryIndex": 2,
       "position": [
-        23.5,
+        3.5,
         6.7,
-        -3.5
+        -5.5
       ],
       "rotation": [
         0,
@@ -10556,15 +10678,16 @@
         0.5,
         0.5,
         0.5
-      ],
-      "interiorBuildingId": "building-silent-2-004"
+      ]
     },
     {
       "id": "interior-furnished-building-silent-2-004-f3-toilet-2",
       "type": "interior",
       "asset": "assets/models/interior/Toilet/Bathroom_Toilet.glb",
+      "interiorBuildingId": "building-silent-2-004",
+      "interiorStoryIndex": 2,
       "position": [
-        16.5,
+        11.5,
         6.7,
         -5.5
       ],
@@ -10577,17 +10700,18 @@
         0.5,
         0.5,
         0.5
-      ],
-      "interiorBuildingId": "building-silent-2-004"
+      ]
     },
     {
       "id": "interior-furnished-building-silent-2-004-f3-sink-3",
       "type": "interior",
       "asset": "assets/models/interior/Bathroom Sink/Bathroom_Sink.glb",
+      "interiorBuildingId": "building-silent-2-004",
+      "interiorStoryIndex": 2,
       "position": [
-        18.5,
+        10.5,
         6.7,
-        -5.5
+        -6.5
       ],
       "rotation": [
         0,
@@ -10598,15 +10722,16 @@
         0.5,
         0.5,
         0.5
-      ],
-      "interiorBuildingId": "building-silent-2-004"
+      ]
     },
     {
       "id": "interior-furnished-building-silent-2-004-f3-washing-machine-4",
       "type": "interior",
       "asset": "assets/models/interior/Washing Machine/Bathroom_WashingMachine.glb",
+      "interiorBuildingId": "building-silent-2-004",
+      "interiorStoryIndex": 2,
       "position": [
-        27.5,
+        -0.5,
         6.7,
         -2.5
       ],
@@ -10619,15 +10744,16 @@
         0.5,
         0.5,
         0.5
-      ],
-      "interiorBuildingId": "building-silent-2-004"
+      ]
     },
     {
       "id": "interior-furnished-building-silent-2-004-f3-trashcan-5",
       "type": "interior",
       "asset": "assets/models/interior/Trashcan/Trashcan_Cylindric.glb",
+      "interiorBuildingId": "building-silent-2-004",
+      "interiorStoryIndex": 2,
       "position": [
-        29.5,
+        -1.5,
         6.7,
         -2.5
       ],
@@ -10640,15 +10766,16 @@
         0.5,
         0.5,
         0.5
-      ],
-      "interiorBuildingId": "building-silent-2-004"
+      ]
     },
     {
       "id": "interior-furnished-building-silent-2-004-f3-ceiling-light-6",
       "type": "interior",
       "asset": "assets/models/interior/Light Chandelier/Light_Chandelier.glb",
+      "interiorBuildingId": "building-silent-2-004",
+      "interiorStoryIndex": 2,
       "position": [
-        23.5,
+        4.5,
         9.95,
         -3.5
       ],
@@ -10661,17 +10788,18 @@
         0.5,
         0.5,
         0.5
-      ],
-      "interiorBuildingId": "building-silent-2-004"
+      ]
     },
     {
       "id": "interior-furnished-building-silent-3-003-f1-bathtub-1",
       "type": "interior",
       "asset": "assets/models/interior/Bathtub/Bathroom_Bathtub.glb",
+      "interiorBuildingId": "building-silent-3-003",
+      "interiorStoryIndex": 0,
       "position": [
-        72.5,
+        71.5,
         0,
-        47.5
+        28.5
       ],
       "rotation": [
         0,
@@ -10682,17 +10810,18 @@
         0.5,
         0.5,
         0.5
-      ],
-      "interiorBuildingId": "building-silent-3-003"
+      ]
     },
     {
       "id": "interior-furnished-building-silent-3-003-f1-toilet-2",
       "type": "interior",
       "asset": "assets/models/interior/Toilet/Bathroom_Toilet.glb",
+      "interiorBuildingId": "building-silent-3-003",
+      "interiorStoryIndex": 0,
       "position": [
         74.5,
         0,
-        38.5
+        37.5
       ],
       "rotation": [
         0,
@@ -10703,17 +10832,18 @@
         0.5,
         0.5,
         0.5
-      ],
-      "interiorBuildingId": "building-silent-3-003"
+      ]
     },
     {
       "id": "interior-furnished-building-silent-3-003-f1-sink-3",
       "type": "interior",
       "asset": "assets/models/interior/Bathroom Sink/Bathroom_Sink.glb",
+      "interiorBuildingId": "building-silent-3-003",
+      "interiorStoryIndex": 0,
       "position": [
-        74.5,
+        75.5,
         0,
-        40.5
+        36.5
       ],
       "rotation": [
         0,
@@ -10724,17 +10854,18 @@
         0.5,
         0.5,
         0.5
-      ],
-      "interiorBuildingId": "building-silent-3-003"
+      ]
     },
     {
       "id": "interior-furnished-building-silent-3-003-f1-washing-machine-4",
       "type": "interior",
       "asset": "assets/models/interior/Washing Machine/Bathroom_WashingMachine.glb",
+      "interiorBuildingId": "building-silent-3-003",
+      "interiorStoryIndex": 0,
       "position": [
-        67.5,
+        66.5,
         0,
-        52.5
+        23.5
       ],
       "rotation": [
         0,
@@ -10745,17 +10876,18 @@
         0.5,
         0.5,
         0.5
-      ],
-      "interiorBuildingId": "building-silent-3-003"
+      ]
     },
     {
       "id": "interior-furnished-building-silent-3-003-f1-trashcan-5",
       "type": "interior",
       "asset": "assets/models/interior/Trashcan Large/Trashcan_Large.glb",
+      "interiorBuildingId": "building-silent-3-003",
+      "interiorStoryIndex": 0,
       "position": [
         67.5,
         0,
-        54.5
+        21.5
       ],
       "rotation": [
         0,
@@ -10766,17 +10898,18 @@
         0.5,
         0.5,
         0.5
-      ],
-      "interiorBuildingId": "building-silent-3-003"
+      ]
     },
     {
       "id": "interior-furnished-building-silent-3-003-f1-ceiling-light-6",
       "type": "interior",
       "asset": "assets/models/interior/Ceiling Light/Light_Ceiling2.glb",
+      "interiorBuildingId": "building-silent-3-003",
+      "interiorStoryIndex": 0,
       "position": [
         72.5,
         3.5,
-        47.5
+        28.5
       ],
       "rotation": [
         0,
@@ -10787,17 +10920,18 @@
         0.5,
         0.5,
         0.5
-      ],
-      "interiorBuildingId": "building-silent-3-003"
+      ]
     },
     {
       "id": "interior-furnished-building-silent-3-003-f2-bunk-bed-1",
       "type": "interior",
       "asset": "assets/models/interior/Bunk Bed/Bed_Bunk.glb",
+      "interiorBuildingId": "building-silent-3-003",
+      "interiorStoryIndex": 1,
       "position": [
-        72.5,
+        71.5,
         3.6,
-        45.5
+        30.5
       ],
       "rotation": [
         0,
@@ -10808,17 +10942,18 @@
         0.5,
         0.5,
         0.5
-      ],
-      "interiorBuildingId": "building-silent-3-003"
+      ]
     },
     {
       "id": "interior-furnished-building-silent-3-003-f2-stool-2",
       "type": "interior",
       "asset": "assets/models/interior/Stool/Stool.glb",
+      "interiorBuildingId": "building-silent-3-003",
+      "interiorStoryIndex": 1,
       "position": [
         74.5,
         3.6,
-        36.5
+        39.5
       ],
       "rotation": [
         0,
@@ -10829,15 +10964,16 @@
         0.5,
         0.5,
         0.5
-      ],
-      "interiorBuildingId": "building-silent-3-003"
+      ]
     },
     {
       "id": "interior-furnished-building-silent-3-003-f2-shelf-3",
       "type": "interior",
       "asset": "assets/models/interior/Shelf Large/Shelf_Large.glb",
+      "interiorBuildingId": "building-silent-3-003",
+      "interiorStoryIndex": 1,
       "position": [
-        74.5,
+        75.5,
         3.6,
         38.5
       ],
@@ -10850,17 +10986,18 @@
         0.5,
         0.5,
         0.5
-      ],
-      "interiorBuildingId": "building-silent-3-003"
+      ]
     },
     {
       "id": "interior-furnished-building-silent-3-003-f2-rug-4",
       "type": "interior",
       "asset": "assets/models/interior/Rug/Carpet_1.glb",
+      "interiorBuildingId": "building-silent-3-003",
+      "interiorStoryIndex": 1,
       "position": [
         72.5,
         3.625,
-        45.5
+        30.5
       ],
       "rotation": [
         0,
@@ -10871,17 +11008,18 @@
         0.5,
         0.5,
         0.5
-      ],
-      "interiorBuildingId": "building-silent-3-003"
+      ]
     },
     {
       "id": "interior-furnished-building-silent-3-003-f2-drawer-5",
       "type": "interior",
       "asset": "assets/models/interior/Drawer/Drawer_1.glb",
+      "interiorBuildingId": "building-silent-3-003",
+      "interiorStoryIndex": 1,
       "position": [
-        67.5,
+        66.5,
         3.6,
-        51.5
+        24.5
       ],
       "rotation": [
         0,
@@ -10892,17 +11030,18 @@
         0.5,
         0.5,
         0.5
-      ],
-      "interiorBuildingId": "building-silent-3-003"
+      ]
     },
     {
       "id": "interior-furnished-building-silent-3-003-f2-ceiling-light-6",
       "type": "interior",
       "asset": "assets/models/interior/Light Ceiling-ToOLJDO5FI/Light_Ceiling3.glb",
+      "interiorBuildingId": "building-silent-3-003",
+      "interiorStoryIndex": 1,
       "position": [
-        72.5,
+        73.5,
         7.1,
-        45.5
+        30.5
       ],
       "rotation": [
         0,
@@ -10913,15 +11052,16 @@
         0.5,
         0.5,
         0.5
-      ],
-      "interiorBuildingId": "building-silent-3-003"
+      ]
     },
     {
       "id": "interior-furnished-building-silent-2-005-f1-couch-1",
       "type": "interior",
       "asset": "assets/models/interior/Couch Medium/Couch_Medium2.glb",
+      "interiorBuildingId": "building-silent-2-005",
+      "interiorStoryIndex": 0,
       "position": [
-        47.5,
+        24.5,
         0,
         -5.5
       ],
@@ -10934,15 +11074,16 @@
         0.5,
         0.5,
         0.5
-      ],
-      "interiorBuildingId": "building-silent-2-005"
+      ]
     },
     {
       "id": "interior-furnished-building-silent-2-005-f1-rug-2",
       "type": "interior",
       "asset": "assets/models/interior/Rug/Carpet_1.glb",
+      "interiorBuildingId": "building-silent-2-005",
+      "interiorStoryIndex": 0,
       "position": [
-        47.5,
+        22.5,
         0.025,
         -4.5
       ],
@@ -10955,15 +11096,16 @@
         0.5,
         0.5,
         0.5
-      ],
-      "interiorBuildingId": "building-silent-2-005"
+      ]
     },
     {
       "id": "interior-furnished-building-silent-2-005-f1-table-3",
       "type": "interior",
       "asset": "assets/models/interior/Table Round Small/Table_RoundSmall2.glb",
+      "interiorBuildingId": "building-silent-2-005",
+      "interiorStoryIndex": 0,
       "position": [
-        48.5,
+        24.5,
         0,
         -4.5
       ],
@@ -10976,15 +11118,16 @@
         0.5,
         0.5,
         0.5
-      ],
-      "interiorBuildingId": "building-silent-2-005"
+      ]
     },
     {
       "id": "interior-furnished-building-silent-2-005-f1-chair-4",
       "type": "interior",
       "asset": "assets/models/interior/Chair/Chair_4.glb",
+      "interiorBuildingId": "building-silent-2-005",
+      "interiorStoryIndex": 0,
       "position": [
-        40.5,
+        29.5,
         0,
         -5.5
       ],
@@ -10997,15 +11140,16 @@
         0.5,
         0.5,
         0.5
-      ],
-      "interiorBuildingId": "building-silent-2-005"
+      ]
     },
     {
       "id": "interior-furnished-building-silent-2-005-f1-plant-5",
       "type": "interior",
       "asset": "assets/models/interior/Houseplant-f6GPjbEgg0/Houseplant_1.glb",
+      "interiorBuildingId": "building-silent-2-005",
+      "interiorStoryIndex": 0,
       "position": [
-        50.5,
+        19.5,
         0,
         -9.5
       ],
@@ -11018,15 +11162,16 @@
         0.5,
         0.5,
         0.5
-      ],
-      "interiorBuildingId": "building-silent-2-005"
+      ]
     },
     {
       "id": "interior-furnished-building-silent-2-005-f1-ceiling-light-6",
       "type": "interior",
       "asset": "assets/models/interior/Light Ceiling-NNlnaiDJIh/Light_Ceiling4.glb",
+      "interiorBuildingId": "building-silent-2-005",
+      "interiorStoryIndex": 0,
       "position": [
-        47.5,
+        23.5,
         3,
         -5.5
       ],
@@ -11039,17 +11184,18 @@
         0.5,
         0.5,
         0.5
-      ],
-      "interiorBuildingId": "building-silent-2-005"
+      ]
     },
     {
       "id": "interior-furnished-building-silent-2-005-f2-bed-1",
       "type": "interior",
       "asset": "assets/models/interior/Bed King/Bed_King.glb",
+      "interiorBuildingId": "building-silent-2-005",
+      "interiorStoryIndex": 1,
       "position": [
-        44.5,
+        21.5,
         3.1,
-        -5.5
+        -9.5
       ],
       "rotation": [
         0,
@@ -11060,15 +11206,16 @@
         0.5,
         0.5,
         0.5
-      ],
-      "interiorBuildingId": "building-silent-2-005"
+      ]
     },
     {
       "id": "interior-furnished-building-silent-2-005-f2-night-stand-2",
       "type": "interior",
       "asset": "assets/models/interior/Night Stand/NightStand_1.glb",
+      "interiorBuildingId": "building-silent-2-005",
+      "interiorStoryIndex": 1,
       "position": [
-        45.5,
+        24.5,
         3.1,
         -4.5
       ],
@@ -11081,17 +11228,18 @@
         0.5,
         0.5,
         0.5
-      ],
-      "interiorBuildingId": "building-silent-2-005"
+      ]
     },
     {
       "id": "interior-furnished-building-silent-2-005-f2-drawer-3",
       "type": "interior",
       "asset": "assets/models/interior/Drawer/Drawer_2.glb",
+      "interiorBuildingId": "building-silent-2-005",
+      "interiorStoryIndex": 1,
       "position": [
-        36.5,
+        31.5,
         3.1,
-        -5.5
+        -2.5
       ],
       "rotation": [
         0,
@@ -11102,15 +11250,16 @@
         0.5,
         0.5,
         0.5
-      ],
-      "interiorBuildingId": "building-silent-2-005"
+      ]
     },
     {
       "id": "interior-furnished-building-silent-2-005-f2-rug-4",
       "type": "interior",
       "asset": "assets/models/interior/Rug/Carpet_1.glb",
+      "interiorBuildingId": "building-silent-2-005",
+      "interiorStoryIndex": 1,
       "position": [
-        44.5,
+        25.5,
         3.125,
         -5.5
       ],
@@ -11123,16 +11272,171 @@
         0.5,
         0.5,
         0.5
-      ],
-      "interiorBuildingId": "building-silent-2-005"
+      ]
     },
     {
       "id": "interior-furnished-building-silent-2-005-f2-table-light-5",
       "type": "interior",
       "asset": "assets/models/interior/Lamp/Light_Floor2.glb",
+      "interiorBuildingId": "building-silent-2-005",
+      "interiorStoryIndex": 1,
       "position": [
-        45.5,
+        24.5,
         3.58,
+        -5.5
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        0.5,
+        0.5,
+        0.5
+      ]
+    },
+    {
+      "id": "interior-furnished-building-silent-2-005-f2-ceiling-light-6",
+      "type": "interior",
+      "asset": "assets/models/interior/Light Ceiling/Light_Ceiling1.glb",
+      "interiorBuildingId": "building-silent-2-005",
+      "interiorStoryIndex": 1,
+      "position": [
+        19.5,
+        6.1,
+        -9.5
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        0.5,
+        0.5,
+        0.5
+      ]
+    },
+    {
+      "id": "interior-furnished-building-silent-2-005-f3-dining-table-1",
+      "type": "interior",
+      "asset": "assets/models/interior/Table Round Large/Table_RoundLarge.glb",
+      "interiorBuildingId": "building-silent-2-005",
+      "interiorStoryIndex": 2,
+      "position": [
+        24.5,
+        6.2,
+        -5.5
+      ],
+      "rotation": [
+        0,
+        1.571,
+        0
+      ],
+      "scale": [
+        0.5,
+        0.5,
+        0.5
+      ]
+    },
+    {
+      "id": "interior-furnished-building-silent-2-005-f3-chair-a-2",
+      "type": "interior",
+      "asset": "assets/models/interior/Chair/Chair_4.glb",
+      "interiorBuildingId": "building-silent-2-005",
+      "interiorStoryIndex": 2,
+      "position": [
+        28.5,
+        6.2,
+        -5.5
+      ],
+      "rotation": [
+        0,
+        1.571,
+        0
+      ],
+      "scale": [
+        0.5,
+        0.5,
+        0.5
+      ]
+    },
+    {
+      "id": "interior-furnished-building-silent-2-005-f3-chair-b-3",
+      "type": "interior",
+      "asset": "assets/models/interior/Chair/Chair_1.glb",
+      "interiorBuildingId": "building-silent-2-005",
+      "interiorStoryIndex": 2,
+      "position": [
+        25.5,
+        6.2,
+        -5.5
+      ],
+      "rotation": [
+        0,
+        -1.571,
+        0
+      ],
+      "scale": [
+        0.5,
+        0.5,
+        0.5
+      ]
+    },
+    {
+      "id": "interior-furnished-building-silent-2-005-f3-fridge-4",
+      "type": "interior",
+      "asset": "assets/models/interior/Kitchen Fridge/Kitchen_Fridge.glb",
+      "interiorBuildingId": "building-silent-2-005",
+      "interiorStoryIndex": 2,
+      "position": [
+        33.5,
+        6.2,
+        -9.5
+      ],
+      "rotation": [
+        0,
+        3.142,
+        0
+      ],
+      "scale": [
+        0.5,
+        0.5,
+        0.5
+      ]
+    },
+    {
+      "id": "interior-furnished-building-silent-2-005-f3-sink-5",
+      "type": "interior",
+      "asset": "assets/models/interior/Kitchen Sink/Kitchen_Sink.glb",
+      "interiorBuildingId": "building-silent-2-005",
+      "interiorStoryIndex": 2,
+      "position": [
+        19.5,
+        6.2,
+        -10.5
+      ],
+      "rotation": [
+        0,
+        3.142,
+        0
+      ],
+      "scale": [
+        0.5,
+        0.5,
+        0.5
+      ]
+    },
+    {
+      "id": "interior-furnished-building-silent-2-005-f3-ceiling-light-6",
+      "type": "interior",
+      "asset": "assets/models/interior/Light Chandelier/Light_Chandelier.glb",
+      "interiorBuildingId": "building-silent-2-005",
+      "interiorStoryIndex": 2,
+      "position": [
+        26.5,
+        9.2,
         -4.5
       ],
       "rotation": [
@@ -11144,162 +11448,16 @@
         0.5,
         0.5,
         0.5
-      ],
-      "interiorBuildingId": "building-silent-2-005"
-    },
-    {
-      "id": "interior-furnished-building-silent-2-005-f2-ceiling-light-6",
-      "type": "interior",
-      "asset": "assets/models/interior/Light Ceiling/Light_Ceiling1.glb",
-      "position": [
-        50.5,
-        6.1,
-        -9.5
-      ],
-      "rotation": [
-        0,
-        0,
-        0
-      ],
-      "scale": [
-        0.5,
-        0.5,
-        0.5
-      ],
-      "interiorBuildingId": "building-silent-2-005"
-    },
-    {
-      "id": "interior-furnished-building-silent-2-005-f3-dining-table-1",
-      "type": "interior",
-      "asset": "assets/models/interior/Table Round Large/Table_RoundLarge.glb",
-      "position": [
-        43.5,
-        6.2,
-        -5.5
-      ],
-      "rotation": [
-        0,
-        1.571,
-        0
-      ],
-      "scale": [
-        0.5,
-        0.5,
-        0.5
-      ],
-      "interiorBuildingId": "building-silent-2-005"
-    },
-    {
-      "id": "interior-furnished-building-silent-2-005-f3-chair-a-2",
-      "type": "interior",
-      "asset": "assets/models/interior/Chair/Chair_4.glb",
-      "position": [
-        42.5,
-        6.2,
-        -5.5
-      ],
-      "rotation": [
-        0,
-        1.571,
-        0
-      ],
-      "scale": [
-        0.5,
-        0.5,
-        0.5
-      ],
-      "interiorBuildingId": "building-silent-2-005"
-    },
-    {
-      "id": "interior-furnished-building-silent-2-005-f3-chair-b-3",
-      "type": "interior",
-      "asset": "assets/models/interior/Chair/Chair_1.glb",
-      "position": [
-        44.5,
-        6.2,
-        -5.5
-      ],
-      "rotation": [
-        0,
-        -1.571,
-        0
-      ],
-      "scale": [
-        0.5,
-        0.5,
-        0.5
-      ],
-      "interiorBuildingId": "building-silent-2-005"
-    },
-    {
-      "id": "interior-furnished-building-silent-2-005-f3-fridge-4",
-      "type": "interior",
-      "asset": "assets/models/interior/Kitchen Fridge/Kitchen_Fridge.glb",
-      "position": [
-        36.5,
-        6.2,
-        -9.5
-      ],
-      "rotation": [
-        0,
-        3.142,
-        0
-      ],
-      "scale": [
-        0.5,
-        0.5,
-        0.5
-      ],
-      "interiorBuildingId": "building-silent-2-005"
-    },
-    {
-      "id": "interior-furnished-building-silent-2-005-f3-sink-5",
-      "type": "interior",
-      "asset": "assets/models/interior/Kitchen Sink/Kitchen_Sink.glb",
-      "position": [
-        50.5,
-        6.2,
-        -9.5
-      ],
-      "rotation": [
-        0,
-        3.142,
-        0
-      ],
-      "scale": [
-        0.5,
-        0.5,
-        0.5
-      ],
-      "interiorBuildingId": "building-silent-2-005"
-    },
-    {
-      "id": "interior-furnished-building-silent-2-005-f3-ceiling-light-6",
-      "type": "interior",
-      "asset": "assets/models/interior/Light Chandelier/Light_Chandelier.glb",
-      "position": [
-        43.5,
-        9.2,
-        -5.5
-      ],
-      "rotation": [
-        0,
-        0,
-        0
-      ],
-      "scale": [
-        0.5,
-        0.5,
-        0.5
-      ],
-      "interiorBuildingId": "building-silent-2-005"
+      ]
     },
     {
       "id": "interior-furnished-building-silent-2-005-f4-meeting-table-1",
       "type": "interior",
       "asset": "assets/models/interior/Table Round Large/Table_RoundLarge.glb",
+      "interiorBuildingId": "building-silent-2-005",
+      "interiorStoryIndex": 3,
       "position": [
-        47.5,
+        18.5,
         9.3,
         -5.5
       ],
@@ -11312,15 +11470,16 @@
         0.5,
         0.5,
         0.5
-      ],
-      "interiorBuildingId": "building-silent-2-005"
+      ]
     },
     {
       "id": "interior-furnished-building-silent-2-005-f4-chair-a-2",
       "type": "interior",
       "asset": "assets/models/interior/Chair/Chair_1.glb",
+      "interiorBuildingId": "building-silent-2-005",
+      "interiorStoryIndex": 3,
       "position": [
-        46.5,
+        23.5,
         9.3,
         -5.5
       ],
@@ -11333,15 +11492,16 @@
         0.5,
         0.5,
         0.5
-      ],
-      "interiorBuildingId": "building-silent-2-005"
+      ]
     },
     {
       "id": "interior-furnished-building-silent-2-005-f4-chair-b-3",
       "type": "interior",
       "asset": "assets/models/interior/Chair/Chair_4.glb",
+      "interiorBuildingId": "building-silent-2-005",
+      "interiorStoryIndex": 3,
       "position": [
-        48.5,
+        20.5,
         9.3,
         -5.5
       ],
@@ -11354,15 +11514,16 @@
         0.5,
         0.5,
         0.5
-      ],
-      "interiorBuildingId": "building-silent-2-005"
+      ]
     },
     {
       "id": "interior-furnished-building-silent-2-005-f4-shelf-4",
       "type": "interior",
       "asset": "assets/models/interior/Shelf Large/Shelf_Large.glb",
+      "interiorBuildingId": "building-silent-2-005",
+      "interiorStoryIndex": 3,
       "position": [
-        40.5,
+        29.5,
         9.3,
         -5.5
       ],
@@ -11375,15 +11536,16 @@
         0.5,
         0.5,
         0.5
-      ],
-      "interiorBuildingId": "building-silent-2-005"
+      ]
     },
     {
       "id": "interior-furnished-building-silent-2-005-f4-plant-5",
       "type": "interior",
       "asset": "assets/models/interior/Houseplant/Houseplant_4.glb",
+      "interiorBuildingId": "building-silent-2-005",
+      "interiorStoryIndex": 3,
       "position": [
-        50.5,
+        19.5,
         9.3,
         -9.5
       ],
@@ -11396,17 +11558,18 @@
         0.5,
         0.5,
         0.5
-      ],
-      "interiorBuildingId": "building-silent-2-005"
+      ]
     },
     {
       "id": "interior-furnished-building-silent-2-005-f4-ceiling-light-6",
       "type": "interior",
       "asset": "assets/models/interior/Light Ceiling-NNlnaiDJIh/Light_Ceiling4.glb",
+      "interiorBuildingId": "building-silent-2-005",
+      "interiorStoryIndex": 3,
       "position": [
-        47.5,
+        22.5,
         12.3,
-        -5.5
+        -4.5
       ],
       "rotation": [
         0,
@@ -11417,17 +11580,18 @@
         0.5,
         0.5,
         0.5
-      ],
-      "interiorBuildingId": "building-silent-2-005"
+      ]
     },
     {
       "id": "interior-furnished-building-silent-1-003-f1-dining-table-1",
       "type": "interior",
       "asset": "assets/models/interior/Table Round Large/Table_RoundLarge.glb",
+      "interiorBuildingId": "building-silent-1-003",
+      "interiorStoryIndex": 0,
       "position": [
-        77.5,
+        64.5,
         0,
-        32.5
+        34.5
       ],
       "rotation": [
         0,
@@ -11438,15 +11602,16 @@
         0.5,
         0.5,
         0.5
-      ],
-      "interiorBuildingId": "building-silent-1-003"
+      ]
     },
     {
       "id": "interior-furnished-building-silent-1-003-f1-chair-a-2",
       "type": "interior",
       "asset": "assets/models/interior/Chair/Chair_1.glb",
+      "interiorBuildingId": "building-silent-1-003",
+      "interiorStoryIndex": 0,
       "position": [
-        76.5,
+        63.5,
         0,
         32.5
       ],
@@ -11459,15 +11624,16 @@
         0.5,
         0.5,
         0.5
-      ],
-      "interiorBuildingId": "building-silent-1-003"
+      ]
     },
     {
       "id": "interior-furnished-building-silent-1-003-f1-chair-b-3",
       "type": "interior",
       "asset": "assets/models/interior/Chair/Chair_4.glb",
+      "interiorBuildingId": "building-silent-1-003",
+      "interiorStoryIndex": 0,
       "position": [
-        78.5,
+        61.5,
         0,
         32.5
       ],
@@ -11480,15 +11646,16 @@
         0.5,
         0.5,
         0.5
-      ],
-      "interiorBuildingId": "building-silent-1-003"
+      ]
     },
     {
       "id": "interior-furnished-building-silent-1-003-f1-fridge-4",
       "type": "interior",
       "asset": "assets/models/interior/Kitchen Fridge/Kitchen_Fridge.glb",
+      "interiorBuildingId": "building-silent-1-003",
+      "interiorStoryIndex": 0,
       "position": [
-        84.5,
+        54.5,
         0,
         30.5
       ],
@@ -11501,15 +11668,16 @@
         0.5,
         0.5,
         0.5
-      ],
-      "interiorBuildingId": "building-silent-1-003"
+      ]
     },
     {
       "id": "interior-furnished-building-silent-1-003-f1-sink-5",
       "type": "interior",
       "asset": "assets/models/interior/Kitchen Sink/Kitchen_Sink.glb",
+      "interiorBuildingId": "building-silent-1-003",
+      "interiorStoryIndex": 0,
       "position": [
-        71.5,
+        68.5,
         0,
         30.5
       ],
@@ -11522,17 +11690,18 @@
         0.5,
         0.5,
         0.5
-      ],
-      "interiorBuildingId": "building-silent-1-003"
+      ]
     },
     {
       "id": "interior-furnished-building-silent-1-003-f1-ceiling-light-6",
       "type": "interior",
       "asset": "assets/models/interior/Ceiling Light/Light_Ceiling2.glb",
+      "interiorBuildingId": "building-silent-1-003",
+      "interiorStoryIndex": 0,
       "position": [
-        77.5,
+        62.5,
         3,
-        32.5
+        31.5
       ],
       "rotation": [
         0,
@@ -11543,17 +11712,18 @@
         0.5,
         0.5,
         0.5
-      ],
-      "interiorBuildingId": "building-silent-1-003"
+      ]
     },
     {
       "id": "interior-furnished-building-silent-1-003-f2-meeting-table-1",
       "type": "interior",
       "asset": "assets/models/interior/Table Round Large/Table_RoundLarge.glb",
+      "interiorBuildingId": "building-silent-1-003",
+      "interiorStoryIndex": 1,
       "position": [
-        76.5,
+        63.5,
         3.1,
-        31.5
+        29.5
       ],
       "rotation": [
         0,
@@ -11564,15 +11734,16 @@
         0.5,
         0.5,
         0.5
-      ],
-      "interiorBuildingId": "building-silent-1-003"
+      ]
     },
     {
       "id": "interior-furnished-building-silent-1-003-f2-chair-a-2",
       "type": "interior",
       "asset": "assets/models/interior/Chair/Chair_4.glb",
+      "interiorBuildingId": "building-silent-1-003",
+      "interiorStoryIndex": 1,
       "position": [
-        75.5,
+        64.5,
         3.1,
         31.5
       ],
@@ -11585,15 +11756,16 @@
         0.5,
         0.5,
         0.5
-      ],
-      "interiorBuildingId": "building-silent-1-003"
+      ]
     },
     {
       "id": "interior-furnished-building-silent-1-003-f2-chair-b-3",
       "type": "interior",
       "asset": "assets/models/interior/Chair/Chair_1.glb",
+      "interiorBuildingId": "building-silent-1-003",
+      "interiorStoryIndex": 1,
       "position": [
-        77.5,
+        62.5,
         3.1,
         31.5
       ],
@@ -11606,15 +11778,16 @@
         0.5,
         0.5,
         0.5
-      ],
-      "interiorBuildingId": "building-silent-1-003"
+      ]
     },
     {
       "id": "interior-furnished-building-silent-1-003-f2-shelf-4",
       "type": "interior",
       "asset": "assets/models/interior/Shelf Small/Shelf_Small1.glb",
+      "interiorBuildingId": "building-silent-1-003",
+      "interiorStoryIndex": 1,
       "position": [
-        70.5,
+        69.5,
         3.1,
         30.5
       ],
@@ -11627,15 +11800,16 @@
         0.5,
         0.5,
         0.5
-      ],
-      "interiorBuildingId": "building-silent-1-003"
+      ]
     },
     {
       "id": "interior-furnished-building-silent-1-003-f2-plant-5",
       "type": "interior",
       "asset": "assets/models/interior/Houseplant/Houseplant_7.glb",
+      "interiorBuildingId": "building-silent-1-003",
+      "interiorStoryIndex": 1,
       "position": [
-        82.5,
+        57.5,
         3.1,
         30.5
       ],
@@ -11648,17 +11822,18 @@
         0.5,
         0.5,
         0.5
-      ],
-      "interiorBuildingId": "building-silent-1-003"
+      ]
     },
     {
       "id": "interior-furnished-building-silent-1-003-f2-ceiling-light-6",
       "type": "interior",
       "asset": "assets/models/interior/Light Ceiling-ToOLJDO5FI/Light_Ceiling3.glb",
+      "interiorBuildingId": "building-silent-1-003",
+      "interiorStoryIndex": 1,
       "position": [
-        76.5,
+        63.5,
         6.1,
-        31.5
+        30.5
       ],
       "rotation": [
         0,
@@ -11669,15 +11844,16 @@
         0.5,
         0.5,
         0.5
-      ],
-      "interiorBuildingId": "building-silent-1-003"
+      ]
     },
     {
       "id": "interior-furnished-building-silent-1-003-f3-bathtub-1",
       "type": "interior",
       "asset": "assets/models/interior/Bathtub/Bathroom_Bathtub.glb",
+      "interiorBuildingId": "building-silent-1-003",
+      "interiorStoryIndex": 2,
       "position": [
-        76.5,
+        63.5,
         6.2,
         30.5
       ],
@@ -11690,13 +11866,36 @@
         0.5,
         0.5,
         0.5
-      ],
-      "interiorBuildingId": "building-silent-1-003"
+      ]
     },
     {
       "id": "interior-furnished-building-silent-1-003-f3-toilet-2",
       "type": "interior",
       "asset": "assets/models/interior/Toilet/Bathroom_Toilet.glb",
+      "interiorBuildingId": "building-silent-1-003",
+      "interiorStoryIndex": 2,
+      "position": [
+        70.5,
+        6.2,
+        29.5
+      ],
+      "rotation": [
+        0,
+        3.142,
+        0
+      ],
+      "scale": [
+        0.5,
+        0.5,
+        0.5
+      ]
+    },
+    {
+      "id": "interior-furnished-building-silent-1-003-f3-sink-3",
+      "type": "interior",
+      "asset": "assets/models/interior/Bathroom Sink/Bathroom_Sink.glb",
+      "interiorBuildingId": "building-silent-1-003",
+      "interiorStoryIndex": 2,
       "position": [
         69.5,
         6.2,
@@ -11711,36 +11910,16 @@
         0.5,
         0.5,
         0.5
-      ],
-      "interiorBuildingId": "building-silent-1-003"
-    },
-    {
-      "id": "interior-furnished-building-silent-1-003-f3-sink-3",
-      "type": "interior",
-      "asset": "assets/models/interior/Bathroom Sink/Bathroom_Sink.glb",
-      "position": [
-        71.5,
-        6.2,
-        29.5
-      ],
-      "rotation": [
-        0,
-        3.142,
-        0
-      ],
-      "scale": [
-        0.5,
-        0.5,
-        0.5
-      ],
-      "interiorBuildingId": "building-silent-1-003"
+      ]
     },
     {
       "id": "interior-furnished-building-silent-1-003-f3-washing-machine-4",
       "type": "interior",
       "asset": "assets/models/interior/Washing Machine/Bathroom_WashingMachine.glb",
+      "interiorBuildingId": "building-silent-1-003",
+      "interiorStoryIndex": 2,
       "position": [
-        81.5,
+        58.5,
         6.2,
         29.5
       ],
@@ -11753,15 +11932,16 @@
         0.5,
         0.5,
         0.5
-      ],
-      "interiorBuildingId": "building-silent-1-003"
+      ]
     },
     {
       "id": "interior-furnished-building-silent-1-003-f3-trashcan-5",
       "type": "interior",
       "asset": "assets/models/interior/Trashcan Large/Trashcan_Large.glb",
+      "interiorBuildingId": "building-silent-1-003",
+      "interiorStoryIndex": 2,
       "position": [
-        83.5,
+        56.5,
         6.2,
         29.5
       ],
@@ -11774,15 +11954,16 @@
         0.5,
         0.5,
         0.5
-      ],
-      "interiorBuildingId": "building-silent-1-003"
+      ]
     },
     {
       "id": "interior-furnished-building-silent-1-003-f3-ceiling-light-6",
       "type": "interior",
       "asset": "assets/models/interior/Light Ceiling Single/Light_CeilingSingle.glb",
+      "interiorBuildingId": "building-silent-1-003",
+      "interiorStoryIndex": 2,
       "position": [
-        76.5,
+        64.5,
         9.2,
         30.5
       ],
@@ -11795,17 +11976,18 @@
         0.5,
         0.5,
         0.5
-      ],
-      "interiorBuildingId": "building-silent-1-003"
+      ]
     },
     {
       "id": "interior-furnished-building-silent-1-004-f1-bathtub-1",
       "type": "interior",
       "asset": "assets/models/interior/Bathtub/Bathroom_Bathtub.glb",
+      "interiorBuildingId": "building-silent-1-004",
+      "interiorStoryIndex": 0,
       "position": [
-        56.5,
+        57.5,
         0,
-        -57.5
+        -36.5
       ],
       "rotation": [
         0,
@@ -11816,17 +11998,18 @@
         0.5,
         0.5,
         0.5
-      ],
-      "interiorBuildingId": "building-silent-1-004"
+      ]
     },
     {
       "id": "interior-furnished-building-silent-1-004-f1-toilet-2",
       "type": "interior",
       "asset": "assets/models/interior/Toilet/Bathroom_Toilet.glb",
+      "interiorBuildingId": "building-silent-1-004",
+      "interiorStoryIndex": 0,
       "position": [
         53.5,
         0,
-        -47.5
+        -46.5
       ],
       "rotation": [
         0,
@@ -11837,17 +12020,18 @@
         0.5,
         0.5,
         0.5
-      ],
-      "interiorBuildingId": "building-silent-1-004"
+      ]
     },
     {
       "id": "interior-furnished-building-silent-1-004-f1-sink-3",
       "type": "interior",
       "asset": "assets/models/interior/Bathroom Sink/Bathroom_Sink.glb",
+      "interiorBuildingId": "building-silent-1-004",
+      "interiorStoryIndex": 0,
       "position": [
-        53.5,
+        52.5,
         0,
-        -49.5
+        -45.5
       ],
       "rotation": [
         0,
@@ -11858,17 +12042,18 @@
         0.5,
         0.5,
         0.5
-      ],
-      "interiorBuildingId": "building-silent-1-004"
+      ]
     },
     {
       "id": "interior-furnished-building-silent-1-004-f1-washing-machine-4",
       "type": "interior",
       "asset": "assets/models/interior/Washing Machine/Bathroom_WashingMachine.glb",
+      "interiorBuildingId": "building-silent-1-004",
+      "interiorStoryIndex": 0,
       "position": [
-        61.5,
+        62.5,
         0,
-        -47.5
+        -45.5
       ],
       "rotation": [
         0,
@@ -11879,17 +12064,18 @@
         0.5,
         0.5,
         0.5
-      ],
-      "interiorBuildingId": "building-silent-1-004"
+      ]
     },
     {
       "id": "interior-furnished-building-silent-1-004-f1-trashcan-5",
       "type": "interior",
       "asset": "assets/models/interior/Trashcan Small/Trashcan_Small1.glb",
+      "interiorBuildingId": "building-silent-1-004",
+      "interiorStoryIndex": 0,
       "position": [
         61.5,
         0,
-        -49.5
+        -44.5
       ],
       "rotation": [
         0,
@@ -11900,17 +12086,18 @@
         0.5,
         0.5,
         0.5
-      ],
-      "interiorBuildingId": "building-silent-1-004"
+      ]
     },
     {
       "id": "interior-furnished-building-silent-1-004-f1-ceiling-light-6",
       "type": "interior",
       "asset": "assets/models/interior/Light Ceiling-NNlnaiDJIh/Light_Ceiling4.glb",
+      "interiorBuildingId": "building-silent-1-004",
+      "interiorStoryIndex": 0,
       "position": [
         56.5,
         3.25,
-        -57.5
+        -36.5
       ],
       "rotation": [
         0,
@@ -11921,17 +12108,18 @@
         0.5,
         0.5,
         0.5
-      ],
-      "interiorBuildingId": "building-silent-1-004"
+      ]
     },
     {
       "id": "interior-furnished-building-silent-1-004-f2-bunk-bed-1",
       "type": "interior",
       "asset": "assets/models/interior/Bunk Bed/Bed_Bunk.glb",
+      "interiorBuildingId": "building-silent-1-004",
+      "interiorStoryIndex": 1,
       "position": [
-        56.5,
+        54.5,
         3.35,
-        -55.5
+        -39.5
       ],
       "rotation": [
         0,
@@ -11942,17 +12130,18 @@
         0.5,
         0.5,
         0.5
-      ],
-      "interiorBuildingId": "building-silent-1-004"
+      ]
     },
     {
       "id": "interior-furnished-building-silent-1-004-f2-stool-2",
       "type": "interior",
       "asset": "assets/models/interior/Stool/Stool.glb",
+      "interiorBuildingId": "building-silent-1-004",
+      "interiorStoryIndex": 1,
       "position": [
         56.5,
         3.35,
-        -62.5
+        -31.5
       ],
       "rotation": [
         0,
@@ -11963,17 +12152,18 @@
         0.5,
         0.5,
         0.5
-      ],
-      "interiorBuildingId": "building-silent-1-004"
+      ]
     },
     {
       "id": "interior-furnished-building-silent-1-004-f2-shelf-3",
       "type": "interior",
       "asset": "assets/models/interior/Shelf Large/Shelf_Large.glb",
+      "interiorBuildingId": "building-silent-1-004",
+      "interiorStoryIndex": 1,
       "position": [
-        56.5,
+        55.5,
         3.35,
-        -64.5
+        -29.5
       ],
       "rotation": [
         0,
@@ -11984,17 +12174,18 @@
         0.5,
         0.5,
         0.5
-      ],
-      "interiorBuildingId": "building-silent-1-004"
+      ]
     },
     {
       "id": "interior-furnished-building-silent-1-004-f2-rug-4",
       "type": "interior",
       "asset": "assets/models/interior/Round Rug/Carpet_Round.glb",
+      "interiorBuildingId": "building-silent-1-004",
+      "interiorStoryIndex": 1,
       "position": [
-        56.5,
+        57.5,
         3.375,
-        -55.5
+        -38.5
       ],
       "rotation": [
         0,
@@ -12005,17 +12196,18 @@
         0.5,
         0.5,
         0.5
-      ],
-      "interiorBuildingId": "building-silent-1-004"
+      ]
     },
     {
       "id": "interior-furnished-building-silent-1-004-f2-drawer-5",
       "type": "interior",
       "asset": "assets/models/interior/Drawer/Drawer_2.glb",
+      "interiorBuildingId": "building-silent-1-004",
+      "interiorStoryIndex": 1,
       "position": [
         59.5,
         3.35,
-        -48.5
+        -45.5
       ],
       "rotation": [
         0,
@@ -12026,17 +12218,18 @@
         0.5,
         0.5,
         0.5
-      ],
-      "interiorBuildingId": "building-silent-1-004"
+      ]
     },
     {
       "id": "interior-furnished-building-silent-1-004-f2-ceiling-light-6",
       "type": "interior",
       "asset": "assets/models/interior/Light Ceiling/Light_Ceiling1.glb",
+      "interiorBuildingId": "building-silent-1-004",
+      "interiorStoryIndex": 1,
       "position": [
         56.5,
         6.6,
-        -55.5
+        -39.5
       ],
       "rotation": [
         0,
@@ -12047,17 +12240,18 @@
         0.5,
         0.5,
         0.5
-      ],
-      "interiorBuildingId": "building-silent-1-004"
+      ]
     },
     {
       "id": "interior-furnished-building-silent-3-004-f1-couch-1",
       "type": "interior",
       "asset": "assets/models/interior/Couch Small/Couch_Small1.glb",
+      "interiorBuildingId": "building-silent-3-004",
+      "interiorStoryIndex": 0,
       "position": [
-        -52.5,
+        -53.5,
         0,
-        3.5
+        -11.5
       ],
       "rotation": [
         0,
@@ -12068,17 +12262,18 @@
         0.5,
         0.5,
         0.5
-      ],
-      "interiorBuildingId": "building-silent-3-004"
+      ]
     },
     {
       "id": "interior-furnished-building-silent-3-004-f1-rug-2",
       "type": "interior",
       "asset": "assets/models/interior/Round Rug/Carpet_Round.glb",
+      "interiorBuildingId": "building-silent-3-004",
+      "interiorStoryIndex": 0,
       "position": [
         -53.5,
         0.025,
-        3.5
+        -10.5
       ],
       "rotation": [
         0,
@@ -12089,17 +12284,18 @@
         0.5,
         0.5,
         0.5
-      ],
-      "interiorBuildingId": "building-silent-3-004"
+      ]
     },
     {
       "id": "interior-furnished-building-silent-3-004-f1-table-3",
       "type": "interior",
       "asset": "assets/models/interior/Table Round Small/Table_RoundSmall.glb",
+      "interiorBuildingId": "building-silent-3-004",
+      "interiorStoryIndex": 0,
       "position": [
-        -53.5,
+        -55.5,
         0,
-        4.5
+        -10.5
       ],
       "rotation": [
         0,
@@ -12110,17 +12306,18 @@
         0.5,
         0.5,
         0.5
-      ],
-      "interiorBuildingId": "building-silent-3-004"
+      ]
     },
     {
       "id": "interior-furnished-building-silent-3-004-f1-chair-4",
       "type": "interior",
       "asset": "assets/models/interior/Chair/Chair_1.glb",
+      "interiorBuildingId": "building-silent-3-004",
+      "interiorStoryIndex": 0,
       "position": [
         -55.5,
         0,
-        -1.5
+        -4.5
       ],
       "rotation": [
         0,
@@ -12131,17 +12328,18 @@
         0.5,
         0.5,
         0.5
-      ],
-      "interiorBuildingId": "building-silent-3-004"
+      ]
     },
     {
       "id": "interior-furnished-building-silent-3-004-f1-plant-5",
       "type": "interior",
       "asset": "assets/models/interior/Houseplant-IBLX2Jz90O/Houseplant_5.glb",
+      "interiorBuildingId": "building-silent-3-004",
+      "interiorStoryIndex": 0,
       "position": [
         -55.5,
         0,
-        8.5
+        -14.5
       ],
       "rotation": [
         0,
@@ -12152,17 +12350,18 @@
         0.5,
         0.5,
         0.5
-      ],
-      "interiorBuildingId": "building-silent-3-004"
+      ]
     },
     {
       "id": "interior-furnished-building-silent-3-004-f1-ceiling-light-6",
       "type": "interior",
       "asset": "assets/models/interior/Ceiling Light/Light_Ceiling2.glb",
+      "interiorBuildingId": "building-silent-3-004",
+      "interiorStoryIndex": 0,
       "position": [
-        -52.5,
+        -51.5,
         3,
-        3.5
+        -9.5
       ],
       "rotation": [
         0,
@@ -12173,17 +12372,18 @@
         0.5,
         0.5,
         0.5
-      ],
-      "interiorBuildingId": "building-silent-3-004"
+      ]
     },
     {
       "id": "interior-furnished-building-silent-3-004-f2-bed-1",
       "type": "interior",
       "asset": "assets/models/interior/Bed King/Bed_King.glb",
+      "interiorBuildingId": "building-silent-3-004",
+      "interiorStoryIndex": 1,
       "position": [
-        -52.5,
+        -51.5,
         3.1,
-        -0.5
+        -5.5
       ],
       "rotation": [
         0,
@@ -12194,17 +12394,18 @@
         0.5,
         0.5,
         0.5
-      ],
-      "interiorBuildingId": "building-silent-3-004"
+      ]
     },
     {
       "id": "interior-furnished-building-silent-3-004-f2-night-stand-2",
       "type": "interior",
       "asset": "assets/models/interior/Night Stand/NightStand_1.glb",
+      "interiorBuildingId": "building-silent-3-004",
+      "interiorStoryIndex": 1,
       "position": [
         -53.5,
         3.1,
-        0.5
+        -6.5
       ],
       "rotation": [
         0,
@@ -12215,17 +12416,18 @@
         0.5,
         0.5,
         0.5
-      ],
-      "interiorBuildingId": "building-silent-3-004"
+      ]
     },
     {
       "id": "interior-furnished-building-silent-3-004-f2-drawer-3",
       "type": "interior",
       "asset": "assets/models/interior/Drawer/Drawer_3.glb",
+      "interiorBuildingId": "building-silent-3-004",
+      "interiorStoryIndex": 1,
       "position": [
-        -55.5,
+        -56.5,
         3.1,
-        0.5
+        -6.5
       ],
       "rotation": [
         0,
@@ -12236,17 +12438,18 @@
         0.5,
         0.5,
         0.5
-      ],
-      "interiorBuildingId": "building-silent-3-004"
+      ]
     },
     {
       "id": "interior-furnished-building-silent-3-004-f2-rug-4",
       "type": "interior",
       "asset": "assets/models/interior/Round Rug/Carpet_Round.glb",
+      "interiorBuildingId": "building-silent-3-004",
+      "interiorStoryIndex": 1,
       "position": [
         -52.5,
         3.125,
-        -0.5
+        -5.5
       ],
       "rotation": [
         0,
@@ -12257,17 +12460,18 @@
         0.5,
         0.5,
         0.5
-      ],
-      "interiorBuildingId": "building-silent-3-004"
+      ]
     },
     {
       "id": "interior-furnished-building-silent-3-004-f2-table-light-5",
       "type": "interior",
       "asset": "assets/models/interior/Lamp/Light_Floor2.glb",
+      "interiorBuildingId": "building-silent-3-004",
+      "interiorStoryIndex": 1,
       "position": [
-        -53.5,
+        -52.5,
         3.58,
-        0.5
+        -6.5
       ],
       "rotation": [
         0,
@@ -12278,17 +12482,18 @@
         0.5,
         0.5,
         0.5
-      ],
-      "interiorBuildingId": "building-silent-3-004"
+      ]
     },
     {
       "id": "interior-furnished-building-silent-3-004-f2-ceiling-light-6",
       "type": "interior",
       "asset": "assets/models/interior/Light Ceiling-ToOLJDO5FI/Light_Ceiling3.glb",
+      "interiorBuildingId": "building-silent-3-004",
+      "interiorStoryIndex": 1,
       "position": [
         -50.5,
         6.1,
-        -1.5
+        -4.5
       ],
       "rotation": [
         0,
@@ -12299,205 +12504,17 @@
         0.5,
         0.5,
         0.5
-      ],
-      "interiorBuildingId": "building-silent-3-004"
+      ]
     },
     {
       "id": "interior-furnished-building-silent-1-005-f1-dining-table-1",
       "type": "interior",
       "asset": "assets/models/interior/Table Round Large/Table_RoundLarge.glb",
+      "interiorBuildingId": "building-silent-1-005",
+      "interiorStoryIndex": 0,
       "position": [
         -52.5,
         0,
-        48.5
-      ],
-      "rotation": [
-        0,
-        0,
-        0
-      ],
-      "scale": [
-        0.5,
-        0.5,
-        0.5
-      ],
-      "interiorBuildingId": "building-silent-1-005"
-    },
-    {
-      "id": "interior-furnished-building-silent-1-005-f1-chair-a-2",
-      "type": "interior",
-      "asset": "assets/models/interior/Chair/Chair_4.glb",
-      "position": [
-        -52.5,
-        0,
-        47.5
-      ],
-      "rotation": [
-        0,
-        0,
-        0
-      ],
-      "scale": [
-        0.5,
-        0.5,
-        0.5
-      ],
-      "interiorBuildingId": "building-silent-1-005"
-    },
-    {
-      "id": "interior-furnished-building-silent-1-005-f1-chair-b-3",
-      "type": "interior",
-      "asset": "assets/models/interior/Chair/Chair_1.glb",
-      "position": [
-        -52.5,
-        0,
-        49.5
-      ],
-      "rotation": [
-        0,
-        3.142,
-        0
-      ],
-      "scale": [
-        0.5,
-        0.5,
-        0.5
-      ],
-      "interiorBuildingId": "building-silent-1-005"
-    },
-    {
-      "id": "interior-furnished-building-silent-1-005-f1-fridge-4",
-      "type": "interior",
-      "asset": "assets/models/interior/Kitchen Fridge/Kitchen_Fridge.glb",
-      "position": [
-        -53.5,
-        0,
-        50.5
-      ],
-      "rotation": [
-        0,
-        1.571,
-        0
-      ],
-      "scale": [
-        0.5,
-        0.5,
-        0.5
-      ],
-      "interiorBuildingId": "building-silent-1-005"
-    },
-    {
-      "id": "interior-furnished-building-silent-1-005-f1-sink-5",
-      "type": "interior",
-      "asset": "assets/models/interior/Kitchen Sink/Kitchen_Sink.glb",
-      "position": [
-        -47.5,
-        0,
-        51.5
-      ],
-      "rotation": [
-        0,
-        1.571,
-        0
-      ],
-      "scale": [
-        0.5,
-        0.5,
-        0.5
-      ],
-      "interiorBuildingId": "building-silent-1-005"
-    },
-    {
-      "id": "interior-furnished-building-silent-1-005-f2-meeting-table-1",
-      "type": "interior",
-      "asset": "assets/models/interior/Table Round Large/Table_RoundLarge.glb",
-      "position": [
-        -48.5,
-        3.35,
-        52.5
-      ],
-      "rotation": [
-        0,
-        4.712,
-        0
-      ],
-      "scale": [
-        0.5,
-        0.5,
-        0.5
-      ],
-      "interiorBuildingId": "building-silent-1-005"
-    },
-    {
-      "id": "interior-furnished-building-silent-1-005-f2-chair-a-2",
-      "type": "interior",
-      "asset": "assets/models/interior/Chair/Chair_1.glb",
-      "position": [
-        -48.5,
-        3.35,
-        51.5
-      ],
-      "rotation": [
-        0,
-        0,
-        0
-      ],
-      "scale": [
-        0.5,
-        0.5,
-        0.5
-      ],
-      "interiorBuildingId": "building-silent-1-005"
-    },
-    {
-      "id": "interior-furnished-building-silent-1-005-f2-chair-b-3",
-      "type": "interior",
-      "asset": "assets/models/interior/Chair/Chair_4.glb",
-      "position": [
-        -48.5,
-        3.35,
-        54.5
-      ],
-      "rotation": [
-        0,
-        3.142,
-        0
-      ],
-      "scale": [
-        0.5,
-        0.5,
-        0.5
-      ],
-      "interiorBuildingId": "building-silent-1-005"
-    },
-    {
-      "id": "interior-furnished-building-silent-1-005-f2-shelf-4",
-      "type": "interior",
-      "asset": "assets/models/interior/Shelf Small/Shelf_Small1.glb",
-      "position": [
-        -52.5,
-        3.35,
-        50.5
-      ],
-      "rotation": [
-        0,
-        1.571,
-        0
-      ],
-      "scale": [
-        0.5,
-        0.5,
-        0.5
-      ],
-      "interiorBuildingId": "building-silent-1-005"
-    },
-    {
-      "id": "interior-furnished-building-silent-1-005-f3-bathtub-1",
-      "type": "interior",
-      "asset": "assets/models/interior/Bathtub/Bathroom_Bathtub.glb",
-      "position": [
-        -49.5,
-        6.7,
         53.5
       ],
       "rotation": [
@@ -12509,17 +12526,282 @@
         0.5,
         0.5,
         0.5
+      ]
+    },
+    {
+      "id": "interior-furnished-building-silent-1-005-f1-chair-a-2",
+      "type": "interior",
+      "asset": "assets/models/interior/Chair/Chair_4.glb",
+      "interiorBuildingId": "building-silent-1-005",
+      "interiorStoryIndex": 0,
+      "position": [
+        -51.5,
+        0,
+        50.5
       ],
-      "interiorBuildingId": "building-silent-1-005"
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        0.5,
+        0.5,
+        0.5
+      ]
+    },
+    {
+      "id": "interior-furnished-building-silent-1-005-f1-chair-b-3",
+      "type": "interior",
+      "asset": "assets/models/interior/Chair/Chair_1.glb",
+      "interiorBuildingId": "building-silent-1-005",
+      "interiorStoryIndex": 0,
+      "position": [
+        -52.5,
+        0,
+        48.5
+      ],
+      "rotation": [
+        0,
+        3.142,
+        0
+      ],
+      "scale": [
+        0.5,
+        0.5,
+        0.5
+      ]
+    },
+    {
+      "id": "interior-furnished-building-silent-1-005-f1-fridge-4",
+      "type": "interior",
+      "asset": "assets/models/interior/Kitchen Fridge/Kitchen_Fridge.glb",
+      "interiorBuildingId": "building-silent-1-005",
+      "interiorStoryIndex": 0,
+      "position": [
+        -56.5,
+        0,
+        42.5
+      ],
+      "rotation": [
+        0,
+        1.571,
+        0
+      ],
+      "scale": [
+        0.5,
+        0.5,
+        0.5
+      ]
+    },
+    {
+      "id": "interior-furnished-building-silent-1-005-f1-sink-5",
+      "type": "interior",
+      "asset": "assets/models/interior/Kitchen Sink/Kitchen_Sink.glb",
+      "interiorBuildingId": "building-silent-1-005",
+      "interiorStoryIndex": 0,
+      "position": [
+        -48.5,
+        0,
+        56.5
+      ],
+      "rotation": [
+        0,
+        1.571,
+        0
+      ],
+      "scale": [
+        0.5,
+        0.5,
+        0.5
+      ]
+    },
+    {
+      "id": "interior-furnished-building-silent-1-005-f1-ceiling-light-6",
+      "type": "interior",
+      "asset": "assets/models/interior/Light Ceiling-NNlnaiDJIh/Light_Ceiling4.glb",
+      "interiorBuildingId": "building-silent-1-005",
+      "interiorStoryIndex": 0,
+      "position": [
+        -52.5,
+        3.25,
+        49.5
+      ],
+      "rotation": [
+        0,
+        4.712,
+        0
+      ],
+      "scale": [
+        0.5,
+        0.5,
+        0.5
+      ]
+    },
+    {
+      "id": "interior-furnished-building-silent-1-005-f2-meeting-table-1",
+      "type": "interior",
+      "asset": "assets/models/interior/Table Round Large/Table_RoundLarge.glb",
+      "interiorBuildingId": "building-silent-1-005",
+      "interiorStoryIndex": 1,
+      "position": [
+        -53.5,
+        3.35,
+        48.5
+      ],
+      "rotation": [
+        0,
+        4.712,
+        0
+      ],
+      "scale": [
+        0.5,
+        0.5,
+        0.5
+      ]
+    },
+    {
+      "id": "interior-furnished-building-silent-1-005-f2-chair-a-2",
+      "type": "interior",
+      "asset": "assets/models/interior/Chair/Chair_1.glb",
+      "interiorBuildingId": "building-silent-1-005",
+      "interiorStoryIndex": 1,
+      "position": [
+        -51.5,
+        3.35,
+        49.5
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        0.5,
+        0.5,
+        0.5
+      ]
+    },
+    {
+      "id": "interior-furnished-building-silent-1-005-f2-chair-b-3",
+      "type": "interior",
+      "asset": "assets/models/interior/Chair/Chair_4.glb",
+      "interiorBuildingId": "building-silent-1-005",
+      "interiorStoryIndex": 1,
+      "position": [
+        -51.5,
+        3.35,
+        47.5
+      ],
+      "rotation": [
+        0,
+        3.142,
+        0
+      ],
+      "scale": [
+        0.5,
+        0.5,
+        0.5
+      ]
+    },
+    {
+      "id": "interior-furnished-building-silent-1-005-f2-shelf-4",
+      "type": "interior",
+      "asset": "assets/models/interior/Shelf Small/Shelf_Small1.glb",
+      "interiorBuildingId": "building-silent-1-005",
+      "interiorStoryIndex": 1,
+      "position": [
+        -53.5,
+        3.35,
+        42.5
+      ],
+      "rotation": [
+        0,
+        1.571,
+        0
+      ],
+      "scale": [
+        0.5,
+        0.5,
+        0.5
+      ]
+    },
+    {
+      "id": "interior-furnished-building-silent-1-005-f2-plant-5",
+      "type": "interior",
+      "asset": "assets/models/interior/Cactus/Houseplant_3.glb",
+      "interiorBuildingId": "building-silent-1-005",
+      "interiorStoryIndex": 1,
+      "position": [
+        -48.5,
+        3.35,
+        53.5
+      ],
+      "rotation": [
+        0,
+        4.712,
+        0
+      ],
+      "scale": [
+        0.5,
+        0.5,
+        0.5
+      ]
+    },
+    {
+      "id": "interior-furnished-building-silent-1-005-f2-ceiling-light-6",
+      "type": "interior",
+      "asset": "assets/models/interior/Light Ceiling/Light_Ceiling1.glb",
+      "interiorBuildingId": "building-silent-1-005",
+      "interiorStoryIndex": 1,
+      "position": [
+        -52.5,
+        6.6,
+        48.5
+      ],
+      "rotation": [
+        0,
+        4.712,
+        0
+      ],
+      "scale": [
+        0.5,
+        0.5,
+        0.5
+      ]
+    },
+    {
+      "id": "interior-furnished-building-silent-1-005-f3-bathtub-1",
+      "type": "interior",
+      "asset": "assets/models/interior/Bathtub/Bathroom_Bathtub.glb",
+      "interiorBuildingId": "building-silent-1-005",
+      "interiorStoryIndex": 2,
+      "position": [
+        -50.5,
+        6.7,
+        46.5
+      ],
+      "rotation": [
+        0,
+        0,
+        0
+      ],
+      "scale": [
+        0.5,
+        0.5,
+        0.5
+      ]
     },
     {
       "id": "interior-furnished-building-silent-1-005-f3-toilet-2",
       "type": "interior",
       "asset": "assets/models/interior/Toilet/Bathroom_Toilet.glb",
+      "interiorBuildingId": "building-silent-1-005",
+      "interiorStoryIndex": 2,
       "position": [
-        -51.3,
+        -50.5,
         6.7,
-        50.5
+        54.5
       ],
       "rotation": [
         0,
@@ -12530,17 +12812,18 @@
         0.5,
         0.5,
         0.5
-      ],
-      "interiorBuildingId": "building-silent-1-005"
+      ]
     },
     {
       "id": "interior-furnished-building-silent-1-005-f3-sink-3",
       "type": "interior",
       "asset": "assets/models/interior/Bathroom Sink/Bathroom_Sink.glb",
+      "interiorBuildingId": "building-silent-1-005",
+      "interiorStoryIndex": 2,
       "position": [
-        -51.5,
+        -49.5,
         6.7,
-        52.5
+        53.5
       ],
       "rotation": [
         0,
@@ -12551,17 +12834,18 @@
         0.5,
         0.5,
         0.5
-      ],
-      "interiorBuildingId": "building-silent-1-005"
+      ]
     },
     {
       "id": "interior-furnished-building-silent-1-005-f3-washing-machine-4",
       "type": "interior",
       "asset": "assets/models/interior/Washing Machine/Bathroom_WashingMachine.glb",
+      "interiorBuildingId": "building-silent-1-005",
+      "interiorStoryIndex": 2,
       "position": [
-        -54.7,
+        -53.5,
         6.7,
-        49.5
+        42.5
       ],
       "rotation": [
         0,
@@ -12572,17 +12856,62 @@
         0.5,
         0.5,
         0.5
+      ]
+    },
+    {
+      "id": "interior-furnished-building-silent-1-005-f3-trashcan-5",
+      "type": "interior",
+      "asset": "assets/models/interior/Trashcan Small/Trashcan_Small1.glb",
+      "interiorBuildingId": "building-silent-1-005",
+      "interiorStoryIndex": 2,
+      "position": [
+        -53.5,
+        6.7,
+        41.5
       ],
-      "interiorBuildingId": "building-silent-1-005"
+      "rotation": [
+        0,
+        4.712,
+        0
+      ],
+      "scale": [
+        0.5,
+        0.5,
+        0.5
+      ]
+    },
+    {
+      "id": "interior-furnished-building-silent-1-005-f3-ceiling-light-6",
+      "type": "interior",
+      "asset": "assets/models/interior/Light Chandelier/Light_Chandelier.glb",
+      "interiorBuildingId": "building-silent-1-005",
+      "interiorStoryIndex": 2,
+      "position": [
+        -52.5,
+        9.95,
+        47.5
+      ],
+      "rotation": [
+        0,
+        4.712,
+        0
+      ],
+      "scale": [
+        0.5,
+        0.5,
+        0.5
+      ]
     },
     {
       "id": "interior-furnished-building-silent-3-005-f1-bathtub-1",
       "type": "interior",
       "asset": "assets/models/interior/Bathtub/Bathroom_Bathtub.glb",
+      "interiorBuildingId": "building-silent-3-005",
+      "interiorStoryIndex": 0,
       "position": [
-        53.5,
+        34.5,
         0,
-        52.5
+        53.5
       ],
       "rotation": [
         0,
@@ -12593,15 +12922,16 @@
         0.5,
         0.5,
         0.5
-      ],
-      "interiorBuildingId": "building-silent-3-005"
+      ]
     },
     {
       "id": "interior-furnished-building-silent-3-005-f1-toilet-2",
       "type": "interior",
       "asset": "assets/models/interior/Toilet/Bathroom_Toilet.glb",
+      "interiorBuildingId": "building-silent-3-005",
+      "interiorStoryIndex": 0,
       "position": [
-        44.5,
+        43.5,
         0,
         50.5
       ],
@@ -12614,17 +12944,18 @@
         0.5,
         0.5,
         0.5
-      ],
-      "interiorBuildingId": "building-silent-3-005"
+      ]
     },
     {
       "id": "interior-furnished-building-silent-3-005-f1-sink-3",
       "type": "interior",
       "asset": "assets/models/interior/Bathroom Sink/Bathroom_Sink.glb",
+      "interiorBuildingId": "building-silent-3-005",
+      "interiorStoryIndex": 0,
       "position": [
-        46.5,
+        42.5,
         0,
-        50.5
+        49.5
       ],
       "rotation": [
         0,
@@ -12635,17 +12966,18 @@
         0.5,
         0.5,
         0.5
-      ],
-      "interiorBuildingId": "building-silent-3-005"
+      ]
     },
     {
       "id": "interior-furnished-building-silent-3-005-f1-washing-machine-4",
       "type": "interior",
       "asset": "assets/models/interior/Washing Machine/Bathroom_WashingMachine.glb",
+      "interiorBuildingId": "building-silent-3-005",
+      "interiorStoryIndex": 0,
       "position": [
-        58.5,
+        29.5,
         0,
-        57.5
+        58.5
       ],
       "rotation": [
         0,
@@ -12656,15 +12988,16 @@
         0.5,
         0.5,
         0.5
-      ],
-      "interiorBuildingId": "building-silent-3-005"
+      ]
     },
     {
       "id": "interior-furnished-building-silent-3-005-f1-trashcan-5",
       "type": "interior",
       "asset": "assets/models/interior/Trashcan Small/Trashcan_Small2.glb",
+      "interiorBuildingId": "building-silent-3-005",
+      "interiorStoryIndex": 0,
       "position": [
-        60.5,
+        27.5,
         0,
         57.5
       ],
@@ -12677,15 +13010,16 @@
         0.5,
         0.5,
         0.5
-      ],
-      "interiorBuildingId": "building-silent-3-005"
+      ]
     },
     {
       "id": "interior-furnished-building-silent-3-005-f1-ceiling-light-6",
       "type": "interior",
       "asset": "assets/models/interior/Ceiling Light/Light_Ceiling2.glb",
+      "interiorBuildingId": "building-silent-3-005",
+      "interiorStoryIndex": 0,
       "position": [
-        53.5,
+        34.5,
         3.5,
         52.5
       ],
@@ -12698,17 +13032,18 @@
         0.5,
         0.5,
         0.5
-      ],
-      "interiorBuildingId": "building-silent-3-005"
+      ]
     },
     {
       "id": "interior-furnished-building-silent-3-005-f2-bunk-bed-1",
       "type": "interior",
       "asset": "assets/models/interior/Bunk Bed/Bed_Bunk.glb",
+      "interiorBuildingId": "building-silent-3-005",
+      "interiorStoryIndex": 1,
       "position": [
-        51.5,
+        36.5,
         3.6,
-        52.5
+        53.5
       ],
       "rotation": [
         0,
@@ -12719,15 +13054,16 @@
         0.5,
         0.5,
         0.5
-      ],
-      "interiorBuildingId": "building-silent-3-005"
+      ]
     },
     {
       "id": "interior-furnished-building-silent-3-005-f2-stool-2",
       "type": "interior",
       "asset": "assets/models/interior/Stool/Stool.glb",
+      "interiorBuildingId": "building-silent-3-005",
+      "interiorStoryIndex": 1,
       "position": [
-        42.5,
+        45.5,
         3.6,
         50.5
       ],
@@ -12740,17 +13076,18 @@
         0.5,
         0.5,
         0.5
-      ],
-      "interiorBuildingId": "building-silent-3-005"
+      ]
     },
     {
       "id": "interior-furnished-building-silent-3-005-f2-shelf-3",
       "type": "interior",
       "asset": "assets/models/interior/Shelf Large/Shelf_Large.glb",
+      "interiorBuildingId": "building-silent-3-005",
+      "interiorStoryIndex": 1,
       "position": [
         44.5,
         3.6,
-        50.5
+        49.5
       ],
       "rotation": [
         0,
@@ -12761,15 +13098,16 @@
         0.5,
         0.5,
         0.5
-      ],
-      "interiorBuildingId": "building-silent-3-005"
+      ]
     },
     {
       "id": "interior-furnished-building-silent-3-005-f2-rug-4",
       "type": "interior",
       "asset": "assets/models/interior/Rug/Carpet_1.glb",
+      "interiorBuildingId": "building-silent-3-005",
+      "interiorStoryIndex": 1,
       "position": [
-        51.5,
+        36.5,
         3.625,
         52.5
       ],
@@ -12782,17 +13120,18 @@
         0.5,
         0.5,
         0.5
-      ],
-      "interiorBuildingId": "building-silent-3-005"
+      ]
     },
     {
       "id": "interior-furnished-building-silent-3-005-f2-drawer-5",
       "type": "interior",
       "asset": "assets/models/interior/Drawer/Drawer_3.glb",
+      "interiorBuildingId": "building-silent-3-005",
+      "interiorStoryIndex": 1,
       "position": [
-        57.5,
+        30.5,
         3.6,
-        57.5
+        58.5
       ],
       "rotation": [
         0,
@@ -12803,17 +13142,18 @@
         0.5,
         0.5,
         0.5
-      ],
-      "interiorBuildingId": "building-silent-3-005"
+      ]
     },
     {
       "id": "interior-furnished-building-silent-3-005-f2-ceiling-light-6",
       "type": "interior",
       "asset": "assets/models/interior/Light Ceiling-ToOLJDO5FI/Light_Ceiling3.glb",
+      "interiorBuildingId": "building-silent-3-005",
+      "interiorStoryIndex": 1,
       "position": [
-        51.5,
+        36.5,
         7.1,
-        52.5
+        51.5
       ],
       "rotation": [
         0,
@@ -12824,8 +13164,7 @@
         0.5,
         0.5,
         0.5
-      ],
-      "interiorBuildingId": "building-silent-3-005"
+      ]
     },
     {
       "id": "street-livedin-west-avenue-001",

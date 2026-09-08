@@ -116,7 +116,7 @@ export class EdisonSceneDocumentService {
   public createObjectDescriptorFromModel(
     asset: EdisonPlaceableModelAsset,
     position: Vector3,
-    options: { readonly interiorBuildingId?: string } = {}
+    options: { readonly interiorBuildingId?: string; readonly interiorStoryIndex?: number } = {}
   ): SceneObjectDescriptor {
     return {
       id: this.createNextObjectId(asset.objectType, this.resolveObjectAssetId(asset)),
@@ -125,7 +125,8 @@ export class EdisonSceneDocumentService {
       position: this.toTuple(position),
       rotation: [0, 0, 0],
       scale: this.toUniformScaleTuple(asset.defaultScale ?? 1),
-      ...(options.interiorBuildingId ? { interiorBuildingId: options.interiorBuildingId } : {})
+      ...(options.interiorBuildingId ? { interiorBuildingId: options.interiorBuildingId } : {}),
+      ...(options.interiorStoryIndex !== undefined ? { interiorStoryIndex: options.interiorStoryIndex } : {})
     };
   }
 

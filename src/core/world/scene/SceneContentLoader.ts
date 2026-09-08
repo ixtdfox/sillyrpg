@@ -423,6 +423,7 @@ export async function importSceneObjectContent(
   const runtimeObjectMetadata = {
     sceneObjectId: descriptor.id,
     sceneObjectType: descriptor.type,
+    ...(descriptor.interiorStoryIndex !== undefined ? { interiorStoryIndex: descriptor.interiorStoryIndex } : {}),
     ...(descriptor.type === "building" ? { buildingVisibilityInstanceId: descriptor.id } : {})
   };
   const objectRoot = new TransformNode(`${rootNamePrefix}-scene-object-root:${descriptor.id}`, scene);

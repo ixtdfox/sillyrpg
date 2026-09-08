@@ -7,7 +7,10 @@ import {
   TransformNode,
   Vector3
 } from "@babylonjs/core";
-import { SceneObjectVisibilityController } from "../../../src/core/scene/visibility/SceneObjectVisibilityController";
+import {
+  RUNTIME_INTERIOR_STORY_CULLED_METADATA_KEY,
+  SceneObjectVisibilityController
+} from "../../../src/core/scene/visibility/SceneObjectVisibilityController";
 import type { ImportedSceneObjectContent } from "../../../src/core/world/scene/SceneContentLoader";
 
 function assert(condition: boolean, message: string): void {
@@ -90,5 +93,33 @@ function testCullsOnlyStaticDecorativeObjectsOutsideCameraFrustum(): void {
   engine.dispose();
 }
 
+function testFrustumCullingRespectsInteriorStoryHiddenRoots(): void {
+  const engine = new NullEngine();
+  const scene = new Scene(engine);
+  const camera = new FreeCamera("camera", Vector3.Zero(), scene);
+  camera.setTarget(new Vector3(0, 0, 1));
+  camera.minZ = 0.1;
+  camera.maxZ = 250;
+  scene.activeCamera = camera;
+  const interior = createSceneObject(scene, "story-hidden-interior", "interior", new Vector3(0, 0, 20));
+  interior.root.metadata = { [RUNTIME_INTERIOR_STORY_CULLED_METADATA_KEY]: true };
+  interior.root.setEnabled(false);
+  const controller = new SceneObjectVisibilityController();
+
+  controller.update(1, camera, [interior]);
+
+  assert(!interior.root.isEnabled(), "Expected story-hidden interiors to stay disabled even when inside the camera frustum.");
+
+  delete (interior.root.metadata as Record<string, unknown>)[RUNTIME_INTERIOR_STORY_CULLED_METADATA_KEY];
+  controller.update(1, camera, [interior]);
+
+  assert(interior.root.isEnabled(), "Expected frustum culling to restore interiors after story visibility allows them.");
+
+  controller.dispose();
+  scene.dispose();
+  engine.dispose();
+}
+
 testCullsOnlyStaticDecorativeObjectsOutsideCameraFrustum();
+testFrustumCullingRespectsInteriorStoryHiddenRoots();
 console.log("SceneObjectVisibilityController tests passed");

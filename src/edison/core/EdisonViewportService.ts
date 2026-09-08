@@ -37,6 +37,11 @@ import { ModelInstantiationAdapter } from "../adapters/ModelInstantiationAdapter
 import type { EdisonSceneOption } from "../adapters/SceneDescriptorAdapter";
 import type { EdisonInteriorEditFloor, EdisonInteriorEditState } from "./EdisonInteriorEditService";
 import {
+  resolveInteriorMagicFillRooms,
+  type EdisonInteriorMagicFillRoom,
+  type EdisonInteriorMagicFillStory
+} from "./EdisonInteriorMagicFillPlanner";
+import {
   EditorCameraTool,
   type EdisonBounds,
   type EdisonOrientationGizmoAxis,
@@ -693,6 +698,40 @@ export class EdisonViewportService {
     }
 
     return this.transformInteriorPoint(contract, center.x, story.storyY, center.z);
+  }
+
+  public getInteriorMagicFillRooms(buildingId: string): readonly EdisonInteriorMagicFillRoom[] {
+    const building = this.findSceneObjectContent(buildingId);
+    if (!building) {
+      return [];
+    }
+
+    const contract = this.resolveInteriorNavigationContract(building);
+    if (!contract) {
+      return [];
+    }
+
+    const stories: EdisonInteriorMagicFillStory[] = contract.stories.map((story) => {
+      const worldY = this.transformInteriorPoint(contract, 0, story.storyY, 0).y;
+      return {
+        storyIndex: story.storyIndex,
+        worldY,
+        tileSize: contract.tileSize,
+        cells: story.walkableCells.map((cell) => {
+          const center = this.getInteriorCellCenter(contract, cell);
+          const worldCenter = this.transformInteriorPoint(contract, center.x, story.storyY, center.z);
+          return {
+            x: cell.x,
+            z: cell.z,
+            worldCenter: [worldCenter.x, worldCenter.y, worldCenter.z]
+          };
+        }),
+        blockedEdges: story.blockedEdges,
+        doorEdges: story.doorEdges
+      };
+    });
+
+    return resolveInteriorMagicFillRooms(stories);
   }
 
   public updateSelectionHighlight(selection: EdisonSelection): void {

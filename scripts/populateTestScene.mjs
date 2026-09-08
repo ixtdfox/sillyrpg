@@ -9,6 +9,21 @@ const GLB_JSON_CHUNK_TYPE = 0x4e4f534a;
 const PI = Math.PI;
 const HALF_PI = PI / 2;
 const navigationContractByAsset = new Map();
+const LARGE_FURNITURE_ROLES = new Set([
+  "bathtub",
+  "bed",
+  "bunk-bed",
+  "couch",
+  "dining-table",
+  "drawer",
+  "fridge",
+  "meeting-table",
+  "shelf",
+  "sink",
+  "table",
+  "washing-machine"
+]);
+const DECOR_FURNITURE_ROLES = new Set(["ceiling-light", "rug", "table-light"]);
 
 const variantLayouts = {
   "Showcase_01_Villa.glb": {
@@ -200,7 +215,7 @@ function transformLocalToWorld(building, localX, localY, localZ) {
 
 function transformNavigationPointToWorld(building, contract, localX, localY, localZ) {
   const transformed = transformNodePoint(contract.sourceNode, localX, localY, localZ);
-  return transformLocalToWorld(building, transformed[0], transformed[1], transformed[2]);
+  return transformLocalToWorld(building, -transformed[0], transformed[1], transformed[2]);
 }
 
 function transformNodePoint(node, x, y, z) {
@@ -251,6 +266,7 @@ function slug(value) {
 function createInteriorObjects(buildings) {
   const objects = [];
   let globalFloorIndex = 0;
+  validateNavigationTransformProbes(buildings);
 
   buildings.forEach((building, buildingIndex) => {
     const assetName = path.posix.basename(building.asset);
@@ -263,6 +279,7 @@ function createInteriorObjects(buildings) {
     layout.floors.forEach((floor, floorIndex) => {
       const story = contract?.stories.find((candidate) => candidate.story_index === floorIndex) ?? null;
       const anchors = story ? resolveFloorAnchors(contract, story, 3) : floor.anchors;
+      const occupiedCells = new Set();
       const themeIndex = (buildingIndex * 2 + floorIndex) % themes.length;
       const seed = buildingIndex * 7 + floorIndex * 3;
       const floorItems = themes[themeIndex](seed, layout.ceilingY);
@@ -272,14 +289,18 @@ function createInteriorObjects(buildings) {
           throw new Error(`Missing anchor ${floorItem.anchor} for ${building.id} floor ${floorIndex + 1}`);
         }
         const snappedLocal = story
-          ? snapLocalPointToWalkableCellCenter(contract, story, anchor[0] + floorItem.dx, anchor[1] + floorItem.dz)
+          ? snapLocalPointToWalkableCellCenter(contract, story, anchor[0] + floorItem.dx, anchor[1] + floorItem.dz, occupiedCells, floorItem.role)
           : { x: anchor[0] + floorItem.dx, z: anchor[1] + floorItem.dz };
+        if (story && snappedLocal.cell) {
+          occupiedCells.add(cellKey(snappedLocal.cell));
+        }
         const objectYaw = round(((building.rotation?.[1] ?? 0) + floorItem.yaw) % (PI * 2));
         objects.push({
           id: `interior-furnished-${slug(building.id)}-f${floorIndex + 1}-${slug(floorItem.role)}-${itemIndex + 1}`,
           type: "interior",
           asset: `assets/models/interior/${floorItem.asset}`,
           interiorBuildingId: building.id,
+          interiorStoryIndex: floorIndex,
           position: story
             ? transformNavigationPointToWorld(building, contract, snappedLocal.x, story.story_y_m + floorItem.yOffset, snappedLocal.z)
             : transformLocalToWorld(building, snappedLocal.x, floor.y + floorItem.yOffset, snappedLocal.z),
@@ -294,7 +315,74 @@ function createInteriorObjects(buildings) {
   if (globalFloorIndex !== 39 || objects.length !== 234) {
     throw new Error(`Expected 39 furnished floors and 234 objects, got ${globalFloorIndex} and ${objects.length}.`);
   }
+  validateGeneratedInteriorObjects(buildings, objects);
   return objects;
+}
+
+function validateNavigationTransformProbes(buildings) {
+  const probes = [
+    { buildingId: "building-silent-1-001", expected: [-17.5, 0, -20.5] },
+    { buildingId: "building-silent-2-001", expected: [-5.5, 0, 28.5] },
+    { buildingId: "building-silent-3-003", expected: [75.5, 0, 37.5] }
+  ];
+
+  for (const probe of probes) {
+    const building = buildings.find((candidate) => candidate.id === probe.buildingId);
+    const contract = building ? readNavigationContract(building.asset) : null;
+    const story = contract?.stories[0];
+    const cell = story?.walkable_cells[0];
+    if (!building || !contract || !story || !cell) {
+      throw new Error(`Missing navigation transform probe source for ${probe.buildingId}.`);
+    }
+
+    const center = cellCenter(contract, cell);
+    const actual = transformNavigationPointToWorld(building, contract, center[0], story.story_y_m, center[1]);
+    const distance = Math.hypot(actual[0] - probe.expected[0], actual[1] - probe.expected[1], actual[2] - probe.expected[2]);
+    if (distance > 0.001) {
+      throw new Error(`Navigation transform mismatch for ${probe.buildingId}: expected ${probe.expected.join(",")}, got ${actual.join(",")}.`);
+    }
+  }
+}
+
+function validateGeneratedInteriorObjects(buildings, objects) {
+  const buildingsById = new Map(buildings.map((building) => [building.id, building]));
+  for (const object of objects) {
+    const building = buildingsById.get(object.interiorBuildingId);
+    const contract = building ? readNavigationContract(building.asset) : null;
+    const floorNumber = Number(object.id.match(/-f(\d+)-/)?.[1]);
+    const story = Number.isFinite(floorNumber)
+      ? contract?.stories.find((candidate) => candidate.story_index === floorNumber - 1)
+      : null;
+    if (!building || !contract || !story) {
+      throw new Error(`Unable to validate generated interior object ${object.id}.`);
+    }
+    if (object.interiorStoryIndex !== story.story_index) {
+      throw new Error(`Generated interior object ${object.id} has stale interiorStoryIndex ${object.interiorStoryIndex}; expected ${story.story_index}.`);
+    }
+
+    const nearest = findNearestStoryCellCenter(building, contract, story, object.position);
+    const distance = nearest?.distance ?? Number.POSITIVE_INFINITY;
+    if (distance > 0.01) {
+      throw new Error(`Generated interior object ${object.id} is not on a walkable cell center: distance=${distance.toFixed(3)}.`);
+    }
+    if (nearest && isDoorReservedCell(story, nearest.cell)) {
+      throw new Error(`Generated interior object ${object.id} blocks a door cell ${cellKey(nearest.cell)}.`);
+    }
+  }
+}
+
+function findNearestStoryCellCenter(building, contract, story, position) {
+  let bestMatch = null;
+  for (const cell of story.walkable_cells ?? []) {
+    const center = cellCenter(contract, cell);
+    const world = transformNavigationPointToWorld(building, contract, center[0], story.story_y_m, center[1]);
+    const distance = Math.hypot(world[0] - position[0], world[2] - position[2]);
+    if (!bestMatch || distance < bestMatch.distance) {
+      bestMatch = { cell, distance };
+    }
+  }
+
+  return bestMatch;
 }
 
 function readNavigationContract(asset) {
@@ -444,24 +532,95 @@ function distanceToNearestSelectedCell(cell, selectedCells) {
   return Math.min(...selectedCells.map((selected) => Math.hypot(cell.x - selected.x, cell.z - selected.z)));
 }
 
-function snapLocalPointToWalkableCellCenter(contract, story, x, z) {
-  let bestCell = null;
-  let bestDistanceSq = Number.POSITIVE_INFINITY;
-  for (const cell of story.walkable_cells ?? []) {
+function snapLocalPointToWalkableCellCenter(contract, story, x, z, occupiedCells = new Set(), role = "") {
+  const footprint = getFurnitureFootprint(role);
+  const candidates = (story.walkable_cells ?? []).map((cell) => {
     const center = cellCenter(contract, cell);
-    const distanceSq = (center[0] - x) ** 2 + (center[1] - z) ** 2;
-    if (distanceSq < bestDistanceSq) {
-      bestCell = cell;
-      bestDistanceSq = distanceSq;
-    }
+    return {
+      cell,
+      center,
+      distanceSq: (center[0] - x) ** 2 + (center[1] - z) ** 2,
+      safetyScore: scoreFurnishingCell(story, cell, footprint)
+    };
+  });
+
+  const best = selectFurnishingCandidate(candidates, (candidate) => {
+    return !occupiedCells.has(cellKey(candidate.cell)) && isPreferredFurnishingCell(story, candidate.cell, footprint);
+  }) ?? selectFurnishingCandidate(candidates, (candidate) => {
+    return !occupiedCells.has(cellKey(candidate.cell)) && !isDoorReservedCell(story, candidate.cell);
+  }) ?? selectFurnishingCandidate(candidates, (candidate) => !isDoorReservedCell(story, candidate.cell));
+
+  if (!best) {
+    throw new Error(`Story ${story.story_index} has no non-door walkable cells.`);
   }
 
-  if (!bestCell) {
-    throw new Error(`Story ${story.story_index} has no walkable cells.`);
+  return { x: best.center[0], z: best.center[1], cell: best.cell };
+}
+
+function selectFurnishingCandidate(candidates, predicate) {
+  return candidates
+    .filter(predicate)
+    .sort((left, right) => left.distanceSq - right.distanceSq || right.safetyScore - left.safetyScore || cellKey(left.cell).localeCompare(cellKey(right.cell)))[0] ?? null;
+}
+
+function getFurnitureFootprint(role) {
+  if (DECOR_FURNITURE_ROLES.has(role)) {
+    return "decor";
   }
 
-  const center = cellCenter(contract, bestCell);
-  return { x: center[0], z: center[1] };
+  return LARGE_FURNITURE_ROLES.has(role) ? "large" : "small";
+}
+
+function isPreferredFurnishingCell(story, cell, footprint) {
+  if (isDoorReservedCell(story, cell)) {
+    return false;
+  }
+
+  const openNeighborCount = countOpenNeighbors(story, cell);
+  const doorDistance = distanceToNearestDoorCell(story, cell);
+  if (footprint === "large") {
+    return openNeighborCount >= 3 && doorDistance >= 2;
+  }
+
+  if (footprint === "small") {
+    return openNeighborCount >= 2 && doorDistance >= 1;
+  }
+
+  return doorDistance >= 1;
+}
+
+function scoreFurnishingCell(story, cell, footprint) {
+  return countOpenNeighbors(story, cell) * 100 + Math.min(4, distanceToNearestDoorCell(story, cell)) * (footprint === "large" ? 20 : 8);
+}
+
+function countOpenNeighbors(story, cell) {
+  const cellSet = new Set((story.walkable_cells ?? []).map(cellKey));
+  const barrierEdges = resolveBarrierEdges(story);
+  return cardinalNeighbors(cell).filter((neighbor) => {
+    return cellSet.has(cellKey(neighbor)) && !barrierEdges.has(edgeKey(cell, neighbor));
+  }).length;
+}
+
+function resolveBarrierEdges(story) {
+  return new Set([
+    ...(story.blocked_edges ?? []),
+    ...(story.door_edges ?? [])
+  ].map((edge) => edgeKey(edge.a, edge.b)));
+}
+
+function isDoorReservedCell(story, cell) {
+  const key = cellKey(cell);
+  return (story.door_edges ?? []).some((edge) => cellKey(edge.a) === key || cellKey(edge.b) === key);
+}
+
+function distanceToNearestDoorCell(story, cell) {
+  let bestDistance = Number.POSITIVE_INFINITY;
+  for (const edge of story.door_edges ?? []) {
+    bestDistance = Math.min(bestDistance, Math.hypot(edge.a.x - cell.x, edge.a.z - cell.z));
+    bestDistance = Math.min(bestDistance, Math.hypot(edge.b.x - cell.x, edge.b.z - cell.z));
+  }
+
+  return Number.isFinite(bestDistance) ? bestDistance : 99;
 }
 
 function cellCenter(contract, cell) {

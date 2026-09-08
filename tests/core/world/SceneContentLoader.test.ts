@@ -118,6 +118,7 @@ function testSceneDescriptorPreservesInteriorBuildingOwnership(): void {
       type: "interior",
       asset: "assets/models/interior/Chair/Chair_1.glb",
       interiorBuildingId: "building-villa-001",
+      interiorStoryIndex: 1,
       position: [1, 0, 1],
       rotation: [0, 0, 0],
       scale: [0.5, 0.5, 0.5]
@@ -128,6 +129,7 @@ function testSceneDescriptorPreservesInteriorBuildingOwnership(): void {
     descriptor.objects[0]?.interiorBuildingId === "building-villa-001",
     "Expected parsed interior descriptor to preserve its building owner."
   );
+  assert(descriptor.objects[0]?.interiorStoryIndex === 1, "Expected parsed interior descriptor to preserve its story index.");
 }
 
 function testRuntimeBuildingPreparationKeepsNavigationPickableAndFreezesStaticTransforms(): void {

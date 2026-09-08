@@ -13,6 +13,7 @@ export interface EdisonInteriorEditState {
 export interface EdisonInteriorEditableObject {
   readonly type: string;
   readonly interiorBuildingId?: string;
+  readonly interiorStoryIndex?: number;
   readonly position: readonly [number, number, number];
 }
 
@@ -114,6 +115,10 @@ export class EdisonInteriorEditService {
   }
 
   private isObjectOnActiveStory(object: EdisonInteriorEditableObject, state: EdisonInteriorEditState): boolean {
+    if (Number.isFinite(object.interiorStoryIndex)) {
+      return object.interiorStoryIndex === state.activeStoryIndex;
+    }
+
     const floors = [...state.floors].sort((left, right) => left.worldY - right.worldY);
     const floorIndex = floors.findIndex((floor) => floor.storyIndex === state.activeStoryIndex);
     const floor = floors[floorIndex];

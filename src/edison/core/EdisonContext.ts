@@ -2,6 +2,7 @@ import type { EdisonCommandRegistry } from "./EdisonCommandRegistry";
 import type { EdisonConnectedObjectService } from "./EdisonConnectedObjectService";
 import type { EdisonEventBus } from "./EdisonEventBus";
 import type { EdisonInteriorEditService } from "./EdisonInteriorEditService";
+import type { EdisonInteriorMagicFillService } from "./EdisonInteriorMagicFillService";
 import type { EdisonObjectRegistry } from "./EdisonObjectRegistry";
 import type { EdisonPlacementService } from "./EdisonPlacementService";
 import type { EdisonPreferencesService } from "./EdisonPreferencesService";
@@ -19,6 +20,7 @@ export interface EdisonPluginContext {
   readonly commands: EdisonCommandRegistry;
   readonly connectedObjects: EdisonConnectedObjectService;
   readonly interiorEdit: EdisonInteriorEditService;
+  readonly interiorMagicFill: EdisonInteriorMagicFillService;
   readonly toolbar: EdisonToolbarRegistry;
   readonly panels: EdisonPanelRegistry;
   readonly tools: EdisonToolRegistry;

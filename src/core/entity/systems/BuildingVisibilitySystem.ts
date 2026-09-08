@@ -1,6 +1,7 @@
 import {
   AbstractMesh,
   InstancedMesh,
+  TransformNode,
   Vector3,
   type Scene as BabylonScene,
   type Node,
@@ -18,12 +19,14 @@ import {
   type BuildingVisibilityBuildingRecord,
 } from "../../scene/visibility/BuildingVisibilityRegistry";
 import type { BuildingVisibilityMeshRecord } from "../../scene/visibility/BuildingVisibilityMetadata";
+import { RUNTIME_INTERIOR_STORY_CULLED_METADATA_KEY } from "../../scene/visibility/SceneObjectVisibilityController";
 import {
   installWallHaloMaterial,
   updateWallHaloPlugins,
   type WallHaloMaterialBinding,
   type WallHaloSettings,
 } from "../../scene/visibility/WallHaloMaterialPlugin";
+import type { ImportedSceneObjectContent } from "../../world/scene/SceneContentLoader";
 
 interface HiddenMeshState {
   readonly isPickable: boolean;
@@ -44,6 +47,11 @@ interface DistanceHiddenMeshState {
 
 interface ShadowProxyHiddenMeshState extends DistanceHiddenMeshState {
   readonly layerMask: number;
+}
+
+interface InteriorStoryHiddenRootState {
+  readonly root: TransformNode;
+  readonly isEnabled: boolean;
 }
 
 interface HaloMaterialTargetState {
@@ -73,6 +81,7 @@ export class BuildingVisibilitySystem implements System {
   private readonly distanceHiddenMeshStates: Map<number, DistanceHiddenMeshState>;
   private readonly lodHiddenMeshStates: Map<number, DistanceHiddenMeshState>;
   private readonly shadowProxyHiddenMeshStates: Map<number, ShadowProxyHiddenMeshState>;
+  private readonly interiorStoryHiddenRootStates: Map<number, InteriorStoryHiddenRootState>;
   private readonly interiorVisibilityByBuilding: Map<string, boolean>;
   private readonly fullLodVisibilityByBuilding: Map<string, boolean>;
   private readonly haloMaterialBindings: Map<number, HaloMaterialTargetState>;
@@ -103,6 +112,7 @@ export class BuildingVisibilitySystem implements System {
     this.distanceHiddenMeshStates = new Map();
     this.lodHiddenMeshStates = new Map();
     this.shadowProxyHiddenMeshStates = new Map();
+    this.interiorStoryHiddenRootStates = new Map();
     this.interiorVisibilityByBuilding = new Map();
     this.fullLodVisibilityByBuilding = new Map();
     this.haloMaterialBindings = new Map();
@@ -137,6 +147,7 @@ export class BuildingVisibilitySystem implements System {
     this.restoreHiddenMeshes();
     this.restoreLodHiddenMeshes();
     this.restoreShadowProxyHiddenMeshes();
+    this.restoreInteriorStoryHiddenRoots();
     this.restoreDistanceHiddenMeshes();
     this.restoreHaloMaterials();
     this.registry.rebuild([]);
@@ -208,8 +219,12 @@ export class BuildingVisibilitySystem implements System {
         new Set(playerBuildingStates.map((state) => state.building.buildingId)),
       )
       : false;
+    const interiorSceneObjectVisibilityChanged = this.updateInteriorSceneObjectVisibility(
+      context.locationManager.getActiveDistrictSceneObjects(),
+      playerBuildingStates,
+    );
     this.updateUpperMeshVisibility(playerPosition, playerBuildingStates);
-    if (interiorVisibilityChanged || lodVisibilityChanged) {
+    if (interiorVisibilityChanged || lodVisibilityChanged || interiorSceneObjectVisibilityChanged) {
       context.shadowRegistry?.synchronize();
     }
   }
@@ -448,6 +463,127 @@ export class BuildingVisibilitySystem implements System {
         mesh.isPickable = false;
       }
     }
+  }
+
+  private updateInteriorSceneObjectVisibility(
+    sceneObjects: readonly ImportedSceneObjectContent[],
+    playerBuildingStates: readonly PlayerBuildingState[],
+  ): boolean {
+    const activeStoriesByBuilding = new Map<string, Set<number>>();
+    for (const { building, storyIndex } of playerBuildingStates) {
+      const activeStories = activeStoriesByBuilding.get(building.buildingId) ?? new Set<number>();
+      activeStories.add(storyIndex);
+      activeStoriesByBuilding.set(building.buildingId, activeStories);
+    }
+
+    const buildingsById = new Map(this.registeredBuildings.map((building) => [building.buildingId, building]));
+    const rootsToHide = new Set<TransformNode>();
+    for (const sceneObject of sceneObjects) {
+      if (sceneObject.type !== "interior" || sceneObject.root.isDisposed()) {
+        continue;
+      }
+
+      const buildingId = sceneObject.descriptor.interiorBuildingId;
+      const owner = buildingId ? buildingsById.get(buildingId) : null;
+      const storyIndex = owner
+        ? this.resolveInteriorSceneObjectStoryIndex(sceneObject, owner)
+        : this.resolveExplicitInteriorStoryIndex(sceneObject);
+      const activeStories = buildingId ? activeStoriesByBuilding.get(buildingId) : null;
+      if (storyIndex === null || !activeStories?.has(storyIndex)) {
+        rootsToHide.add(sceneObject.root);
+      }
+    }
+
+    return this.applyInteriorStoryHiddenRootSet(rootsToHide);
+  }
+
+  private resolveInteriorSceneObjectStoryIndex(
+    sceneObject: ImportedSceneObjectContent,
+    building: BuildingVisibilityBuildingRecord,
+  ): number | null {
+    const explicitStoryIndex = this.resolveExplicitInteriorStoryIndex(sceneObject);
+    if (explicitStoryIndex !== null) {
+      return explicitStoryIndex;
+    }
+
+    sceneObject.root.computeWorldMatrix(true);
+    const objectPosition = sceneObject.root.getAbsolutePosition();
+    const volumeStoryCandidates = building.insideVolumes
+      .filter((record) => containsPointInBounds(record.bounds, objectPosition, true))
+      .map((record) => record.storyIndex);
+    if (volumeStoryCandidates.length > 0) {
+      return Math.max(...volumeStoryCandidates);
+    }
+
+    const containingStoryCandidates: number[] = [];
+    let highestStoryBelowObject = Number.NEGATIVE_INFINITY;
+    for (const [storyIndex, bounds] of building.storyBoundsByStory) {
+      if (objectPosition.y >= bounds.min.y - STORY_EPSILON) {
+        highestStoryBelowObject = Math.max(highestStoryBelowObject, storyIndex);
+      }
+
+      if (
+        objectPosition.y >= bounds.min.y - STORY_EPSILON &&
+        objectPosition.y <= bounds.max.y + STORY_HEIGHT_EPSILON
+      ) {
+        containingStoryCandidates.push(storyIndex);
+      }
+    }
+
+    if (containingStoryCandidates.length > 0) {
+      return Math.max(...containingStoryCandidates);
+    }
+
+    return Number.isFinite(highestStoryBelowObject) ? highestStoryBelowObject : null;
+  }
+
+  private resolveExplicitInteriorStoryIndex(sceneObject: ImportedSceneObjectContent): number | null {
+    const storyIndex = sceneObject.descriptor.interiorStoryIndex;
+    return isFiniteNumber(storyIndex) ? storyIndex : null;
+  }
+
+  private applyInteriorStoryHiddenRootSet(rootsToHide: ReadonlySet<TransformNode>): boolean {
+    let changed = false;
+
+    for (const [rootId, state] of this.interiorStoryHiddenRootStates) {
+      const { root } = state;
+      if (root.isDisposed()) {
+        this.interiorStoryHiddenRootStates.delete(rootId);
+        continue;
+      }
+
+      if (rootsToHide.has(root)) {
+        continue;
+      }
+
+      this.setRuntimeInteriorStoryCulled(root, false);
+      if (root.isEnabled(false) !== state.isEnabled) {
+        changed = true;
+      }
+      root.setEnabled(state.isEnabled);
+      this.interiorStoryHiddenRootStates.delete(rootId);
+    }
+
+    for (const root of rootsToHide) {
+      if (root.isDisposed()) {
+        continue;
+      }
+
+      if (!this.interiorStoryHiddenRootStates.has(root.uniqueId)) {
+        this.interiorStoryHiddenRootStates.set(root.uniqueId, {
+          root,
+          isEnabled: root.isEnabled(false),
+        });
+      }
+
+      this.setRuntimeInteriorStoryCulled(root, true);
+      if (root.isEnabled(false)) {
+        changed = true;
+      }
+      root.setEnabled(false);
+    }
+
+    return changed;
   }
 
   private updateLodVisibility(
@@ -802,6 +938,20 @@ export class BuildingVisibilitySystem implements System {
     this.shadowProxyHiddenMeshStates.clear();
   }
 
+  private restoreInteriorStoryHiddenRoots(): void {
+    for (const state of this.interiorStoryHiddenRootStates.values()) {
+      const { root } = state;
+      if (root.isDisposed()) {
+        continue;
+      }
+
+      this.setRuntimeInteriorStoryCulled(root, false);
+      root.setEnabled(state.isEnabled);
+    }
+
+    this.interiorStoryHiddenRootStates.clear();
+  }
+
   private restoreHaloMaterials(): void {
     const bindings = new Set<WallHaloMaterialBinding>();
     for (const target of this.haloMaterialBindings.values()) {
@@ -951,6 +1101,18 @@ export class BuildingVisibilitySystem implements System {
     }
 
     return this.scene.meshes.find((mesh) => mesh.uniqueId === uniqueId) ?? null;
+  }
+
+  private setRuntimeInteriorStoryCulled(root: TransformNode, culled: boolean): void {
+    const metadata = root.metadata && typeof root.metadata === "object"
+      ? root.metadata as Record<string, unknown>
+      : {};
+    if (culled) {
+      metadata[RUNTIME_INTERIOR_STORY_CULLED_METADATA_KEY] = true;
+    } else {
+      delete metadata[RUNTIME_INTERIOR_STORY_CULLED_METADATA_KEY];
+    }
+    root.metadata = metadata;
   }
 
   private resolveLocalPlayerEntity(): Entity | null {

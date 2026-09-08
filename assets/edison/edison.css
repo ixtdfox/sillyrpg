@@ -130,10 +130,18 @@
   color: #FFF0C2;
   background: #21304A;
 }
+.edison-button-primary {
+  border-color: #F7B84B;
+  color: #101726;
+  background: #F7B84B;
+}
 .edison-button:hover:not(:disabled),
 .edison-tool-button:hover {
   border-color: #F7B84B;
   background: #182A45;
+}
+.edison-button-primary:hover:not(:disabled) {
+  background: #FFD06A;
 }
 .edison-button:disabled {
   color: #68758A;
@@ -466,6 +474,11 @@
   flex-wrap: wrap;
   gap: 6px;
   margin: 10px 0;
+}
+.edison-interior-action-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
 }
 .edison-status {
   grid-row: 3;
