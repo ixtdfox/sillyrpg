@@ -12,13 +12,24 @@ export function createRotateTool(): EdisonTool {
         return false;
       }
 
-      const objectId = context.viewport.pickObjectId(nativeEvent.clientX, nativeEvent.clientY);
+      const objectId = context.interiorEdit.isActive()
+        ? context.viewport.pickObjectId(
+            nativeEvent.clientX,
+            nativeEvent.clientY,
+            (candidateId) => context.interiorEdit.canEditObject(context.scene.getObject(candidateId))
+          )
+        : context.viewport.pickObjectId(nativeEvent.clientX, nativeEvent.clientY);
       if (objectId) {
         context.selection.selectSceneObject(objectId);
       }
       const selectedObjectId = objectId ?? context.selection.getSelectedObjectId();
       if (!selectedObjectId) {
         return false;
+      }
+
+      if (!context.interiorEdit.canEditObject(context.scene.getObject(selectedObjectId))) {
+        context.selection.clear();
+        return true;
       }
 
       return context.transforms.beginRotate(

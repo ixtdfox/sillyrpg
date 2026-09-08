@@ -45,6 +45,13 @@ export interface EdisonPlaceableModelAsset {
   readonly defaultScale?: number;
 }
 
+export interface EdisonSceneObjectTransformUpdate {
+  readonly objectId: string;
+  readonly position?: Vector3;
+  readonly rotation?: Vector3;
+  readonly scale?: Vector3;
+}
+
 export class EdisonSceneDocumentService {
   private sceneOptions: readonly EdisonSceneOption[] = [];
   private option: EdisonSceneOption | null = null;
@@ -113,6 +120,10 @@ export class EdisonSceneDocumentService {
     return this.descriptor?.objects.find((object) => object.id === objectId) ?? null;
   }
 
+  public getObjects(): readonly SceneObjectDescriptor[] {
+    return this.descriptor?.objects ?? [];
+  }
+
   public createObjectDescriptorFromModel(
     asset: EdisonPlaceableModelAsset,
     position: Vector3,
@@ -152,31 +163,41 @@ export class EdisonSceneDocumentService {
     },
     markDirty = true
   ): SceneObjectDescriptor | null {
+    return this.updateObjectTransforms([{ objectId, ...transform }], markDirty)[0] ?? null;
+  }
+
+  public updateObjectTransforms(
+    updates: readonly EdisonSceneObjectTransformUpdate[],
+    markDirty = true
+  ): readonly SceneObjectDescriptor[] {
     const descriptor = this.requireDescriptor();
-    let updatedObject: SceneObjectDescriptor | null = null;
+    const updatesById = new Map(updates.map((update) => [update.objectId, update]));
+    const updatedObjects: SceneObjectDescriptor[] = [];
 
     this.descriptor = {
       ...descriptor,
       objects: descriptor.objects.map((object) => {
-        if (object.id !== objectId) {
+        const transform = updatesById.get(object.id);
+        if (!transform) {
           return object;
         }
 
-        updatedObject = {
+        const updatedObject = {
           ...object,
           position: transform.position ? this.toTuple(transform.position) : object.position,
           rotation: transform.rotation ? this.toTuple(transform.rotation) : object.rotation,
           scale: transform.scale ? this.toTuple(transform.scale) : object.scale
         };
+        updatedObjects.push(updatedObject);
         return updatedObject;
       })
     };
 
-    if (updatedObject && markDirty) {
+    if (updatedObjects.length > 0 && markDirty) {
       this.markDirty("Object transform changed.");
     }
 
-    return updatedObject;
+    return updatedObjects;
   }
 
   public updateObjectVisual(

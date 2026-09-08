@@ -1,10 +1,11 @@
-import { Vector3 } from "@babylonjs/core";
+import { Matrix, Quaternion, Vector3, type AbstractMesh } from "@babylonjs/core";
 import { RECT_TILE_SIZE, WORLD_GRID_ORIGIN_X, WORLD_GRID_ORIGIN_Z } from "../../core/grid/WorldGridConstants";
 import { EdisonEventBus } from "./EdisonEventBus";
 import { EdisonObjectRegistry } from "./EdisonObjectRegistry";
-import { EdisonSceneDocumentService } from "./EdisonSceneDocumentService";
+import { EdisonSceneDocumentService, type EdisonSceneObjectTransformUpdate } from "./EdisonSceneDocumentService";
 import { EdisonSelectionService } from "./EdisonSelectionService";
 import { EdisonViewportService } from "./EdisonViewportService";
+import type { SceneObjectDescriptor } from "../../core/world/scene/SceneDescriptor";
 
 interface MoveSession {
   readonly pointerId: number;
@@ -21,6 +22,13 @@ interface RotateSession {
   readonly startClientX: number;
   readonly startRotationY: number;
 }
+
+interface BuildingVisualPivot {
+  readonly world: Vector3;
+  readonly local: Vector3;
+}
+
+const ROTATION_PIXELS_PER_QUARTER_TURN = 16;
 
 export class EdisonTransformService {
   private moveSession: MoveSession | null = null;
@@ -54,14 +62,24 @@ export class EdisonTransformService {
     },
     committed: boolean
   ): void {
-    const updated = this.scene.updateObjectTransform(objectId, transform);
+    const object = this.scene.getObject(objectId);
+    if (!object) {
+      return;
+    }
+
+    const updates = this.createTransformUpdates(object, transform);
+    const updatedObjects = this.scene.updateObjectTransforms(updates);
+    const updated = updatedObjects.find((candidate) => candidate.id === objectId);
     if (!updated) {
       return;
     }
 
-    this.objects.updateObjectTransform(updated);
+    for (const updatedObject of updatedObjects) {
+      this.objects.updateObjectTransform(updatedObject);
+      this.events.emit("edison.transform.changed", { objectId: updatedObject.id });
+    }
+
     this.viewport.updateSelectionHighlight(this.selection.getSelection());
-    this.events.emit("edison.transform.changed", { objectId });
     if (committed) {
       this.events.emit("edison.transform.committed", { objectId });
     }
@@ -196,9 +214,8 @@ export class EdisonTransformService {
       return false;
     }
 
-    const pixelsPerQuarterTurn = 42;
     const quarterTurn = Math.PI / 2;
-    const quarterSteps = Math.round((clientX - this.rotateSession.startClientX) / pixelsPerQuarterTurn);
+    const quarterSteps = Math.round((clientX - this.rotateSession.startClientX) / ROTATION_PIXELS_PER_QUARTER_TURN);
     const nextRotationY = this.normalizeQuarterTurn(
       this.normalizeQuarterTurn(this.rotateSession.startRotationY) + quarterSteps * quarterTurn
     );
@@ -232,9 +249,175 @@ export class EdisonTransformService {
     return WORLD_GRID_ORIGIN_Z + Math.round((z - WORLD_GRID_ORIGIN_Z) / RECT_TILE_SIZE) * RECT_TILE_SIZE;
   }
 
+  private createTransformUpdates(
+    object: SceneObjectDescriptor,
+    transform: {
+      readonly position?: Vector3;
+      readonly rotation?: Vector3;
+      readonly scale?: Vector3;
+    }
+  ): readonly EdisonSceneObjectTransformUpdate[] {
+    const primaryUpdate = this.createPrimaryTransformUpdate(object, transform);
+    if (object.type !== "building") {
+      return [primaryUpdate];
+    }
+
+    return [
+      primaryUpdate,
+      ...this.createInteriorFollowerUpdates(object, primaryUpdate, transform)
+    ];
+  }
+
+  private createPrimaryTransformUpdate(
+    object: SceneObjectDescriptor,
+    transform: {
+      readonly position?: Vector3;
+      readonly rotation?: Vector3;
+      readonly scale?: Vector3;
+    }
+  ): EdisonSceneObjectTransformUpdate {
+    if (object.type !== "building" || !transform.rotation) {
+      return { objectId: object.id, ...transform };
+    }
+
+    const pivot = this.resolveObjectVisualPivot(object.id);
+    if (!pivot) {
+      return { objectId: object.id, ...transform };
+    }
+
+    const currentPosition = this.toVector3(object.position);
+    const requestedPosition = transform.position ?? currentPosition;
+    const requestedPositionDelta = requestedPosition.subtract(currentPosition);
+    const targetPivotWorld = pivot.world.add(requestedPositionDelta);
+    const nextOffsetFromOrigin = this.transformLocalOffset(
+      pivot.local,
+      transform.rotation,
+      transform.scale ?? this.toVector3(object.scale)
+    );
+
+    return {
+      objectId: object.id,
+      ...transform,
+      position: targetPivotWorld.subtract(nextOffsetFromOrigin)
+    };
+  }
+
+  private createInteriorFollowerUpdates(
+    building: SceneObjectDescriptor,
+    primaryUpdate: EdisonSceneObjectTransformUpdate,
+    requestedTransform: {
+      readonly position?: Vector3;
+      readonly rotation?: Vector3;
+      readonly scale?: Vector3;
+    }
+  ): readonly EdisonSceneObjectTransformUpdate[] {
+    const currentBuildingPosition = this.toVector3(building.position);
+    const requestedBuildingPosition = requestedTransform.position ?? currentBuildingPosition;
+    const positionDelta = requestedBuildingPosition.subtract(currentBuildingPosition);
+    const currentRotationY = building.rotation[1];
+    const nextRotationY = primaryUpdate.rotation?.y ?? currentRotationY;
+    const rotationDeltaY = nextRotationY - currentRotationY;
+    const hasPositionDelta = positionDelta.lengthSquared() > 0.000001;
+    const hasRotationDelta = Math.abs(rotationDeltaY) > 0.000001;
+    if (!hasPositionDelta && !hasRotationDelta) {
+      return [];
+    }
+
+    const pivotWorld = hasRotationDelta
+      ? this.resolveObjectVisualPivot(building.id)?.world ?? currentBuildingPosition
+      : currentBuildingPosition;
+    const targetPivotWorld = pivotWorld.add(positionDelta);
+    const rotationMatrix = Matrix.RotationY(rotationDeltaY);
+    const updates: EdisonSceneObjectTransformUpdate[] = [];
+
+    for (const object of this.scene.getObjects()) {
+      if (object.type !== "interior" || object.interiorBuildingId !== building.id) {
+        continue;
+      }
+
+      const currentPosition = this.toVector3(object.position);
+      const nextPosition = hasRotationDelta
+        ? targetPivotWorld.add(Vector3.TransformCoordinates(currentPosition.subtract(pivotWorld), rotationMatrix))
+        : currentPosition.add(positionDelta);
+      updates.push({
+        objectId: object.id,
+        position: nextPosition,
+        ...(hasRotationDelta
+          ? { rotation: new Vector3(object.rotation[0], this.normalizeFullTurn(object.rotation[1] + rotationDeltaY), object.rotation[2]) }
+          : {})
+      });
+    }
+
+    return updates;
+  }
+
+  private resolveObjectVisualPivot(objectId: string): BuildingVisualPivot | null {
+    const record = this.objects.getObject(objectId);
+    if (!record) {
+      return null;
+    }
+
+    const world = this.resolveMeshesWorldCenter(record.renderableMeshes);
+    if (!world) {
+      return null;
+    }
+
+    record.root.computeWorldMatrix(true);
+    return {
+      world,
+      local: Vector3.TransformCoordinates(world, record.root.getWorldMatrix().clone().invert())
+    };
+  }
+
+  private resolveMeshesWorldCenter(meshes: readonly AbstractMesh[]): Vector3 | null {
+    if (meshes.length === 0) {
+      return null;
+    }
+
+    let minX = Number.POSITIVE_INFINITY;
+    let minY = Number.POSITIVE_INFINITY;
+    let minZ = Number.POSITIVE_INFINITY;
+    let maxX = Number.NEGATIVE_INFINITY;
+    let maxY = Number.NEGATIVE_INFINITY;
+    let maxZ = Number.NEGATIVE_INFINITY;
+
+    for (const mesh of meshes) {
+      mesh.computeWorldMatrix(true);
+      const bounds = mesh.getBoundingInfo().boundingBox;
+      minX = Math.min(minX, bounds.minimumWorld.x);
+      minY = Math.min(minY, bounds.minimumWorld.y);
+      minZ = Math.min(minZ, bounds.minimumWorld.z);
+      maxX = Math.max(maxX, bounds.maximumWorld.x);
+      maxY = Math.max(maxY, bounds.maximumWorld.y);
+      maxZ = Math.max(maxZ, bounds.maximumWorld.z);
+    }
+
+    if (![minX, minY, minZ, maxX, maxY, maxZ].every(Number.isFinite)) {
+      return null;
+    }
+
+    return new Vector3((minX + maxX) * 0.5, (minY + maxY) * 0.5, (minZ + maxZ) * 0.5);
+  }
+
+  private transformLocalOffset(localPoint: Vector3, rotation: Vector3, scale: Vector3): Vector3 {
+    return Vector3.TransformCoordinates(
+      localPoint,
+      Matrix.Compose(scale, Quaternion.FromEulerAngles(rotation.x, rotation.y, rotation.z), Vector3.Zero())
+    );
+  }
+
+  private toVector3(value: readonly [number, number, number]): Vector3 {
+    return new Vector3(value[0], value[1], value[2]);
+  }
+
   private normalizeQuarterTurn(value: number): number {
     const fullTurn = Math.PI * 2;
     const normalized = ((value % fullTurn) + fullTurn) % fullTurn;
     return Math.round(normalized / (Math.PI / 2)) * (Math.PI / 2);
+  }
+
+  private normalizeFullTurn(value: number): number {
+    const fullTurn = Math.PI * 2;
+    return ((value % fullTurn) + fullTurn) % fullTurn;
   }
 }

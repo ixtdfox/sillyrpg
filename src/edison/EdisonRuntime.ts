@@ -55,7 +55,25 @@ export class EdisonRuntime {
   private placementUpdateRequest = 0;
 
   private readonly onKeyDown = (event: KeyboardEvent): void => {
-    if (event.code !== "Delete" || this.isEditingText(event.target)) {
+    if (this.isEditingText(event.target)) {
+      return;
+    }
+
+    if (!event.altKey && !event.ctrlKey && !event.metaKey) {
+      if (event.code === "KeyM") {
+        this.activateToolFromHotkey("move", "Move tool selected.");
+        event.preventDefault();
+        return;
+      }
+
+      if (event.code === "KeyR") {
+        this.activateToolFromHotkey("rotate", "Rotate tool selected.");
+        event.preventDefault();
+        return;
+      }
+    }
+
+    if (event.code !== "Delete") {
       return;
     }
 
@@ -343,6 +361,16 @@ export class EdisonRuntime {
 
   private applyToolCursor(): void {
     this.canvas.style.cursor = this.placement.getSelectedAsset() ? "crosshair" : this.tools.getActiveTool()?.cursor ?? "default";
+  }
+
+  private activateToolFromHotkey(toolId: string, message: string): void {
+    try {
+      this.placement.clear();
+      this.tools.setActiveTool(toolId);
+      this.events.emit("edison.message", { text: message });
+    } catch (error) {
+      this.events.emit("edison.message", { text: error instanceof Error ? error.message : String(error) });
+    }
   }
 
   private async placeDroppedModel(

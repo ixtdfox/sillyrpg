@@ -116,6 +116,12 @@ export class BuiltinCorePlugin implements EdisonPlugin {
         }
       }),
       context.commands.register({
+        id: "edison.toggleInteriorEdit",
+        title: "Edit Interior",
+        execute: () => this.toggleInteriorEdit(context),
+        isEnabled: () => context.interiorEdit.isActive() || this.getSelectedBuildingId(context) !== null
+      }),
+      context.commands.register({
         id: "edison.openPluginManager",
         title: "Plugin Manager",
         execute: () => {
@@ -181,7 +187,14 @@ export class BuiltinCorePlugin implements EdisonPlugin {
   }
 
   private registerToolbar(context: EdisonPluginContext): void {
-    void context;
+    this.disposers.push(
+      context.toolbar.registerButton({
+        id: "edison.interiorEdit",
+        title: "Edit Interior",
+        order: 10,
+        commandId: "edison.toggleInteriorEdit"
+      })
+    );
   }
 
   private registerTools(context: EdisonPluginContext): void {
@@ -233,5 +246,37 @@ export class BuiltinCorePlugin implements EdisonPlugin {
         models.dispose();
       }
     );
+  }
+
+  private toggleInteriorEdit(context: EdisonPluginContext): void {
+    const state = context.interiorEdit.getState();
+    if (state) {
+      context.interiorEdit.exit();
+      context.events.emit("edison.message", { text: "Interior edit mode disabled." });
+      return;
+    }
+
+    const buildingId = this.getSelectedBuildingId(context);
+    if (!buildingId) {
+      return;
+    }
+
+    const floors = context.viewport.getInteriorEditFloors(buildingId);
+    if (floors.length === 0) {
+      context.events.emit("edison.message", { text: "Selected building has no editable floor metadata." });
+      return;
+    }
+
+    context.interiorEdit.enterBuilding(buildingId, floors);
+    context.events.emit("edison.message", { text: `Interior edit mode: ${buildingId}.` });
+  }
+
+  private getSelectedBuildingId(context: EdisonPluginContext): string | null {
+    const objectId = context.selection.getSelectedObjectId();
+    if (!objectId) {
+      return null;
+    }
+
+    return context.scene.getObject(objectId)?.type === "building" ? objectId : null;
   }
 }

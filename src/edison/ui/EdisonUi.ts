@@ -489,6 +489,10 @@ export class EdisonUi {
       return context.viewport.getAxesVisible();
     }
 
+    if (commandId === "edison.toggleInteriorEdit") {
+      return context.interiorEdit.isActive();
+    }
+
     return false;
   }
 }
