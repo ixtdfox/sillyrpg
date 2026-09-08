@@ -1,0 +1,29 @@
+name: Deploy SillyRPG
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: sillyrpg-deploy
+    steps:
+      - name: Build and deploy
+        run: |
+          set -eu
+
+          workspace="${GITHUB_WORKSPACE:-$PWD}"
+          rm -rf "$workspace/src"
+
+          git clone http://127.0.0.1:3000/admin/sillyrpg.git "$workspace/src"
+          cd "$workspace/src"
+          git checkout "${GITHUB_SHA:-main}"
+
+          npm ci
+          npm run build
+
+          rsync -az --delete \
+            -e "ssh -i /root/.ssh/sillyrpg_deploy -o BatchMode=yes -o StrictHostKeyChecking=accept-new" \
+            dist/ root@192.168.1.125:/opt/sillyrpg/www/
