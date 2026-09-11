@@ -26,12 +26,12 @@ async function handleRequest(request, response) {
   const method = request.method ?? "GET";
 
   if (url.pathname === "/__editor/scene/assets") {
-    await handleEditorSceneAssets(request, response, method);
+    await handleEdisonSceneAssets(request, response, method);
     return;
   }
 
   if (url.pathname === "/__editor/scene") {
-    await handleEditorScene(request, response, method);
+    await handleEdisonScene(request, response, method);
     return;
   }
 
@@ -52,7 +52,7 @@ async function handleRequest(request, response) {
   await serveStatic(url.pathname, response, method === "HEAD");
 }
 
-async function handleEditorScene(request, response, method) {
+async function handleEdisonScene(request, response, method) {
   if (method !== "POST") {
     throw new HttpError(405, "Only POST /__editor/scene is supported.");
   }
@@ -76,7 +76,7 @@ async function handleEditorScene(request, response, method) {
   });
 }
 
-async function handleEditorSceneAssets(request, response, method) {
+async function handleEdisonSceneAssets(request, response, method) {
   if (method !== "POST") {
     throw new HttpError(405, "Only POST /__editor/scene/assets is supported.");
   }
@@ -209,7 +209,7 @@ async function writeGeneratedAssets(assets) {
     const assetPath = validateGeneratedTerrainAssetPath(asset.path);
     const outputPath = resolveWritablePath(DATA_ROOT, assetPath);
     await mkdir(path.dirname(outputPath), { recursive: true });
-    await writeFile(outputPath, decodeEditorAssetData(asset));
+    await writeFile(outputPath, decodeEdisonAssetData(asset));
   }
 }
 
@@ -301,7 +301,7 @@ function parseAssetPayloads(value) {
   });
 }
 
-function decodeEditorAssetData(asset) {
+function decodeEdisonAssetData(asset) {
   if (asset.encoding === "base64") {
     return Buffer.from(asset.data, "base64");
   }

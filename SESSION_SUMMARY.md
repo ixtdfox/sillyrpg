@@ -47,7 +47,7 @@
 
 - `npm run build`
 - `npm run test:terrain-object-snap`
-- `npm run test:editor-placement-service`
+- `npm run test:edison-placement-service`
 - `npm run test:connected-object-resolver`
 - `npm run test:terrain-height-field-fitter`
 - `git diff --check`
@@ -66,4 +66,4 @@
 - `assets/data/scenes/port-main/0_0.json`
 - `assets/models/connected/`
 
-Изменения относятся к Edison. Legacy editor отдельно не подключался.
+Изменения относятся к Edison. Legacy editor удалён как отдельный runtime/editor package.

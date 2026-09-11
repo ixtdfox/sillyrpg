@@ -1,12 +1,12 @@
 import { normalizeAssetPath } from "../../../core/model/SceneAssetPath";
 import type { SceneGeneratedTerrainEditedTextureMap, SceneVector2Tuple } from "../../../core/world/scene/SceneDescriptor";
-import { TerrainSplatMap } from "../editing/TerrainSplatMap";
-import type { TerrainTextureLayerDescriptor } from "../editing/TerrainTextureLayer";
-import type { EditorSceneSaveAsset } from "../../state/EditorScenePersistence";
+import type { EdisonSaveAsset } from "../../core/EdisonPersistenceService";
+import { TerrainSplatMap } from "./TerrainSplatMap";
+import type { TerrainTextureLayerDescriptor } from "./TerrainTextureLayer";
 
 export interface SerializedTerrainTextureMapResult {
   readonly editedTextureMap: SceneGeneratedTerrainEditedTextureMap;
-  readonly assets: readonly EditorSceneSaveAsset[];
+  readonly assets: readonly EdisonSaveAsset[];
 }
 
 export interface LoadedTerrainTextureMapResult {
@@ -19,7 +19,7 @@ export function assertSplatChunksContainPaintWeights(chunks: readonly Uint8Array
   }
 }
 
-export class EditorTerrainTextureMapPersistence {
+export class EdisonTerrainTextureMapPersistence {
   public async serialize(input: {
     readonly sceneId: string;
     readonly terrainId: string;
@@ -35,7 +35,7 @@ export class EditorTerrainTextureMapPersistence {
     const normalizedSplatMap = input.splatMap.clone();
     normalizeWholeSplatMap(normalizedSplatMap);
 
-    const assets: EditorSceneSaveAsset[] = [];
+    const assets: EdisonSaveAsset[] = [];
     const weightPaths: string[] = [];
     let hasNonZeroChunkByte = false;
     for (let chunkIndex = 0; chunkIndex < input.splatMap.getSplatTextureCount(); chunkIndex += 1) {
@@ -85,7 +85,7 @@ export class EditorTerrainTextureMapPersistence {
     const savedLayerDescriptors = input.editedTextureMap.layers.map((savedLayerId, index) => {
       const availableLayerIndex = input.availableLayers.findIndex((layer) => layer.id === savedLayerId);
       if (availableLayerIndex < 0) {
-        throw new Error(`Saved terrain paint layer '${savedLayerId ?? `#${index}`}' is missing from the editor texture registry.`);
+        throw new Error(`Saved terrain paint layer '${savedLayerId ?? `#${index}`}' is missing from the Edison texture registry.`);
       }
       if (availableLayerIndex >= input.maxPaintableLayerCount) {
         throw new Error(

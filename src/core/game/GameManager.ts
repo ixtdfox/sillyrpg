@@ -440,8 +440,6 @@ export class GameManager {
     switch (state) {
       case GameState.IN_GAME:
         return "game world";
-      case GameState.EDITOR:
-        return "scene editor";
       case GameState.EDISON:
         return "Edison";
       default:

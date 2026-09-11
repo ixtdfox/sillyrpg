@@ -12,6 +12,11 @@ export function runtimeAssetsPlugin(): Plugin {
     configureServer(server) {
       server.watcher.add(ASSETS_ROOT);
       server.middlewares.use(ASSETS_URL_PREFIX, (request, response, next) => {
+        if (isViteModuleRequest(request.url ?? "")) {
+          next();
+          return;
+        }
+
         const assetPath = resolveAssetRequestPath(request.url ?? "");
         if (!assetPath) {
           next();
@@ -60,6 +65,15 @@ function parseAssetRequestPath(rawUrl: string): string | null {
     return decodeURIComponent(pathname).replace(/^\/+/, "").replace(/^assets\//, "");
   } catch {
     return null;
+  }
+}
+
+function isViteModuleRequest(rawUrl: string): boolean {
+  try {
+    const searchParams = new URL(rawUrl, "http://localhost").searchParams;
+    return searchParams.has("import") || searchParams.has("raw");
+  } catch {
+    return false;
   }
 }
 
@@ -115,6 +129,10 @@ function getContentType(filePath: string): string {
       return "model/gltf+json; charset=utf-8";
     case ".js":
       return "text/javascript; charset=utf-8";
+    case ".css":
+      return "text/css; charset=utf-8";
+    case ".svg":
+      return "image/svg+xml; charset=utf-8";
     case ".png":
       return "image/png";
     case ".jpg":

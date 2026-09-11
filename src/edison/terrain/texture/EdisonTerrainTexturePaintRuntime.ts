@@ -1,13 +1,14 @@
 import { Mesh, type Material, type Scene } from "@babylonjs/core";
-import { TerrainSplatMaterialBuilder, type TerrainSplatMaterialRuntime } from "./EditorTerrainSplatMaterialBuilder";
+import type { ImportedSceneTerrainContent } from "../../../core/world/scene/SceneContentLoader";
 import type { TerrainHeightField } from "../../../core/world/terrain/TerrainHeightField";
-import { TerrainSplatMap } from "../editing/TerrainSplatMap";
-import { TerrainTexturePainter, type TerrainTexturePaintResult } from "../editing/TerrainTexturePainter";
-import type { TerrainBrushCenter, TerrainBrushSettings } from "../editing/TerrainBrushTypes";
-import type { TerrainTextureLayerDescriptor } from "../editing/TerrainTextureLayer";
-import type { EditorTerrainInstance } from "../../types";
+import type { TerrainSplatMaterialRuntime } from "./TerrainSplatMaterialBuilder";
+import { TerrainSplatMaterialBuilder } from "./TerrainSplatMaterialBuilder";
+import { TerrainSplatMap } from "./TerrainSplatMap";
+import { TerrainTexturePainter, type TerrainTexturePaintResult } from "./TerrainTexturePainter";
+import type { TerrainBrushCenter, TerrainBrushSettings } from "./TerrainBrushTypes";
+import type { TerrainTextureLayerDescriptor } from "./TerrainTextureLayer";
 
-export class EditorTerrainTexturePaintRuntime {
+export class EdisonTerrainTexturePaintRuntime {
   private readonly scene: Scene;
   private readonly layers: readonly TerrainTextureLayerDescriptor[];
   private readonly materialBuilder: TerrainSplatMaterialBuilder;
@@ -73,12 +74,12 @@ export class EditorTerrainTexturePaintRuntime {
     };
   }
 
-  public resetForTerrain(terrain: EditorTerrainInstance | null, heightField: TerrainHeightField | null): void {
+  public resetForTerrain(terrain: ImportedSceneTerrainContent | null, heightField: TerrainHeightField | null): void {
     this.resetForTerrainWithOptions(terrain, heightField, { allowCreateDefault: true });
   }
 
   public resetForTerrainWithOptions(
-    terrain: EditorTerrainInstance | null,
+    terrain: ImportedSceneTerrainContent | null,
     heightField: TerrainHeightField | null,
     options: {
       readonly initialSplatMap?: TerrainSplatMap | null;

@@ -1,6 +1,7 @@
-import orientationGizmoLinesSvg from "../../../../assets/edison/orientation-gizmo-lines.svg?raw";
 import type { EdisonPluginContext } from "../../plugins/EdisonPlugin";
 import type { EdisonOrientationGizmoAxis } from "../../tools/EditorCameraTool";
+
+const orientationGizmoLinesSvg = `<svg class="edison-orientation-lines" viewBox="0 0 124 124" aria-hidden="true" focusable="false"><line data-gizmo-line="-x" class="edison-gizmo-line edison-gizmo-line-neg" x1="62" y1="62" x2="62" y2="62" /><line data-gizmo-line="-y" class="edison-gizmo-line edison-gizmo-line-neg" x1="62" y1="62" x2="62" y2="62" /><line data-gizmo-line="-z" class="edison-gizmo-line edison-gizmo-line-neg" x1="62" y1="62" x2="62" y2="62" /><line data-gizmo-line="+x" class="edison-gizmo-line edison-gizmo-line-x" x1="62" y1="62" x2="62" y2="62" /><line data-gizmo-line="+y" class="edison-gizmo-line edison-gizmo-line-y" x1="62" y1="62" x2="62" y2="62" /><line data-gizmo-line="+z" class="edison-gizmo-line edison-gizmo-line-z" x1="62" y1="62" x2="62" y2="62" /></svg>`;
 
 export class SceneViewPanel {
   public render(host: HTMLElement, context: EdisonPluginContext): void {

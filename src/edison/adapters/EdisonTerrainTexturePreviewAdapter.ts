@@ -1,18 +1,17 @@
 import type { Scene } from "@babylonjs/core";
 import type { ImportedSceneTerrainContent } from "../../core/world/scene/SceneContentLoader";
-import { EditorTerrainTextureLayerRegistry } from "../../editor/terrain/tools/EditorTerrainTextureLayerRegistry";
-import { EditorTerrainTextureMapPersistence } from "../../editor/terrain/tools/EditorTerrainTextureMapPersistence";
-import { EditorTerrainTexturePaintRuntime } from "../../editor/terrain/tools/EditorTerrainTexturePaintRuntime";
-import type { EditorTerrainInstance } from "../../editor/types";
+import { EdisonTerrainTextureLayerRegistry } from "../terrain/texture/EdisonTerrainTextureLayerRegistry";
+import { EdisonTerrainTextureMapPersistence } from "../terrain/texture/EdisonTerrainTextureMapPersistence";
+import { EdisonTerrainTexturePaintRuntime } from "../terrain/texture/EdisonTerrainTexturePaintRuntime";
 
 export class EdisonTerrainTexturePreviewAdapter {
-  private readonly textureMapPersistence = new EditorTerrainTextureMapPersistence();
-  private readonly textureRuntime: EditorTerrainTexturePaintRuntime;
+  private readonly textureMapPersistence = new EdisonTerrainTextureMapPersistence();
+  private readonly textureRuntime: EdisonTerrainTexturePaintRuntime;
 
   public constructor(scene: Scene) {
-    this.textureRuntime = new EditorTerrainTexturePaintRuntime(
+    this.textureRuntime = new EdisonTerrainTexturePaintRuntime(
       scene,
-      new EditorTerrainTextureLayerRegistry().getLayers()
+      new EdisonTerrainTextureLayerRegistry().getLayers()
     );
   }
 
@@ -38,7 +37,7 @@ export class EdisonTerrainTexturePreviewAdapter {
     }
 
     this.textureRuntime.resetForTerrainWithOptions(
-      terrain as EditorTerrainInstance,
+      terrain,
       terrain.heightField,
       {
         initialSplatMap: loadedTextureMap.splatMap,

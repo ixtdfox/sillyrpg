@@ -3,7 +3,6 @@ export const ui = {
   subtitle: "ГлавноеМеню",
   mainMenuLabel: "ГЛАВНОЕ МЕНЮ",
   newGame: "Новая игра",
-  levelEditor: "Редактор уровней",
   edison: "Edison",
   continueGame: "Продолжить",
   loadGame: "Загрузить игру",

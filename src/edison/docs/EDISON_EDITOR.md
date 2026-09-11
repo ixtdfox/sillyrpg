@@ -1,10 +1,10 @@
 # Edison Editor
 
-Edison is the new editor shell for SillyRPG. It exists next to the legacy `src/editor` package so the old Level Editor can keep working while editor architecture moves toward a smaller core plus plugins.
+Edison is the editor shell for SillyRPG. It is the single editor entry point and keeps editor architecture centered on a smaller core plus plugins.
 
 ## Why Edison Exists
 
-The legacy editor grew around concrete workflows: terrain generation, terrain painting, building browsing, lighting controls, scene persistence, selection, and viewport code all live close together. Edison starts from the opposite boundary:
+The previous editor grew around concrete workflows: terrain generation, terrain painting, building browsing, lighting controls, scene persistence, selection, and viewport code all lived close together. Edison starts from the opposite boundary:
 
 - Edison owns the editor window, viewport, selection, commands, tools, panels, and plugin registration API.
 - Domain tools such as terrain generation, terrain painting, building browsing, prop browsing, and lighting authoring belong in plugins.

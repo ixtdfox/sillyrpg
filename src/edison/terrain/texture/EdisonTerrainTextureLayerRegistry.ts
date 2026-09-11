@@ -1,4 +1,4 @@
-import type { TerrainTextureLayerDescriptor } from "../editing/TerrainTextureLayer";
+import type { TerrainTextureLayerDescriptor } from "./TerrainTextureLayer";
 
 const terrainTextureModules = import.meta.glob<string>("../../../../assets/textures/terrain/*.png", {
   eager: true,
@@ -6,7 +6,7 @@ const terrainTextureModules = import.meta.glob<string>("../../../../assets/textu
   import: "default"
 });
 
-export class EditorTerrainTextureLayerRegistry {
+export class EdisonTerrainTextureLayerRegistry {
   public getLayers(): readonly TerrainTextureLayerDescriptor[] {
     return Object.entries(terrainTextureModules)
       .map(([path, url]) => {

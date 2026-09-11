@@ -3,7 +3,6 @@ export const ui = {
   subtitle: "MainMenu",
   mainMenuLabel: "MAIN MENU",
   newGame: "New Game",
-  levelEditor: "Level Editor",
   edison: "Edison",
   continueGame: "Continue",
   loadGame: "Load Game",

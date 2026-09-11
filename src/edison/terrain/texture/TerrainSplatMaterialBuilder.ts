@@ -20,8 +20,8 @@ import {
   ShaderTemplateRenderer,
   type ShaderSourceId
 } from "../../../core/rendering/shaders/ShaderSourceLoader";
-import type { TerrainSplatMap } from "../editing/TerrainSplatMap";
-import type { TerrainTextureLayerDescriptor } from "../editing/TerrainTextureLayer";
+import type { TerrainSplatMap } from "./TerrainSplatMap";
+import type { TerrainTextureLayerDescriptor } from "./TerrainTextureLayer";
 
 const SPLAT_TEXTURE_CHANNEL_COUNT = 4;
 const LAYER_ATLAS_SAMPLER_COUNT = 1;

@@ -1,34 +1,30 @@
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 import type { Plugin } from "vite";
-import {
-  validateEditorSceneDescriptorPath,
-  validateGeneratedTerrainAssetPath
-} from "../src/editor/state/EditorSceneSavePaths";
 
 const SCENES_ROOT = path.resolve(process.cwd(), "assets/data/scenes");
 const GENERATED_TERRAIN_ASSETS_ROOT = path.resolve(process.cwd(), "assets/generated/terrain");
 
-interface EditorSceneAssetPayload {
+interface EdisonSceneAssetPayload {
   readonly path: string;
   readonly encoding: "base64" | "dataUrl";
   readonly mimeType: "image/png";
   readonly data: string;
 }
 
-interface EditorSceneSavePayload {
+interface EdisonSceneSavePayload {
   readonly path: string;
   readonly descriptor: unknown;
-  readonly assets: readonly EditorSceneAssetPayload[];
+  readonly assets: readonly EdisonSceneAssetPayload[];
 }
 
-interface EditorSceneAssetsPayload {
-  readonly assets: readonly EditorSceneAssetPayload[];
+interface EdisonSceneAssetsPayload {
+  readonly assets: readonly EdisonSceneAssetPayload[];
 }
 
-export function editorSceneFsPlugin(): Plugin {
+export function edisonSceneFsPlugin(): Plugin {
   return {
-    name: "editor-scene-fs",
+    name: "edison-scene-fs",
     configureServer(server) {
       server.middlewares.use(async (req, res, next) => {
         if (req.method !== "GET") {
@@ -114,12 +110,12 @@ export function editorSceneFsPlugin(): Plugin {
   };
 }
 
-async function writeGeneratedAssets(assets: readonly EditorSceneAssetPayload[]): Promise<void> {
+async function writeGeneratedAssets(assets: readonly EdisonSceneAssetPayload[]): Promise<void> {
   for (const asset of assets) {
-    const assetPath = validateEditorGeneratedAssetPath(asset.path);
+    const assetPath = validateEdisonGeneratedAssetPath(asset.path);
     const assetAbsolutePath = path.resolve(process.cwd(), assetPath);
     await mkdir(path.dirname(assetAbsolutePath), { recursive: true });
-    await writeFile(assetAbsolutePath, decodeEditorAssetData(asset));
+    await writeFile(assetAbsolutePath, decodeEdisonAssetData(asset));
   }
 }
 
@@ -145,7 +141,7 @@ function countSceneObjects(descriptor: unknown): number {
   return Array.isArray(objects) ? objects.length : 0;
 }
 
-async function readJsonBody(request: NodeJS.ReadableStream): Promise<EditorSceneSavePayload> {
+async function readJsonBody(request: NodeJS.ReadableStream): Promise<EdisonSceneSavePayload> {
   const chunks: Buffer[] = [];
   for await (const chunk of request) {
     chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(String(chunk)));
@@ -165,7 +161,7 @@ async function readJsonBody(request: NodeJS.ReadableStream): Promise<EditorScene
   };
 }
 
-async function readAssetsJsonBody(request: NodeJS.ReadableStream): Promise<EditorSceneAssetsPayload> {
+async function readAssetsJsonBody(request: NodeJS.ReadableStream): Promise<EdisonSceneAssetsPayload> {
   const chunks: Buffer[] = [];
   for await (const chunk of request) {
     chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(String(chunk)));
@@ -179,7 +175,7 @@ async function readAssetsJsonBody(request: NodeJS.ReadableStream): Promise<Edito
 }
 
 export function validateScenePath(scenePath: string): string {
-  const normalized = validateEditorSceneDescriptorPath(scenePath);
+  const normalized = validateEdisonSceneDescriptorPath(scenePath);
 
   const resolved = path.resolve(process.cwd(), normalized);
   if (resolved !== SCENES_ROOT && !resolved.startsWith(`${SCENES_ROOT}${path.sep}`)) {
@@ -189,7 +185,7 @@ export function validateScenePath(scenePath: string): string {
   return normalized;
 }
 
-export function validateEditorGeneratedAssetPath(assetPath: string): string {
+export function validateEdisonGeneratedAssetPath(assetPath: string): string {
   const normalized = validateGeneratedTerrainAssetPath(assetPath);
 
   const resolved = path.resolve(process.cwd(), normalized);
@@ -200,7 +196,7 @@ export function validateEditorGeneratedAssetPath(assetPath: string): string {
   return normalized;
 }
 
-export function decodeEditorAssetData(asset: EditorSceneAssetPayload): Buffer {
+export function decodeEdisonAssetData(asset: EdisonSceneAssetPayload): Buffer {
   if (asset.mimeType !== "image/png") {
     throw new Error("Only image/png generated assets are supported.");
   }
@@ -220,7 +216,7 @@ export function decodeEditorAssetData(asset: EditorSceneAssetPayload): Buffer {
   throw new Error("Generated asset encoding must be 'base64' or 'dataUrl'.");
 }
 
-function parseAssetPayloads(value: unknown): readonly EditorSceneAssetPayload[] {
+function parseAssetPayloads(value: unknown): readonly EdisonSceneAssetPayload[] {
   if (value === undefined) {
     return [];
   }
@@ -254,4 +250,39 @@ function parseAssetPayloads(value: unknown): readonly EditorSceneAssetPayload[] 
       data: record.data
     };
   });
+}
+
+function validateEdisonSceneDescriptorPath(scenePath: string): string {
+  if (scenePath.startsWith("/") || scenePath.startsWith("\\")) {
+    throw new Error("Absolute scene paths are not allowed.");
+  }
+
+  const normalized = scenePath.replace(/\\/g, "/");
+  if (!normalized.startsWith("assets/data/scenes/")) {
+    throw new Error("Scene path must stay under assets/data/scenes.");
+  }
+  if (normalized.includes("..")) {
+    throw new Error("Scene path traversal is not allowed.");
+  }
+
+  return normalized;
+}
+
+function validateGeneratedTerrainAssetPath(assetPath: string): string {
+  if (assetPath.startsWith("/") || assetPath.startsWith("\\")) {
+    throw new Error("Absolute generated asset paths are not allowed.");
+  }
+
+  const normalized = assetPath.replace(/\\/g, "/");
+  if (!normalized.startsWith("assets/generated/terrain/")) {
+    throw new Error("Generated asset path must stay under assets/generated/terrain.");
+  }
+  if (normalized.includes("..")) {
+    throw new Error("Generated asset path traversal is not allowed.");
+  }
+  if (!normalized.endsWith(".png")) {
+    throw new Error("Generated terrain assets must be .png files.");
+  }
+
+  return normalized;
 }

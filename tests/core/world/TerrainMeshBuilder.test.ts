@@ -14,7 +14,6 @@ import {
   TerrainSourceDensityWarningPolicy
 } from "../../../src/core/world/terrain/lod/TerrainQuadtreeLodTypes";
 import type { TerrainQuadtreeLeafSelection, TerrainQuadtreeNode } from "../../../src/core/world/terrain/lod/TerrainQuadtreeLodTypes";
-import { TerrainGeneratorPresetCatalog } from "../../../src/editor/terrain/generation/TerrainGeneratorPresets";
 
 const nativeLodDepthResolver = new TerrainNativeLodDepthResolver();
 const quadtreeLodDescriptorResolver = new TerrainQuadtreeLodDescriptorResolver();
@@ -231,7 +230,6 @@ function run(): void {
   testQuadtreePatchSeamRefinementMatchesSharedEdgeVertices();
   testQuadtreePatchEdgeFansBridgeMixedLodWithoutSkirts();
   testQuadtreePatchMorphsCoarseInteriorHeightTowardFinerEdge();
-  testGeneratedTerrainDefaultResolutionFollowsGridStep();
   testNativeMaxDepthResolvesFromHeightfield();
   testQuadtreeLodHasNoSkirtDepth();
   testQuadtreeSampleStepPolicyTreatsRingStepAsMinimumDecimation();
@@ -747,32 +745,6 @@ function testNativeMaxDepthResolvesFromHeightfield(): void {
   assert(nativeLodDepthResolver.resolve(TerrainHeightField.createFilled(400, 400, 65, 65, 0)) === 6, "65x65 should resolve native max depth 6.");
   assert(nativeLodDepthResolver.resolve(TerrainHeightField.createFilled(400, 400, 257, 257, 0)) === 8, "257x257 should resolve native max depth 8.");
   assert(nativeLodDepthResolver.resolve(TerrainHeightField.createFilled(40, 40, 41, 41, 0)) === 6, "41x41 should allow enough depth to reach native source quads.");
-}
-
-function testGeneratedTerrainDefaultResolutionFollowsGridStep(): void {
-  const presetCatalog = new TerrainGeneratorPresetCatalog();
-  const descriptor = presetCatalog.createDescriptor({
-    presetId: "urban-pad",
-    size: [128, 128]
-  });
-  const explicitResolutionDescriptor = presetCatalog.createDescriptor({
-    presetId: "urban-pad",
-    size: [128, 128],
-    resolution: [65, 65]
-  });
-  const quadSizeX = descriptor.size[0] / (descriptor.resolution[0] - 1);
-  const quadSizeZ = descriptor.size[1] / (descriptor.resolution[1] - 1);
-
-  assert(descriptor.terrainGridStep === 1, "Generated terrain should record the default terrain grid step.");
-  assert(descriptor.resolution[0] === 129, "128m terrain should default to 129 source vertices on X.");
-  assert(descriptor.resolution[1] === 129, "128m terrain should default to 129 source vertices on Z.");
-  assertClose(quadSizeX, 1, "Default generated terrain source quad size X should match grid step.");
-  assertClose(quadSizeZ, 1, "Default generated terrain source quad size Z should match grid step.");
-  assert(
-    explicitResolutionDescriptor.resolution[0] === 65 && explicitResolutionDescriptor.resolution[1] === 65,
-    "Explicit generated terrain resolution should be preserved."
-  );
-  assert(explicitResolutionDescriptor.resolutionMode === "manual", "Explicit generated terrain resolution should select manual mode.");
 }
 
 function testQuadtreeLodHasNoSkirtDepth(): void {
