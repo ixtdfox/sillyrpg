@@ -226,10 +226,11 @@ function run(): void {
   testQuadtreePatchUsesCanonicalNormalsAcrossLodLevels();
   testQuadtreePatchSampleStepOneMatchesCanonicalWindingAndMetadata();
   testQuadtreeSeamResolverDetectsMixedLodNeighbors();
+  testQuadtreeSeamResolverLimitsNeighborLodRatio();
   testQuadtreePatchMeshKeepsLogicalGridAndBuildDiagnostics();
   testQuadtreePatchSeamRefinementMatchesSharedEdgeVertices();
   testQuadtreePatchEdgeFansBridgeMixedLodWithoutSkirts();
-  testQuadtreePatchMorphsCoarseInteriorHeightTowardFinerEdge();
+  testQuadtreePatchPreservesCanonicalHeightsNearFinerEdge();
   testNativeMaxDepthResolvesFromHeightfield();
   testQuadtreeLodHasNoSkirtDepth();
   testQuadtreeSampleStepPolicyTreatsRingStepAsMinimumDecimation();
@@ -520,6 +521,19 @@ function testQuadtreeSeamResolverDetectsMixedLodNeighbors(): void {
   assert(eastSegments[1]?.mode === "none", "South half should remain at the matching neighbor sample step.");
 }
 
+function testQuadtreeSeamResolverLimitsNeighborLodRatio(): void {
+  const resolver = new TerrainQuadtreeLodSeamResolver();
+  const [fineLeaf, middleLeaf, coarseLeaf] = resolver.applySeamCompatibility([
+    createTestLeaf(createTestNode("fine", 0, 0, 8, 8), 1),
+    createTestLeaf(createTestNode("middle", 8, 0, 16, 8), 8),
+    createTestLeaf(createTestNode("coarse", 16, 0, 24, 8), 32)
+  ]);
+
+  assert(fineLeaf?.sampleStep === 1, "Fine leaf should keep its selected sample step.");
+  assert(middleLeaf?.sampleStep === 2, `Middle leaf should be balanced to sampleStep=2, received ${middleLeaf?.sampleStep}.`);
+  assert(coarseLeaf?.sampleStep === 4, `Coarse leaf should be balanced transitively to sampleStep=4, received ${coarseLeaf?.sampleStep}.`);
+}
+
 function testQuadtreePatchSeamRefinementMatchesSharedEdgeVertices(): void {
   const field = createSlopedHeightField(16, 16, 17, 17);
   const root = new TerrainQuadtreeLodBuilder().buildRoot(field, 1);
@@ -694,7 +708,7 @@ function testQuadtreePatchEdgeFansBridgeMixedLodWithoutSkirts(): void {
   assert(Math.min(...edgeFanYValues) === 0 && Math.max(...edgeFanYValues) === 0, "Edge-fan seam geometry should stay on the terrain surface without skirt drop vertices.");
 }
 
-function testQuadtreePatchMorphsCoarseInteriorHeightTowardFinerEdge(): void {
+function testQuadtreePatchPreservesCanonicalHeightsNearFinerEdge(): void {
   const heights = new Float32Array(17 * 17);
   for (let iz = 0; iz < 17; iz += 1) {
     heights[(iz * 17) + 8] = 100;
@@ -716,12 +730,12 @@ function testQuadtreePatchMorphsCoarseInteriorHeightTowardFinerEdge(): void {
   const sampleZ = heightFieldIndexToLocalZ(field, 4);
   const coarseBoundaryHeight = findVertexYAt(coarseGeometry.positions, sharedX, sampleZ);
   const fineBoundaryHeight = findVertexYAt(fineGeometry.positions, sharedX, sampleZ);
-  const morphedInteriorHeight = findVertexYAt(coarseGeometry.positions, interiorX, sampleZ);
+  const coarseInteriorHeight = findVertexYAt(coarseGeometry.positions, interiorX, sampleZ);
 
   assert(coarseBoundaryHeight === 100 && fineBoundaryHeight === 100, "Shared seam boundary should keep exact height on both LODs.");
   assert(
-    morphedInteriorHeight !== null && morphedInteriorHeight > 0 && morphedInteriorHeight < 100,
-    `Coarse interior vertex near a finer seam should morph toward the seam height, received ${morphedInteriorHeight}.`
+    coarseInteriorHeight === 0,
+    `LOD stitching should preserve the canonical interior height instead of deforming the patch, received ${coarseInteriorHeight}.`
   );
 }
 

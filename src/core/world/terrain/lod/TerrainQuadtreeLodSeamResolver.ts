@@ -14,6 +14,8 @@ interface EdgeNeighbor {
   readonly stitchIndices: readonly number[];
 }
 
+const MAX_NEIGHBOR_SAMPLE_STEP_RATIO = 2;
+
 /**
  * Resolves direct quadtree LOD neighbors from the final selected leaf set.
  */
@@ -57,8 +59,9 @@ export class TerrainQuadtreeLodSeamResolver {
   public applySeamCompatibility(
     leaves: readonly TerrainQuadtreeLeafSelection[]
   ): readonly TerrainQuadtreeLeafSelection[] {
-    const seamInfoByLeafKey = this.resolve(leaves);
-    return leaves.map((leaf) => {
+    const balancedLeaves = this.balanceNeighborSampleSteps(leaves);
+    const seamInfoByLeafKey = this.resolve(balancedLeaves);
+    return balancedLeaves.map((leaf) => {
       const seamInfo = seamInfoByLeafKey.get(this.makeLeafKey(leaf)) ?? {};
       return {
         ...leaf,
@@ -66,6 +69,56 @@ export class TerrainQuadtreeLodSeamResolver {
         buildSampleStep: this.resolveBuildSampleStep(leaf, seamInfo)
       };
     });
+  }
+
+  private balanceNeighborSampleSteps(
+    leaves: readonly TerrainQuadtreeLeafSelection[]
+  ): TerrainQuadtreeLeafSelection[] {
+    const balancedLeaves = leaves.map((leaf) => ({
+      ...leaf,
+      sampleStep: Math.max(1, Math.round(leaf.sampleStep))
+    }));
+
+    let changed = true;
+    while (changed) {
+      changed = false;
+      const nextSampleSteps = balancedLeaves.map((leaf) => leaf.sampleStep);
+
+      for (let leafIndex = 0; leafIndex < balancedLeaves.length; leafIndex += 1) {
+        const leaf = balancedLeaves[leafIndex];
+        if (!leaf) {
+          continue;
+        }
+
+        for (let otherIndex = leafIndex + 1; otherIndex < balancedLeaves.length; otherIndex += 1) {
+          const other = balancedLeaves[otherIndex];
+          if (!other || !this.resolveSharedEdge(leaf, other)) {
+            continue;
+          }
+
+          nextSampleSteps[leafIndex] = Math.min(
+            nextSampleSteps[leafIndex] ?? leaf.sampleStep,
+            other.sampleStep * MAX_NEIGHBOR_SAMPLE_STEP_RATIO
+          );
+          nextSampleSteps[otherIndex] = Math.min(
+            nextSampleSteps[otherIndex] ?? other.sampleStep,
+            leaf.sampleStep * MAX_NEIGHBOR_SAMPLE_STEP_RATIO
+          );
+        }
+      }
+
+      for (let leafIndex = 0; leafIndex < balancedLeaves.length; leafIndex += 1) {
+        const leaf = balancedLeaves[leafIndex];
+        const nextSampleStep = nextSampleSteps[leafIndex];
+        if (!leaf || nextSampleStep === undefined || nextSampleStep === leaf.sampleStep) {
+          continue;
+        }
+        balancedLeaves[leafIndex] = { ...leaf, sampleStep: nextSampleStep };
+        changed = true;
+      }
+    }
+
+    return balancedLeaves;
   }
 
   public resolveBuildSampleStep(leaf: TerrainQuadtreeLeafSelection, seamInfo: TerrainPatchSeamInfo): number {
